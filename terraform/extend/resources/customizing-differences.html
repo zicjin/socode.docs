@@ -1,0 +1,48 @@
+ <h1 id="resources-customizing-differences">  Resources - Customizing Differences </h1> <p>Terraform tracks the state of provisioned resources in its state file, and compares the user-passed configuration against that state. When Terraform detects a discrepancy, it presents the user with the differences between the configuration and the state.</p> <p>Sometimes determining the differences between state and configuration requires special handling, which can be managed with the <code>CustomizeDiff</code> function.</p> <p><code>CustomizeDiff</code> is passed a <code>*schema.ResourceDiff</code>. This is a structure similar to <code>schema.ResourceData</code> — it lacks most write functions (like <code>Set</code>), but adds some functions for working with the difference, such as <code>SetNew</code>, <code>SetNewComputed</code>, and <code>ForceNew</code>.</p> <blockquote class="alert alert-warning" role="alert"> <p><strong>NOTE:</strong> <code>CustomizeDiff</code> does not currently support computed/"known after apply" values from other resource attributes.</p> </blockquote> <p>Any function can be provided for difference customization. For the majority of simple cases, we recommend that you first try to compose the behavior using the <a href="https://pkg.go.dev/github.com/hashicorp/terraform-plugin-sdk/helper/customdiff">customdiff</a> helper package, which allows for a more declarative configuration. However, for highly custom requirements, a custom-made function is usually easier and more maintainable than working around the helper's limitations.</p> <pre>package example
+
+import (
+    "fmt"
+
+    "github.com/hashicorp/terraform-plugin-sdk/helper/customdiff"
+    "github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+)
+
+func resourceExampleInstance() *schema.Resource {
+    return &amp;schema.Resource{
+        Create: resourceExampleInstanceCreate,
+        Read:   resourceExampleInstanceRead,
+        Update: resourceExampleInstanceUpdate,
+        Delete: resourceExampleInstanceDelete,
+
+        Schema: map[string]*schema.Schema{
+            "size": {
+                Type:     schema.TypeInt,
+                Required: true,
+            },
+        },
+        CustomizeDiff: customdiff.All(
+            customdiff.ValidateChange("size", func (old, new, meta interface{}) error {
+                // If we are increasing "size" then the new value must be
+                // a multiple of the old value.
+                if new.(int) &lt;= old.(int) {
+                    return nil
+                }
+                if (new.(int) % old.(int)) != 0 {
+                    return fmt.Errorf("new size value must be an integer multiple of old value %d", old.(int))
+                }
+                return nil
+            }),
+            customdiff.ForceNewIfChange("size", func (old, new, meta interface{}) bool {
+                // "size" can only increase in-place, so we must create a new resource
+                // if it is decreased.
+                return new.(int) &lt; old.(int)
+            }),
+       ),
+    }
+}
+</pre>
+<p>In this example we use the helpers to ensure the size can only be increased to multiples of the original size, and that if it is ever decreased it forces a new resource. The <code>customdiff.All</code> helper will run all the customization functions, collecting any errors as a <code>multierror</code>. To have the functions short-circuit on error, please use <code>customdiff.Sequence</code>.</p><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/extend/resources/customizing-differences.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/extend/resources/customizing-differences.html</a>
+  </p>
+</div>

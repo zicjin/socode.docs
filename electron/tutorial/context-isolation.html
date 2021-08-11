@@ -1,0 +1,26 @@
+<h1 id="context-isolation">Context Isolation</h1> <h2 id="what-is-it">What is it?</h2> <p>Context Isolation is a feature that ensures that both your <code>preload</code> scripts and Electron's internal logic run in a separate context to the website you load in a <a href="../api/web-contents"><code>webContents</code></a>. This is important for security purposes as it helps prevent the website from accessing Electron internals or the powerful APIs your preload script has access to.</p> <p>This means that the <code>window</code> object that your preload script has access to is actually a <strong>different</strong> object than the website would have access to. For example, if you set <code>window.hello = 'wave'</code> in your preload script and context isolation is enabled <code>window.hello</code> will be undefined if the website tries to access it.</p> <p>Every single application should have context isolation enabled and from Electron 12 it will be enabled by default.</p> <h2 id="how-do-i-enable-it">How do I enable it?</h2> <p>From Electron 12, it will be enabled by default. For lower versions it is an option in the <code>webPreferences</code> option when constructing <code>new BrowserWindow</code>'s.</p> <pre data-language="javascript">const mainWindow = new BrowserWindow({
+  webPreferences: {
+    contextIsolation: true
+  }
+})
+</pre> <h2 id="migration">Migration</h2> <blockquote> <p>I used to provide APIs from my preload script using <code>window.X = apiObject</code> now what?</p> </blockquote> <p>Exposing APIs from your preload script to the loaded website is a common usecase and there is a dedicated module in Electron to help you do this in a painless way.</p> <p><strong>Before: With context isolation disabled</strong></p> <pre data-language="javascript">window.myAPI = {
+  doAThing: () =&gt; {}
+}
+</pre> <p><strong>After: With context isolation enabled</strong></p> <pre data-language="javascript">const { contextBridge } = require('electron')
+
+contextBridge.exposeInMainWorld('myAPI', {
+  doAThing: () =&gt; {}
+})
+</pre> <p>The <a href="../api/context-bridge"><code>contextBridge</code></a> module can be used to <strong>safely</strong> expose APIs from the isolated context your preload script runs in to the context the website is running in. The API will also be accessible from the website on <code>window.myAPI</code> just like it was before.</p> <p>You should read the <code>contextBridge</code> documentation linked above to fully understand its limitations. For instance you can't send custom prototypes or symbols over the bridge.</p> <h2 id="security-considerations">Security Considerations</h2> <p>Just enabling <code>contextIsolation</code> and using <code>contextBridge</code> does not automatically mean that everything you do is safe. For instance this code is <strong>unsafe</strong>.</p> <pre data-language="javascript">// ❌ Bad code
+contextBridge.exposeInMainWorld('myAPI', {
+  send: ipcRenderer.send
+})
+</pre> <p>It directly exposes a powerful API without any kind of argument filtering. This would allow any website to send arbitrary IPC messages which you do not want to be possible. The correct way to expose IPC-based APIs would instead be to provide one method per IPC message.</p> <pre data-language="javascript">// ✅ Good code
+contextBridge.exposeInMainWorld('myAPI', {
+  loadPreferences: () =&gt; ipcRenderer.invoke('load-prefs')
+})
+</pre><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.electronjs.org/docs/tutorial/context-isolation" class="_attribution-link" target="_blank">https://www.electronjs.org/docs/tutorial/context-isolation</a>
+  </p>
+</div>

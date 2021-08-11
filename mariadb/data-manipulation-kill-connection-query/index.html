@@ -1,0 +1,34 @@
+<h1>KILL [CONNECTION | QUERY]</h1> <div> <div class="node creole"> <div class="answer formatted"> <h2 class="anchored_heading" id="syntax">Syntax</h2> <pre class="fixed" data-language="sql">KILL [HARD | SOFT] [CONNECTION | QUERY [ID] ] [thread_id | USER user_name | query_id]
+</pre>
+<div class="mariadb_10_0_5 mariadb 10_0_5 product">
+<strong class="product_title">MariaDB <a href="https://mariadb.com/kb/en/mariadb-1005-release-notes/">10.0.5</a></strong><p><code>KILL QUERY ID query_id</code>, which permits killing a query by query id rather than thread id, was introduced in <a href="https://mariadb.com/kb/en/mariadb-1005-release-notes/">MariaDB 10.0.5</a>.</p> </div> <h2 class="anchored_heading" id="description">Description</h2> <p>Each connection to mysqld runs in a separate thread. You can see which threads are running with the <code class="fixed" style="white-space:pre-wrap">SHOW PROCESSLIST</code> statement and kill a thread with the <code class="fixed" style="white-space:pre-wrap">KILL thread_id</code> statement. <code class="fixed" style="white-space:pre-wrap">KILL</code> allows the optional <code class="fixed" style="white-space:pre-wrap">CONNECTION</code> or <code class="fixed" style="white-space:pre-wrap">QUERY</code> modifier:</p> <ul start="1">
+<li>
+<code class="fixed" style="white-space:pre-wrap">KILL CONNECTION</code> is the same as <code class="fixed" style="white-space:pre-wrap">KILL</code> with no modifier: It terminates the connection associated with the given thread or query id. </li>
+<li>
+<code class="fixed" style="white-space:pre-wrap">KILL QUERY</code> terminates the statement that the connection thread_id is currently executing, but leaves the connection itself intact. </li>
+<li>
+<code class="fixed" style="white-space:pre-wrap">KILL QUERY ID</code> (introduced in <a href="https://mariadb.com/kb/en/mariadb-1005-release-notes/">MariaDB 10.0.5</a>) terminates the query by query_id, leaving the connection intact. </li>
+</ul> <p>If a connection is terminated that has an active transaction, the transaction will be rolled back. If only a query is killed, the current transaction will stay active. See also <a href="../server-system-variables/index#idle_transaction_timeout">idle_transaction_timeout</a>.</p> <p>If you have the <code><a href="../grant/index#global-privileges">PROCESS</a></code> privilege, you can see all threads. If you have the <code><a href="../grant/index#global-privileges">SUPER</a></code> privilege, you can kill all threads and statements. Otherwise, you can see and kill only your own threads and statements.</p> <div class="cstm-style redbox">
+<p>Killing queries that repair or create indexes on MyISAM and Aria tables may result in corrupted tables. Use the <code>SOFT</code> option to avoid this!</p> </div>
+<p>The <code class="fixed" style="white-space:pre-wrap">HARD</code> option (default) kills a command as soon as possible. If you use <code class="fixed" style="white-space:pre-wrap">SOFT</code>, then critical operations that may leave a table in an inconsistent state will not be interrupted. Such operations include <code>REPAIR</code> and <code>INDEX</code> creation for <a href="../myisam/index">MyISAM</a> and <a href="../aria/index">Aria</a> tables (<a href="../repair-table/index">REPAIR TABLE</a>, <a href="../optimize-table/index">OPTIMIZE TABLE</a>).</p> <p><code class="fixed" style="white-space:pre-wrap">KILL ... USER username</code> will kill all connections/queries for a given user. <code class="fixed" style="white-space:pre-wrap">USER</code> can be specified one of the following ways:</p> <ul start="1">
+<li>username (Kill without regard to hostname) </li>
+<li>username@hostname </li>
+<li>
+<code><a href="../current_user/index">CURRENT_USER</a></code> or <code><a href="../current_user/index">CURRENT_USER()</a></code> </li>
+</ul> <p>If you specify a thread id and that thread does not exist, you get the following error:</p> <pre class="fixed" data-language="sql">ERROR 1094 (HY000): Unknown thread id: &lt;thread_id&gt;
+</pre>
+<p>If you specify a query id that doesn't exist, you get the following error:</p> <pre class="fixed" data-language="sql">ERROR 1957 (HY000): Unknown query id: &lt;query_id&gt;
+</pre>
+<p>However, if you specify a user name, no error is issued for non-connected (or even non-existing) users. To check if the connection/query has been killed, you can use the <a href="../row_count/index">ROW_COUNT()</a> function.</p> <p>A client whose connection is killed receives the following error:</p> <pre class="fixed" data-language="sql">ERROR 1317 (70100): Query execution was interrupted
+</pre>
+<p>To obtain a list of existing sessions, use the <code><a href="../show-processlist/index">SHOW PROCESSLIST</a></code> statement or query the <a href="../information-schema/index">Information Schema</a> <code><a href="../information-schema-processlist-table/index">PROCESSLIST</a></code> table.</p> <p><strong>Note:</strong> You cannot use <code class="fixed" style="white-space:pre-wrap">KILL</code> with the Embedded MySQL Server library because the embedded server merely runs inside the threads of the host application. It does not create any connection threads of its own.</p> <p><strong>Note:</strong> You can also use <code class="fixed" style="white-space:pre-wrap">mysqladmin kill thread_id [,thread_id...]</code> to kill connections. To get a list of running queries, use <code class="fixed" style="white-space:pre-wrap">mysqladmin processlist</code>. See <a href="../mysqladmin/index">mysqladmin</a>.</p> <p><a href="http://www.percona.com/doc/percona-toolkit/">Percona Toolkit</a> contains a program, <a href="http://www.percona.com/doc/percona-toolkit/pt-kill.html">pt-kill</a> that can be used to automatically kill connections that match certain criteria. For example, it can be used to terminate idle connections, or connections that have been busy for more than 60 seconds.</p> <h2 class="anchored_heading" id="see-also">See Also</h2> <ul start="1">
+<li>
+<a href="../query-limits-and-timeouts/index">Query limits and timeouts</a> </li>
+<li>
+<a href="../aborting-statements/index">Aborting statements that exceed a certain time to execute</a> </li>
+<li><a href="../server-system-variables/index#idle_transaction_timeout">idle_transaction_timeout</a></li>
+</ul> </div>     </div> <div id="content_disclaimer" class="graybox"> Content reproduced on this site is the property of its respective owners, and this content is not reviewed in advance by MariaDB. The views, information and opinions expressed by this content do not necessarily represent those of MariaDB or any other party. </div> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://mariadb.com/kb/en/data-manipulation-kill-connection-query/" class="_attribution-link" target="_blank">https://mariadb.com/kb/en/data-manipulation-kill-connection-query/</a>
+  </p>
+</div>

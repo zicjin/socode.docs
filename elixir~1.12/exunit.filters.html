@@ -1,0 +1,54 @@
+<h1> ExUnit.Filters   </h1> <section id="moduledoc"> <p>Conveniences for parsing and evaluating filters.</p> </section> <section id="summary" class="details-list"> <h1 class="section-heading">  Summary </h1> <h2> Types </h2>
+<dl class="summary-types summary">  <div class="summary-row"> <dt class="summary-signature"> <a href="#t:t/0">t()</a> </dt> </div> </dl> <h2> Functions </h2>
+<dl class="summary-functions summary">  <div class="summary-row"> <dt class="summary-signature"> <a href="#eval/4">eval(include, exclude, tags, collection)</a> </dt> <dd class="summary-synopsis"><p>Evaluates the <code class="inline">include</code> and <code class="inline">exclude</code> filters against the given <code class="inline">tags</code> to determine if tests should be skipped or excluded.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#failure_info/1">failure_info(manifest_file)</a> </dt> <dd class="summary-synopsis"><p>Returns a tuple containing useful information about test failures from the manifest. The tuple contains</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#normalize/2">normalize(include, exclude)</a> </dt> <dd class="summary-synopsis"><p>Normalizes <code class="inline">include</code> and <code class="inline">exclude</code> filters to remove duplicates and keep precedence.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#parse/1">parse(filters)</a> </dt> <dd class="summary-synopsis"><p>Parses the given filters, as one would receive from the command line.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#parse_path/1">parse_path(file)</a> </dt> <dd class="summary-synopsis"><p>Parses filters out of a path.</p></dd> </div> </dl> </section> <section id="types" class="details-list"> <h1 class="section-heading">  Types </h1> <div class="types-list"> <section class="detail"> <h3 class="detail-header" id="t:t/0">t()<a href="https://github.com/elixir-lang/elixir/blob/v1.12.0/lib/ex_unit/lib/ex_unit/filters.ex#L8" class="source">Source</a>
+</h3> <section class="docstring"> <h4>Specs</h4> <div class="specs"> <pre data-language="elixir">t() :: [{atom(), Regex.t() | String.Chars.t()} | atom()]</pre> </div> </section> </section> </div> </section> <section id="functions" class="details-list"> <h1 class="section-heading">  Functions </h1> <div class="functions-list"> <section class="detail"> <h3 class="detail-header" id="eval/4">eval(include, exclude, tags, collection)<a href="https://github.com/elixir-lang/elixir/blob/v1.12.0/lib/ex_unit/lib/ex_unit/filters.ex#L178" class="source">Source</a>
+</h3> <section class="docstring"> <h4>Specs</h4> <div class="specs"> <pre data-language="elixir">eval(t(), t(), map(), [ExUnit.Test.t()]) ::
+  :ok | {:excluded, String.t()} | {:skipped, String.t()}</pre> </div> <p>Evaluates the <code class="inline">include</code> and <code class="inline">exclude</code> filters against the given <code class="inline">tags</code> to determine if tests should be skipped or excluded.</p>
+<p>Some filters, like <code class="inline">:line</code>, may require the whole test <code class="inline">collection</code> to find the closest line, that's why it must also be passed as an argument.</p>
+<p>Filters can either be a regular expression or any data structure that implements the <a href="https://hexdocs.pm/elixir/1.12/String.Chars.html"><code class="inline">String.Chars</code></a> protocol, which is invoked before comparing the filter with the <code class="inline">:tag</code> value.</p>
+<h4 id="eval/4-precedence" class="section-heading">  Precedence </h4> <p>Tests are first excluded, then included, and then skipped (if any left).</p>
+<p>If a <code class="inline">:skip</code> tag is found in <code class="inline">tags</code>, <code class="inline">{:skipped, message}</code> is returned if the test has been left after the <code class="inline">exclude</code> and <code class="inline">include</code> filters. Otherwise <code class="inline">{:exclude, message}</code> is returned.</p>
+<p>The only exception to this rule is that <code class="inline">:skip</code> is found in the <code class="inline">include</code> filter, <code class="inline">:ok</code> is returned regardless of whether the test was excluded or not.</p>
+<h4 id="eval/4-examples" class="section-heading">  Examples </h4> <pre data-language="elixir">iex&gt; ExUnit.Filters.eval([foo: "bar"], [:foo], %{foo: "bar"}, [])
+:ok
+
+iex&gt; ExUnit.Filters.eval([foo: "bar"], [:foo], %{foo: "baz"}, [])
+{:excluded, "due to foo filter"}</pre> </section> </section> <section class="detail"> <h3 class="detail-header" id="failure_info/1">failure_info(manifest_file)<a href="https://github.com/elixir-lang/elixir/blob/v1.12.0/lib/ex_unit/lib/ex_unit/filters.ex#L140" class="source">Source</a>
+</h3> <section class="docstring"> <h4>Specs</h4> <div class="specs"> <pre data-language="elixir">failure_info(Path.t()) :: {MapSet.t(Path.t()), MapSet.t(ExUnit.test_id())}</pre> </div> <p>Returns a tuple containing useful information about test failures from the manifest. The tuple contains:</p>
+<ul>
+<li>A set of files that contain tests that failed the last time they ran. The paths are absolute paths.</li>
+<li>A set of test IDs that failed the last time they ran</li>
+</ul> </section> </section> <section class="detail"> <h3 class="detail-header" id="normalize/2">normalize(include, exclude)<a href="https://github.com/elixir-lang/elixir/blob/v1.12.0/lib/ex_unit/lib/ex_unit/filters.ex#L94" class="source">Source</a>
+</h3> <section class="docstring"> <h4>Specs</h4> <div class="specs"> <pre data-language="elixir">normalize(t() | nil, t() | nil) :: {t(), t()}</pre> </div> <p>Normalizes <code class="inline">include</code> and <code class="inline">exclude</code> filters to remove duplicates and keep precedence.</p>
+<h4 id="normalize/2-examples" class="section-heading">  Examples </h4> <pre data-language="elixir">iex&gt; ExUnit.Filters.normalize(nil, nil)
+{[], []}
+
+iex&gt; ExUnit.Filters.normalize([:foo, :bar, :bar], [:foo, :baz])
+{[:foo, :bar], [:baz]}
+
+iex&gt; ExUnit.Filters.normalize([foo: "true"], [:foo])
+{[foo: "true"], [:foo]}
+
+iex&gt; ExUnit.Filters.normalize([:foo], [foo: "true"])
+{[:foo], []}
+
+iex&gt; ExUnit.Filters.normalize([foo: "true"], [foo: true])
+{[foo: "true"], []}
+
+iex&gt; ExUnit.Filters.normalize([foo: true], [foo: "true"])
+{[foo: true], []}
+
+iex&gt; ExUnit.Filters.normalize([foo: 1, foo: 1, foo: 2], [])
+{[foo: 1, foo: 2], []}
+
+iex&gt; ExUnit.Filters.normalize([], [foo: 1, foo: 1, foo: 2])
+{[], [foo: 1, foo: 2]}</pre> </section> </section> <section class="detail"> <h3 class="detail-header" id="parse/1">parse(filters)<a href="https://github.com/elixir-lang/elixir/blob/v1.12.0/lib/ex_unit/lib/ex_unit/filters.ex#L121" class="source">Source</a>
+</h3> <section class="docstring"> <h4>Specs</h4> <div class="specs"> <pre data-language="elixir">parse([String.t()]) :: t()</pre> </div> <p>Parses the given filters, as one would receive from the command line.</p>
+<h4 id="parse/1-examples" class="section-heading">  Examples </h4> <pre data-language="elixir">iex&gt; ExUnit.Filters.parse(["foo:bar", "baz", "line:9", "bool:true"])
+[{:foo, "bar"}, :baz, {:line, "9"}, {:bool, "true"}]</pre> </section> </section> <section class="detail"> <h3 class="detail-header" id="parse_path/1">parse_path(file)<a href="https://github.com/elixir-lang/elixir/blob/v1.12.0/lib/ex_unit/lib/ex_unit/filters.ex#L18" class="source">Source</a>
+</h3> <section class="docstring"> <h4>Specs</h4> <div class="specs"> <pre data-language="elixir">parse_path(String.t()) :: {String.t(), Keyword.t()}</pre> </div> <p>Parses filters out of a path.</p>
+<p>Determines whether a given file path (supplied to ExUnit/Mix as arguments on the command line) includes a line number filter, and if so returns the appropriate ExUnit configuration options.</p> </section> </section> </div> </section><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://hexdocs.pm/ex_unit/1.12.0/ExUnit.Filters.html" class="_attribution-link" target="_blank">https://hexdocs.pm/ex_unit/1.12.0/ExUnit.Filters.html</a>
+  </p>
+</div>

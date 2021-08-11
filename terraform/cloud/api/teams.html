@@ -1,0 +1,246 @@
+ <h1 id="teams-api">  Teams API </h1> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> Team management is a paid feature, available as part of the <strong>Team</strong> upgrade package. <a href="https://www.hashicorp.com/products/terraform/pricing">Learn more about Terraform Cloud pricing here</a>.</p> </blockquote> <p>The Teams API is used to create, edit, and destroy teams as well as manage a team's organization-level permissions. The <a href="team-members">Team Membership API</a> is used to add or remove users from a team. Use the <a href="team-access">Team Access API</a> to associate a team with privileges on an individual workspace.</p> <p>Any member of an organization can view visible teams and any secret teams they are a member of. Only organization owners can modify teams or view the full set of secret teams. The organization token and the owners team token can act as an owner on these endpoints. (<a href="../users-teams-organizations/permissions">More about permissions.</a>)</p> <h2 id="organization-membership">  Organization Membership </h2> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> Users must be invited to join organizations before they can be added to teams. See <a href="organization-memberships">the Organization Memberships API documentation</a> for more information. Invited users who have not yet accepted will not appear in Teams API responses.</p> </blockquote> <h2 id="list-teams">  List teams </h2> <p><code>GET organizations/:organization_name/teams</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:organization_name</code></td> <td>The name of the organization to list teams from.</td> </tr> </tbody>
+</table> <h3 id="query-parameters">  Query Parameters </h3> <p>This endpoint supports pagination <a href="index#query-parameters">with standard URL query parameters</a>; remember to percent-encode <code>[</code> as <code>%5B</code> and <code>]</code> as <code>%5D</code> if your tooling doesn't automatically encode URLs.</p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>page[number]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return the first page.</td> </tr> <tr> <td><code>page[size]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return 20 runs per page.</td> </tr> </tbody>
+</table> <h3 id="sample-request">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request GET \
+  https://app.terraform.io/api/v2/organizations/my-organization/teams
+</pre>
+<h3 id="sample-response">  Sample Response </h3> <pre data-language="json">{
+  "data": [
+    {
+      "id": "team-6p5jTwJQXwqZBncC",
+      "type": "teams",
+      "attributes": {
+        "name": "team-creation-test",
+        "users-count": 0,
+        "visibility": "organization",
+        "permissions": {
+          "can-update-membership": true,
+          "can-destroy": true,
+          "can-update-organization-access": true,
+          "can-update-api-token": true,
+          "can-update-visibility": true
+        },
+        "organization-access": {
+          "manage-policies": true,
+          "manage-policy-overrides": false,
+          "manage-workspaces": false,
+          "manage-vcs-settings": false
+        }
+      },
+      "relationships": {
+        "users": {
+          "data": []
+        },
+        "authentication-token": {
+          "meta": {}
+        }
+      },
+      "links": {
+        "self": "/api/v2/teams/team-6p5jTwJQXwqZBncC"
+      }
+    }
+  ]
+}
+</pre>
+<h2 id="create-a-team">  Create a Team </h2> <p><code>POST /organizations/:organization_name/teams</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:organization_name</code></td> <td>The name of the organization to create the team in. The organization must already exist in the system, and the user must have permissions to create new teams.</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "teams"</code>)</td> <td>Successfully created a team</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400">400</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Invalid <code>include</code> parameter</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Organization not found, or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Malformed request body (missing attributes, wrong types, etc.)</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500">500</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Failure during team creation</td> </tr> </tbody>
+</table> <h3 id="request-body">  Request Body </h3> <p>This POST endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"teams"</code>.</td> </tr> <tr> <td><code>data.attributes.name</code></td> <td>string</td> <td></td> <td>The name of the team, which can only include letters, numbers, <code>-</code>, and <code>_</code>. This will be used as an identifier and must be unique in the organization.</td> </tr> <tr> <td><code>data.attributes.organization-access</code></td> <td>object</td> <td>(nothing)</td> <td>Settings for the team's organization access. This object can include <code>manage-policies</code>, <code>manage-policy-overrides</code>, <code>manage-workspaces</code>, and <code>manage-vcs-settings</code> properties with boolean values. All properties default to <code>false</code>.</td> </tr> <tr> <td>
+<code>data.attributes.visibility</code> <strong>(beta)</strong>
+</td> <td>string</td> <td><code>"secret"</code></td> <td>The team's visibility. Must be <code>"secret"</code> or <code>"organization"</code> (visible).</td> </tr> </tbody>
+</table> <h3 id="sample-payload">  Sample Payload </h3> <pre data-language="json">{
+  "data": {
+    "type": "teams",
+    "attributes": {
+      "name": "team-creation-test",
+      "organization-access": {
+        "manage-workspaces": true
+      }
+    }
+  }
+}
+</pre>
+<h3 id="sample-request-1">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/organizations/my-organization/teams
+</pre>
+<h3 id="sample-response-1">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "name": "team-creation-test",
+      "organization-access": {
+        "manage-policies": false,
+        "manage-policy-overrides": false,
+        "manage-vcs-settings": false,
+        "manage-workspaces": true
+      },
+      "permissions": {
+        "can-update-membership": true,
+        "can-destroy": true,
+        "can-update-organization-access": true,
+        "can-update-api-token": true,
+        "can-update-visibility": true
+      },
+      "users-count": 0,
+      "visibility": "secret"
+    },
+    "id": "team-6p5jTwJQXwqZBncC",
+    "links": {
+      "self": "/api/v2/teams/team-6p5jTwJQXwqZBncC"
+    },
+    "relationships": {
+      "authentication-token": {
+        "meta": {}
+      },
+      "users": {
+        "data": []
+      }
+    },
+    "type": "teams"
+  }
+}
+</pre>
+<h2 id="show-team-information">  Show Team Information </h2> <p><code>GET /teams/:team_id</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:team_id</code></td> <td>The team ID to be shown.</td> </tr> </tbody>
+</table> <h3 id="sample-request-2">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request GET \
+  https://app.terraform.io/api/v2/teams/team-6p5jTwJQXwqZBncC
+</pre>
+<h3 id="sample-response-2">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id": "team-6p5jTwJQXwqZBncC",
+    "type": "teams",
+    "attributes": {
+      "name": "team-creation-test",
+      "users-count": 0,
+      "visibility": "organization",
+      "permissions": {
+        "can-update-membership": true,
+        "can-destroy": true,
+        "can-update-organization-access": true,
+        "can-update-api-token": true,
+        "can-update-visibility": true
+      },
+      "organization-access": {
+        "manage-policies": true,
+        "manage-policy-overrides": false,
+        "manage-workspaces": false,
+        "manage-vcs-settings": false
+      }
+    },
+    "relationships": {
+      "users": {
+        "data": []
+      },
+      "authentication-token": {
+        "meta": {}
+      }
+    },
+    "links": {
+      "self": "/api/v2/teams/team-6p5jTwJQXwqZBncC"
+    }
+  }
+}
+</pre>
+<h2 id="update-a-team">  Update a Team </h2> <p><code>PATCH /teams/:team_id</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:team_id</code></td> <td>The team ID to be updated.</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "teams"</code>)</td> <td>Successfully created a team</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400">400</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Invalid <code>include</code> parameter</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Team not found, or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Malformed request body (missing attributes, wrong types, etc.)</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500">500</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Failure during team creation</td> </tr> </tbody>
+</table> <h3 id="request-body-1">  Request Body </h3> <p>This PATCH endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"teams"</code>.</td> </tr> <tr> <td><code>data.attributes.name</code></td> <td>string</td> <td>(previous value)</td> <td>The name of the team, which can only include letters, numbers, <code>-</code>, and <code>_</code>. This will be used as an identifier and must be unique in the organization.</td> </tr> <tr> <td><code>data.attributes.organization-access</code></td> <td>object</td> <td>(previous value)</td> <td>Settings for the team's organization access. This object can include <code>manage-policies</code>, <code>manage-policy-overrides</code>, <code>manage-workspaces</code>, and <code>manage-vcs-settings</code> properties with boolean values. All properties default to <code>false</code>.</td> </tr> <tr> <td>
+<code>data.attributes.visibility</code> <strong>(beta)</strong>
+</td> <td>string</td> <td>(previous value)</td> <td>The team's visibility. Must be <code>"secret"</code> or <code>"organization"</code> (visible).</td> </tr> </tbody>
+</table> <h3 id="sample-payload-1">  Sample Payload </h3> <pre data-language="json">{
+  "data": {
+    "type": "teams",
+    "attributes": {
+      "visibilty": "organization",
+      "organization-access": {
+        "manage-vcs-settings": true
+      }
+    }
+  }
+}
+</pre>
+<h3 id="sample-request-3">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request PATCH \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/teams/team-6p5jTwJQXwqZBncC
+</pre>
+<h3 id="sample-response-3">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "name": "team-creation-test",
+      "organization-access": {
+        "manage-policies": false,
+        "manage-policy-overrides": false,
+        "manage-vcs-settings": true,
+        "manage-workspaces": true
+      },
+      "visibility": "organization",
+      "permissions": {
+        "can-update-membership": true,
+        "can-destroy": true,
+        "can-update-organization-access": true,
+        "can-update-api-token": true,
+        "can-update-visibility": true
+      },
+      "users-count": 0
+    },
+    "id": "team-6p5jTwJQXwqZBncC",
+    "links": {
+      "self": "/api/v2/teams/team-6p5jTwJQXwqZBncC"
+    },
+    "relationships": {
+      "authentication-token": {
+        "meta": {}
+      },
+      "users": {
+        "data": []
+      }
+    },
+    "type": "teams"
+  }
+}
+</pre>
+<h2 id="delete-a-team">  Delete a Team </h2> <p><code>DELETE /teams/:team_id</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:team_id</code></td> <td>The team ID to be deleted.</td> </tr> </tbody>
+</table> <h3 id="sample-request-4">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request DELETE \
+  https://app.terraform.io/api/v2/teams/team-6p5jTwJQXwqZBncC
+</pre>
+<h2 id="available-related-resources">  Available Related Resources </h2> <p>The GET endpoints above can optionally return related resources, if requested with <a href="index#inclusion-of-related-resources">the <code>include</code> query parameter</a>. The following resource types are available:</p> <ul> <li>
+<a href="#users"><code>users</code></a> (<code>string</code>) - Returns the full user record for every member of a team. </li> </ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/cloud/api/teams.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/cloud/api/teams.html</a>
+  </p>
+</div>

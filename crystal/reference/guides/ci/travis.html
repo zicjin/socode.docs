@@ -1,0 +1,125 @@
+ <h1 id="travis-ci">Travis CI</h1> <p>In this section we are going to use <a href="https://travis-ci.org/">Travis CI</a> as our continuous-integration service. Travis CI is <a href="https://docs.travis-ci.com/user/tutorial/#more-than-running-tests">mostly used</a> for building and running tests for projects hosted at GitHub. It supports <a href="https://docs.travis-ci.com/user/tutorial/#selecting-a-different-programming-language">different programming languages</a> and for our particular case, it supports the <a href="https://docs.travis-ci.com/user/languages/crystal/">Crystal language</a>.</p> <div class="admonition note"> <p class="admonition-title">Note</p> <p>If you are new to continuous integration (or you want to refresh the basic concepts) we may start reading the <a href="https://docs.travis-ci.com/user/for-beginners/">core concepts guide</a>.</p> </div> <p>Now let's see some examples!</p> <h2 id="build-and-run-specs">Build and run specs</h2> <h3 id="using-latest-and-nightly">Using <code>latest</code> and <code>nightly</code>
+</h3> <p>A first (and very basic) Travis CI config file could be:</p> <div class="admonition example"> <p class="admonition-title">.travis.yml</p> <div class="highlight"><pre data-language="crystal">language: crystal
+</pre></div> </div> <p>That's it! With this config file, Travis CI by default will run <code>crystal spec</code>. Now, we just need to go to Travis CI dashboard to <a href="https://docs.travis-ci.com/user/tutorial/#to-get-started-with-travis-ci">add the GitHub repository</a>.</p> <p>Let's see another example:</p> <div class="admonition example"> <p class="admonition-title">.travis.yml</p> <div class="highlight"><pre data-language="crystal">language: crystal
+
+crystal:
+  - latest
+  - nightly
+
+script:
+  - crystal spec
+  - crystal tool format --check
+</pre></div> </div> <p>With this configuration, Travis CI will run the tests using both Crystal <code>latest</code> and <code>nightly</code> releases on every push to a branch on your Github repository.</p> <div class="admonition note"> <p class="admonition-title">Note</p> <p>When <a href="../../using_the_compiler/index#creating-a-crystal-project">creating a Crystal project</a> using <code>crystal init</code>, Crystal creates a <code>.travis.yml</code> file for us.</p> </div> <h3 id="using-a-specific-crystal-release">Using a specific Crystal release</h3> <p>Let's suppose we want to pin a specific Crystal release (maybe we want to make sure the shard compiles and works with that version) for example <a href="https://github.com/crystal-lang/crystal/releases/tag/0.31.1">Crystal 0.31.1</a>.</p> <p>Travis CI only provides <em>runners</em> to <code>latest</code> and <code>nightly</code> releases directly and so, we need to install the requested Crystal release manually. For this we are going to use <a href="https://www.docker.com/">Docker</a>.</p> <p>First we need to add Docker as a service in <code>.travis.yml</code>, and then we can use <code>docker</code> commands in our build steps, like this:</p> <div class="admonition example"> <p class="admonition-title">.travis.yml</p> <div class="highlight"><pre data-language="crystal">language: minimal
+
+services:
+  - docker
+
+script:
+  - docker run -v $PWD:/src -w /src crystallang/crystal:0.31.1 crystal spec
+</pre></div> </div> <div class="admonition note"> <p class="admonition-title">Note</p> <p>We may read about different <a href="https://docs.travis-ci.com/user/languages/">languages</a> supported by Travis CI, included <a href="https://docs.travis-ci.com/user/languages/minimal-and-generic/">minimal</a>.</p> </div> <div class="admonition note"> <p class="admonition-title">Note</p> <p>A list with the different official <a href="https://hub.docker.com/r/crystallang/crystal/tags">Crystal docker images</a> is available at <a href="https://hub.docker.com/r/crystallang/crystal">DockerHub</a>.</p> </div> <h3 id="using-latest-nightly-and-a-specific-crystal-release-all-together">Using <code>latest</code>, <code>nightly</code> and a specific Crystal release all together!</h3> <p>Supported <em>runners</em> can be combined with Docker-based <em>runners</em> using a <a href="https://docs.travis-ci.com/user/customizing-the-build#build-matrix">Build Matrix</a>. This will allow us to run tests against <code>latest</code> and <code>nightly</code> and pinned releases.</p> <p>Here is the example:</p> <div class="admonition example"> <p class="admonition-title">.travis.yml</p> <div class="highlight"><pre data-language="crystal">matrix:
+include:
+  - language: crystal
+    crystal:
+      - latest
+    script:
+      - crystal spec
+
+  - language: crystal
+    crystal:
+      - nightly
+    script:
+      - crystal spec
+
+  - language: bash
+    services:
+      - docker
+    script:
+      - docker run -v $PWD:/src -w /src crystallang/crystal:0.31.1 crystal spec
+</pre></div> </div> <h2 id="installing-shards-packages">Installing shards packages</h2> <p>In native <em>runners</em> (<code>language: crystal</code>), Travis CI already automatically installs shards dependencies using <code>shards install</code>. To improve build performance we may add <a href="#caching">caching</a> on top of that.</p> <h3 id="using-docker">Using Docker</h3> <p>In a Docker-based <em>runner</em> we need to run <code>shards install</code> explicitly, like this:</p> <div class="admonition example"> <p class="admonition-title">.travis.yml</p> <div class="highlight"><pre data-language="crystal">language: bash
+
+services:
+  - docker
+
+script:
+  - docker run -v $PWD:/src -w /src crystallang/crystal:0.31.1 shards install
+  - docker run -v $PWD:/src -w /src crystallang/crystal:0.31.1 crystal spec
+</pre></div> </div> <div class="admonition note"> <p class="admonition-title">Note</p> <p>Since the shards will be installed in <code>./lib/</code> folder, it will be preserved for the second docker run command.</p> </div> <h2 id="installing-binary-dependencies">Installing binary dependencies</h2> <p>Our application or maybe some shards may required libraries and packages. This binary dependencies may be installed using different methods. Here we are going to show an example using the <a href="https://help.ubuntu.com/lts/serverguide/apt.html">Apt</a> command (since the Docker image we are using is based on Ubuntu)</p> <p>Here is a first example installing the <code>libsqlite3</code> development package using the <a href="https://docs.travis-ci.com/user/installing-dependencies/#installing-packages-with-the-apt-addon">APT addon</a>:</p> <div class="admonition example"> <p class="admonition-title">.travis.yml</p> <div class="highlight"><pre data-language="crystal">language: crystal
+crystal:
+  - latest
+
+before_install:
+  - sudo apt-get -y install libsqlite3-dev
+
+addons:
+  apt:
+    update: true
+
+script:
+  - crystal spec
+</pre></div> </div> <h3 id="using-docker_1">Using Docker</h3> <p>We are going to build a new docker image based on <a href="https://hub.docker.com/r/crystallang/crystal/">crystallang/crystal</a>, and in this new image we will be installing the binary dependencies.</p> <p>To accomplish this we are going to use a <a href="https://docs.docker.com/engine/reference/builder/">Dockerfile</a>:</p> <div class="admonition example"> <p class="admonition-title">Dockerfile</p> <div class="highlight"><pre data-language="crystal">FROM crystallang/crystal:latest
+
+# install binary dependencies:
+RUN apt-get update &amp;&amp; apt-get install -y libsqlite3-dev
+</pre></div> </div> <p>And here is the Travis CI configuration file:</p> <div class="admonition example"> <p class="admonition-title">.travis.yml</p> <div class="highlight"><pre data-language="crystal">language: bash
+
+services:
+  - docker
+
+before_install:
+  # build image using Dockerfile:
+  - docker build -t testing .
+
+script:
+  # run specs in the container
+  - docker run -v $PWD:/src -w /src testing crystal spec
+</pre></div> </div> <div class="admonition note"> <p class="admonition-title">Note</p> <p>Dockerfile arguments can be used to use the same Dockerfile for latest, nightly or a specific version.</p> </div> <h2 id="using-services">Using services</h2> <p>Travis CI may start <a href="https://docs.travis-ci.com/user/database-setup/">services</a> as requested.</p> <p>For example, we can start a <a href="https://docs.travis-ci.com/user/database-setup/#mysql">MySQL</a> database service by adding a <code>services:</code> section to our <code>.travis.yml</code>:</p> <div class="admonition example"> <p class="admonition-title">.travis.yml</p> <div class="highlight"><pre data-language="crystal">language: crystal
+crystal:
+  - latest
+
+services:
+  - mysql
+
+script:
+  - crystal spec
+</pre></div> </div> <p>Here is the new test file for testing against the database:</p> <div class="admonition example"> <p class="admonition-title">spec/simple_db_spec.cr</p> <div class="crystal highlight"><pre data-language="crystal">require "./spec_helper"
+require "mysql"
+
+it "connects to the database" do
+  DB.connect ENV["DATABASE_URL"] do |cnn|
+    cnn.query_one("SELECT 'foo'", as: String).should eq "foo"
+  end
+end
+</pre></div> </div> <p>When pushing this changes Travis CI will report the following error: <code>Unknown database 'test' (Exception)</code>, showing that we need to configure the MySQL service <strong>and also setup the database</strong>:</p> <div class="admonition example"> <p class="admonition-title">.travis.yml</p> <div class="highlight"><pre data-language="crystal">language: crystal
+crystal:
+  - latest
+
+env:
+  global:
+    - DATABASE_NAME=test
+    - DATABASE_URL=mysql://root@localhost/$DATABASE_NAME
+
+services:
+  - mysql
+
+before_install:
+  - mysql -e "CREATE DATABASE IF NOT EXISTS $DATABASE_NAME;"
+  - mysql -u root --password="" $DATABASE_NAME &lt; db/schema.sql
+
+script:
+  - crystal spec
+</pre></div> </div> <p>We are <a href="https://andidittrich.de/2017/06/travisci-setup-mysql-tablesdata-before-running-tests.html">using a <code>schema.sql</code> script</a> to create a more readable <code>.travis.yml</code>. The file <code>./db/schema.sql</code> looks like this:</p> <div class="admonition example"> <p class="admonition-title">schema.sql</p> <div class="highlight"><pre data-language="crystal">CREATE TABLE ... etc ...
+</pre></div> </div> <p>Pushing these changes will trigger Travis CI and the build should be successful!</p> <h2 id="caching">Caching</h2> <p>If we read Travis CI job log, we will find that every time the job runs, Travis CI needs to fetch the libraries needed to run the application:</p> <div class="highlight"><pre data-language="crystal">Fetching https://github.com/crystal-lang/crystal-mysql.git
+Fetching https://github.com/crystal-lang/crystal-db.git
+</pre></div> <p>This takes time and, on the other hand, these libraries might not change as often as our application, so it looks like we may cache them and save time.</p> <p>Travis CI <a href="https://docs.travis-ci.com/user/caching/">uses caching</a> to improve some parts of the building path. Here is the new configuration file <strong>with cache enabled</strong>:</p> <div class="admonition example"> <p class="admonition-title">.travis.yml</p> <div class="highlight"><pre data-language="crystal">language: crystal
+crystal:
+  - latest
+
+cache: shards
+
+script:
+  - crystal spec
+</pre></div> </div> <p>Let's push these changes. Travis CI will run, and it will install dependencies, but then it will cache the shards cache folder which, usually, is <code>~/.cache/shards</code>. The following runs will use the cached dependencies.</p><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://crystal-lang.org/reference/guides/ci/travis.html" class="_attribution-link" target="_blank">https://crystal-lang.org/reference/guides/ci/travis.html</a>
+  </p>
+</div>

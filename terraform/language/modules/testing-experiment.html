@@ -1,0 +1,123 @@
+ <h1 id="module-testing-experiment">  Module Testing Experiment </h1> <p>This page is about some experimental features available in recent versions of Terraform CLI related to integration testing of shared modules.</p> <p>The Terraform team is aiming to use these features to gather feedback as part of ongoing research into different strategies for testing Terraform modules. These features are likely to change significantly in future releases based on feedback.</p> <h2 id="current-research-goals">  Current Research Goals </h2> <p>Our initial area of research is into the question of whether it's helpful and productive to write module integration tests in the Terraform language itself, or whether it's better to handle that as a separate concern orchestrated by code written in other languages.</p> <p>Some existing efforts have piloted both approaches:</p> <ul> <li>
+<p><a href="https://terratest.gruntwork.io/">Terratest</a> and <a href="https://github.com/newcontext-oss/kitchen-terraform">kitchen-terraform</a> both pioneered the idea of writing tests for Terraform modules with explicit orchestration written in the Go programming language.</p> </li> <li>
+<p>The Terraform provider <a href="https://registry.terraform.io/providers/apparentlymart/testing/latest"><code>apparentlymart/testing</code></a> introduced the idea of writing Terraform module tests in the Terraform language itself, using a special provider that can evaluate assertions and fail <code>terraform apply</code> if they don't pass.</p> </li> </ul> <p>Both of these approaches have both advantages and disadvantages, and so it's likely that both will coexist for different situations, but the community efforts have already explored the external-language testing model quite deeply while the Terraform-integrated testing model has not yet been widely trialled. For that reason, the current iteration of the module testing experiment is aimed at trying to make the Terraform-integrated approach more accessible so that more module authors can hopefully try it and share their experiences.</p> <h2 id="current-experimental-features">  Current Experimental Features </h2> <blockquote class="alert alert-info" role="alert"> <p>This page describes the incarnation of the experimental features introduced in <strong>Terraform CLI v0.15.0</strong>. If you are using an earlier version of Terraform then you'll need to upgrade to v0.15.0 or later to use the experimental features described here, though you only need to use v0.15.0 or later for running tests; your module itself can remain compatible with earlier Terraform versions, if needed.</p> </blockquote> <p>Our current area of interest is in what sorts of tests can and cannot be written using features integrated into the Terraform language itself. As a means to investigate that without invasive, cross-cutting changes to Terraform Core we're using a special built-in Terraform provider as a placeholder for potential new features.</p> <p>If this experiment is successful then we expect to run a second round of research and design about exactly what syntax is most ergonomic for writing tests, but for the moment we're interested less in the specific syntax and more in the capabilities of this approach.</p> <p>The temporary extensions to Terraform for this experiment consist of the following parts:</p> <ul> <li>
+<p>A temporary experimental provider <code>terraform.io/builtin/test</code>, which acts as a placeholder for potential new language features related to test assertions.</p> </li> <li>
+<p>A <code>terraform test</code> command for more conveniently running multiple tests in a single action.</p> </li> <li>
+<p>An experimental convention of placing test configurations in subdirectories of a <code>tests</code> directory within your module, which <code>terraform test</code> will then discover and run.</p> </li> </ul> <p>We would like to invite adventurous module authors to try writing integration tests for their modules using these mechanisms, and ideally also share the tests you write (in a temporary VCS branch, if necessary) so we can see what you were able to test, along with anything you felt unable to test in this way.</p> <p>If you're interested in giving this a try, see the following sections for usage details. Because these features are temporary experimental extensions, there's some boilerplate required to activate and make use of it which would likely not be required in a final design.</p> <h3 id="writing-tests-for-a-module">  Writing Tests for a Module </h3> <p>For the purposes of the current experiment, module tests are arranged into <em>test suites</em>, each of which is a root Terraform module which includes a <code>module</code> block calling the module under test, and ideally also a number of test assertions to verify that the module outputs match expectations.</p> <p>In the same directory where you keep your module's <code>.tf</code> and/or <code>.tf.json</code> source files, create a subdirectory called <code>tests</code>. Under that directory, make another directory which will serve as your first test suite, with a directory name that concisely describes what the suite is aiming to test.</p> <p>Here's an example directory structure of a typical module directory layout with the addition of a test suite called <code>defaults</code>:</p> <pre>main.tf
+outputs.tf
+providers.tf
+variables.tf
+versions.tf
+tests/
+  defaults/
+    test_defaults.tf
+</pre>
+<p>The <code>tests/defaults/test_defaults.tf</code> file will contain a call to the main module with a suitable set of arguments and hopefully also one or more resources that will, for the sake of the experiment, serve as the temporary syntax for defining test assertions. For example:</p> <pre data-language="ruby">terraform {
+  required_providers {
+    # Because we're currently using a built-in provider as
+    # a substitute for dedicated Terraform language syntax
+    # for now, test suite modules must always declare a
+    # dependency on this provider. This provider is only
+    # available when running tests, so you shouldn't use it
+    # in non-test modules.
+    test = {
+      source = "terraform.io/builtin/test"
+    }
+
+    # This example also uses the "http" data source to
+    # verify the behavior of the hypothetical running
+    # service, so we should declare that too.
+    http = {
+      source = "hashicorp/http"
+    }
+  }
+}
+
+module "main" {
+  # source is always ../.. for test suite configurations,
+  # because they are placed two subdirectories deep under
+  # the main module directory.
+  source = "../.."
+
+  # This test suite is aiming to test the "defaults" for
+  # this module, so it doesn't set any input variables
+  # and just lets their default values be selected instead.
+}
+
+# As with all Terraform modules, we can use local values
+# to do any necessary post-processing of the results from
+# the module in preparation for writing test assertions.
+locals {
+  # This expression also serves as an implicit assertion
+  # that the base URL uses URL syntax; the test suite
+  # will fail if this function fails.
+  api_url_parts = regex(
+    "^(?:(?P&lt;scheme&gt;[^:/?#]+):)?(?://(?P&lt;authority&gt;[^/?#]*))?",
+    module.main.api_url,
+  )
+}
+
+# The special test_assertions resource type, which belongs
+# to the test provider we required above, is a temporary
+# syntax for writing out explicit test assertions.
+resource "test_assertions" "api_url" {
+  # "component" serves as a unique identifier for this
+  # particular set of assertions in the test results.
+  component = "api_url"
+
+  # equal and check blocks serve as the test assertions.
+  # the labels on these blocks are unique identifiers for
+  # the assertions, to allow more easily tracking changes
+  # in success between runs.
+
+  equal "scheme" {
+    description = "default scheme is https"
+    got         = local.api_url_parts.scheme
+    want        = "https"
+  }
+
+  check "port_number" {
+    description = "default port number is 8080"
+    condition   = can(regex(":8080$", local.api_url_parts.authority))
+  }
+}
+
+# We can also use data resources to respond to the
+# behavior of the real remote system, rather than
+# just to values within the Terraform configuration.
+data "http" "api_response" {
+  depends_on = [
+    # make sure the syntax assertions run first, so
+    # we'll be sure to see if it was URL syntax errors
+    # that let to this data resource also failing.
+    test_assertions.api_url,
+  ]
+
+  url = module.main.api_url
+}
+
+resource "test_assertions" "api_response" {
+  component = "api_response"
+
+  check "valid_json" {
+    description = "base URL responds with valid JSON"
+    condition   = can(jsondecode(data.http.api_response.body))
+  }
+}
+</pre>
+<p>If you like, you can create additional directories alongside the <code>default</code> directory to define additional test suites that pass different variable values into the main module, and then include assertions that verify that the result has changed in the expected way.</p> <h3 id="running-your-tests">  Running Your Tests </h3> <p>The <code>terraform test</code> command aims to make it easier to exercise all of your defined test suites at once, and see only the output related to any test failures or errors.</p> <p>The current experimental incarnation of this command expects to be run from your main module directory. In our example directory structure above, that was the directory containing <code>main.tf</code> etc, and <em>not</em> the specific test suite directory containing <code>test_defaults.tf</code>.</p> <p>Because these test suites are integration tests rather than unit tests, you'll need to set up any credentials files or environment variables needed by the providers your module uses before running <code>terraform test</code>. The test command will, for each suite:</p> <ul> <li>Install the providers and any external modules the test configuration depends on. </li> <li>Create an execution plan to create the objects declared in the module. </li> <li>Apply that execution plan to create the objects in the real remote system. </li> <li>Collect all of the test results from the apply step, which would also have "created" the <code>test_assertions</code> resources. </li> <li>Destroy all of the objects recorded in the temporary test state, as if running <code>terraform destroy</code> against the test configuration. </li> </ul> <pre>$ terraform test
+─── Failed: defaults.api_url.scheme (default scheme is https) ───────────────
+wrong value
+    got:  "http"
+    want: "https"
+─────────────────────────────────────────────────────────────────────────────
+</pre>
+<p>In this case, it seems like the module returned an <code>http</code> rather than an <code>https</code> URL in the default case, and so the <code>defaults.api_url.scheme</code> assertion failed, and the <code>terraform test</code> command detected and reported it.</p> <p>The <code>test_assertions</code> resource captures any assertion failures but does not return an error, because that can then potentially allow downstream assertions to also run and thus capture as much context as possible. However, if Terraform encounters any <em>errors</em> while processing the test configuration it will halt processing, which may cause some of the test assertions to be skipped.</p> <h2 id="known-limitations">  Known Limitations </h2> <p>The design above is very much a prototype aimed at gathering more experience with the possibilities of testing inside the Terraform language. We know it's currently somewhat non-ergonomic, and hope to improve on that in later phases of research and design, but the main focus of this iteration is on available functionality and so with that in mind there are some specific possibilities that we know the current prototype doesn't support well:</p> <ul> <li>
+<p>Testing of subsequent updates to an existing deployment of a module. Currently tests written in this way can only exercise the create and destroy behaviors.</p> </li> <li>
+<p>Assertions about expected errors. For a module that includes variable validation rules and data resources that function as assertion checks, the current prototype doesn't have any way to express that a particular set of inputs is <em>expected</em> to produce an error, and thus report a test failure if it doesn't. We'll hopefully be able to improve on this in a future iteration with the test assertions better integrated into the language.</p> </li> <li>
+<p>Capturing context about failures. Due to this prototype using a provider as an approximation for new assertion syntax, the <code>terraform test</code> command is limited in how much context it's able to gather about failures. A design more integrated into the language could potentially capture the source expressions and input values to give better feedback about what went wrong, similar to what Terraform typically returns from expression evaluation errors in the main language.</p> </li> <li>
+<p>Unit testing without creating real objects. Although we do hope to spend more time researching possibilities for unit testing against fake test doubles in the future, we've decided to focus on integration testing to start because it feels like the better-defined problem.</p> </li> </ul> <h2 id="sending-feedback">  Sending Feedback </h2> <p>The sort of feedback we'd most like to see at this stage of the experiment is to see the source code of any tests you've written against real modules using the features described above, along with notes about anything that you attempted to test but were blocked from doing so by limitations of the above features. The most ideal way to share that would be to share a link to a version control branch where you've added such tests, if your module is open source.</p> <p>If you've previously written or attempted to write tests in an external language, using a system like Terratest or kitchen-terraform, we'd also be interested to hear about comparative differences between the two: what worked well in each and what didn't work so well.</p> <p>Our ultimate goal is to work towards an integration testing methodology which strikes the best compromise between the capabilities of these different approaches, ideally avoiding a hard requirement on any particular external language and fitting well into the Terraform workflow.</p> <p>Since this is still early work and likely to lead to unstructured discussion, we'd like to gather feedback primarily via new topics in <a href="https://discuss.hashicorp.com/c/terraform-core/27">the community forum</a>. That way we can have some more freedom to explore different ideas and approaches without the structural requirements we typically impose on GitHub issues.</p> <p>Any feedback you'd like to share would be very welcome!</p><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/language/modules/testing-experiment.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/language/modules/testing-experiment.html</a>
+  </p>
+</div>

@@ -1,0 +1,28 @@
+ <h1 id="the-lifecycle-meta-argument">  The <code>lifecycle</code> Meta-Argument </h1> <p>The general lifecycle for resources is described in the <a href="../resources/behavior">Resource Behavior</a> page. Some details of that behavior can be customized using the special nested <code>lifecycle</code> block within a resource block body:</p> <pre data-language="ruby">resource "azurerm_resource_group" "example" {
+  # ...
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+</pre>
+<h2 id="syntax-and-arguments">  Syntax and Arguments </h2> <p><code>lifecycle</code> is a nested block that can appear within a resource block. The <code>lifecycle</code> block and its contents are meta-arguments, available for all <code>resource</code> blocks regardless of type.</p> <p>The following arguments can be used within a <code>lifecycle</code> block:</p> <ul> <li>
+<p><a href="#create_before_destroy"><code>create_before_destroy</code></a> (bool) - By default, when Terraform must change a resource argument that cannot be updated in-place due to remote API limitations, Terraform will instead destroy the existing object and then create a new replacement object with the new configured arguments.</p> <p>The <code>create_before_destroy</code> meta-argument changes this behavior so that the new replacement object is created <em>first,</em> and the prior object is destroyed after the replacement is created.</p> <p>This is an opt-in behavior because many remote object types have unique name requirements or other constraints that must be accommodated for both a new and an old object to exist concurrently. Some resource types offer special options to append a random suffix onto each object name to avoid collisions, for example. Terraform CLI cannot automatically activate such features, so you must understand the constraints for each resource type before using <code>create_before_destroy</code> with it.</p> </li> <li>
+<p><a href="#prevent_destroy"><code>prevent_destroy</code></a> (bool) - This meta-argument, when set to <code>true</code>, will cause Terraform to reject with an error any plan that would destroy the infrastructure object associated with the resource, as long as the argument remains present in the configuration.</p> <p>This can be used as a measure of safety against the accidental replacement of objects that may be costly to reproduce, such as database instances. However, it will make certain configuration changes impossible to apply, and will prevent the use of the <code>terraform destroy</code> command once such objects are created, and so this option should be used sparingly.</p> <p>Since this argument must be present in configuration for the protection to apply, note that this setting does not prevent the remote object from being destroyed if the <code>resource</code> block were removed from configuration entirely: in that case, the <code>prevent_destroy</code> setting is removed along with it, and so Terraform will allow the destroy operation to succeed.</p> </li> <li>
+<p><a href="#ignore_changes"><code>ignore_changes</code></a> (list of attribute names) - By default, Terraform detects any difference in the current settings of a real infrastructure object and plans to update the remote object to match configuration.</p> <p>The <code>ignore_changes</code> feature is intended to be used when a resource is created with references to data that may change in the future, but should not affect said resource after its creation. In some rare cases, settings of a remote object are modified by processes outside of Terraform, which Terraform would then attempt to "fix" on the next run. In order to make Terraform share management responsibilities of a single object with a separate process, the <code>ignore_changes</code> meta-argument specifies resource attributes that Terraform should ignore when planning updates to the associated remote object.</p> <p>The arguments corresponding to the given attribute names are considered when planning a <em>create</em> operation, but are ignored when planning an <em>update</em>. The arguments are the relative address of the attributes in the resource. Map and list elements can be referenced using index notation, like <code>tags["Name"]</code> and <code>list[0]</code> respectively.</p> <pre data-language="ruby">resource "aws_instance" "example" {
+  # ...
+
+  lifecycle {
+    ignore_changes = [
+      # Ignore changes to tags, e.g. because a management agent
+      # updates these based on some ruleset managed elsewhere.
+      tags,
+    ]
+  }
+}
+</pre>
+<p>Instead of a list, the special keyword <code>all</code> may be used to instruct Terraform to ignore <em>all</em> attributes, which means that Terraform can create and destroy the remote object but will never propose updates to it.</p> <p>Only attributes defined by the resource type can be ignored. <code>ignore_changes</code> cannot be applied to itself or to any other meta-arguments.</p> </li> </ul> <h2 id="literal-values-only">  Literal Values Only </h2> <p>The <code>lifecycle</code> settings all affect how Terraform constructs and traverses the dependency graph. As a result, only literal values can be used because the processing happens too early for arbitrary expression evaluation.</p><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/language/meta-arguments/lifecycle.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/language/meta-arguments/lifecycle.html</a>
+  </p>
+</div>

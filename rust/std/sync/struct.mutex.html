@@ -1,0 +1,334 @@
+<h1 class="fqn">Struct std::sync::Mutex</h1>
+<pre class="rust struct" data-language="rust">pub struct Mutex&lt;T: ?Sized&gt; { /* fields omitted */ }</pre>
+<details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock">
+<p>A mutual exclusion primitive useful for protecting shared data</p> <p>This mutex will block threads waiting for the lock to become available. The mutex can also be statically initialized or created via a <a href="struct.mutex#method.new"><code>new</code></a> constructor. Each mutex has a type parameter which represents the data that it is protecting. The data can only be accessed through the RAII guards returned from <a href="struct.mutex#method.lock"><code>lock</code></a> and <a href="struct.mutex#method.try_lock"><code>try_lock</code></a>, which guarantees that the data is only ever accessed when the mutex is locked.</p> <h2 id="poisoning" class="section-header">Poisoning</h2> <p>The mutexes in this module implement a strategy called “poisoning” where a mutex is considered poisoned whenever a thread panics while holding the mutex. Once a mutex is poisoned, all other threads are unable to access the data by default as it is likely tainted (some invariant is not being upheld).</p> <p>For a mutex, this means that the <a href="struct.mutex#method.lock"><code>lock</code></a> and <a href="struct.mutex#method.try_lock"><code>try_lock</code></a> methods return a <a href="../result/enum.result" title="Result"><code>Result</code></a> which indicates whether a mutex has been poisoned or not. Most usage of a mutex will simply <a href="../result/enum.result#method.unwrap"><code>unwrap()</code></a> these results, propagating panics among threads to ensure that a possibly invalid invariant is not witnessed.</p> <p>A poisoned mutex, however, does not prevent all access to the underlying data. The <a href="struct.poisonerror"><code>PoisonError</code></a> type has an <a href="struct.poisonerror#method.into_inner"><code>into_inner</code></a> method which will return the guard that would have otherwise been returned on a successful lock. This allows access to the data, despite the lock being poisoned.</p> <h2 id="examples" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::sync::mpsc::channel;
+
+const N: usize = 10;
+
+// Spawn a few threads to increment a shared variable (non-atomically), and
+// let the main thread know once all increments are done.
+//
+// Here we're using an Arc to share memory among threads, and the data inside
+// the Arc is protected with a mutex.
+let data = Arc::new(Mutex::new(0));
+
+let (tx, rx) = channel();
+for _ in 0..N {
+    let (data, tx) = (Arc::clone(&amp;data), tx.clone());
+    thread::spawn(move || {
+        // The shared state can only be accessed once the lock is held.
+        // Our non-atomic increment is safe because we're the only thread
+        // which can access the shared state when the lock is held.
+        //
+        // We unwrap() the return value to assert that we are not expecting
+        // threads to ever fail while holding the lock.
+        let mut data = data.lock().unwrap();
+        *data += 1;
+        if *data == N {
+            tx.send(()).unwrap();
+        }
+        // the lock is unlocked here when `data` goes out of scope.
+    });
+}
+
+rx.recv().unwrap();</pre></div> <p>To recover from a poisoned mutex:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+let lock = Arc::new(Mutex::new(0_u32));
+let lock2 = Arc::clone(&amp;lock);
+
+let _ = thread::spawn(move || -&gt; () {
+    // This thread will acquire the mutex first, unwrapping the result of
+    // `lock` because the lock has not been poisoned.
+    let _guard = lock2.lock().unwrap();
+
+    // This panic while holding the lock (`_guard` is in scope) will poison
+    // the mutex.
+    panic!();
+}).join();
+
+// The lock is poisoned by this point, but the returned result can be
+// pattern matched on to return the underlying guard on both branches.
+let mut guard = match lock.lock() {
+    Ok(guard) =&gt; guard,
+    Err(poisoned) =&gt; poisoned.into_inner(),
+};
+
+*guard += 1;</pre></div> <p>It is sometimes necessary to manually drop the mutex guard to unlock it sooner than the end of the enclosing scope.</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+const N: usize = 3;
+
+let data_mutex = Arc::new(Mutex::new(vec![1, 2, 3, 4]));
+let res_mutex = Arc::new(Mutex::new(0));
+
+let mut threads = Vec::with_capacity(N);
+(0..N).for_each(|_| {
+    let data_mutex_clone = Arc::clone(&amp;data_mutex);
+    let res_mutex_clone = Arc::clone(&amp;res_mutex);
+
+    threads.push(thread::spawn(move || {
+        let mut data = data_mutex_clone.lock().unwrap();
+        // This is the result of some important and long-ish work.
+        let result = data.iter().fold(0, |acc, x| acc + x * 2);
+        data.push(result);
+        drop(data);
+        *res_mutex_clone.lock().unwrap() += result;
+    }));
+});
+
+let mut data = data_mutex.lock().unwrap();
+// This is the result of some important and long-ish work.
+let result = data.iter().fold(0, |acc, x| acc + x * 2);
+data.push(result);
+// We drop the `data` explicitly because it's not necessary anymore and the
+// thread still has work to do. This allow other threads to start working on
+// the data immediately, without waiting for the rest of the unrelated work
+// to be done here.
+//
+// It's even more important here than in the threads because we `.join` the
+// threads after that. If we had not dropped the mutex guard, a thread could
+// be waiting forever for it, causing a deadlock.
+drop(data);
+// Here the mutex guard is not assigned to a variable and so, even if the
+// scope does not end after this line, the mutex is still released: there is
+// no deadlock.
+*res_mutex.lock().unwrap() += result;
+
+threads.into_iter().for_each(|thread| {
+    thread
+        .join()
+        .expect("The thread creating or execution failed !")
+});
+
+assert_eq!(*res_mutex.lock().unwrap(), 800);</pre></div> </div></details><h2 id="implementations" class="small-section-header">Implementations</h2>
+<details class="rustdoc-toggle implementors-toggle" open><summary><div id="impl" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T&gt; Mutex&lt;T&gt;</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/sync/mutex.rs.html#202-240" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle method-toggle" open><summary><div id="method.new" class="method has-srclink">
+<h4 class="code-header">pub fn new(t: T) -&gt; Mutex&lt;T&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/sync/mutex.rs.html#213-219" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Creates a new mutex in an unlocked state ready for use.</p> <h2 id="examples-1" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::sync::Mutex;
+
+let mutex = Mutex::new(0);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.unlock" class="method has-srclink">
+<h4 class="code-header">pub fn unlock(guard: MutexGuard&lt;'_, T&gt;)</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/sync/mutex.rs.html#237-239" title="goto source code">[src]</a>
+</div>
+<div class="item-info"><div class="stab unstable">
+<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>mutex_unlock</code> <a href="https://github.com/rust-lang/rust/issues/81872">#81872</a>)</div></div></summary><div class="docblock">
+<p>Immediately drops the guard, and consequently unlocks the mutex.</p> <p>This function is equivalent to calling <a href="../mem/fn.drop" title="drop"><code>drop</code></a> on the guard but is more self-documenting. Alternately, the guard will be automatically dropped when it goes out of scope.</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+#![feature(mutex_unlock)]
+
+use std::sync::Mutex;
+let mutex = Mutex::new(0);
+
+let mut guard = mutex.lock().unwrap();
+*guard += 20;
+Mutex::unlock(guard);</pre></div> </div></details>
+</div></details><details class="rustdoc-toggle implementors-toggle" open><summary><div id="impl-1" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T: ?Sized&gt; Mutex&lt;T&gt;</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/sync/mutex.rs.html#242-411" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle method-toggle" open><summary><div id="method.lock" class="method has-srclink">
+<h4 class="code-header">pub fn lock(&amp;self) -&gt; LockResult&lt;MutexGuard&lt;'_, T&gt;&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/sync/mutex.rs.html#279-284" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Acquires a mutex, blocking the current thread until it is able to do so.</p> <p>This function will block the local thread until it is available to acquire the mutex. Upon returning, the thread is the only thread with the lock held. An RAII guard is returned to allow scoped unlock of the lock. When the guard goes out of scope, the mutex will be unlocked.</p> <p>The exact behavior on locking a mutex in the thread which already holds the lock is left unspecified. However, this function will not return on the second call (it might panic or deadlock, for example).</p> <h2 id="errors" class="section-header">Errors</h2> <p>If another user of this mutex panicked while holding the mutex, then this call will return an error once the mutex is acquired.</p> <h2 id="panics" class="section-header">Panics</h2> <p>This function might panic when called if the lock is already held by the current thread.</p> <h2 id="examples-2" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+let mutex = Arc::new(Mutex::new(0));
+let c_mutex = Arc::clone(&amp;mutex);
+
+thread::spawn(move || {
+    *c_mutex.lock().unwrap() = 10;
+}).join().expect("thread::spawn failed");
+assert_eq!(*mutex.lock().unwrap(), 10);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.try_lock" class="method has-srclink">
+<h4 class="code-header">pub fn try_lock(&amp;self) -&gt; TryLockResult&lt;MutexGuard&lt;'_, T&gt;&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/sync/mutex.rs.html#326-334" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Attempts to acquire this lock.</p> <p>If the lock could not be acquired at this time, then <a href="../result/enum.result#variant.Err" title="Err"><code>Err</code></a> is returned. Otherwise, an RAII guard is returned. The lock will be unlocked when the guard is dropped.</p> <p>This function does not block.</p> <h2 id="errors-1" class="section-header">Errors</h2> <p>If another user of this mutex panicked while holding the mutex, then this call will return the <a href="enum.trylockerror#variant.Poisoned"><code>Poisoned</code></a> error if the mutex would otherwise be acquired.</p> <p>If the mutex could not be acquired because it is already locked, then this call will return the <a href="enum.trylockerror#variant.WouldBlock"><code>WouldBlock</code></a> error.</p> <h2 id="examples-3" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+let mutex = Arc::new(Mutex::new(0));
+let c_mutex = Arc::clone(&amp;mutex);
+
+thread::spawn(move || {
+    let mut lock = c_mutex.try_lock();
+    if let Ok(ref mut mutex) = lock {
+        **mutex = 10;
+    } else {
+        println!("try_lock failed");
+    }
+}).join().expect("thread::spawn failed");
+assert_eq!(*mutex.lock().unwrap(), 10);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.is_poisoned" class="method has-srclink">
+<h4 class="code-header">pub fn is_poisoned(&amp;self) -&gt; bool</h4>
+<span class="since" title="Stable since Rust version 1.2.0">1.2.0</span><a class="srclink" href="https://doc.rust-lang.org/src/std/sync/mutex.rs.html#359-361" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Determines whether the mutex is poisoned.</p> <p>If another thread is active, the mutex can still become poisoned at any time. You should not trust a <code>false</code> value for program correctness without additional synchronization.</p> <h2 id="examples-4" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::sync::{Arc, Mutex};
+use std::thread;
+
+let mutex = Arc::new(Mutex::new(0));
+let c_mutex = Arc::clone(&amp;mutex);
+
+let _ = thread::spawn(move || {
+    let _lock = c_mutex.lock().unwrap();
+    panic!(); // the mutex gets poisoned
+}).join();
+assert_eq!(mutex.is_poisoned(), true);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.into_inner" class="method has-srclink">
+<h4 class="code-header">pub fn into_inner(self) -&gt; LockResult&lt;T&gt; <span class="where fmt-newline">where<br> T: <a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h4>
+<span class="since" title="Stable since Rust version 1.6.0">1.6.0</span><a class="srclink" href="https://doc.rust-lang.org/src/std/sync/mutex.rs.html#379-385" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Consumes this mutex, returning the underlying data.</p> <h2 id="errors-2" class="section-header">Errors</h2> <p>If another user of this mutex panicked while holding the mutex, then this call will return an error instead.</p> <h2 id="examples-5" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::sync::Mutex;
+
+let mutex = Mutex::new(0);
+assert_eq!(mutex.into_inner().unwrap(), 0);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.get_mut" class="method has-srclink">
+<h4 class="code-header">pub fn get_mut(&amp;mut self) -&gt; LockResult&lt;&amp;mut T&gt;</h4>
+<span class="since" title="Stable since Rust version 1.6.0">1.6.0</span><a class="srclink" href="https://doc.rust-lang.org/src/std/sync/mutex.rs.html#407-410" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns a mutable reference to the underlying data.</p> <p>Since this call borrows the <code>Mutex</code> mutably, no actual locking needs to take place – the mutable borrow statically guarantees no locks exist.</p> <h2 id="errors-3" class="section-header">Errors</h2> <p>If another user of this mutex panicked while holding the mutex, then this call will return an error instead.</p> <h2 id="examples-6" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::sync::Mutex;
+
+let mut mutex = Mutex::new(0);
+*mutex.get_mut().unwrap() = 10;
+assert_eq!(*mutex.lock().unwrap(), 10);</pre></div> </div></details>
+</div></details><h2 id="trait-implementations" class="small-section-header">Trait Implementations</h2>
+<div id="trait-implementations-list">
+<details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Debug" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T: ?Sized + Debug&gt; Debug for Mutex&lt;T&gt;</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/sync/mutex.rs.html#431-454" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.fmt" class="method trait-impl has-srclink">
+<h4 class="code-header">fn fmt(&amp;self, f: &amp;mut Formatter&lt;'_&gt;) -&gt; Result</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/sync/mutex.rs.html#432-453" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Formats the value using the given formatter. <a href="../fmt/trait.debug#tymethod.fmt">Read more</a></p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Default" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T: ?Sized + Default&gt; Default for Mutex&lt;T&gt;</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/sync/mutex.rs.html#423-428" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.10.0">1.10.0</span>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.default" class="method trait-impl has-srclink">
+<h4 class="code-header">fn default() -&gt; Mutex&lt;T&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/sync/mutex.rs.html#425-427" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Creates a <code>Mutex&lt;T&gt;</code>, with the <code>Default</code> value for T.</p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-From%3CT%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T&gt; From&lt;T&gt; for Mutex&lt;T&gt;</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/sync/mutex.rs.html#414-420" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.24.0">1.24.0</span>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.from" class="method trait-impl has-srclink">
+<h4 class="code-header">fn from(t: T) -&gt; Self</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/sync/mutex.rs.html#417-419" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Creates a new mutex in an unlocked state ready for use. This is equivalent to <a href="struct.mutex#method.new" title="Mutex::new"><code>Mutex::new</code></a>.</p> </div></details></div></details><div id="impl-RefUnwindSafe" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T: ?Sized&gt; RefUnwindSafe for Mutex&lt;T&gt;</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/panic.rs.html#266" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.12.0">1.12.0</span>
+</div>
+<div id="impl-Send" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T: ?Sized + Send&gt; Send for Mutex&lt;T&gt;</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/sync/mutex.rs.html#175" title="goto source code">[src]</a>
+</div>
+<div id="impl-Sync" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T: ?Sized + Send&gt; Sync for Mutex&lt;T&gt;</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/sync/mutex.rs.html#177" title="goto source code">[src]</a>
+</div>
+<div id="impl-UnwindSafe" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T: ?Sized&gt; UnwindSafe for Mutex&lt;T&gt;</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/panic.rs.html#242" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.9.0">1.9.0</span>
+</div>
+</div>
+<h2 id="synthetic-implementations" class="small-section-header">Auto Trait Implementations</h2>
+<div id="synthetic-implementations-list"><div id="impl-Unpin" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T: ?Sized&gt; Unpin for Mutex&lt;T&gt; <span class="where fmt-newline">where<br> T: <a class="trait" href="../marker/trait.unpin" title="trait std::marker::Unpin">Unpin</a>, </span>
+</h3>
+
+</div></div>
+<h2 id="blanket-implementations" class="small-section-header">Blanket Implementations</h2>
+<div id="blanket-implementations-list">
+<details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Any" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T&gt; Any for T <span class="where fmt-newline">where<br> T: 'static + ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#131-135" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.type_id" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn type_id(&amp;self) -&gt; TypeId</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#132" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Gets the <code>TypeId</code> of <code>self</code>. <a href="../any/trait.any#tymethod.type_id">Read more</a></p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Borrow%3CT%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T&gt; Borrow&lt;T&gt; for T <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#208-213" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.borrow" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn borrow(&amp;self) -&gt; &amp;T</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#210" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Immutably borrows from an owned value. <a href="../borrow/trait.borrow#tymethod.borrow">Read more</a></p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-BorrowMut%3CT%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T&gt; BorrowMut&lt;T&gt; for T <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#216-220" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.borrow_mut" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn borrow_mut(&amp;mut self) -&gt; &amp;mut T</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#217" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Mutably borrows from an owned value. <a href="../borrow/trait.borrowmut#tymethod.borrow_mut">Read more</a></p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-From%3C!%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T&gt; From&lt;!&gt; for T</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#559-563" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.from-2" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn from(t: !) -&gt; T</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#560" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Performs the conversion.</p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-From%3CT%3E-1" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T&gt; From&lt;T&gt; for T</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#544-548" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.from-1" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn from(t: T) -&gt; T</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#545" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Performs the conversion.</p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Into%3CU%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T, U&gt; Into&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.from" title="trait std::convert::From">From</a>&lt;T&gt;, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#533-540" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.into" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn into(self) -&gt; U</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#537" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Performs the conversion.</p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-TryFrom%3CU%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T, U&gt; TryFrom&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.into" title="trait std::convert::Into">Into</a>&lt;T&gt;, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#581-590" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle" open><summary><div id="associatedtype.Error" class="type trait-impl has-srclink">
+<h4 class="code-header">type Error = Infallible</h4>
+
+</div></summary><div class="docblock">
+<p>The type returned in the event of a conversion error.</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.try_from" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn try_from(value: U) -&gt; Result&lt;T, &lt;T as TryFrom&lt;U&gt;&gt;::Error&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#587" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Performs the conversion.</p> </div></details>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-TryInto%3CU%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T, U&gt; TryInto&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.tryfrom" title="trait std::convert::TryFrom">TryFrom</a>&lt;T&gt;, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#567-576" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle" open><summary><div id="associatedtype.Error-1" class="type trait-impl has-srclink">
+<h4 class="code-header">type Error = &lt;U as TryFrom&lt;T&gt;&gt;::Error</h4>
+
+</div></summary><div class="docblock">
+<p>The type returned in the event of a conversion error.</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.try_into" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn try_into(self) -&gt; Result&lt;U, &lt;U as TryFrom&lt;T&gt;&gt;::Error&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#573" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Performs the conversion.</p> </div></details>
+</div></details>
+</div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://doc.rust-lang.org/std/sync/struct.Mutex.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/std/sync/struct.Mutex.html</a>
+  </p>
+</div>

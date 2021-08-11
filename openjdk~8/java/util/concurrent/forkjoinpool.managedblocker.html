@@ -1,0 +1,43 @@
+<h1>Interface ForkJoinPool.ManagedBlocker</h1>     <dl> <dt>Enclosing class:</dt> <dd><a href="forkjoinpool">ForkJoinPool</a></dd> </dl>   <pre data-language="java">public static interface ForkJoinPool.ManagedBlocker</pre> <div>
+<p>Interface for extending managed parallelism for tasks running in <a href="forkjoinpool"><code>ForkJoinPool</code></a>s. </p>
+<p>A <code>ManagedBlocker</code> provides two methods. Method <a href="forkjoinpool.managedblocker#isReleasable--"><code>isReleasable()</code></a> must return <code>true</code> if blocking is not necessary. Method <a href="forkjoinpool.managedblocker#block--"><code>block()</code></a> blocks the current thread if necessary (perhaps internally invoking <code>isReleasable</code> before actually blocking). These actions are performed by any thread invoking <a href="forkjoinpool#managedBlock-java.util.concurrent.ForkJoinPool.ManagedBlocker-"><code>ForkJoinPool.managedBlock(ManagedBlocker)</code></a>. The unusual methods in this API accommodate synchronizers that may, but don't usually, block for long periods. Similarly, they allow more efficient internal handling of cases in which additional workers may be, but usually are not, needed to ensure sufficient parallelism. Toward this end, implementations of method <code>isReleasable</code> must be amenable to repeated invocation. </p>
+<p>For example, here is a ManagedBlocker based on a ReentrantLock: </p>
+<pre data-language="java">class ManagedLocker implements ManagedBlocker {
+   final ReentrantLock lock;
+   boolean hasLock = false;
+   ManagedLocker(ReentrantLock lock) { this.lock = lock; }
+   public boolean block() {
+     if (!hasLock)
+       lock.lock();
+     return true;
+   }
+   public boolean isReleasable() {
+     return hasLock || (hasLock = lock.tryLock());
+   }
+ }</pre> <p>Here is a class that possibly blocks waiting for an item on a given queue: </p>
+<pre data-language="java">class QueueTaker&lt;E&gt; implements ManagedBlocker {
+   final BlockingQueue&lt;E&gt; queue;
+   volatile E item = null;
+   QueueTaker(BlockingQueue&lt;E&gt; q) { this.queue = q; }
+   public boolean block() throws InterruptedException {
+     if (item == null)
+       item = queue.take();
+     return true;
+   }
+   public boolean isReleasable() {
+     return item != null || (item = queue.poll()) != null;
+   }
+   public E getItem() { // call after pool.managedBlock completes
+     return item;
+   }
+ }</pre>
+</div>       <h2 id="method.detail">Methods</h2>   <h3 id="block--">block</h3> <pre data-language="java">boolean block()
+       throws InterruptedException</pre> <p>Possibly blocks the current thread, for example waiting for a lock or condition.</p> <dl> <dt>Returns:</dt> <dd>
+<code>true</code> if no additional blocking is necessary (i.e., if isReleasable would return true)</dd> <dt>Throws:</dt> <dd>
+<code><a href="../../lang/interruptedexception">InterruptedException</a></code> - if interrupted while waiting (the method is not required to do so, but is allowed to)</dd> </dl>    <h3 id="isReleasable--">isReleasable</h3> <pre data-language="java">boolean isReleasable()</pre> <p>Returns <code>true</code> if blocking is unnecessary.</p> <dl> <dt>Returns:</dt> <dd>
+<code>true</code> if blocking is unnecessary</dd> </dl>     <div class="_attribution">
+  <p class="_attribution-p">
+    &copy; 1993&ndash;2017, Oracle and/or its affiliates. All rights reserved.<br>Documentation extracted from Debian's OpenJDK Development Kit package.<br>Licensed under the GNU General Public License, version 2, with the Classpath Exception.<br>Various third party code in OpenJDK is licensed under different licenses (see Debian package).<br>Java and OpenJDK are trademarks or registered trademarks of Oracle and/or its affiliates.<br>
+    
+  </p>
+</div>

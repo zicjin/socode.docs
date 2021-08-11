@@ -1,0 +1,65 @@
+<h1> Package constraint  </h1>  <ul id="short-nav">
+<li><code>import "go/build/constraint"</code></li>
+<li><a href="#pkg-overview" class="overviewLink">Overview</a></li>
+<li><a href="#pkg-index" class="indexLink">Index</a></li>
+</ul>    <h2 id="pkg-overview">Overview </h2> <p> Package constraint implements parsing and evaluation of build constraint lines. See <a href="https://golang.org/cmd/go/#hdr-Build_constraints">https://golang.org/cmd/go/#hdr-Build_constraints</a> for documentation about build constraints themselves. </p> <p> This package parses both the original “// +build” syntax and the “//go:build” syntax that will be added in Go 1.17. The parser is being included in Go 1.16 to allow tools that need to process Go 1.17 source code to still be built against the Go 1.16 release. See <a href="https://golang.org/design/draft-gobuild">https://golang.org/design/draft-gobuild</a> for details about the “//go:build” syntax. </p>      <h2 id="pkg-index">Index </h2> <ul id="manual-nav">
+<li><a href="#IsGoBuild">func IsGoBuild(line string) bool</a></li>
+<li><a href="#IsPlusBuild">func IsPlusBuild(line string) bool</a></li>
+<li><a href="#PlusBuildLines">func PlusBuildLines(x Expr) ([]string, error)</a></li>
+<li><a href="#AndExpr">type AndExpr</a></li>
+<li> <a href="#AndExpr.Eval">func (x *AndExpr) Eval(ok func(tag string) bool) bool</a>
+</li>
+<li> <a href="#AndExpr.String">func (x *AndExpr) String() string</a>
+</li>
+<li><a href="#Expr">type Expr</a></li>
+<li> <a href="#Parse">func Parse(line string) (Expr, error)</a>
+</li>
+<li><a href="#NotExpr">type NotExpr</a></li>
+<li> <a href="#NotExpr.Eval">func (x *NotExpr) Eval(ok func(tag string) bool) bool</a>
+</li>
+<li> <a href="#NotExpr.String">func (x *NotExpr) String() string</a>
+</li>
+<li><a href="#OrExpr">type OrExpr</a></li>
+<li> <a href="#OrExpr.Eval">func (x *OrExpr) Eval(ok func(tag string) bool) bool</a>
+</li>
+<li> <a href="#OrExpr.String">func (x *OrExpr) String() string</a>
+</li>
+<li><a href="#SyntaxError">type SyntaxError</a></li>
+<li> <a href="#SyntaxError.Error">func (e *SyntaxError) Error() string</a>
+</li>
+<li><a href="#TagExpr">type TagExpr</a></li>
+<li> <a href="#TagExpr.Eval">func (x *TagExpr) Eval(ok func(tag string) bool) bool</a>
+</li>
+<li> <a href="#TagExpr.String">func (x *TagExpr) String() string</a>
+</li>
+</ul> <h3>Package files</h3> <p>  <a href="https://golang.org/src/go/build/constraint/expr.go">expr.go</a>  </p>   <h2 id="IsGoBuild">func IsGoBuild<a href="https://golang.org/src/go/build/constraint/expr.go?s=4132:4164#L153" class="source">Source</a>  <span title="Added in Go 1.16">1.16</span> </h2> <pre data-language="go">func IsGoBuild(line string) bool</pre> <p> IsGoBuild reports whether the line of text is a “//go:build” constraint. It only checks the prefix of the text, not that the expression itself parses. </p> <h2 id="IsPlusBuild">func IsPlusBuild<a href="https://golang.org/src/go/build/constraint/expr.go?s=9039:9073#L343" class="source">Source</a>  <span title="Added in Go 1.16">1.16</span> </h2> <pre data-language="go">func IsPlusBuild(line string) bool</pre> <p> IsPlusBuild reports whether the line of text is a “// +build” constraint. It only checks the prefix of the text, not that the expression itself parses. </p> <h2 id="PlusBuildLines">func PlusBuildLines<a href="https://golang.org/src/go/build/constraint/expr.go?s=11666:11711#L441" class="source">Source</a>  <span title="Added in Go 1.16">1.16</span> </h2> <pre data-language="go">func PlusBuildLines(x Expr) ([]string, error)</pre> <p> PlusBuildLines returns a sequence of “// +build” lines that evaluate to the build expression x. If the expression is too complex to convert directly to “// +build” lines, PlusBuildLines returns an error. </p> <h2 id="AndExpr">type AndExpr<a href="https://golang.org/src/go/build/constraint/expr.go?s=2238:2272#L68" class="source">Source</a>  <span title="Added in Go 1.16">1.16</span> </h2> <p> An AndExpr represents the expression X &amp;&amp; Y. </p> <pre data-language="go">type AndExpr struct {
+    X, Y Expr
+}
+</pre> <h3 id="AndExpr.Eval">func (*AndExpr) Eval<a href="https://golang.org/src/go/build/constraint/expr.go?s=2305:2358#L74" class="source">Source</a>  <span title="Added in Go 1.16">1.16</span> </h3> <pre data-language="go">func (x *AndExpr) Eval(ok func(tag string) bool) bool</pre> <h3 id="AndExpr.String">func (*AndExpr) String<a href="https://golang.org/src/go/build/constraint/expr.go?s=2486:2519#L81" class="source">Source</a>  <span title="Added in Go 1.16">1.16</span> </h3> <pre data-language="go">func (x *AndExpr) String() string</pre> <h2 id="Expr">type Expr<a href="https://golang.org/src/go/build/constraint/expr.go?s=932:1452#L13" class="source">Source</a>  <span title="Added in Go 1.16">1.16</span> </h2> <p> An Expr is a build tag constraint expression. The underlying concrete type is *AndExpr, *OrExpr, *NotExpr, or *TagExpr. </p> <pre data-language="go">type Expr interface {
+    // String returns the string form of the expression,
+    // using the boolean syntax used in //go:build lines.
+    String() string
+
+    // Eval reports whether the expression evaluates to true.
+    // It calls ok(tag) as needed to find out whether a given build tag
+    // is satisfied by the current build configuration.
+    Eval(ok func(tag string) bool) bool
+    // contains filtered or unexported methods
+}</pre> <h3 id="Parse">func Parse<a href="https://golang.org/src/go/build/constraint/expr.go?s=3744:3781#L141" class="source">Source</a>  <span title="Added in Go 1.16">1.16</span> </h3> <pre data-language="go">func Parse(line string) (Expr, error)</pre> <p> Parse parses a single build constraint line of the form “//go:build ...” or “// +build ...” and returns the corresponding boolean expression. </p> <h2 id="NotExpr">type NotExpr<a href="https://golang.org/src/go/build/constraint/expr.go?s=1856:1887#L46" class="source">Source</a>  <span title="Added in Go 1.16">1.16</span> </h2> <p> A NotExpr represents the expression !X (the negation of X). </p> <pre data-language="go">type NotExpr struct {
+    X Expr
+}
+</pre> <h3 id="NotExpr.Eval">func (*NotExpr) Eval<a href="https://golang.org/src/go/build/constraint/expr.go?s=1920:1973#L52" class="source">Source</a>  <span title="Added in Go 1.16">1.16</span> </h3> <pre data-language="go">func (x *NotExpr) Eval(ok func(tag string) bool) bool</pre> <h3 id="NotExpr.String">func (*NotExpr) String<a href="https://golang.org/src/go/build/constraint/expr.go?s=2001:2034#L56" class="source">Source</a>  <span title="Added in Go 1.16">1.16</span> </h3> <pre data-language="go">func (x *NotExpr) String() string</pre> <h2 id="OrExpr">type OrExpr<a href="https://golang.org/src/go/build/constraint/expr.go?s=2781:2814#L98" class="source">Source</a>  <span title="Added in Go 1.16">1.16</span> </h2> <p> An OrExpr represents the expression X || Y. </p> <pre data-language="go">type OrExpr struct {
+    X, Y Expr
+}
+</pre> <h3 id="OrExpr.Eval">func (*OrExpr) Eval<a href="https://golang.org/src/go/build/constraint/expr.go?s=2846:2898#L104" class="source">Source</a>  <span title="Added in Go 1.16">1.16</span> </h3> <pre data-language="go">func (x *OrExpr) Eval(ok func(tag string) bool) bool</pre> <h3 id="OrExpr.String">func (*OrExpr) String<a href="https://golang.org/src/go/build/constraint/expr.go?s=3026:3058#L111" class="source">Source</a>  <span title="Added in Go 1.16">1.16</span> </h3> <pre data-language="go">func (x *OrExpr) String() string</pre> <h2 id="SyntaxError">type SyntaxError<a href="https://golang.org/src/go/build/constraint/expr.go?s=3339:3469#L128" class="source">Source</a>  <span title="Added in Go 1.16">1.16</span> </h2> <p> A SyntaxError reports a syntax error in a parsed build expression. </p> <pre data-language="go">type SyntaxError struct {
+    Offset int    // byte offset in input where error was detected
+    Err    string // description of error
+}
+</pre> <h3 id="SyntaxError.Error">func (*SyntaxError) Error<a href="https://golang.org/src/go/build/constraint/expr.go?s=3471:3507#L133" class="source">Source</a>  <span title="Added in Go 1.16">1.16</span> </h3> <pre data-language="go">func (e *SyntaxError) Error() string</pre> <h2 id="TagExpr">type TagExpr<a href="https://golang.org/src/go/build/constraint/expr.go?s=1502:1578#L29" class="source">Source</a>  <span title="Added in Go 1.16">1.16</span> </h2> <p> A TagExpr is an Expr for the single tag Tag. </p> <pre data-language="go">type TagExpr struct {
+    Tag string // for example, “linux” or “cgo”
+}
+</pre> <h3 id="TagExpr.Eval">func (*TagExpr) Eval<a href="https://golang.org/src/go/build/constraint/expr.go?s=1611:1664#L35" class="source">Source</a>  <span title="Added in Go 1.16">1.16</span> </h3> <pre data-language="go">func (x *TagExpr) Eval(ok func(tag string) bool) bool</pre> <h3 id="TagExpr.String">func (*TagExpr) String<a href="https://golang.org/src/go/build/constraint/expr.go?s=1688:1721#L39" class="source">Source</a>  <span title="Added in Go 1.16">1.16</span> </h3> <pre data-language="go">func (x *TagExpr) String() string</pre><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://golang.org/pkg/go/build/constraint/" class="_attribution-link" target="_blank">https://golang.org/pkg/go/build/constraint/</a>
+  </p>
+</div>

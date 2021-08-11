@@ -1,0 +1,173 @@
+
+<h1 id="disallow-loops-with-a-body-that-allows-only-one-iteration-no-unreachable-loop">Disallow loops with a body that allows only one iteration (no-unreachable-loop)</h1>
+<p>A loop that can never reach the second iteration is a possible error in the code.</p>
+<pre data-language="js">for (let i = 0; i &lt; arr.length; i++) {
+    if (arr[i].name === myName) {
+        doSomething(arr[i]);
+        // break was supposed to be here
+    }
+    break;
+}</pre>
+<p>In rare cases where only one iteration (or at most one iteration) is intended behavior, the code should be refactored to use <code>if</code> conditionals instead of <code>while</code>, <code>do-while</code> and <code>for</code> loops. It's considered a best practice to avoid using loop constructs for such cases.</p>
+<h2 id="rule-details">Rule Details</h2>
+<p>This rule aims to detect and disallow loops that can have at most one iteration, by performing static code path analysis on loop bodies.</p>
+<p>In particular, this rule will disallow a loop with a body that exits the loop in all code paths. If all code paths in the loop's body will end with either a <code>break</code>, <code>return</code> or a <code>throw</code> statement, the second iteration of such loop is certainly unreachable, regardless of the loop's condition.</p>
+<p>This rule checks <code>while</code>, <code>do-while</code>, <code>for</code>, <code>for-in</code> and <code>for-of</code> loops. You can optionally disable checks for each of these constructs.</p>
+<p>Examples of <strong>incorrect</strong> code for this rule:</p>
+<pre data-language="js">/*eslint no-unreachable-loop: "error"*/
+
+while (foo) {
+    doSomething(foo);
+    foo = foo.parent;
+    break;
+}
+
+function verifyList(head) {
+    let item = head;
+    do {
+        if (verify(item)) {
+            return true;
+        } else {
+            return false;
+        }
+    } while (item);
+}
+
+function findSomething(arr) {
+    for (var i = 0; i &lt; arr.length; i++) {
+        if (isSomething(arr[i])) {
+            return arr[i];
+        } else {
+            throw new Error("Doesn't exist.");
+        }
+    }
+}
+
+for (key in obj) {
+    if (key.startsWith("_")) {
+        break;
+    }
+    firstKey = key;
+    firstValue = obj[key];
+    break;
+}
+
+for (foo of bar) {
+    if (foo.id === id) {
+        doSomething(foo);
+    }
+    break;
+}</pre>
+<p>Examples of <strong>correct</strong> code for this rule:</p>
+<pre data-language="js">/*eslint no-unreachable-loop: "error"*/
+
+while (foo) {
+    doSomething(foo);
+    foo = foo.parent;
+}
+
+function verifyList(head) {
+    let item = head;
+    do {
+        if (verify(item)) {
+            item = item.next;
+        } else {
+            return false;
+        }
+    } while (item);
+
+    return true;
+}
+
+function findSomething(arr) {
+    for (var i = 0; i &lt; arr.length; i++) {
+        if (isSomething(arr[i])) {
+            return arr[i];
+        }
+    }
+    throw new Error("Doesn't exist.");
+}
+
+for (key in obj) {
+    if (key.startsWith("_")) {
+        continue;
+    }
+    firstKey = key;
+    firstValue = obj[key];
+    break;
+}
+
+for (foo of bar) {
+    if (foo.id === id) {
+        doSomething(foo);
+        break;
+    }
+}</pre>
+<p>Please note that this rule is not designed to check loop conditions, and will not warn in cases such as the following examples.</p>
+<p>Examples of additional <strong>correct</strong> code for this rule:</p>
+<pre data-language="js">/*eslint no-unreachable-loop: "error"*/
+
+do {
+    doSomething();
+} while (false)
+
+for (let i = 0; i &lt; 1; i++) {
+    doSomething(i);
+}
+
+for (const a of [1]) {
+    doSomething(a);
+}</pre>
+<h2 id="options">Options</h2>
+<p>This rule has an object option, with one option:</p>
+<ul><li>
+<code>"ignore"</code> - an optional array of loop types that will be ignored by this rule.</li></ul>
+<h2 id="ignore">ignore</h2>
+<p>You can specify up to 5 different elements in the <code>"ignore"</code> array:</p>
+<ul>
+<li>
+<code>"WhileStatement"</code> - to ignore all <code>while</code> loops.</li>
+<li>
+<code>"DoWhileStatement"</code> - to ignore all <code>do-while</code> loops.</li>
+<li>
+<code>"ForStatement"</code> - to ignore all <code>for</code> loops (does not apply to <code>for-in</code> and <code>for-of</code> loops).</li>
+<li>
+<code>"ForInStatement"</code> - to ignore all <code>for-in</code> loops.</li>
+<li>
+<code>"ForOfStatement"</code> - to ignore all <code>for-of</code> loops.</li>
+</ul>
+<p>Examples of <strong>correct</strong> code for this rule with the <code>"ignore"</code> option:</p>
+<pre data-language="js">/*eslint no-unreachable-loop: ["error", { "ignore": ["ForInStatement", "ForOfStatement"] }]*/
+
+for (var key in obj) {
+  hasEnumerableProperties = true;
+  break;
+}
+
+for (const a of b) break;</pre>
+<h2 id="known-limitations">Known Limitations</h2>
+<p>Static code path analysis, in general, does not evaluate conditions. Due to this fact, this rule might miss reporting cases such as the following:</p>
+<pre data-language="js">for (let i = 0; i &lt; 10; i++) {
+    doSomething(i);
+    if (true) {
+        break;
+    }
+}</pre>
+<h2 id="related-rules">Related Rules</h2>
+<ul>
+<li><a href="no-unreachable">no-unreachable</a></li>
+<li><a href="no-constant-condition">no-constant-condition</a></li>
+<li><a href="no-unmodified-loop-condition">no-unmodified-loop-condition</a></li>
+<li><a href="for-direction">for-direction</a></li>
+</ul>
+<h2 id="version">Version</h2>
+<p>This rule was introduced in ESLint 7.3.0.</p>
+<h2 id="resources">Resources</h2>
+<ul>
+<li><a href="https://github.com/eslint/eslint/tree/master/lib/rules/no-unreachable-loop.js">Rule source</a></li>
+<li><a href="https://github.com/eslint/eslint/tree/master/docs/rules/no-unreachable-loop.md">Documentation source</a></li>
+</ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://eslint.org/docs/rules/no-unreachable-loop" class="_attribution-link" target="_blank">https://eslint.org/docs/rules/no-unreachable-loop</a>
+  </p>
+</div>

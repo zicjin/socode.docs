@@ -1,0 +1,96 @@
+ <div class="theme-default-content content__default">
+<h1 id="change-detection-caveats-in-vue-2"> Change Detection Caveats in Vue 2</h1> <blockquote><p>This page applies only to Vue 2.x and below, and assumes you've already read the <a href="reactivity">Reactivity Section</a>. Please read that section first.</p></blockquote> <p>Due to limitations in JavaScript, there are types of changes that Vue <strong>cannot detect</strong>. However, there are ways to circumvent them to preserve reactivity.</p> <h3 id="for-objects"> For Objects</h3> <p>Vue cannot detect property addition or deletion. Since Vue performs the getter/setter conversion process during instance initialization, a property must be present in the <code>data</code> object in order for Vue to convert it and make it reactive. For example:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">var vm = new Vue({
+  data: {
+    a: 1
+  }
+})
+// `vm.a` is now reactive
+
+vm.b = 2
+// `vm.b` is NOT reactive</pre> </div>
+<p>Vue does not allow dynamically adding new root-level reactive properties to an already created instance. However, it's possible to add reactive properties to a nested object using the <code>Vue.set(object, propertyName, value)</code> method:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">Vue.set(vm.someObject, 'b', 2)</pre> </div>
+<p>You can also use the <code>vm.$set</code> instance method, which is an alias to the global <code>Vue.set</code>:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">this.$set(this.someObject, 'b', 2)</pre> </div>
+<p>Sometimes you may want to assign a number of properties to an existing object, for example using <code>Object.assign()</code> or <code>_.extend()</code>. However, new properties added to the object will not trigger changes. In such cases, create a fresh object with properties from both the original object and the mixin object:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">// instead of `Object.assign(this.someObject, { a: 1, b: 2 })`
+this.someObject = Object.assign({}, this.someObject, { a: 1, b: 2 })</pre> </div>
+<h3 id="for-arrays"> For Arrays</h3> <p>Vue cannot detect the following changes to an array:</p> <ol>
+<li>When you directly set an item with the index, e.g. <code>vm.items[indexOfItem] = newValue</code>
+</li> <li>When you modify the length of the array, e.g. <code>vm.items.length = newLength</code>
+</li>
+</ol> <p>For example:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">var vm = new Vue({
+  data: {
+    items: ['a', 'b', 'c']
+  }
+})
+vm.items[1] = 'x' // is NOT reactive
+vm.items.length = 2 // is NOT reactive</pre> </div>
+<p>To overcome caveat 1, both of the following will accomplish the same as <code>vm.items[indexOfItem] = newValue</code>, but will also trigger state updates in the reactivity system:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">// Vue.set
+Vue.set(vm.items, indexOfItem, newValue)</pre> </div>
+<div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">// Array.prototype.splice
+vm.items.splice(indexOfItem, 1, newValue)</pre> </div>
+<p>You can also use the <a href="https://vuejs.org/v2/api/#vm-set" target="_blank" rel="noopener noreferrer"><code>vm.$set</code><span> <span class="sr-only">(opens new window)</span></span></a> instance method, which is an alias for the global <code>Vue.set</code>:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">vm.$set(vm.items, indexOfItem, newValue)</pre> </div>
+<p>To deal with caveat 2, you can use <code>splice</code>:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">vm.items.splice(newLength)</pre> </div>
+<h2 id="declaring-reactive-properties"> Declaring Reactive Properties</h2> <p>Since Vue doesn't allow dynamically adding root-level reactive properties, you have to initialize component instances by declaring all root-level reactive data properties upfront, even with an empty value:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">var vm = new Vue({
+  data: {
+    // declare message with an empty value
+    message: ''
+  },
+  template: '&lt;div&gt;{{ message }}&lt;/div&gt;'
+})
+// set `message` later
+vm.message = 'Hello!'</pre> </div>
+<p>If you don't declare <code>message</code> in the data option, Vue will warn you that the render function is trying to access a property that doesn't exist.</p> <p>There are technical reasons behind this restriction - it eliminates a class of edge cases in the dependency tracking system, and also makes component instances play nicer with type checking systems. But there is also an important consideration in terms of code maintainability: the <code>data</code> object is like the schema for your component's state. Declaring all reactive properties upfront makes the component code easier to understand when revisited later or read by another developer.</p> <h2 id="async-update-queue"> Async Update Queue</h2> <p>In case you haven't noticed yet, Vue performs DOM updates <strong>asynchronously</strong>. Whenever a data change is observed, it will open a queue and buffer all the data changes that happen in the same event loop. If the same watcher is triggered multiple times, it will be pushed into the queue only once. This buffered de-duplication is important in avoiding unnecessary calculations and DOM manipulations. Then, in the next event loop "tick", Vue flushes the queue and performs the actual (already de-duped) work. Internally Vue tries native <code>Promise.then</code>, <code>MutationObserver</code>, and <code>setImmediate</code> for the asynchronous queuing and falls back to <code>setTimeout(fn, 0)</code>.</p> <p>For example, when you set <code>vm.someData = 'new value'</code>, the component will not re-render immediately. It will update in the next "tick", when the queue is flushed. Most of the time we don't need to care about this, but it can be tricky when you want to do something that depends on the post-update DOM state. Although Vue.js generally encourages developers to think in a "data-driven" fashion and avoid touching the DOM directly, sometimes it might be necessary to get your hands dirty. In order to wait until Vue.js has finished updating the DOM after a data change, you can use <code>Vue.nextTick(callback)</code> immediately after the data is changed. The callback will be called after the DOM has been updated. For example:</p> <div class="language-html line-numbers-mode">
+<pre class="language-html" data-language="javascript">&lt;div id="example"&gt;{{ message }}&lt;/div&gt;</pre> </div>
+<div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">var vm = new Vue({
+  el: '#example',
+  data: {
+    message: '123'
+  }
+})
+vm.message = 'new message' // change data
+vm.$el.textContent === 'new message' // false
+Vue.nextTick(function() {
+  vm.$el.textContent === 'new message' // true
+})</pre> </div>
+<p>There is also the <code>vm.$nextTick()</code> instance method, which is especially handy inside components, because it doesn't need global <code>Vue</code> and its callback's <code>this</code> context will be automatically bound to the current component instance:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">Vue.component('example', {
+  template: '&lt;span&gt;{{ message }}&lt;/span&gt;',
+  data: function() {
+    return {
+      message: 'not updated'
+    }
+  },
+  methods: {
+    updateMessage: function() {
+      this.message = 'updated'
+      console.log(this.$el.textContent) // =&gt; 'not updated'
+      this.$nextTick(function() {
+        console.log(this.$el.textContent) // =&gt; 'updated'
+      })
+    }
+  }
+})</pre> </div>
+<p>Since <code>$nextTick()</code> returns a promise, you can achieve the same as the above using the new <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function" target="_blank" rel="noopener noreferrer">ES2017 async/await<span> <span class="sr-only">(opens new window)</span></span></a> syntax:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">methods: {
+    updateMessage: async function () {
+      this.message = 'updated'
+      console.log(this.$el.textContent) // =&gt; 'not updated'
+      await this.$nextTick()
+      console.log(this.$el.textContent) // =&gt; 'updated'
+    }
+  }</pre> </div>
+</div>   <div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://v3.vuejs.org/guide/change-detection.html" class="_attribution-link" target="_blank">https://v3.vuejs.org/guide/change-detection.html</a>
+  </p>
+</div>

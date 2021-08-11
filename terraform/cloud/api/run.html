@@ -1,0 +1,348 @@
+ <h1 id="runs-api">  Runs API </h1> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> Before working with the runs or configuration versions APIs, read the <a href="../run/api">API-driven run workflow</a> page, which includes both a full overview of this workflow and a walkthrough of a simple implementation of it.</p> </blockquote> <p>Performing a run on a new configuration is a multi-step process.</p> <ol> <li>
+<a href="configuration-versions#create-a-configuration-version">Create a configuration version on the workspace</a>. </li> <li>
+<a href="configuration-versions#upload-configuration-files">Upload configuration files to the configuration version</a>. </li> <li>
+<a href="#create-a-run">Create a run on the workspace</a>; this is done automatically when a configuration file is uploaded. </li> <li>
+<a href="#apply-a-run">Create and queue an apply on the run</a>; if the run can't be auto-applied. </li> </ol> <p>Alternatively, you can create a run with a pre-existing configuration version, even one from another workspace. This is useful for promoting known good code from one workspace to another.</p> <h2 id="attributes">  Attributes </h2> <h3 id="run-states">  Run States </h3> <p>The run state is found in <code>data.attributes.status</code>, and you can reference the following list of possible states.</p> <table>
+<thead> <tr> <th>State</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>pending</code></td> <td>The initial status of a run once it has been created.</td> </tr> <tr> <td><code>plan_queued</code></td> <td>Once a workspace has the availability to start a new run, the next run will transition to <code>plan_queued</code>. This status indicates that the it should start as soon as the backend services that run terraform have available capacity. In Terraform Cloud, you should seldom see this status, as our aim is to always have capacity. However, in Terraform Enterprise this status will be more common due to the self-hosted nature.</td> </tr> <tr> <td><code>planning</code></td> <td>The planning phase of a run is in progress.</td> </tr> <tr> <td><code>planned</code></td> <td>The planning phase of a run has completed.</td> </tr> <tr> <td><code>cost_estimating</code></td> <td>The cost estimation phase of a run is in progress.</td> </tr> <tr> <td><code>cost_estimated</code></td> <td>The cost estimation phase of a run has completed.</td> </tr> <tr> <td><code>policy_checking</code></td> <td>The sentinel policy checking phase of a run is in progress.</td> </tr> <tr> <td><code>policy_override</code></td> <td>A sentinel policy has soft failed, and can be overriden.</td> </tr> <tr> <td><code>policy_soft_failed</code></td> <td>A sentinel policy has soft failed for a plan-only run. This is a final state.</td> </tr> <tr> <td><code>policy_checked</code></td> <td>The sentinel policy checking phase of a run has completed.</td> </tr> <tr> <td><code>confirmed</code></td> <td>The plan produced by the run has been confirmed.</td> </tr> <tr> <td><code>planned_and_finished</code></td> <td>The completion of a run containing a plan only, or a run the produces a plan with no changes to apply. This is a final state.</td> </tr> <tr> <td><code>apply_queued</code></td> <td>Once the changes in the plan have been confirmed, the run run will transition to <code>apply_queued</code>. This status indicates that the run should start as soon as the backend services that run terraform have available capacity. In Terraform Cloud, you should seldom see this status, as our aim is to always have capacity. However, in Terraform Enterprise this status will be more common due to the self-hosted nature.</td> </tr> <tr> <td><code>applying</code></td> <td>The applying phase of a run is in progress.</td> </tr> <tr> <td><code>applied</code></td> <td>The applying phase of a run has completed.</td> </tr> <tr> <td><code>discarded</code></td> <td>The run has been discarded. This is a final state.</td> </tr> <tr> <td><code>errored</code></td> <td>The run has errored. This is a final state.</td> </tr> <tr> <td><code>canceled</code></td> <td>The run has been canceled.</td> </tr> <tr> <td><code>force_canceled</code></td> <td>The run has been canceled forcefully.</td> </tr> </tbody>
+</table> <h2 id="create-a-run">  Create a Run </h2> <p><code>POST /runs</code></p> <p>A run performs a plan and apply, using a configuration version and the workspace’s current variables. You can specify a configuration version when creating a run; if you don’t provide one, the run defaults to the workspace’s most recently used version. (A configuration version is “used” when it is created or used for a run in this workspace.)</p> <p>Creating a run requires permission to queue plans for the specified workspace. (<a href="../users-teams-organizations/permissions">More about permissions.</a>)</p> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> This endpoint cannot be accessed with <a href="../users-teams-organizations/api-tokens#organization-api-tokens">organization tokens</a>. You must access it with a <a href="../users-teams-organizations/users#api-tokens">user token</a> or <a href="../users-teams-organizations/api-tokens#team-api-tokens">team token</a>.</p> </blockquote> <h3 id="request-body">  Request Body </h3> <p>This POST endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.attributes.is-destroy</code></td> <td>bool</td> <td>false</td> <td>Specifies if this plan is a destroy plan, which will destroy all provisioned resources. Mutually exclusive with <code>refresh-only</code>.</td> </tr> <tr> <td><code>data.attributes.message</code></td> <td>string</td> <td>"Queued manually via the Terraform Enterprise API"</td> <td>Specifies the message to be associated with this run.</td> </tr> <tr> <td><code>data.attributes.refresh</code></td> <td>bool</td> <td>true</td> <td>Specifies whether or not to refresh the state before a plan.</td> </tr> <tr> <td><code>data.attributes.refresh-only</code></td> <td>bool</td> <td>false</td> <td>Whether this run should use the refresh-only plan mode, which will refresh the state without modifying any resources. Mutually exclusive with <code>is-destroy</code>.</td> </tr> <tr> <td><code>data.attributes.replace-addrs</code></td> <td>array[string]</td> <td>(nothing)</td> <td>Specifies an optional list of resource addresses to be passed to the <code>-replace</code> flag.</td> </tr> <tr> <td><code>data.attributes.target-addrs</code></td> <td>array[string]</td> <td>(nothing)</td> <td>Specifies an optional list of resource addresses to be passed to the <code>-target</code> flag.</td> </tr> <tr> <td><code>data.relationships.workspace.data.id</code></td> <td>string</td> <td>(nothing)</td> <td>Specifies the workspace ID where the run will be executed.</td> </tr> <tr> <td><code>data.relationships.configuration-version.data.id</code></td> <td>string</td> <td>(nothing)</td> <td>Specifies the configuration version to use for this run. If the <code>configuration-version</code> object is omitted, the run will be created using the workspace's latest configuration version.</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/201">201</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "runs"</code>)</td> <td>Successfully created a run</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Organization or workspace not found, or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Malformed request body (missing attributes, wrong types, etc.)</td> </tr> </tbody>
+</table> <h3 id="sample-payload">  Sample Payload </h3> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "message": "Custom message"
+    },
+    "type":"runs",
+    "relationships": {
+      "workspace": {
+        "data": {
+          "type": "workspaces",
+          "id": "ws-LLGHCr4SWy28wyGN"
+        }
+      },
+      "configuration-version": {
+        "data": {
+          "type": "configuration-versions",
+          "id": "cv-n4XQPBa2QnecZJ4G"
+        }
+      }
+    }
+  }
+}
+</pre>
+<h3 id="sample-request">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/runs
+</pre>
+<h3 id="sample-response">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id": "run-CZcmD7eagjhyX0vN",
+    "type": "runs",
+    "attributes": {
+      "actions": {
+        "is-cancelable": true,
+        "is-confirmable": false,
+        "is-discardable": false,
+        "is-force-cancelable": false
+      },
+      "canceled-at": null,
+      "created-at": "2021-05-24T07:38:04.171Z",
+      "has-changes": false,
+      "is-destroy": false,
+      "message": "Custom message",
+      "plan-only": false,
+      "source": "tfe-api",
+      "status-timestamps": {
+        "plan-queueable-at": "2021-05-24T07:38:04+00:00"
+      },
+      "status": "pending",
+      "trigger-reason": "manual",
+      "target-addrs": null,
+      "permissions": {
+        "can-apply": true,
+        "can-cancel": true,
+        "can-comment": true,
+        "can-discard": true,
+        "can-force-execute": true,
+        "can-force-cancel": true,
+        "can-override-policy-check": true
+      },
+      "refresh": false,
+      "refresh-only": false,
+      "replace-addrs": null
+    },
+    "relationships": {
+      "apply": {...},
+      "comments": {...},
+      "configuration-version": {...},
+      "cost-estimate": {...},
+      "created-by": {...},
+      "input-state-version": {...},
+      "plan": {...},
+      "run-events": {...},
+      "policy-checks": {...},
+      "workspace": {...},
+      "workspace-run-alerts": {...}
+      }
+    },
+    "links": {
+      "self": "/api/v2/runs/run-CZcmD7eagjhyX0vN"
+    }
+  }
+}
+</pre>
+<h2 id="apply-a-run">  Apply a Run </h2> <p><code>POST /runs/:run_id/actions/apply</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>run_id</code></td> <td>The run ID to apply</td> </tr> </tbody>
+</table> <p>Applies a run that is paused waiting for confirmation after a plan. This includes runs in the "needs confirmation" and "policy checked" states. This action is only required for runs that can't be auto-applied. Plans can be auto-applied if the auto-apply setting is enabled on the workspace and the plan was queued by a new VCS commit or by a user with permission to apply runs for the workspace.</p> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> If the run has a soft failed sentinel policy, you will need to <a href="policy-checks#override-policy">override the policy check</a> before Terraform can apply the run. You can find policy check details in the <code>relationships</code> section of the <a href="#get-run-details">run details endpoint</a> response.</p> </blockquote> <p>Applying a run requires permission to apply runs for the workspace. (<a href="../users-teams-organizations/permissions">More about permissions.</a>)</p> <p>This endpoint queues the request to perform an apply; the apply might not happen immediately.</p> <p>Since this endpoint represents an action (not a resource), it does not return any object in the response body.</p> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> This endpoint cannot be accessed with <a href="../users-teams-organizations/api-tokens#organization-api-tokens">organization tokens</a>. You must access it with a <a href="../users-teams-organizations/users#api-tokens">user token</a> or <a href="../users-teams-organizations/api-tokens#team-api-tokens">team token</a>.</p> </blockquote> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason(s)</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/202">202</a></td> <td>none</td> <td>Successfully queued an apply request.</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/409">409</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Run was not paused for confirmation; apply not allowed.</td> </tr> </tbody>
+</table> <h3 id="request-body-1">  Request Body </h3> <p>This POST endpoint allows an optional JSON object with the following properties as a request payload.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>comment</code></td> <td>string</td> <td><code>null</code></td> <td>An optional comment about the run.</td> </tr> </tbody>
+</table> <h3 id="sample-payload-1">  Sample Payload </h3> <p>This payload is optional, so the <code>curl</code> command will work without the <code>--data @payload.json</code> option too.</p> <pre data-language="json">{
+  "comment":"Looks good to me"
+}
+</pre>
+<h3 id="sample-request-1">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/runs/run-DQGdmrWMX8z9yWQB/actions/apply
+</pre>
+<h2 id="list-runs-in-a-workspace">  List Runs in a Workspace </h2> <p><code>GET /workspaces/:workspace_id/runs</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>workspace_id</code></td> <td>The workspace ID to list runs for.</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>Array of <a href="index#json-api-documents">JSON API document</a>s (<code>type: "runs"</code>)</td> <td>Successfully listed runs</td> </tr> </tbody>
+</table> <h3 id="query-parameters">  Query Parameters </h3> <p>This endpoint supports pagination <a href="index#query-parameters">with standard URL query parameters</a>; remember to percent-encode <code>[</code> as <code>%5B</code> and <code>]</code> as <code>%5D</code> if your tooling doesn't automatically encode URLs.</p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>page[number]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return the first page.</td> </tr> <tr> <td><code>page[size]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return 20 runs per page.</td> </tr> </tbody>
+</table> <h3 id="sample-request-2">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  https://app.terraform.io/api/v2/workspaces/ws-yF7z4gyEQRhaCNG9/runs
+</pre>
+<h3 id="sample-response-1">  Sample Response </h3> <pre data-language="json">{
+  "data": [
+    {
+      "id": "run-CZcmD7eagjhyX0vN",
+      "type": "runs",
+      "attributes": {
+        "actions": {
+          "is-cancelable": true,
+          "is-confirmable": false,
+          "is-discardable": false,
+          "is-force-cancelable": false
+        },
+        "canceled-at": null,
+        "created-at": "2021-05-24T07:38:04.171Z",
+        "has-changes": false,
+        "is-destroy": false,
+        "message": "Custom message",
+        "plan-only": false,
+        "source": "tfe-api",
+        "status-timestamps": {
+          "plan-queueable-at": "2021-05-24T07:38:04+00:00"
+        },
+        "status": "pending",
+        "trigger-reason": "manual",
+        "target-addrs": null,
+        "permissions": {
+          "can-apply": true,
+          "can-cancel": true,
+          "can-comment": true,
+          "can-discard": true,
+          "can-force-execute": true,
+          "can-force-cancel": true,
+          "can-override-policy-check": true
+        },
+        "refresh": false,
+        "refresh-only": false,
+        "replace-addrs": null
+      },
+      "relationships": {
+        "apply": {...},
+        "comments": {...},
+        "configuration-version": {...},
+        "cost-estimate": {...},
+        "created-by": {...},
+        "input-state-version": {...},
+        "plan": {...},
+        "run-events": {...},
+        "policy-checks": {...},
+        "workspace": {...},
+        "workspace-run-alerts": {...}
+        }
+      },
+      "links": {
+        "self": "/api/v2/runs/run-bWSq4YeYpfrW4mx7"
+      }
+    },
+    {...}
+  ]
+}
+</pre>
+<h2 id="get-run-details">  Get run details </h2> <p><code>GET /runs/:run_id</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:run_id</code></td> <td>The run ID to get.</td> </tr> </tbody>
+</table> <p>This endpoint is used for showing details of a specific run.</p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "runs"</code>)</td> <td>Success</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Run not found or user not authorized</td> </tr> </tbody>
+</table> <h3 id="sample-request-3">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  https://app.terraform.io/api/v2/runs/run-bWSq4YeYpfrW4mx7
+</pre>
+<h3 id="sample-response-2">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id": "run-CZcmD7eagjhyX0vN",
+    "type": "runs",
+    "attributes": {
+      "actions": {
+        "is-cancelable": true,
+        "is-confirmable": false,
+        "is-discardable": false,
+        "is-force-cancelable": false
+      },
+      "canceled-at": null,
+      "created-at": "2021-05-24T07:38:04.171Z",
+      "has-changes": false,
+      "is-destroy": false,
+      "message": "Custom message",
+      "plan-only": false,
+      "source": "tfe-api",
+      "status-timestamps": {
+        "plan-queueable-at": "2021-05-24T07:38:04+00:00"
+      },
+      "status": "pending",
+      "trigger-reason": "manual",
+      "target-addrs": null,
+      "permissions": {
+        "can-apply": true,
+        "can-cancel": true,
+        "can-comment": true,
+        "can-discard": true,
+        "can-force-execute": true,
+        "can-force-cancel": true,
+        "can-override-policy-check": true
+      },
+      "refresh": false,
+      "refresh-only": false,
+      "replace-addrs": null
+    },
+    "relationships": {
+      "apply": {...},
+      "comments": {...},
+      "configuration-version": {...},
+      "cost-estimate": {...},
+      "created-by": {...},
+      "input-state-version": {...},
+      "plan": {...},
+      "run-events": {...},
+      "policy-checks": {...},
+      "workspace": {...},
+      "workspace-run-alerts": {...}
+      }
+    },
+    "links": {
+      "self": "/api/v2/runs/run-bWSq4YeYpfrW4mx7"
+    }
+  }
+}
+</pre>
+<h2 id="discard-a-run">  Discard a Run </h2> <p><code>POST /runs/:run_id/actions/discard</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>run_id</code></td> <td>The run ID to discard</td> </tr> </tbody>
+</table> <p>The <code>discard</code> action can be used to skip any remaining work on runs that are paused waiting for confirmation or priority. This includes runs in the "pending," "needs confirmation," "policy checked," and "policy override" states.</p> <p>Discarding a run requires permission to apply runs for the workspace. (<a href="../users-teams-organizations/permissions">More about permissions.</a>)</p> <p>This endpoint queues the request to perform a discard; the discard might not happen immediately. After discarding, the run is completed and later runs can proceed.</p> <p>This endpoint represents an action as opposed to a resource. As such, it does not return any object in the response body.</p> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> This endpoint cannot be accessed with <a href="../users-teams-organizations/api-tokens#organization-api-tokens">organization tokens</a>. You must access it with a <a href="../users-teams-organizations/users#api-tokens">user token</a> or <a href="../users-teams-organizations/api-tokens#team-api-tokens">team token</a>.</p> </blockquote> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason(s)</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/202">202</a></td> <td>none</td> <td>Successfully queued a discard request.</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/409">409</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Run was not paused for confirmation or priority; discard not allowed.</td> </tr> </tbody>
+</table> <h3 id="request-body-2">  Request Body </h3> <p>This POST endpoint allows an optional JSON object with the following properties as a request payload.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>comment</code></td> <td>string</td> <td><code>null</code></td> <td>An optional explanation for why the run was discarded.</td> </tr> </tbody>
+</table> <h3 id="sample-payload-2">  Sample Payload </h3> <p>This payload is optional, so the <code>curl</code> command will work without the <code>--data @payload.json</code> option too.</p> <pre data-language="json">{
+  "comment": "This run was discarded"
+}
+</pre>
+<h3 id="sample-request-4">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/runs/run-DQGdmrWMX8z9yWQB/actions/discard
+</pre>
+<h2 id="cancel-a-run">  Cancel a Run </h2> <p><code>POST /runs/:run_id/actions/cancel</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>run_id</code></td> <td>The run ID to cancel</td> </tr> </tbody>
+</table> <p>The <code>cancel</code> action can be used to interrupt a run that is currently planning or applying. Performing a cancel is roughly equivalent to hitting ctrl+c during a Terraform plan or apply on the CLI. The running Terraform process is sent an <code>INT</code> signal, which instructs Terraform to end its work and wrap up in the safest way possible.</p> <p>Canceling a run requires permission to apply runs for the workspace. (<a href="../users-teams-organizations/permissions">More about permissions.</a>)</p> <p>This endpoint queues the request to perform a cancel; the cancel might not happen immediately. After canceling, the run is completed and later runs can proceed.</p> <p>This endpoint represents an action as opposed to a resource. As such, it does not return any object in the response body.</p> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> This endpoint cannot be accessed with <a href="../users-teams-organizations/api-tokens#organization-api-tokens">organization tokens</a>. You must access it with a <a href="../users-teams-organizations/users#api-tokens">user token</a> or <a href="../users-teams-organizations/api-tokens#team-api-tokens">team token</a>.</p> </blockquote> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason(s)</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/202">202</a></td> <td>none</td> <td>Successfully queued a cancel request.</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/409">409</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Run was not planning or applying; cancel not allowed.</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Run was not found or user not authorized.</td> </tr> </tbody>
+</table> <h3 id="request-body-3">  Request Body </h3> <p>This POST endpoint allows an optional JSON object with the following properties as a request payload.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>comment</code></td> <td>string</td> <td><code>null</code></td> <td>An optional explanation for why the run was canceled.</td> </tr> </tbody>
+</table> <h3 id="sample-payload-3">  Sample Payload </h3> <p>This payload is optional, so the <code>curl</code> command will work without the <code>--data @payload.json</code> option too.</p> <pre data-language="json">{
+  "comment": "This run was stuck and would never finish."
+}
+</pre>
+<h3 id="sample-request-5">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/runs/run-DQGdmrWMX8z9yWQB/actions/cancel
+</pre>
+<h2 id="forcefully-cancel-a-run">  Forcefully cancel a run </h2> <p><code>POST /runs/:run_id/actions/force-cancel</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>run_id</code></td> <td>The run ID to cancel</td> </tr> </tbody>
+</table> <p>The <code>force-cancel</code> action is like <a href="#cancel-a-run">cancel</a>, but ends the run immediately. Once invoked, the run is placed into a <code>canceled</code> state, and the running Terraform process is terminated. The workspace is immediately unlocked, allowing further runs to be queued. The <code>force-cancel</code> operation requires admin access to the workspace. (<a href="../users-teams-organizations/permissions">More about permissions.</a>)</p> <p>This endpoint enforces a prerequisite that a <a href="#cancel-a-run">non-forceful cancel</a> is performed first, and a cool-off period has elapsed. To determine if this criteria is met, it is useful to check the <code>data.attributes.is-force-cancelable</code> value of the <a href="#get-run-details">run details endpoint</a>. The time at which the force-cancel action will become available can be found using the <a href="#get-run-details">run details endpoint</a>, in the key <code>data.attributes.force_cancel_available_at</code>. Note that this key is only present in the payload after the initial cancel has been initiated.</p> <p>This endpoint represents an action as opposed to a resource. As such, it does not return any object in the response body.</p> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> This endpoint cannot be accessed with <a href="../users-teams-organizations/api-tokens#organization-api-tokens">organization tokens</a>. You must access it with a <a href="../users-teams-organizations/users#api-tokens">user token</a> or <a href="../users-teams-organizations/api-tokens#team-api-tokens">team token</a>.</p> </blockquote> <blockquote class="alert alert-warning" role="alert"> <p><strong>Warning:</strong> This endpoint has potentially dangerous side-effects, including loss of any in-flight state in the running Terraform process. Use this operation with extreme caution.</p> </blockquote> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason(s)</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/202">202</a></td> <td>none</td> <td>Successfully queued a cancel request.</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/409">409</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Run was not planning or applying, has not been canceled non-forcefully, or the cool-off period has not yet passed.</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Run was not found or user not authorized.</td> </tr> </tbody>
+</table> <h3 id="request-body-4">  Request Body </h3> <p>This POST endpoint allows an optional JSON object with the following properties as a request payload.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>comment</code></td> <td>string</td> <td><code>null</code></td> <td>An optional explanation for why the run was canceled.</td> </tr> </tbody>
+</table> <h3 id="sample-payload-4">  Sample Payload </h3> <p>This payload is optional, so the <code>curl</code> command will work without the <code>--data @payload.json</code> option too.</p> <pre data-language="json">{
+  "comment": "This run was stuck and would never finish."
+}
+</pre>
+<h3 id="sample-request-6">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/runs/run-DQGdmrWMX8z9yWQB/actions/force-cancel
+</pre>
+<h2 id="forcefully-execute-a-run">  Forcefully execute a run </h2> <p><code>POST /runs/:run_id/actions/force-execute</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>run_id</code></td> <td>The run ID to execute</td> </tr> </tbody>
+</table> <p>The force-execute action cancels all prior runs that are not already complete, unlocking the run's workspace and allowing the run to be executed. (It initiates the same actions as the "Run this plan now" button at the top of the view of a pending run.)</p> <p>Force-executing a run requires permission to apply runs for the workspace. (<a href="../users-teams-organizations/permissions">More about permissions.</a>)</p> <p>This endpoint enforces the following prerequisites:</p> <ul> <li>The target run is in the "pending" state. </li> <li>The workspace is locked by another run. </li> <li>The run locking the workspace can be discarded. </li> </ul> <p>This endpoint represents an action as opposed to a resource. As such, it does not return any object in the response body.</p> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> This endpoint cannot be accessed with <a href="../users-teams-organizations/api-tokens#organization-api-tokens">organization tokens</a>. You must access it with a <a href="../users-teams-organizations/users#api-tokens">user token</a> or <a href="../users-teams-organizations/api-tokens#team-api-tokens">team token</a>.</p> </blockquote> <blockquote class="alert alert-warning" role="alert"> <p><strong>Note:</strong> While useful at times, force-executing a run circumvents the typical workflow of applying runs using Terraform Cloud. It is not intended for regular use. If you find yourself using it frequently, please reach out to HashiCorp Support for help in developing an alternative approach.</p> </blockquote> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason(s)</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/202">202</a></td> <td>none</td> <td>Successfully initiated the force-execution process.</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403">403</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Run is not pending, its workspace was not locked, or its workspace association was not found.</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/409">409</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>The run locking the workspace was not in a discardable state.</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Run was not found or user not authorized.</td> </tr> </tbody>
+</table> <h3 id="request-body-5">  Request Body </h3> <p>This POST endpoint does not take a request body.</p> <h3 id="sample-request-7">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  https://app.terraform.io/api/v2/runs/run-DQGdmrWMX8z9yWQB/actions/force-execute
+</pre>
+<h2 id="available-related-resources">  Available Related Resources </h2> <p>The GET endpoints above can optionally return related resources, if requested with <a href="index#inclusion-of-related-resources">the <code>include</code> query parameter</a>. The following resource types are available:</p> <ul> <li>
+<a href="#plan"><code>plan</code></a> - Additional information about plans. </li> <li>
+<a href="#apply"><code>apply</code></a> - Additional information about applies. </li> <li>
+<a href="#created_by"><code>created_by</code></a> - Full user records of the users responsible for creating the runs. </li> <li>
+<a href="#cost_estimate"><code>cost_estimate</code></a> - Additional information about cost estimates. </li> <li>
+<a href="#configuration_version"><code>configuration_version</code></a> - The configuration record used in the run. </li> <li>
+<a href="#configuration_version-ingress_attributes"><code>configuration_version.ingress_attributes</code></a> - The commit information used in the run. </li> </ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/cloud/api/run.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/cloud/api/run.html</a>
+  </p>
+</div>

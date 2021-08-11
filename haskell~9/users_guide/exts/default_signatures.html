@@ -1,0 +1,27 @@
+<h1 id="class-default-signatures">6.8.5. Default method signatures</h1>
+<div class="_sphinx"> <div itemprop="articleBody">   <dl class="extension" id="default-method-signatures"> <dt id="extension-DefaultSignatures">
+<code>DefaultSignatures</code> </dt> <dd>
+<table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
+<th class="field-name">Since:</th>
+<td class="field-body">7.2.1</td> </tr>  </table> <p>Allows the definition of default method signatures in class definitions.</p> </dd>
+</dl> <p>Haskell 98 allows you to define a default implementation when declaring a class:</p> <pre data-language="haskell">class Enum a where
+  enum :: [a]
+  enum = []
+</pre> <p>The type of the <code>enum</code> method is <code>[a]</code>, and this is also the type of the default method. You can change the type of the default method by requiring a different context using the extension <a class="reference internal" href="#extension-DefaultSignatures"><code>DefaultSignatures</code></a>. For instance, if you have written a generic implementation of enumeration in a class <code>GEnum</code> with method <code>genum</code>, you can specify a default method that uses that generic implementation. But your default implementation can only be used if the constraints are satisfied, therefore you need to change the type of the default method</p> <pre data-language="haskell">class Enum a where
+  enum :: [a]
+  default enum :: (Generic a, GEnum (Rep a)) =&gt; [a]
+  enum = map to genum
+</pre> <p>We reuse the keyword <code>default</code> to signal that a signature applies to the default method only; when defining instances of the <code>Enum</code> class, the original type <code>[a]</code> of <code>enum</code> still applies. When giving an empty instance, however, the default implementation <code>(map to genum)</code> is filled-in, and type-checked with the type <code>(Generic a, GEnum (Rep a)) =&gt; [a]</code>.</p> <p>The type signature for a default method of a type class must take on the same form as the corresponding main method’s type signature. Otherwise, the typechecker will reject that class’s definition. By “take on the same form”, we mean that the default type signature should differ from the main type signature only in their contexts. Therefore, if you have a method <code>bar</code>:</p> <pre data-language="haskell">class Foo a where
+  bar :: forall b. C =&gt; a -&gt; b -&gt; b
+</pre> <p>Then a default method for <code>bar</code> must take on the form:</p> <pre data-language="haskell">default bar :: forall b. C' =&gt; a -&gt; b -&gt; b
+</pre> <p><code>C</code> is allowed to be different from <code>C'</code>, but the right-hand sides of the type signatures must coincide. We require this because when you declare an empty instance for a class that uses <a class="reference internal" href="#extension-DefaultSignatures"><code>DefaultSignatures</code></a>, GHC implicitly fills in the default implementation like this:</p> <pre data-language="haskell">instance Foo Int where
+  bar = default_bar @Int
+</pre> <p>Where <code>@Int</code> utilizes visible type application (<a class="reference internal" href="type_applications#visible-type-application"><span class="std std-ref">Visible type application</span></a>) to instantiate the <code>b</code> in <code>default bar :: forall b. C' =&gt; a -&gt; b -&gt; b</code>. In order for this type application to work, the default type signature for <code>bar</code> must have the same type variable order as the non-default signature! But there is no obligation for <code>C</code> and <code>C'</code> to be the same (see, for instance, the <code>Enum</code> example above, which relies on this).</p> <p>To further explain this example, the right-hand side of the default type signature for <code>bar</code> must be something that is alpha-equivalent to <code>forall b. a -&gt; b -&gt; b</code> (where <code>a</code> is bound by the class itself, and is thus free in the methods’ type signatures). So this would also be an acceptable default type signature:</p> <pre data-language="haskell">default bar :: forall x. C' =&gt; a -&gt; x -&gt; x
+</pre> <p>But not this (since the free variable <code>a</code> is in the wrong place):</p> <pre data-language="haskell">default bar :: forall b. C' =&gt; b -&gt; a -&gt; b
+</pre> <p>Nor this, since we can’t match the type variable <code>b</code> with the concrete type <code>Int</code>:</p> <pre data-language="haskell">default bar :: C' =&gt; a -&gt; Int -&gt; Int
+</pre> <p>That last one deserves a special mention, however, since <code>a -&gt; Int -&gt; Int</code> is a straightforward instantiation of <code>forall b. a -&gt; b -&gt; b</code>. You can still write such a default type signature, but you now must use type equalities to do so:</p> <pre data-language="haskell">default bar :: forall b. (C', b ~ Int) =&gt; a -&gt; b -&gt; b
+</pre> <p>We use default signatures to simplify generic programming in GHC (<a class="reference internal" href="generics#generic-programming"><span class="std std-ref">Generic programming</span></a>).</p>  </div> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://downloads.haskell.org/~ghc/9.0.1/docs/html/users_guide/exts/default_signatures.html" class="_attribution-link" target="_blank">https://downloads.haskell.org/~ghc/9.0.1/docs/html/users_guide/exts/default_signatures.html</a>
+  </p>
+</div>

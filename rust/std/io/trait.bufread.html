@@ -1,0 +1,300 @@
+<h1 class="fqn">Trait std::io::BufRead</h1>
+<pre class="rust trait" data-language="rust">pub trait BufRead: Read {
+    fn fill_buf(&amp;mut self) -&gt; Result&lt;&amp;[u8]&gt;;
+    fn consume(&amp;mut self, amt: usize);
+
+    fn read_until(&amp;mut self, byte: u8, buf: &amp;mut Vec&lt;u8&gt;) -&gt; Result&lt;usize&gt; { ... }
+    fn read_line(&amp;mut self, buf: &amp;mut String) -&gt; Result&lt;usize&gt; { ... }
+    fn split(self, byte: u8) -&gt; Split&lt;Self&gt;    where        Self: Sized,
+    { ... }
+    fn lines(self) -&gt; Lines&lt;Self&gt;ⓘNotable traits for Lines&lt;B&gt;impl&lt;B: BufRead&gt; Iterator for Lines&lt;B&gt;    type Item = Result&lt;String&gt;;    where        Self: Sized,
+    { ... }
+}</pre>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="struct.split" title="struct std::io::Split">Split</a>&lt;B&gt;</div>
+<pre class="content">impl&lt;B: BufRead&gt; Iterator for Split&lt;B&gt;
+    type Item = Result&lt;Vec&lt;u8&gt;&gt;;
+</pre></span></div></span><details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock">
+<p>A <code>BufRead</code> is a type of <code>Read</code>er which has an internal buffer, allowing it to perform extra ways of reading.</p> <p>For example, reading line-by-line is inefficient without using a buffer, so if you want to read by line, you’ll need <code>BufRead</code>, which includes a <a href="trait.bufread#method.read_line"><code>read_line</code></a> method as well as a <a href="trait.bufread#method.lines"><code>lines</code></a> iterator.</p> <h2 id="examples" class="section-header">Examples</h2> <p>A locked standard input implements <code>BufRead</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::io;
+use std::io::prelude::*;
+
+let stdin = io::stdin();
+for line in stdin.lock().lines() {
+    println!("{}", line.unwrap());
+}</pre></div> <p>If you have something that implements <a href="trait.read" title="Read"><code>Read</code></a>, you can use the <a href="struct.bufreader" title="BufReader"><code>BufReader</code> type</a> to turn it into a <code>BufRead</code>.</p> <p>For example, <a href="../fs/struct.file"><code>File</code></a> implements <a href="trait.read" title="Read"><code>Read</code></a>, but not <code>BufRead</code>. <a href="struct.bufreader" title="BufReader"><code>BufReader</code></a> to the rescue!</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::io::{self, BufReader};
+use std::io::prelude::*;
+use std::fs::File;
+
+fn main() -&gt; io::Result&lt;()&gt; {
+    let f = File::open("foo.txt")?;
+    let f = BufReader::new(f);
+
+    for line in f.lines() {
+        println!("{}", line.unwrap());
+    }
+
+    Ok(())
+}</pre></div> </div></details><h2 id="required-methods" class="small-section-header">Required methods</h2>
+<div class="methods">
+<details class="rustdoc-toggle" open><summary><div id="tymethod.fill_buf" class="method has-srclink">
+<h4 class="code-header">fn fill_buf(&amp;mut self) -&gt; Result&lt;&amp;[u8]&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#1932" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns the contents of the internal buffer, filling it with more data from the inner reader if it is empty.</p> <p>This function is a lower-level call. It needs to be paired with the <a href="trait.bufread#tymethod.consume"><code>consume</code></a> method to function properly. When calling this method, none of the contents will be “read” in the sense that later calling <code>read</code> may return the same contents. As such, <a href="trait.bufread#tymethod.consume"><code>consume</code></a> must be called with the number of bytes that are consumed from this buffer to ensure that the bytes are never returned twice.</p> <p>An empty buffer returned indicates that the stream has reached EOF.</p> <h2 id="errors" class="section-header">Errors</h2> <p>This function will return an I/O error if the underlying reader was read, but returned an error.</p> <h2 id="examples-1" class="section-header">Examples</h2> <p>A locked standard input implements <code>BufRead</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::io;
+use std::io::prelude::*;
+
+let stdin = io::stdin();
+let mut stdin = stdin.lock();
+
+let buffer = stdin.fill_buf().unwrap();
+
+// work with buffer
+println!("{:?}", buffer);
+
+// ensure the bytes we worked with aren't returned again later
+let length = buffer.len();
+stdin.consume(length);</pre></div> </div></details><details class="rustdoc-toggle" open><summary><div id="tymethod.consume" class="method has-srclink">
+<h4 class="code-header">fn consume(&amp;mut self, amt: usize)</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#1954" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Tells this buffer that <code>amt</code> bytes have been consumed from the buffer, so they should no longer be returned in calls to <code>read</code>.</p> <p>This function is a lower-level call. It needs to be paired with the <a href="trait.bufread#tymethod.fill_buf"><code>fill_buf</code></a> method to function properly. This function does not perform any I/O, it simply informs this object that some amount of its buffer, returned from <a href="trait.bufread#tymethod.fill_buf"><code>fill_buf</code></a>, has been consumed and should no longer be returned. As such, this function may do odd things if <a href="trait.bufread#tymethod.fill_buf"><code>fill_buf</code></a> isn’t called before calling it.</p> <p>The <code>amt</code> must be <code>&lt;=</code> the number of bytes in the buffer returned by <a href="trait.bufread#tymethod.fill_buf"><code>fill_buf</code></a>.</p> <h2 id="examples-2" class="section-header">Examples</h2> <p>Since <code>consume()</code> is meant to be used with <a href="trait.bufread#tymethod.fill_buf"><code>fill_buf</code></a>, that method’s example includes an example of <code>consume()</code>.</p> </div></details>
+</div>
+<h2 id="provided-methods" class="small-section-header">Provided methods</h2>
+<div class="methods">
+<details class="rustdoc-toggle" open><summary><div id="method.read_until" class="method has-srclink">
+<h4 class="code-header">fn read_until(&amp;mut self, byte: u8, buf: &amp;mut Vec&lt;u8&gt;) -&gt; Result&lt;usize&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#2011-2013" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Read all bytes into <code>buf</code> until the delimiter <code>byte</code> or EOF is reached.</p> <p>This function will read bytes from the underlying stream until the delimiter or EOF is found. Once found, all bytes up to, and including, the delimiter (if found) will be appended to <code>buf</code>.</p> <p>If successful, this function will return the total number of bytes read.</p> <p>This function is blocking and should be used carefully: it is possible for an attacker to continuously send bytes without ever sending the delimiter or EOF.</p> <h2 id="errors-1" class="section-header">Errors</h2> <p>This function will ignore all instances of <a href="enum.errorkind#variant.Interrupted" title="ErrorKind::Interrupted"><code>ErrorKind::Interrupted</code></a> and will otherwise return any errors returned by <a href="trait.bufread#tymethod.fill_buf"><code>fill_buf</code></a>.</p> <p>If an I/O error is encountered then all bytes read so far will be present in <code>buf</code> and its length will have been adjusted appropriately.</p> <h2 id="examples-3" class="section-header">Examples</h2> <p><a href="struct.cursor" title="Cursor"><code>std::io::Cursor</code></a> is a type that implements <code>BufRead</code>. In this example, we use <a href="struct.cursor" title="Cursor"><code>Cursor</code></a> to read all the bytes in a byte slice in hyphen delimited segments:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::io::{self, BufRead};
+
+let mut cursor = io::Cursor::new(b"lorem-ipsum");
+let mut buf = vec![];
+
+// cursor is at 'l'
+let num_bytes = cursor.read_until(b'-', &amp;mut buf)
+    .expect("reading from cursor won't fail");
+assert_eq!(num_bytes, 6);
+assert_eq!(buf, b"lorem-");
+buf.clear();
+
+// cursor is at 'i'
+let num_bytes = cursor.read_until(b'-', &amp;mut buf)
+    .expect("reading from cursor won't fail");
+assert_eq!(num_bytes, 5);
+assert_eq!(buf, b"ipsum");
+buf.clear();
+
+// cursor is at EOF
+let num_bytes = cursor.read_until(b'-', &amp;mut buf)
+    .expect("reading from cursor won't fail");
+assert_eq!(num_bytes, 0);
+assert_eq!(buf, b"");</pre></div> </div></details><details class="rustdoc-toggle" open><summary><div id="method.read_line" class="method has-srclink">
+<h4 class="code-header">fn read_line(&amp;mut self, buf: &amp;mut String) -&gt; Result&lt;usize&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#2074-2079" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Read all bytes until a newline (the <code>0xA</code> byte) is reached, and append them to the provided buffer.</p> <p>This function will read bytes from the underlying stream until the newline delimiter (the <code>0xA</code> byte) or EOF is found. Once found, all bytes up to, and including, the delimiter (if found) will be appended to <code>buf</code>.</p> <p>If successful, this function will return the total number of bytes read.</p> <p>If this function returns <a href="../result/enum.result#variant.Ok"><code>Ok(0)</code></a>, the stream has reached EOF.</p> <p>This function is blocking and should be used carefully: it is possible for an attacker to continuously send bytes without ever sending a newline or EOF.</p> <h2 id="errors-2" class="section-header">Errors</h2> <p>This function has the same error semantics as <a href="trait.bufread#method.read_until"><code>read_until</code></a> and will also return an error if the read bytes are not valid UTF-8. If an I/O error is encountered then <code>buf</code> may contain some bytes already read in the event that all data read so far was valid UTF-8.</p> <h2 id="examples-4" class="section-header">Examples</h2> <p><a href="struct.cursor" title="Cursor"><code>std::io::Cursor</code></a> is a type that implements <code>BufRead</code>. In this example, we use <a href="struct.cursor" title="Cursor"><code>Cursor</code></a> to read all the lines in a byte slice:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::io::{self, BufRead};
+
+let mut cursor = io::Cursor::new(b"foo\nbar");
+let mut buf = String::new();
+
+// cursor is at 'f'
+let num_bytes = cursor.read_line(&amp;mut buf)
+    .expect("reading from cursor won't fail");
+assert_eq!(num_bytes, 4);
+assert_eq!(buf, "foo\n");
+buf.clear();
+
+// cursor is at 'b'
+let num_bytes = cursor.read_line(&amp;mut buf)
+    .expect("reading from cursor won't fail");
+assert_eq!(num_bytes, 3);
+assert_eq!(buf, "bar");
+buf.clear();
+
+// cursor is at EOF
+let num_bytes = cursor.read_line(&amp;mut buf)
+    .expect("reading from cursor won't fail");
+assert_eq!(num_bytes, 0);
+assert_eq!(buf, "");</pre></div> </div></details><details class="rustdoc-toggle" open><summary><div id="method.split" class="method has-srclink">
+<h4 class="code-header">fn split(self, byte: u8) -&gt; Split&lt;Self&gt; <span class="where fmt-newline">where<br> Self: <a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#2112-2117" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="struct.split" title="struct std::io::Split">Split</a>&lt;B&gt;</div>
+<pre class="content">impl&lt;B: BufRead&gt; Iterator for Split&lt;B&gt;
+    type Item = Result&lt;Vec&lt;u8&gt;&gt;;
+</pre></span></div></span></summary><div class="docblock">
+<p>Returns an iterator over the contents of this reader split on the byte <code>byte</code>.</p> <p>The iterator returned from this function will return instances of <a href="type.result"><code>io::Result</code></a><code>&lt;</code><a href="../vec/struct.vec" title="Vec&lt;u8&gt;"><code>Vec&lt;u8&gt;</code></a><code>&gt;</code>. Each vector returned will <em>not</em> have the delimiter byte at the end.</p> <p>This function will yield errors whenever <a href="trait.bufread#method.read_until"><code>read_until</code></a> would have also yielded an error.</p> <h2 id="examples-5" class="section-header">Examples</h2> <p><a href="struct.cursor" title="Cursor"><code>std::io::Cursor</code></a> is a type that implements <code>BufRead</code>. In this example, we use <a href="struct.cursor" title="Cursor"><code>Cursor</code></a> to iterate over all hyphen delimited segments in a byte slice</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::io::{self, BufRead};
+
+let cursor = io::Cursor::new(b"lorem-ipsum-dolor");
+
+let mut split_iter = cursor.split(b'-').map(|l| l.unwrap());
+assert_eq!(split_iter.next(), Some(b"lorem".to_vec()));
+assert_eq!(split_iter.next(), Some(b"ipsum".to_vec()));
+assert_eq!(split_iter.next(), Some(b"dolor".to_vec()));
+assert_eq!(split_iter.next(), None);</pre></div> </div></details><details class="rustdoc-toggle" open><summary><div id="method.lines" class="method has-srclink">
+<h4 class="code-header">fn lines(self) -&gt; Lines&lt;Self&gt; <span class="where fmt-newline">where<br> Self: <a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#2149-2154" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="struct.lines" title="struct std::io::Lines">Lines</a>&lt;B&gt;</div>
+<pre class="content">impl&lt;B: BufRead&gt; Iterator for Lines&lt;B&gt;
+    type Item = Result&lt;String&gt;;
+</pre></span></div></span></summary><div class="docblock">
+<p>Returns an iterator over the lines of this reader.</p> <p>The iterator returned from this function will yield instances of <a href="type.result"><code>io::Result</code></a><code>&lt;</code><a href="../string/struct.string" title="String"><code>String</code></a><code>&gt;</code>. Each string returned will <em>not</em> have a newline byte (the <code>0xA</code> byte) or <code>CRLF</code> (<code>0xD</code>, <code>0xA</code> bytes) at the end.</p> <h2 id="examples-6" class="section-header">Examples</h2> <p><a href="struct.cursor" title="Cursor"><code>std::io::Cursor</code></a> is a type that implements <code>BufRead</code>. In this example, we use <a href="struct.cursor" title="Cursor"><code>Cursor</code></a> to iterate over all the lines in a byte slice.</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::io::{self, BufRead};
+
+let cursor = io::Cursor::new(b"lorem\nipsum\r\ndolor");
+
+let mut lines_iter = cursor.lines().map(|l| l.unwrap());
+assert_eq!(lines_iter.next(), Some(String::from("lorem")));
+assert_eq!(lines_iter.next(), Some(String::from("ipsum")));
+assert_eq!(lines_iter.next(), Some(String::from("dolor")));
+assert_eq!(lines_iter.next(), None);</pre></div> <h2 id="errors-3" class="section-header">Errors</h2> <p>Each line of the iterator has the same error semantics as <a href="trait.bufread#method.read_line" title="BufRead::read_line"><code>BufRead::read_line</code></a>.</p> </div></details>
+</div>
+<h2 id="implementors" class="small-section-header">Implementors</h2>
+<div class="item-list" id="implementors-list">
+<details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-BufRead" class="impl has-srclink">
+<h3 class="code-header in-band">impl BufRead for &amp;[u8]</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#303-313" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<div id="method.fill_buf" class="method trait-impl has-srclink">
+<h4 class="code-header">fn fill_buf(&amp;mut self) -&gt; Result&lt;&amp;[u8]&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#305-307" title="goto source code">[src]</a>
+</div>
+<div id="method.consume" class="method trait-impl has-srclink">
+<h4 class="code-header">fn consume(&amp;mut self, amt: usize)</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#310-312" title="goto source code">[src]</a>
+</div>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-BufRead-1" class="impl has-srclink">
+<h3 class="code-header in-band">impl BufRead for Empty</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/util.rs.html#54-61" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<div id="method.fill_buf-1" class="method trait-impl has-srclink">
+<h4 class="code-header">fn fill_buf(&amp;mut self) -&gt; Result&lt;&amp;[u8]&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/util.rs.html#56-58" title="goto source code">[src]</a>
+</div>
+<div id="method.consume-1" class="method trait-impl has-srclink">
+<h4 class="code-header">fn consume(&amp;mut self, _n: usize)</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/util.rs.html#60" title="goto source code">[src]</a>
+</div>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-BufRead-2" class="impl has-srclink">
+<h3 class="code-header in-band">impl BufRead for StdinLock&lt;'_&gt;</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/stdio.rs.html#448-464" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<div id="method.fill_buf-2" class="method trait-impl has-srclink">
+<h4 class="code-header">fn fill_buf(&amp;mut self) -&gt; Result&lt;&amp;[u8]&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/stdio.rs.html#449-451" title="goto source code">[src]</a>
+</div>
+<div id="method.consume-2" class="method trait-impl has-srclink">
+<h4 class="code-header">fn consume(&amp;mut self, n: usize)</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/stdio.rs.html#453-455" title="goto source code">[src]</a>
+</div>
+<div id="method.read_until-1" class="method trait-impl has-srclink">
+<h4 class="code-header">fn read_until(&amp;mut self, byte: u8, buf: &amp;mut Vec&lt;u8&gt;) -&gt; Result&lt;usize&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/stdio.rs.html#457-459" title="goto source code">[src]</a>
+</div>
+<div id="method.read_line-1" class="method trait-impl has-srclink">
+<h4 class="code-header">fn read_line(&amp;mut self, buf: &amp;mut String) -&gt; Result&lt;usize&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/stdio.rs.html#461-463" title="goto source code">[src]</a>
+</div>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-BufRead-3" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;B: BufRead + ?Sized&gt; BufRead for &amp;mut B</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#97-117" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<div id="method.fill_buf-3" class="method trait-impl has-srclink">
+<h4 class="code-header">fn fill_buf(&amp;mut self) -&gt; Result&lt;&amp;[u8]&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#99-101" title="goto source code">[src]</a>
+</div>
+<div id="method.consume-3" class="method trait-impl has-srclink">
+<h4 class="code-header">fn consume(&amp;mut self, amt: usize)</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#104-106" title="goto source code">[src]</a>
+</div>
+<div id="method.read_until-2" class="method trait-impl has-srclink">
+<h4 class="code-header">fn read_until(&amp;mut self, byte: u8, buf: &amp;mut Vec&lt;u8&gt;) -&gt; Result&lt;usize&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#109-111" title="goto source code">[src]</a>
+</div>
+<div id="method.read_line-2" class="method trait-impl has-srclink">
+<h4 class="code-header">fn read_line(&amp;mut self, buf: &amp;mut String) -&gt; Result&lt;usize&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#114-116" title="goto source code">[src]</a>
+</div>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-BufRead-4" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;B: BufRead + ?Sized&gt; BufRead for Box&lt;B&gt;</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#201-221" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<div id="method.fill_buf-4" class="method trait-impl has-srclink">
+<h4 class="code-header">fn fill_buf(&amp;mut self) -&gt; Result&lt;&amp;[u8]&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#203-205" title="goto source code">[src]</a>
+</div>
+<div id="method.consume-4" class="method trait-impl has-srclink">
+<h4 class="code-header">fn consume(&amp;mut self, amt: usize)</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#208-210" title="goto source code">[src]</a>
+</div>
+<div id="method.read_until-3" class="method trait-impl has-srclink">
+<h4 class="code-header">fn read_until(&amp;mut self, byte: u8, buf: &amp;mut Vec&lt;u8&gt;) -&gt; Result&lt;usize&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#213-215" title="goto source code">[src]</a>
+</div>
+<div id="method.read_line-3" class="method trait-impl has-srclink">
+<h4 class="code-header">fn read_line(&amp;mut self, buf: &amp;mut String) -&gt; Result&lt;usize&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#218-220" title="goto source code">[src]</a>
+</div>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-BufRead-5" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;R: Read&gt; BufRead for BufReader&lt;R&gt;</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/buffered/bufreader.rs.html#314-331" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<div id="method.fill_buf-5" class="method trait-impl has-srclink">
+<h4 class="code-header">fn fill_buf(&amp;mut self) -&gt; Result&lt;&amp;[u8]&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/buffered/bufreader.rs.html#315-326" title="goto source code">[src]</a>
+</div>
+<div id="method.consume-5" class="method trait-impl has-srclink">
+<h4 class="code-header">fn consume(&amp;mut self, amt: usize)</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/buffered/bufreader.rs.html#328-330" title="goto source code">[src]</a>
+</div>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-BufRead-6" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T&gt; BufRead for Cursor&lt;T&gt; <span class="where fmt-newline">where<br> T: <a class="trait" href="../convert/trait.asref" title="trait std::convert::AsRef">AsRef</a>&lt;<a class="primitive" href="../primitive.slice">[</a><a class="primitive" href="../primitive.u8">u8</a><a class="primitive" href="../primitive.slice">]</a>&gt;, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/cursor.rs.html#306-317" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<div id="method.fill_buf-6" class="method trait-impl has-srclink">
+<h4 class="code-header">fn fill_buf(&amp;mut self) -&gt; Result&lt;&amp;[u8]&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/cursor.rs.html#310-313" title="goto source code">[src]</a>
+</div>
+<div id="method.consume-6" class="method trait-impl has-srclink">
+<h4 class="code-header">fn consume(&amp;mut self, amt: usize)</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/cursor.rs.html#314-316" title="goto source code">[src]</a>
+</div>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-BufRead-7" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T: BufRead&gt; BufRead for Take&lt;T&gt;</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#2485-2503" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<div id="method.fill_buf-7" class="method trait-impl has-srclink">
+<h4 class="code-header">fn fill_buf(&amp;mut self) -&gt; Result&lt;&amp;[u8]&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#2486-2495" title="goto source code">[src]</a>
+</div>
+<div id="method.consume-7" class="method trait-impl has-srclink">
+<h4 class="code-header">fn consume(&amp;mut self, amt: usize)</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#2497-2502" title="goto source code">[src]</a>
+</div>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-BufRead-8" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T: BufRead, U: BufRead&gt; BufRead for Chain&lt;T, U&gt;</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#2275-2291" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.9.0">1.9.0</span>
+</div></summary><div class="impl-items">
+<div id="method.fill_buf-8" class="method trait-impl has-srclink">
+<h4 class="code-header">fn fill_buf(&amp;mut self) -&gt; Result&lt;&amp;[u8]&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#2276-2286" title="goto source code">[src]</a>
+</div>
+<div id="method.consume-8" class="method trait-impl has-srclink">
+<h4 class="code-header">fn consume(&amp;mut self, amt: usize)</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#2288-2290" title="goto source code">[src]</a>
+</div>
+</div></details>
+</div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://doc.rust-lang.org/std/io/trait.BufRead.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/std/io/trait.BufRead.html</a>
+  </p>
+</div>

@@ -1,0 +1,263 @@
+ <h1 id="team-access-api">  Team Access API </h1> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> Team management is a paid feature, available as part of the <strong>Team</strong> upgrade package. <a href="https://www.hashicorp.com/products/terraform/pricing">Learn more about Terraform Cloud pricing here</a>.</p> </blockquote> <p>The team access APIs are used to associate a team to permissions on a workspace. A single <code>team-workspace</code> resource contains the relationship between the Team and Workspace, including the privileges the team has on the workspace.</p> <blockquote class="alert alert-info" role="alert"> <p><strong>Note</strong>: A <code>team-workspace</code> resource represents a team's <em>local</em> permissions on a specific workspace. Teams can also have <em>organization-level</em> permissions that grant access to workspaces, and Terraform Cloud uses whichever access level is higher. (For example: a team with the "manage workspaces" permission has admin access on all workspaces, even if their <code>team-workspace</code> on a particular workspace only grants read access.) For more information, see <a href="../users-teams-organizations/teams#managing-workspace-access">Managing Workspace Access</a>.</p> </blockquote> <p>Any member of an organization can view team access relative to their own team memberships, including secret teams of which they are a member. Organization owners and workspace admins can modify team access or view the full set of secret team accesses. The organization token and the owners team token can act as an owner on these endpoints. (<a href="../users-teams-organizations/permissions">More about permissions.</a>)</p> <h2 id="list-team-access-to-a-workspace">  List Team Access to a Workspace </h2> <p><code>GET /team-workspaces</code></p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "team-workspaces"</code>)</td> <td>The request was successful</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Workspace not found or user unauthorized to perform action</td> </tr> </tbody>
+</table> <h3 id="query-parameters">  Query Parameters </h3> <p><a href="index#query-parameters">These are standard URL query parameters</a>; remember to percent-encode <code>[</code> as <code>%5B</code> and <code>]</code> as <code>%5D</code> if your tooling doesn't automatically encode URLs.</p> <p>This endpoint supports pagination <a href="index#query-parameters">with standard URL query parameters</a>. If neither pagination query parameters are provided, the endpoint will not be paginated and will return all results.</p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>filter[workspace][id]</code></td> <td>
+<strong>Required.</strong> The workspace ID to list team access for. Obtain this from the <a href="../workspaces/settings">workspace settings</a> or the <a href="workspaces#show-workspace">Show Workspace</a> endpoint.</td> </tr> <tr> <td><code>page[number]</code></td> <td><strong>Optional.</strong></td> </tr> <tr> <td><code>page[size]</code></td> <td><strong>Optional.</strong></td> </tr> </tbody>
+</table> <h3 id="sample-request">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request GET \
+  "https://app.terraform.io/api/v2/team-workspaces?filter%5Bworkspace%5D%5Bid%5D=ws-XGA52YVykdTgryTN"
+</pre>
+<h3 id="sample-response">  Sample Response </h3> <pre data-language="json">{
+  "data": [
+    {
+      "id": "tws-19iugLwoNgtWZbKP",
+      "type": "team-workspaces",
+      "attributes": {
+        "access": "custom",
+        "runs": "apply",
+        "variables": "none",
+        "state-versions": "none",
+        "sentinel-mocks": "none",
+        "workspace-locking": false
+      },
+      "relationships": {
+        "team": {
+          "data": {
+            "id": "team-DBycxkdQrGFf5zEM",
+            "type": "teams"
+          },
+          "links": {
+            "related": "/api/v2/teams/team-DBycxkdQrGFf5zEM"
+          }
+        },
+        "workspace": {
+          "data": {
+            "id": "ws-XGA52YVykdTgryTN",
+            "type": "workspaces"
+          },
+          "links": {
+            "related": "/api/v2/organizations/my-organization/workspaces/my-workspace"
+          }
+        }
+      },
+      "links": {
+        "self": "/api/v2/team-workspaces/tws-19iugLwoNgtWZbKP"
+      }
+    }
+  ]
+}
+</pre>
+<h2 id="show-a-team-access-relationship">  Show a Team Access relationship </h2> <p><code>GET /team-workspaces/:id</code></p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "team-workspaces"</code>)</td> <td>The request was successful</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Team access not found or user unauthorized to perform action</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:id</code></td> <td>The ID of the team/workspace relationship. Obtain this from the <a href="#list-team-access-to-a-workspace">list team access action</a> described above.</td> </tr> </tbody>
+</table> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> As mentioned in <a href="#add-team-access-to-a-workspace">Add Team Access to a Workspace</a> and <a href="#update-team-access-to-a-workspace">Update Team Access to a Workspace</a>, several permission attributes are not editable unless <code>access</code> is set to <code>custom</code>. When access is <code>read</code>, <code>plan</code>, <code>write</code>, or <code>admin</code>, these attributes are read-only and reflect the implicit permissions granted to the current access level.</p> </blockquote> <h3 id="sample-request-1">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request GET \
+  https://app.terraform.io/api/v2/team-workspaces/tws-s68jV4FWCDwWvQq8
+</pre>
+<h3 id="sample-response-1">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id": "tws-s68jV4FWCDwWvQq8",
+    "type": "team-workspaces",
+    "attributes": {
+      "access": "write",
+      "runs": "apply",
+      "variables": "write",
+      "state-versions": "write",
+      "sentinel-mocks": "read",
+      "workspace-locking": true
+    },
+    "relationships": {
+      "team": {
+        "data": {
+          "id": "team-DBycxkdQrGFf5zEM",
+          "type": "teams"
+        },
+        "links": {
+          "related": "/api/v2/teams/team-DBycxkdQrGFf5zEM"
+        }
+      },
+      "workspace": {
+        "data": {
+          "id": "ws-XGA52YVykdTgryTN",
+          "type": "workspaces"
+        },
+        "links": {
+          "related": "/api/v2/organizations/my-organization/workspaces/my-workspace"
+        }
+      }
+    },
+    "links": {
+      "self": "/api/v2/team-workspaces/tws-s68jV4FWCDwWvQq8"
+    }
+  }
+}
+</pre>
+<h2 id="add-team-access-to-a-workspace">  Add Team Access to a Workspace </h2> <p><code>POST /team-workspaces</code></p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "team-workspaces"</code>)</td> <td>The request was successful</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Workspace or Team not found or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Malformed request body (missing attributes, wrong types, etc.)</td> </tr> </tbody>
+</table> <h3 id="request-body">  Request Body </h3> <p>This POST endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"team-workspaces"</code>.</td> </tr> <tr> <td><code>data.attributes.access</code></td> <td>string</td> <td></td> <td>The type of access to grant. Valid values are <code>read</code>, <code>plan</code>, <code>write</code>, <code>admin</code>, or <code>custom</code>.</td> </tr> <tr> <td><code>data.attributes.runs</code></td> <td>string</td> <td>"read"</td> <td>If <code>access</code> is <code>custom</code>, the permission to grant for the workspace's runs. Can only be used when <code>access</code> is <code>custom</code>. Valid values include <code>read</code>, <code>plan</code>, or <code>apply</code>.</td> </tr> <tr> <td><code>data.attributes.variables</code></td> <td>string</td> <td>"none"</td> <td>If <code>access</code> is <code>custom</code>, the permission to grant for the workspace's variables. Can only be used when <code>access</code> is <code>custom</code>. Valid values include <code>none</code>, <code>read</code>, or <code>write</code>.</td> </tr> <tr> <td><code>data.attributes.state-versions</code></td> <td>string</td> <td>"none"</td> <td>If <code>access</code> is <code>custom</code>, the permission to grant for the workspace's state versions. Can only be used when <code>access</code> is <code>custom</code>. Valid values include <code>none</code>, <code>read-outputs</code>, <code>read</code>, or <code>write</code>.</td> </tr> <tr> <td><code>data.attributes.sentinel-mocks</code></td> <td>string</td> <td>"none"</td> <td>If <code>access</code> is <code>custom</code>, the permission to grant for the workspace's Sentinel mocks. Can only be used when <code>access</code> is <code>custom</code>. Valid values include <code>none</code>, or <code>read</code>.</td> </tr> <tr> <td><code>data.attributes.workspace-locking</code></td> <td>boolean</td> <td>false</td> <td>If <code>access</code> is <code>custom</code>, the permission granting the ability to manually lock or unlock the workspace. Can only be used when <code>access</code> is <code>custom</code>.</td> </tr> <tr> <td><code>data.relationships.workspace.data.type</code></td> <td>string</td> <td></td> <td>Must be <code>workspaces</code>.</td> </tr> <tr> <td><code>data.relationships.workspace.data.id</code></td> <td>string</td> <td></td> <td>The workspace ID to which the team is to be added.</td> </tr> <tr> <td><code>data.relationships.team.data.type</code></td> <td>string</td> <td></td> <td>Must be <code>teams</code>.</td> </tr> <tr> <td><code>data.relationships.team.data.id</code></td> <td>string</td> <td></td> <td>The ID of the team to add to the workspace.</td> </tr> </tbody>
+</table> <h3 id="sample-payload">  Sample Payload </h3> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "access": "custom",
+      "runs": "apply",
+      "variables": "none",
+      "state-versions": "read-outputs",
+      "plan-outputs": "none",
+      "sentinel-mocks": "read",
+      "workspace-locking": false
+    },
+    "relationships": {
+      "workspace": {
+        "data": {
+          "type": "workspaces",
+          "id": "ws-XGA52YVykdTgryTN"
+        }
+      },
+      "team": {
+        "data": {
+          "type": "teams",
+          "id": "team-DBycxkdQrGFf5zEM"
+        }
+      }
+    },
+    "type": "team-workspaces"
+  }
+}
+</pre>
+<h3 id="sample-request-2">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/team-workspaces
+</pre>
+<h3 id="sample-response-2">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id": "tws-sezDAcCYWLnd3xz2",
+    "type": "team-workspaces",
+    "attributes": {
+      "access": "custom",
+      "runs": "apply",
+      "variables": "none",
+      "state-versions": "read-outputs",
+      "sentinel-mocks": "read",
+      "workspace-locking": false
+    },
+    "relationships": {
+      "team": {
+        "data": {
+          "id": "team-DBycxkdQrGFf5zEM",
+          "type": "teams"
+        },
+        "links": {
+          "related": "/api/v2/teams/team-DBycxkdQrGFf5zEM"
+        }
+      },
+      "workspace": {
+        "data": {
+          "id": "ws-XGA52YVykdTgryTN",
+          "type": "workspaces"
+        },
+        "links": {
+          "related": "/api/v2/organizations/my-organization/workspaces/my-workspace"
+        }
+      }
+    },
+    "links": {
+      "self": "/api/v2/team-workspaces/tws-sezDAcCYWLnd3xz2"
+    }
+  }
+}
+</pre>
+<h2 id="update-team-access-to-a-workspace">  Update Team Access to a Workspace </h2> <p><code>PATCH /team-workspaces/:id</code></p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "team-workspaces"</code>)</td> <td>The request was successful</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Team Access not found or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Malformed request body (missing attributes, wrong types, etc.)</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Parameter</th> <th></th> <th></th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:id</code></td> <td></td> <td></td> <td>The ID of the team/workspace relationship. Obtain this from the <a href="#list-team-access-to-a-workspace">list team access action</a> described above.</td> </tr> <tr> <td><code>data.attributes.access</code></td> <td>string</td> <td></td> <td>The type of access to grant. Valid values are <code>read</code>, <code>plan</code>, <code>write</code>, <code>admin</code>, or <code>custom</code>.</td> </tr> <tr> <td><code>data.attributes.runs</code></td> <td>string</td> <td>"read"</td> <td>If <code>access</code> is <code>custom</code>, the permission to grant for the workspace's runs. Can only be used when <code>access</code> is <code>custom</code>.</td> </tr> <tr> <td><code>data.attributes.variables</code></td> <td>string</td> <td>"none"</td> <td>If <code>access</code> is <code>custom</code>, the permission to grant for the workspace's variables. Can only be used when <code>access</code> is <code>custom</code>.</td> </tr> <tr> <td><code>data.attributes.state-versions</code></td> <td>string</td> <td>"none"</td> <td>If <code>access</code> is <code>custom</code>, the permission to grant for the workspace's state versions. Can only be used when <code>access</code> is <code>custom</code>.</td> </tr> <tr> <td><code>data.attributes.sentinel-mocks</code></td> <td>string</td> <td>"none"</td> <td>If <code>access</code> is <code>custom</code>, the permission to grant for the workspace's Sentinel mocks. Can only be used when <code>access</code> is <code>custom</code>.</td> </tr> <tr> <td><code>data.attributes.workspace-locking</code></td> <td>boolean</td> <td>false</td> <td>If <code>access</code> is <code>custom</code>, the permission granting the ability to manually lock or unlock the workspace. Can only be used when <code>access</code> is <code>custom</code>.</td> </tr> </tbody>
+</table> <h3 id="sample-request-3">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request PATCH \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/team-workspaces/tws-s68jV4FWCDwWvQq8
+</pre>
+<h3 id="sample-payload-1">  Sample Payload </h3> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "access": "custom",
+      "state-versions": "none"
+    }
+  }
+}
+</pre>
+<h3 id="sample-response-3">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id": "tws-s68jV4FWCDwWvQq8",
+    "type": "team-workspaces",
+    "attributes": {
+      "access": "custom",
+      "runs": "apply",
+      "variables": "write",
+      "state-versions": "none",
+      "sentinel-mocks": "read",
+      "workspace-locking": true
+    },
+    "relationships": {
+      "team": {
+        "data": {
+          "id": "team-DBycxkdQrGFf5zEM",
+          "type": "teams"
+        },
+        "links": {
+          "related": "/api/v2/teams/team-DBycxkdQrGFf5zEM"
+        }
+      },
+      "workspace": {
+        "data": {
+          "id": "ws-XGA52YVykdTgryTN",
+          "type": "workspaces"
+        },
+        "links": {
+          "related": "/api/v2/organizations/my-organization/workspaces/my-workspace"
+        }
+      }
+    },
+    "links": {
+      "self": "/api/v2/team-workspaces/tws-s68jV4FWCDwWvQq8"
+    }
+  }
+}
+</pre>
+<h2 id="remove-team-access-to-a-workspace">  Remove Team Access to a Workspace </h2> <p><code>DELETE /team-workspaces/:id</code></p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204">204</a></td> <td></td> <td>The Team Access was successfully destroyed</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Team Access not found or user unauthorized to perform action</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:id</code></td> <td>The ID of the team/workspace relationship. Obtain this from the <a href="#list-team-access-to-a-workspace">list team access action</a> described above.</td> </tr> </tbody>
+</table> <h3 id="sample-request-4">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request DELETE \
+  https://app.terraform.io/api/v2/team-workspaces/tws-sezDAcCYWLnd3xz2
+</pre><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/cloud/api/team-access.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/cloud/api/team-access.html</a>
+  </p>
+</div>

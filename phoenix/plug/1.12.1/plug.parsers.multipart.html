@@ -1,0 +1,36 @@
+<h1> Plug.Parsers.MULTIPART   </h1> <section id="moduledoc"> <p>Parses multipart request body.</p>
+<h2 id="module-options" class="section-heading">  Options </h2> <p>All options supported by <a href="plug.conn#read_body/2"><code class="inline">Plug.Conn.read_body/2</code></a> are also supported here. They are repeated here for convenience:</p>
+<ul>
+<li><p><code class="inline">:length</code> - sets the maximum number of bytes to read from the request, defaults to 8_000_000 bytes</p></li>
+<li><p><code class="inline">:read_length</code> - sets the amount of bytes to read at one time from the underlying socket to fill the chunk, defaults to 1_000_000 bytes</p></li>
+<li><p><code class="inline">:read_timeout</code> - sets the timeout for each socket read, defaults to 15_000ms</p></li>
+</ul>
+<p>So by default, <a href="plug.parsers"><code class="inline">Plug.Parsers</code></a> will read 1_000_000 bytes at a time from the socket with an overall limit of 8_000_000 bytes.</p>
+<p>Besides the options supported by <a href="plug.conn#read_body/2"><code class="inline">Plug.Conn.read_body/2</code></a>, the multipart parser also checks for:</p>
+<ul>
+<li><p><code class="inline">:headers</code> - containing the same <code class="inline">:length</code>, <code class="inline">:read_length</code> and <code class="inline">:read_timeout</code> options which are used explicitly for parsing multipart headers</p></li>
+<li><p><code class="inline">:include_unnamed_parts_at</code> - string specifying a body parameter that can hold a lists of body parts that didn't have a 'Content-Disposition' header. For instance, <code class="inline">include_unnamed_parts_at: "_parts"</code> would result in a body parameter <code class="inline">"_parts"</code>, containing a list of parts, each with <code class="inline">:body</code> and <code class="inline">:headers</code> fields, like <code class="inline">[%{body: "{}", headers: [{"content-type", "application/json"}]}]</code></p></li>
+<li><p><code class="inline">:validate_utf8</code> - specifies whether multipart body parts should be validated as utf8 binaries. Defaults to true</p></li>
+</ul>
+<h2 id="module-dynamic-configuration" class="section-heading">  Dynamic configuration </h2> <p>If you need to dynamically configure how <a href="plug.parsers.multipart#content"><code class="inline">Plug.Parsers.MULTIPART</code></a> behave, for example, based on the connection or another system parameter, one option is to create your own parser that wraps it:</p>
+<pre data-language="elixir">defmodule MyMultipart do
+  @multipart Plug.Parsers.MULTIPART
+
+  def init(opts) do
+    opts
+  end
+
+  def parse(conn, "multipart", subtype, headers, opts) do
+    limit = [limit: System.fetch_env!("UPLOAD_LIMIT")]
+    opts = @multipart.init([limit: limit] ++ opts)
+    @multipart.parse(conn, "multipart", subtype, headers, opts)
+  end
+
+  def parse(conn, _type, _subtype, _headers, _opts) do
+    {:next, conn}
+  end
+end</pre> </section><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://hexdocs.pm/plug/1.12.1/Plug.Parsers.MULTIPART.html" class="_attribution-link" target="_blank">https://hexdocs.pm/plug/1.12.1/Plug.Parsers.MULTIPART.html</a>
+  </p>
+</div>

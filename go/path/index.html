@@ -1,0 +1,168 @@
+<h1> Package path  </h1>  <ul id="short-nav">
+<li><code>import "path"</code></li>
+<li><a href="#pkg-overview" class="overviewLink">Overview</a></li>
+<li><a href="#pkg-index" class="indexLink">Index</a></li>
+<li><a href="#pkg-examples" class="examplesLink">Examples</a></li>
+<li><a href="#pkg-subdirectories">Subdirectories</a></li>
+</ul>    <h2 id="pkg-overview">Overview </h2> <p> Package path implements utility routines for manipulating slash-separated paths. </p> <p> The path package should only be used for paths separated by forward slashes, such as the paths in URLs. This package does not deal with Windows paths with drive letters or backslashes; to manipulate operating system paths, use the path/filepath package. </p>      <h2 id="pkg-index">Index </h2> <ul id="manual-nav">
+<li><a href="#pkg-variables">Variables</a></li>
+<li><a href="#Base">func Base(path string) string</a></li>
+<li><a href="#Clean">func Clean(path string) string</a></li>
+<li><a href="#Dir">func Dir(path string) string</a></li>
+<li><a href="#Ext">func Ext(path string) string</a></li>
+<li><a href="#IsAbs">func IsAbs(path string) bool</a></li>
+<li><a href="#Join">func Join(elem ...string) string</a></li>
+<li><a href="#Match">func Match(pattern, name string) (matched bool, err error)</a></li>
+<li><a href="#Split">func Split(path string) (dir, file string)</a></li>
+</ul> <div id="pkg-examples"> <h3>Examples</h3>  <dl> <dd><a class="exampleLink" href="#example_Base">Base</a></dd> <dd><a class="exampleLink" href="#example_Clean">Clean</a></dd> <dd><a class="exampleLink" href="#example_Dir">Dir</a></dd> <dd><a class="exampleLink" href="#example_Ext">Ext</a></dd> <dd><a class="exampleLink" href="#example_IsAbs">IsAbs</a></dd> <dd><a class="exampleLink" href="#example_Join">Join</a></dd> <dd><a class="exampleLink" href="#example_Match">Match</a></dd> <dd><a class="exampleLink" href="#example_Split">Split</a></dd> </dl> </div> <h3>Package files</h3> <p>  <a href="https://golang.org/src/path/match.go">match.go</a> <a href="https://golang.org/src/path/path.go">path.go</a>  </p>   <h2 id="pkg-variables">Variables</h2> <p> ErrBadPattern indicates a pattern was malformed. </p> <pre data-language="go">var ErrBadPattern = errors.New("syntax error in pattern")</pre> <h2 id="Base">func Base<a href="https://golang.org/src/path/path.go?s=5149:5178#L189" class="source">Source</a>  </h2> <pre data-language="go">func Base(path string) string</pre> <p> Base returns the last element of path. Trailing slashes are removed before extracting the last element. If the path is empty, Base returns ".". If the path consists entirely of slashes, Base returns "/". </p>    <h4 id="example_Base"> <span class="text">Example</span>
+</h4> <pre class="play" data-language="go">package main
+
+import (
+	"fmt"
+	"path"
+)
+
+func main() {
+	fmt.Println(path.Base("/a/b"))
+	fmt.Println(path.Base("/"))
+	fmt.Println(path.Base(""))
+}
+</pre>   <h2 id="Clean">func Clean<a href="https://golang.org/src/path/path.go?s=2052:2082#L60" class="source">Source</a>  </h2> <pre data-language="go">func Clean(path string) string</pre> <p> Clean returns the shortest path name equivalent to path by purely lexical processing. It applies the following rules iteratively until no further processing can be done: </p> <pre data-language="go">1. Replace multiple slashes with a single slash.
+2. Eliminate each . path name element (the current directory).
+3. Eliminate each inner .. path name element (the parent directory)
+   along with the non-.. element that precedes it.
+4. Eliminate .. elements that begin a rooted path:
+   that is, replace "/.." by "/" at the beginning of a path.
+</pre> <p> The returned path ends in a slash only if it is the root "/". </p> <p> If the result of this process is an empty string, Clean returns the string ".". </p> <p> See also Rob Pike, “Lexical File Names in Plan 9 or Getting Dot-Dot Right,” <a href="https://9p.io/sys/doc/lexnames.html">https://9p.io/sys/doc/lexnames.html</a> </p>    <h4 id="example_Clean"> <span class="text">Example</span>
+</h4> <pre class="play" data-language="go">package main
+
+import (
+	"fmt"
+	"path"
+)
+
+func main() {
+	paths := []string{
+		"a/c",
+		"a//c",
+		"a/c/.",
+		"a/c/b/..",
+		"/../a/c",
+		"/../a/b/../././/c",
+		"",
+	}
+
+	for _, p := range paths {
+		fmt.Printf("Clean(%q) = %q\n", p, path.Clean(p))
+	}
+
+}
+</pre>   <h2 id="Dir">func Dir<a href="https://golang.org/src/path/path.go?s=6016:6044#L220" class="source">Source</a>  </h2> <pre data-language="go">func Dir(path string) string</pre> <p> Dir returns all but the last element of path, typically the path's directory. After dropping the final element using Split, the path is Cleaned and trailing slashes are removed. If the path is empty, Dir returns ".". If the path consists entirely of slashes followed by non-slash bytes, Dir returns a single slash. In any other case, the returned path does not end in a slash. </p>    <h4 id="example_Dir"> <span class="text">Example</span>
+</h4> <pre class="play" data-language="go">package main
+
+import (
+	"fmt"
+	"path"
+)
+
+func main() {
+	fmt.Println(path.Dir("/a/b/c"))
+	fmt.Println(path.Dir("a/b/c"))
+	fmt.Println(path.Dir("/a/"))
+	fmt.Println(path.Dir("a/"))
+	fmt.Println(path.Dir("/"))
+	fmt.Println(path.Dir(""))
+}
+</pre>   <h2 id="Ext">func Ext<a href="https://golang.org/src/path/path.go?s=4783:4811#L176" class="source">Source</a>  </h2> <pre data-language="go">func Ext(path string) string</pre> <p> Ext returns the file name extension used by path. The extension is the suffix beginning at the final dot in the final slash-separated element of path; it is empty if there is no dot. </p>    <h4 id="example_Ext"> <span class="text">Example</span>
+</h4> <pre class="play" data-language="go">package main
+
+import (
+	"fmt"
+	"path"
+)
+
+func main() {
+	fmt.Println(path.Ext("/a/b/c/bar.css"))
+	fmt.Println(path.Ext("/"))
+	fmt.Println(path.Ext(""))
+}
+</pre>   <h2 id="IsAbs">func IsAbs<a href="https://golang.org/src/path/path.go?s=5544:5572#L209" class="source">Source</a>  </h2> <pre data-language="go">func IsAbs(path string) bool</pre> <p> IsAbs reports whether the path is absolute. </p>    <h4 id="example_IsAbs"> <span class="text">Example</span>
+</h4> <pre class="play" data-language="go">package main
+
+import (
+	"fmt"
+	"path"
+)
+
+func main() {
+	fmt.Println(path.IsAbs("/dev/null"))
+}
+</pre>   <h2 id="Join">func Join<a href="https://golang.org/src/path/path.go?s=4249:4281#L152" class="source">Source</a>  </h2> <pre data-language="go">func Join(elem ...string) string</pre> <p> Join joins any number of path elements into a single path, separating them with slashes. Empty elements are ignored. The result is Cleaned. However, if the argument list is empty or all its elements are empty, Join returns an empty string. </p>    <h4 id="example_Join"> <span class="text">Example</span>
+</h4> <pre class="play" data-language="go">package main
+
+import (
+	"fmt"
+	"path"
+)
+
+func main() {
+	fmt.Println(path.Join("a", "b", "c"))
+	fmt.Println(path.Join("a", "b/c"))
+	fmt.Println(path.Join("a/b", "c"))
+
+	fmt.Println(path.Join("a/b", "../../../xyz"))
+
+	fmt.Println(path.Join("", ""))
+	fmt.Println(path.Join("a", ""))
+	fmt.Println(path.Join("", "a"))
+
+}
+</pre>   <h2 id="Match">func Match<a href="https://golang.org/src/path/match.go?s=1093:1151#L28" class="source">Source</a>  </h2> <pre data-language="go">func Match(pattern, name string) (matched bool, err error)</pre> <p> Match reports whether name matches the shell pattern. The pattern syntax is: </p> <pre data-language="go">pattern:
+	{ term }
+term:
+	'*'         matches any sequence of non-/ characters
+	'?'         matches any single non-/ character
+	'[' [ '^' ] { character-range } ']'
+	            character class (must be non-empty)
+	c           matches character c (c != '*', '?', '\\', '[')
+	'\\' c      matches character c
+
+character-range:
+	c           matches character c (c != '\\', '-', ']')
+	'\\' c      matches character c
+	lo '-' hi   matches character c for lo &lt;= c &lt;= hi
+</pre> <p> Match requires pattern to match all of name, not just a substring. The only possible returned error is ErrBadPattern, when pattern is malformed. </p>    <h4 id="example_Match"> <span class="text">Example</span>
+</h4> <pre class="play" data-language="go">package main
+
+import (
+	"fmt"
+	"path"
+)
+
+func main() {
+	fmt.Println(path.Match("abc", "abc"))
+	fmt.Println(path.Match("a*", "abc"))
+	fmt.Println(path.Match("a*/b", "a/c/b"))
+}
+</pre>   <h2 id="Split">func Split<a href="https://golang.org/src/path/path.go?s=3893:3935#L142" class="source">Source</a>  </h2> <pre data-language="go">func Split(path string) (dir, file string)</pre> <p> Split splits path immediately following the final slash, separating it into a directory and file name component. If there is no slash in path, Split returns an empty dir and file set to path. The returned values have the property that path = dir+file. </p>    <h4 id="example_Split"> <span class="text">Example</span>
+</h4> <pre class="play" data-language="go">package main
+
+import (
+	"fmt"
+	"path"
+)
+
+func main() {
+	split := func(s string) {
+		dir, file := path.Split(s)
+		fmt.Printf("path.Split(%q) = dir: %q, file: %q\n", s, dir, file)
+	}
+	split("static/myfile.css")
+	split("myfile.css")
+	split("")
+}
+</pre>   <h2 id="pkg-subdirectories">Subdirectories</h2> <div class="pkg-dir"> <table> <tr> <th class="pkg-name">Name</th> <th class="pkg-synopsis">Synopsis</th> </tr> <tr> <td colspan="2"><a href="../index">..</a></td> </tr> <tr> <td class="pkg-name"> <a href="filepath/index">filepath</a> </td> <td class="pkg-synopsis"> Package filepath implements utility routines for manipulating filename paths in a way compatible with the target operating system-defined file paths. </td> </tr> </table> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://golang.org/pkg/path/" class="_attribution-link" target="_blank">https://golang.org/pkg/path/</a>
+  </p>
+</div>

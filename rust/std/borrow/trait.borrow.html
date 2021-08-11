@@ -1,0 +1,169 @@
+<h1 class="fqn">Trait std::borrow::Borrow</h1>
+<pre class="rust trait" data-language="rust">pub trait Borrow&lt;Borrowed&gt; where    Borrowed: ?Sized, {
+    fn borrow(&amp;self) -&gt; &amp;Borrowed;
+}</pre>
+<details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock">
+<p>A trait for borrowing data.</p> <p>In Rust, it is common to provide different representations of a type for different use cases. For instance, storage location and management for a value can be specifically chosen as appropriate for a particular use via pointer types such as <a href="../boxed/struct.box"><code>Box&lt;T&gt;</code></a> or <a href="../rc/struct.rc"><code>Rc&lt;T&gt;</code></a>. Beyond these generic wrappers that can be used with any type, some types provide optional facets providing potentially costly functionality. An example for such a type is <a href="../string/struct.string"><code>String</code></a> which adds the ability to extend a string to the basic <a href="../primitive.str" title="str"><code>str</code></a>. This requires keeping additional information unnecessary for a simple, immutable string.</p> <p>These types provide access to the underlying data through references to the type of that data. They are said to be ‘borrowed as’ that type. For instance, a <a href="../boxed/struct.box"><code>Box&lt;T&gt;</code></a> can be borrowed as <code>T</code> while a <a href="../string/struct.string"><code>String</code></a> can be borrowed as <code>str</code>.</p> <p>Types express that they can be borrowed as some type <code>T</code> by implementing <code>Borrow&lt;T&gt;</code>, providing a reference to a <code>T</code> in the trait’s <a href="trait.borrow#tymethod.borrow"><code>borrow</code></a> method. A type is free to borrow as several different types. If it wishes to mutably borrow as the type – allowing the underlying data to be modified, it can additionally implement <a href="trait.borrowmut" title="BorrowMut&lt;T&gt;"><code>BorrowMut&lt;T&gt;</code></a>.</p> <p>Further, when providing implementations for additional traits, it needs to be considered whether they should behave identical to those of the underlying type as a consequence of acting as a representation of that underlying type. Generic code typically uses <code>Borrow&lt;T&gt;</code> when it relies on the identical behavior of these additional trait implementations. These traits will likely appear as additional trait bounds.</p> <p>In particular <code>Eq</code>, <code>Ord</code> and <code>Hash</code> must be equivalent for borrowed and owned values: <code>x.borrow() == y.borrow()</code> should give the same result as <code>x == y</code>.</p> <p>If generic code merely needs to work for all types that can provide a reference to related type <code>T</code>, it is often better to use <a href="../convert/trait.asref" title="AsRef&lt;T&gt;"><code>AsRef&lt;T&gt;</code></a> as more types can safely implement it.</p> <h2 id="examples" class="section-header">Examples</h2> <p>As a data collection, <a href="../collections/struct.hashmap"><code>HashMap&lt;K, V&gt;</code></a> owns both keys and values. If the key’s actual data is wrapped in a managing type of some kind, it should, however, still be possible to search for a value using a reference to the key’s data. For instance, if the key is a string, then it is likely stored with the hash map as a <a href="../string/struct.string"><code>String</code></a>, while it should be possible to search using a <a href="../primitive.str" title="str"><code>&amp;str</code></a>. Thus, <code>insert</code> needs to operate on a <code>String</code> while <code>get</code> needs to be able to use a <code>&amp;str</code>.</p> <p>Slightly simplified, the relevant parts of <code>HashMap&lt;K, V&gt;</code> look like this:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::borrow::Borrow;
+use std::hash::Hash;
+
+pub struct HashMap&lt;K, V&gt; {
+    // fields omitted
+}
+
+impl&lt;K, V&gt; HashMap&lt;K, V&gt; {
+    pub fn insert(&amp;self, key: K, value: V) -&gt; Option&lt;V&gt;
+    where K: Hash + Eq
+    {
+        // ...
+    }
+
+    pub fn get&lt;Q&gt;(&amp;self, k: &amp;Q) -&gt; Option&lt;&amp;V&gt;
+    where
+        K: Borrow&lt;Q&gt;,
+        Q: Hash + Eq + ?Sized
+    {
+        // ...
+    }
+}</pre></div> <p>The entire hash map is generic over a key type <code>K</code>. Because these keys are stored with the hash map, this type has to own the key’s data. When inserting a key-value pair, the map is given such a <code>K</code> and needs to find the correct hash bucket and check if the key is already present based on that <code>K</code>. It therefore requires <code>K: Hash + Eq</code>.</p> <p>When searching for a value in the map, however, having to provide a reference to a <code>K</code> as the key to search for would require to always create such an owned value. For string keys, this would mean a <code>String</code> value needs to be created just for the search for cases where only a <code>str</code> is available.</p> <p>Instead, the <code>get</code> method is generic over the type of the underlying key data, called <code>Q</code> in the method signature above. It states that <code>K</code> borrows as a <code>Q</code> by requiring that <code>K: Borrow&lt;Q&gt;</code>. By additionally requiring <code>Q: Hash + Eq</code>, it signals the requirement that <code>K</code> and <code>Q</code> have implementations of the <code>Hash</code> and <code>Eq</code> traits that produce identical results.</p> <p>The implementation of <code>get</code> relies in particular on identical implementations of <code>Hash</code> by determining the key’s hash bucket by calling <code>Hash::hash</code> on the <code>Q</code> value even though it inserted the key based on the hash value calculated from the <code>K</code> value.</p> <p>As a consequence, the hash map breaks if a <code>K</code> wrapping a <code>Q</code> value produces a different hash than <code>Q</code>. For instance, imagine you have a type that wraps a string but compares ASCII letters ignoring their case:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+pub struct CaseInsensitiveString(String);
+
+impl PartialEq for CaseInsensitiveString {
+    fn eq(&amp;self, other: &amp;Self) -&gt; bool {
+        self.0.eq_ignore_ascii_case(&amp;other.0)
+    }
+}
+
+impl Eq for CaseInsensitiveString { }</pre></div> <p>Because two equal values need to produce the same hash value, the implementation of <code>Hash</code> needs to ignore ASCII case, too:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+impl Hash for CaseInsensitiveString {
+    fn hash&lt;H: Hasher&gt;(&amp;self, state: &amp;mut H) {
+        for c in self.0.as_bytes() {
+            c.to_ascii_lowercase().hash(state)
+        }
+    }
+}</pre></div> <p>Can <code>CaseInsensitiveString</code> implement <code>Borrow&lt;str&gt;</code>? It certainly can provide a reference to a string slice via its contained owned string. But because its <code>Hash</code> implementation differs, it behaves differently from <code>str</code> and therefore must not, in fact, implement <code>Borrow&lt;str&gt;</code>. If it wants to allow others access to the underlying <code>str</code>, it can do that via <code>AsRef&lt;str&gt;</code> which doesn’t carry any extra requirements.</p> </div></details><h2 id="required-methods" class="small-section-header">Required methods</h2>
+<div class="methods"><details class="rustdoc-toggle" open><summary><div id="tymethod.borrow" class="method has-srclink">
+<h4 class="code-header">fn borrow(&amp;self) -&gt; &amp;Borrowed</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#178" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Immutably borrows from an owned value.</p> <h2 id="examples-1" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::borrow::Borrow;
+
+fn check&lt;T: Borrow&lt;str&gt;&gt;(s: T) {
+    assert_eq!("Hello", s.borrow());
+}
+
+let s = "Hello".to_string();
+
+check(s);
+
+let s = "Hello";
+
+check(s);</pre></div> </div></details></div>
+<h2 id="implementors" class="small-section-header">Implementors</h2>
+<div class="item-list" id="implementors-list">
+<details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Borrow%3Cstr%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl Borrow&lt;str&gt; for String</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/str.rs.html#198-203" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><div id="method.borrow" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn borrow(&amp;self) -&gt; &amp;str</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/str.rs.html#200" title="goto source code">[src]</a>
+</div></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Borrow%3CCStr%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl Borrow&lt;CStr&gt; for CString</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/ffi/c_str.rs.html#834-839" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.3.0">1.3.0</span>
+</div></summary><div class="impl-items"><div id="method.borrow-1" class="method trait-impl has-srclink">
+<h4 class="code-header">fn borrow(&amp;self) -&gt; &amp;CStr</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/ffi/c_str.rs.html#836-838" title="goto source code">[src]</a>
+</div></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Borrow%3COsStr%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl Borrow&lt;OsStr&gt; for OsString</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/ffi/os_str.rs.html#1120-1125" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><div id="method.borrow-2" class="method trait-impl has-srclink">
+<h4 class="code-header">fn borrow(&amp;self) -&gt; &amp;OsStr</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/ffi/os_str.rs.html#1122-1124" title="goto source code">[src]</a>
+</div></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Borrow%3CPath%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl Borrow&lt;Path&gt; for PathBuf</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/path.rs.html#1570-1575" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><div id="method.borrow-3" class="method trait-impl has-srclink">
+<h4 class="code-header">fn borrow(&amp;self) -&gt; &amp;Path</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/path.rs.html#1572-1574" title="goto source code">[src]</a>
+</div></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Borrow%3CT%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;'_, T&gt; Borrow&lt;T&gt; for &amp;'_ T <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#223-227" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><div id="method.borrow-4" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn borrow(&amp;self) -&gt; &amp;T</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#224" title="goto source code">[src]</a>
+</div></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Borrow%3CT%3E-1" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;'_, T&gt; Borrow&lt;T&gt; for &amp;'_ mut T <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#230-234" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><div id="method.borrow-5" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn borrow(&amp;self) -&gt; &amp;T</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#231" title="goto source code">[src]</a>
+</div></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Borrow%3CB%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;'a, B&gt; Borrow&lt;B&gt; for Cow&lt;'a, B&gt; <span class="where fmt-newline">where<br> B: <a class="trait" href="trait.toowned" title="trait std::borrow::ToOwned">ToOwned</a> + ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>,<br> &lt;B as <a class="trait" href="trait.toowned" title="trait std::borrow::ToOwned">ToOwned</a>&gt;::<a class="type" href="trait.toowned#associatedtype.Owned" title="type std::borrow::ToOwned::Owned">Owned</a>: 'a, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/borrow.rs.html#21-29" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><div id="method.borrow-6" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn borrow(&amp;self) -&gt; &amp;B</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/borrow.rs.html#26" title="goto source code">[src]</a>
+</div></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Borrow%3C%5BT%5D%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T&gt; Borrow&lt;[T]&gt; for Vec&lt;T, Global&gt;</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/slice.rs.html#815-819" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<div id="method.borrow-7" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn borrow(&amp;self) -&gt; &amp;[T]</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/slice.rs.html#816" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="primitive" href="../primitive.slice">&amp;[</a><a class="primitive" href="../primitive.u8">u8</a><a class="primitive" href="../primitive.slice">]</a>
+</div>
+<pre class="content">impl Read for &amp;[u8]
+impl Write for &amp;mut [u8]
+</pre></span></div></span>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Borrow%3CT%3E-2" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T&gt; Borrow&lt;T&gt; for Rc&lt;T&gt; <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/rc.rs.html#2495-2499" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><div id="method.borrow-8" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn borrow(&amp;self) -&gt; &amp;T</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/rc.rs.html#2496" title="goto source code">[src]</a>
+</div></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Borrow%3CT%3E-3" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T&gt; Borrow&lt;T&gt; for Arc&lt;T&gt; <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/sync.rs.html#2536-2540" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><div id="method.borrow-9" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn borrow(&amp;self) -&gt; &amp;T</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/sync.rs.html#2537" title="goto source code">[src]</a>
+</div></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Borrow%3CT%3E-4" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T&gt; Borrow&lt;T&gt; for T <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#208-213" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><div id="method.borrow-10" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn borrow(&amp;self) -&gt; &amp;T</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#210" title="goto source code">[src]</a>
+</div></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Borrow%3CT%3E-5" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T, A&gt; Borrow&lt;T&gt; for Box&lt;T, A&gt; <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>,<br> A: <a class="trait" href="../alloc/trait.allocator" title="trait std::alloc::Allocator">Allocator</a>, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/boxed.rs.html#1625-1629" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.1.0">1.1.0</span>
+</div></summary><div class="impl-items"><div id="method.borrow-11" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn borrow(&amp;self) -&gt; &amp;T</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/boxed.rs.html#1626" title="goto source code">[src]</a>
+</div></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Borrow%3C%5BT%5D%3E-1" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T, const N: usize&gt; Borrow&lt;[T]&gt; for [T; N]</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/array/mod.rs.html#87-91" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.4.0">1.4.0</span>
+</div></summary><div class="impl-items">
+<div id="method.borrow-12" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn borrow(&amp;self) -&gt; &amp;[T]</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/array/mod.rs.html#88" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="primitive" href="../primitive.slice">&amp;[</a><a class="primitive" href="../primitive.u8">u8</a><a class="primitive" href="../primitive.slice">]</a>
+</div>
+<pre class="content">impl Read for &amp;[u8]
+impl Write for &amp;mut [u8]
+</pre></span></div></span>
+</div></details>
+</div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://doc.rust-lang.org/std/borrow/trait.Borrow.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/std/borrow/trait.Borrow.html</a>
+  </p>
+</div>

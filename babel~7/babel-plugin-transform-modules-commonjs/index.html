@@ -1,0 +1,136 @@
+<div class="navPusher"><div class="docMainWrapper wrapper">
+
+<div class="container mainContainer docsContainer"><div class="wrapper"><div class="post">
+<header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">@babel/plugin-transform-modules-commonjs</h1></header><article><div><span><p><details> <summary>History</summary></details></p> <table> <thead> <tr>
+<th>Version</th>
+<th>Changes</th>
+</tr> </thead> <tbody> <tr>
+<td><code>v7.14.0</code></td>
+<td>Implemented the <code>importInterop</code> option</td>
+</tr> </tbody> </table>  <blockquote> <p><strong>NOTE</strong>: This plugin is included in <code>@babel/preset-env</code> under the <code>modules</code> option</p> </blockquote> <p>This plugin transforms ECMAScript modules to <a href="http://wiki.commonjs.org/wiki/Modules/1.1">CommonJS</a>. Note that only the <em>syntax</em> of import/export statements (<code>import "./mod.js"</code>) and import expressions (<code>import('./mod.js')</code>) is transformed, as Babel is unaware of different resolution algorithms between implementations of ECMAScript modules and CommonJS.</p> <h2>
+Example</h2> <p><strong>In</strong></p> <pre><code class="hljs css language-javascript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">default</span> <span class="hljs-number">42</span>;
+</code></pre> <p><strong>Out</strong></p> <pre><code class="hljs css language-javascript"><span class="hljs-built_in">Object</span>.defineProperty(exports, <span class="hljs-string">"__esModule"</span>, {
+  <span class="hljs-attr">value</span>: <span class="hljs-literal">true</span>,
+});
+
+exports.default = <span class="hljs-number">42</span>;
+</code></pre> <h2>
+Installation</h2> <pre><code class="hljs css language-sh">npm install --save-dev @babel/plugin-transform-modules-commonjs
+</code></pre> <h2>
+Usage</h2> <h3>
+With a configuration file (Recommended)</h3> <pre><code class="hljs css language-js"><span class="hljs-comment">// without options</span>
+{
+  <span class="hljs-string">"plugins"</span>: [<span class="hljs-string">"@babel/plugin-transform-modules-commonjs"</span>]
+}
+
+<span class="hljs-comment">// with options</span>
+{
+  <span class="hljs-string">"plugins"</span>: [
+    [<span class="hljs-string">"@babel/plugin-transform-modules-commonjs"</span>, {
+      <span class="hljs-string">"allowTopLevelThis"</span>: <span class="hljs-literal">true</span>
+    }]
+  ]
+}
+</code></pre> <h3>
+Via CLI</h3> <pre><code class="hljs css language-sh">babel --plugins @babel/plugin-transform-modules-commonjs script.js
+</code></pre> <h3>
+Via Node API</h3> <pre><code class="hljs css language-javascript"><span class="hljs-built_in">require</span>(<span class="hljs-string">"@babel/core"</span>).transformSync(<span class="hljs-string">"code"</span>, {
+  <span class="hljs-attr">plugins</span>: [<span class="hljs-string">"@babel/plugin-transform-modules-commonjs"</span>],
+});
+</code></pre> <h2>
+Options</h2> <h3>
+<code>importInterop</code>
+</h3> <p><code>"babel" | "node" | "none"</code>, or <code>(specifier: string) =&gt; "babel" | "node" | "none"</code>. Defaults to <code>"babel"</code>.</p> <p>CommonJS modules and ECMAScript modules are not fully compatible. However, compilers, bundlers and JavaScript runtimes developed different strategies to make them work together as well as possible.</p> <p>This option specify which interop strategy Babel should use. When it's a function, Babel calls this function passing the import specifier (for example, <code>@babel/core</code> in <code>import { transform } from "@babel/core"</code>), and the function should return the interop to use for that specific import.</p> <h4>
+<code>"babel"</code>
+</h4> <p>When using exports with babel a non-enumerable <code>__esModule</code> property is exported. This property is then used to determine if the import <em>is</em> the default export or if it <em>contains</em> the default export.</p> <pre><code class="hljs css language-javascript"><span class="hljs-keyword">import</span> foo <span class="hljs-keyword">from</span> <span class="hljs-string">"foo"</span>;
+<span class="hljs-keyword">import</span> { bar } <span class="hljs-keyword">from</span> <span class="hljs-string">"bar"</span>;
+foo;
+bar;
+
+<span class="hljs-comment">// Is compiled to ...</span>
+
+<span class="hljs-meta">"use strict"</span>;
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">_interopRequireDefault</span>(<span class="hljs-params">obj</span>) </span>{
+  <span class="hljs-keyword">return</span> obj &amp;&amp; obj.__esModule ? obj : { <span class="hljs-attr">default</span>: obj };
+}
+
+<span class="hljs-keyword">var</span> _foo = _interopRequireDefault(<span class="hljs-built_in">require</span>(<span class="hljs-string">"foo"</span>));
+<span class="hljs-keyword">var</span> _bar = <span class="hljs-built_in">require</span>(<span class="hljs-string">"bar"</span>);
+
+_foo.default;
+_bar.bar;
+</code></pre> <p>When this import interop is used, if both the imported and the importer module are compiled with Babel they behave as if none of them was compiled.</p> <p>This is the default behavior.</p> <h4>
+<code>"node"</code>
+</h4> <p>When importing CommonJS files (either directly written in CommonJS, or generated with a compiler) Node.js always binds the <code>default</code> export to the value of <code>module.exports</code>.</p> <pre><code class="hljs css language-javascript"><span class="hljs-keyword">import</span> foo <span class="hljs-keyword">from</span> <span class="hljs-string">"foo"</span>;
+<span class="hljs-keyword">import</span> { bar } <span class="hljs-keyword">from</span> <span class="hljs-string">"bar"</span>;
+foo;
+bar;
+
+<span class="hljs-comment">// Is compiled to ...</span>
+
+<span class="hljs-meta">"use strict"</span>;
+
+<span class="hljs-keyword">var</span> _foo = <span class="hljs-built_in">require</span>(<span class="hljs-string">"foo"</span>);
+<span class="hljs-keyword">var</span> _bar = <span class="hljs-built_in">require</span>(<span class="hljs-string">"bar"</span>);
+
+_foo;
+_bar.bar;
+</code></pre> <p>This is not exactly the same as what Node.js does since Babel allows accessing any property of <code>module.exports</code> as a named export, while Node.js only allows importing <em>statically analyzable</em> properties of <code>module.exports</code>. However, any import working in Node.js will also work when compiled with Babel using <code>importInterop: "node"</code>.</p> <h4>
+<code>"none"</code>
+</h4> <p>If you know that the imported file has been transformed with a compiler that stores the <code>default</code> export on <code>exports.default</code> (such as Babel), you can safely omit the <code>_interopRequireDefault</code> helper.</p> <pre><code class="hljs css language-javascript"><span class="hljs-keyword">import</span> foo <span class="hljs-keyword">from</span> <span class="hljs-string">"foo"</span>;
+<span class="hljs-keyword">import</span> { bar } <span class="hljs-keyword">from</span> <span class="hljs-string">"bar"</span>;
+foo;
+bar;
+
+<span class="hljs-comment">// Is compiled to ...</span>
+
+<span class="hljs-meta">"use strict"</span>;
+
+<span class="hljs-keyword">var</span> _foo = <span class="hljs-built_in">require</span>(<span class="hljs-string">"foo"</span>);
+<span class="hljs-keyword">var</span> _bar = <span class="hljs-built_in">require</span>(<span class="hljs-string">"bar"</span>);
+
+_foo.default;
+_bar.bar;
+</code></pre> <h3>
+<code>loose</code>
+</h3> <p><code>boolean</code>, defaults to <code>false</code>.</p> <p>By default, when using exports with babel a non-enumerable <code>__esModule</code> property is exported.</p> <pre><code class="hljs css language-javascript"><span class="hljs-keyword">var</span> foo = (exports.foo = <span class="hljs-number">5</span>);
+
+<span class="hljs-built_in">Object</span>.defineProperty(exports, <span class="hljs-string">"__esModule"</span>, {
+  <span class="hljs-attr">value</span>: <span class="hljs-literal">true</span>,
+});
+</code></pre> <blockquote> <p>⚠️ Consider migrating to the top level <a href="../assumptions/index#enumerablemodulemeta"><code>enumerableModuleMeta</code></a> assumption.</p> </blockquote> <pre><code class="hljs css language-jsonc"><span class="hljs-comment">// babel.config.json</span>
+{
+  <span class="hljs-attr">"assumptions"</span>: {
+    <span class="hljs-attr">"enumerableModuleMeta"</span>: <span class="hljs-literal">true</span>
+  }
+}
+</code></pre> <p>In environments that don't support this you can enable the <code>enumerableModuleMeta</code> assumption, instead of using <code>Object.defineProperty</code> an assignment will be used instead.</p> <pre><code class="hljs css language-javascript"><span class="hljs-keyword">var</span> foo = (exports.foo = <span class="hljs-number">5</span>);
+exports.__esModule = <span class="hljs-literal">true</span>;
+</code></pre> <h3>
+<code>strict</code>
+</h3> <p><code>boolean</code>, defaults to <code>false</code></p> <p>By default, when using exports with babel a non-enumerable <code>__esModule</code> property is exported. In some cases this property is used to determine if the import <em>is</em> the default export or if it <em>contains</em> the default export.</p> <pre><code class="hljs css language-javascript"><span class="hljs-keyword">var</span> foo = (exports.foo = <span class="hljs-number">5</span>);
+
+<span class="hljs-built_in">Object</span>.defineProperty(exports, <span class="hljs-string">"__esModule"</span>, {
+  <span class="hljs-attr">value</span>: <span class="hljs-literal">true</span>,
+});
+</code></pre> <p>In order to prevent the <code>__esModule</code> property from being exported, you can set the <code>strict</code> option to <code>true</code>.</p> <h3>
+<code>lazy</code>
+</h3> <p><code>boolean</code>, <code>Array&lt;string&gt;</code>, or <code>(string) =&gt; boolean</code>, defaults to <code>false</code></p> <p>Changes Babel's compiled <code>import</code> statements to be lazily evaluated when their imported bindings are used for the first time.</p> <p>This can improve initial load time of your module because evaluating dependencies up front is sometimes entirely un-necessary. This is especially the case when implementing a library module.</p> <p>The value of <code>lazy</code> has a few possible effects:</p> <ul> <li><p><code>false</code> - No lazy initialization of any imported module.</p></li> <li>
+<p><code>true</code> - Do not lazy-initialize local <code>./foo</code> imports, but lazy-init <code>foo</code> dependencies.</p> <p>Local paths are much more likely to have circular dependencies, which may break if loaded lazily, so they are not lazy by default, whereas dependencies between independent modules are rarely cyclical.</p>
+</li> <li><p><code>Array&lt;string&gt;</code> - Lazy-initialize all imports with source matching one of the given strings.</p></li> <li><p><code>(string) =&gt; boolean</code> - Pass a callback that will be called to decide if a given source string should be lazy-loaded.</p></li> </ul> <p>The two cases where imports can never be lazy are:</p> <ul> <li>
+<p><code>import "foo";</code></p> <p>Side-effect imports are automatically non-lazy since their very existence means that there is no binding to later kick off initialization.</p>
+</li> <li>
+<p><code>export * from "foo"</code></p> <p>Re-exporting all names requires up-front execution because otherwise there is no way to know what names need to be exported.</p>
+</li> </ul> <blockquote> <p>You can read more about configuring plugin options <a href="../plugins/index#plugin-options">here</a></p> </blockquote> <h3>
+<code>noInterop</code>
+</h3> <p><code>boolean</code>, defaults to <code>false</code></p> <blockquote> <p>⚠️ <strong>Deprecated</strong>: Use the <code>importInterop</code> option instead.</p> </blockquote> <p>When set to <code>true</code>, this option has the same behavior as setting <code>importInterop: "none"</code>.</p> <h2>
+Relevant <a href="../assumptions/index"><code>assumptions</code></a>
+</h2> <ul> <li><a href="../assumptions/index#enumerablemodulemeta"><code>enumerableModuleMeta</code></a></li> <li><a href="../assumptions/index#noincompletensimportdetection"><code>noIncompleteNsImportDetection</code></a></li> </ul> </span></div></article>
+</div></div></div>
+
+</div></div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://babeljs.io/docs/en/babel-plugin-transform-modules-commonjs/" class="_attribution-link" target="_blank">https://babeljs.io/docs/en/babel-plugin-transform-modules-commonjs/</a>
+  </p>
+</div>

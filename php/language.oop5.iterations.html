@@ -1,0 +1,172 @@
+  <div id="layout"> <div id="layout-content"><div id="language.oop5.iterations" class="sect1"> <h2 class="title">Object Iteration</h2> <p class="para"> PHP 5 provides a way for objects to be defined so it is possible to iterate through a list of items, with, for example a <a href="control-structures.foreach" class="link">foreach</a> statement. By default, all <a href="language.oop5.visibility" class="link">visible</a> properties will be used for the iteration. </p> <div class="example" id="language.oop5.interfaces.examples.ex4"> <p><strong>Example #1 Simple Object Iteration</strong></p> <div class="example-contents"> <pre class="phpcode" data-language="php">&lt;?php
+class MyClass
+{
+    public $var1 = 'value 1';
+    public $var2 = 'value 2';
+    public $var3 = 'value 3';
+
+    protected $protected = 'protected var';
+    private   $private   = 'private var';
+
+    function iterateVisible() {
+       echo "MyClass::iterateVisible:\n";
+       foreach ($this as $key =&gt; $value) {
+           print "$key =&gt; $value\n";
+       }
+    }
+}
+
+$class = new MyClass();
+
+foreach($class as $key =&gt; $value) {
+    print "$key =&gt; $value\n";
+}
+echo "\n";
+
+
+$class-&gt;iterateVisible();
+
+?&gt;</pre> </div> <div class="example-contents"><p>The above example will output:</p></div> <div class="example-contents screen"> <div class="cdata"><pre>
+var1 =&gt; value 1
+var2 =&gt; value 2
+var3 =&gt; value 3
+
+MyClass::iterateVisible:
+var1 =&gt; value 1
+var2 =&gt; value 2
+var3 =&gt; value 3
+protected =&gt; protected var
+private =&gt; private var
+</pre></div> </div> </div> <p class="para"> As the output shows, the <a href="control-structures.foreach" class="link">foreach</a> iterated through all of the <a href="language.oop5.visibility" class="link">visible</a> properties that could be accessed. </p> <p class="para"> To take it a step further, the <span class="interfacename"><a href="class.iterator" class="interfacename">Iterator</a></span> <a href="language.oop5.interfaces" class="link">interface</a> may be implemented. This allows the object to dictate how it will be iterated and what values will be available on each iteration. </p> <div class="example" id="language.oop5.traits.basicexample"> <p><strong>Example #2 Object Iteration implementing Iterator</strong></p> <div class="example-contents"> <pre class="phpcode" data-language="php">&lt;?php
+class MyIterator implements Iterator
+{
+    private $var = array();
+
+    public function __construct($array)
+    {
+        if (is_array($array)) {
+            $this-&gt;var = $array;
+        }
+    }
+
+    public function rewind()
+    {
+        echo "rewinding\n";
+        reset($this-&gt;var);
+    }
+  
+    public function current()
+    {
+        $var = current($this-&gt;var);
+        echo "current: $var\n";
+        return $var;
+    }
+  
+    public function key() 
+    {
+        $var = key($this-&gt;var);
+        echo "key: $var\n";
+        return $var;
+    }
+  
+    public function next() 
+    {
+        $var = next($this-&gt;var);
+        echo "next: $var\n";
+        return $var;
+    }
+  
+    public function valid()
+    {
+        $key = key($this-&gt;var);
+        $var = ($key !== NULL &amp;&amp; $key !== FALSE);
+        echo "valid: $var\n";
+        return $var;
+    }
+
+}
+
+$values = array(1,2,3);
+$it = new MyIterator($values);
+
+foreach ($it as $a =&gt; $b) {
+    print "$a: $b\n";
+}
+?&gt;</pre> </div> <div class="example-contents"><p>The above example will output:</p></div> <div class="example-contents screen"> <div class="cdata"><pre>
+rewinding
+valid: 1
+current: 1
+key: 0
+0: 1
+next: 2
+valid: 1
+current: 2
+key: 1
+1: 2
+next: 3
+valid: 1
+current: 3
+key: 2
+2: 3
+next:
+valid: 
+</pre></div> </div> </div> <p class="para"> The <span class="interfacename"><a href="class.iteratoraggregate" class="interfacename">IteratorAggregate</a></span> <a href="language.oop5.interfaces" class="link">interface</a> can be used as an alternative to implementing all of the <span class="interfacename"><a href="class.iterator" class="interfacename">Iterator</a></span> methods. <span class="interfacename"><a href="class.iteratoraggregate" class="interfacename">IteratorAggregate</a></span> only requires the implementation of a single method, <span class="methodname"><a href="iteratoraggregate.getiterator" class="methodname">IteratorAggregate::getIterator()</a></span>, which should return an instance of a class implementing <span class="interfacename"><a href="class.iterator" class="interfacename">Iterator</a></span>. </p> <div class="example" id="language.oop5.traits.precedence.examples.ex1"> <p><strong>Example #3 Object Iteration implementing IteratorAggregate</strong></p> <div class="example-contents"> <pre class="phpcode" data-language="php">&lt;?php
+class MyCollection implements IteratorAggregate
+{
+    private $items = array();
+    private $count = 0;
+
+    // Required definition of interface IteratorAggregate
+    public function getIterator() {
+        return new MyIterator($this-&gt;items);
+    }
+
+    public function add($value) {
+        $this-&gt;items[$this-&gt;count++] = $value;
+    }
+}
+
+$coll = new MyCollection();
+$coll-&gt;add('value 1');
+$coll-&gt;add('value 2');
+$coll-&gt;add('value 3');
+
+foreach ($coll as $key =&gt; $val) {
+    echo "key/value: [$key -&gt; $val]\n\n";
+}
+?&gt;</pre> </div> <div class="example-contents"><p>The above example will output:</p></div> <div class="example-contents screen"> <div class="cdata"><pre>
+rewinding
+current: value 1
+valid: 1
+current: value 1
+key: 0
+key/value: [0 -&gt; value 1]
+
+next: value 2
+current: value 2
+valid: 1
+current: value 2
+key: 1
+key/value: [1 -&gt; value 2]
+
+next: value 3
+current: value 3
+valid: 1
+current: value 3
+key: 2
+key/value: [2 -&gt; value 3]
+
+next:
+current:
+valid:
+</pre></div> </div> </div> <blockquote class="note">
+<p><strong class="note">Note</strong>: </p>
+<p class="para"> For more examples of iterators, see the <a href="https://www.php.net/manual/en/spl.iterators.php" class="link">SPL Extension</a>. </p> </blockquote> <blockquote class="note">
+<p><strong class="note">Note</strong>: </p>
+<p class="para"> Users of PHP 5.5 and later may also want to investigate <a href="https://www.php.net/manual/en/language.generators.php" class="link">generators</a>, which provide an alternative way of defining iterators. </p> </blockquote> </div></div>
+</div><div class="_attribution">
+  <p class="_attribution-p">
+    &copy; 1997&ndash;2020 The PHP Documentation Group<br>Licensed under the Creative Commons Attribution License v3.0 or later.<br>
+    <a href="https://www.php.net/manual/en/language.oop5.iterations.php" class="_attribution-link">https://www.php.net/manual/en/language.oop5.iterations.php</a>
+  </p>
+</div>

@@ -1,0 +1,82 @@
+<h1 class="devsite-page-title">tf.gather_nd</h1>    <devsite-mathjax config="TeX-AMS-MML_SVG"></devsite-mathjax>  <div itemscope itemtype="http://developers.google.com/ReferenceObject"> <meta itemprop="name" content="tf.gather_nd"> <meta itemprop="path" content="Stable"> </div>  <table class="tfo-notebook-buttons tfo-api" align="left"> <td> <a target="_blank" href="https://www.tensorflow.org/versions/r1.15/api_docs/python/tf/gather_nd">  TensorFlow 1 version</a> </td> <td> <a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/ops/array_ops.py#L4433-L4436">  View source on GitHub </a> </td>
+</table>  <p>Gather slices from <code translate="no" dir="ltr">params</code> into a Tensor with shape specified by <code translate="no" dir="ltr">indices</code>.</p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">tf.gather_nd(
+    params,
+    indices,
+    batch_dims=0,
+    name=None
+)
+</pre>  <p><code translate="no" dir="ltr">indices</code> is an K-dimensional integer tensor, best thought of as a (K-1)-dimensional tensor of indices into <code translate="no" dir="ltr">params</code>, where each element defines a slice of <code translate="no" dir="ltr">params</code>:</p> <pre class="prettyprint" translate="no" dir="ltr" data-language="python">output[\\(i_0, ..., i_{K-2}\\)] = params[indices[\\(i_0, ..., i_{K-2}\\)]]
+</pre> <p>Whereas in <a href="gather"><code translate="no" dir="ltr">tf.gather</code></a> <code translate="no" dir="ltr">indices</code> defines slices into the first dimension of <code translate="no" dir="ltr">params</code>, in <a href="gather_nd"><code translate="no" dir="ltr">tf.gather_nd</code></a>, <code translate="no" dir="ltr">indices</code> defines slices into the first <code translate="no" dir="ltr">N</code> dimensions of <code translate="no" dir="ltr">params</code>, where <code translate="no" dir="ltr">N = indices.shape[-1]</code>.</p> <p>The last dimension of <code translate="no" dir="ltr">indices</code> can be at most the rank of <code translate="no" dir="ltr">params</code>:</p> <pre class="prettyprint" translate="no" dir="ltr" data-language="python">indices.shape[-1] &lt;= params.rank
+</pre> <p>The last dimension of <code translate="no" dir="ltr">indices</code> corresponds to elements (if <code translate="no" dir="ltr">indices.shape[-1] == params.rank</code>) or slices (if <code translate="no" dir="ltr">indices.shape[-1] &lt; params.rank</code>) along dimension <code translate="no" dir="ltr">indices.shape[-1]</code> of <code translate="no" dir="ltr">params</code>. The output tensor has shape</p> <pre class="prettyprint" translate="no" dir="ltr" data-language="python">indices.shape[:-1] + params.shape[indices.shape[-1]:]
+</pre> <p>Additionally both 'params' and 'indices' can have M leading batch dimensions that exactly match. In this case 'batch_dims' must be M.</p> <p>Note that on CPU, if an out of bound index is found, an error is returned. On GPU, if an out of bound index is found, a 0 is stored in the corresponding output value.</p> <p>Some examples below.</p> <p>Simple indexing into a matrix:</p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">indices = [[0, 0], [1, 1]]
+params = [['a', 'b'], ['c', 'd']]
+output = ['a', 'd']
+</pre> <p>Slice indexing into a matrix:</p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">indices = [[1], [0]]
+params = [['a', 'b'], ['c', 'd']]
+output = [['c', 'd'], ['a', 'b']]
+</pre> <p>Indexing into a 3-tensor:</p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">indices = [[1]]
+params = [[['a0', 'b0'], ['c0', 'd0']],
+          [['a1', 'b1'], ['c1', 'd1']]]
+output = [[['a1', 'b1'], ['c1', 'd1']]]
+
+
+indices = [[0, 1], [1, 0]]
+params = [[['a0', 'b0'], ['c0', 'd0']],
+          [['a1', 'b1'], ['c1', 'd1']]]
+output = [['c0', 'd0'], ['a1', 'b1']]
+
+
+indices = [[0, 0, 1], [1, 0, 1]]
+params = [[['a0', 'b0'], ['c0', 'd0']],
+          [['a1', 'b1'], ['c1', 'd1']]]
+output = ['b0', 'b1']
+</pre> <p>The examples below are for the case when only indices have leading extra dimensions. If both 'params' and 'indices' have leading batch dimensions, use the 'batch_dims' parameter to run gather_nd in batch mode.</p> <p>Batched indexing into a matrix:</p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">indices = [[[0, 0]], [[0, 1]]]
+params = [['a', 'b'], ['c', 'd']]
+output = [['a'], ['b']]
+</pre> <p>Batched slice indexing into a matrix:</p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">indices = [[[1]], [[0]]]
+params = [['a', 'b'], ['c', 'd']]
+output = [[['c', 'd']], [['a', 'b']]]
+</pre> <p>Batched indexing into a 3-tensor:</p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">indices = [[[1]], [[0]]]
+params = [[['a0', 'b0'], ['c0', 'd0']],
+          [['a1', 'b1'], ['c1', 'd1']]]
+output = [[[['a1', 'b1'], ['c1', 'd1']]],
+          [[['a0', 'b0'], ['c0', 'd0']]]]
+
+indices = [[[0, 1], [1, 0]], [[0, 0], [1, 1]]]
+params = [[['a0', 'b0'], ['c0', 'd0']],
+          [['a1', 'b1'], ['c1', 'd1']]]
+output = [[['c0', 'd0'], ['a1', 'b1']],
+          [['a0', 'b0'], ['c1', 'd1']]]
+
+
+indices = [[[0, 0, 1], [1, 0, 1]], [[0, 1, 1], [1, 1, 0]]]
+params = [[['a0', 'b0'], ['c0', 'd0']],
+          [['a1', 'b1'], ['c1', 'd1']]]
+output = [['b0', 'b1'], ['d0', 'c1']]
+</pre> <p>Examples with batched 'params' and 'indices':</p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">batch_dims = 1
+indices = [[1], [0]]
+params = [[['a0', 'b0'], ['c0', 'd0']],
+          [['a1', 'b1'], ['c1', 'd1']]]
+output = [['c0', 'd0'], ['a1', 'b1']]
+
+batch_dims = 1
+indices = [[[1]], [[0]]]
+params = [[['a0', 'b0'], ['c0', 'd0']],
+          [['a1', 'b1'], ['c1', 'd1']]]
+output = [[['c0', 'd0']], [['a1', 'b1']]]
+
+batch_dims = 1
+indices = [[[1, 0]], [[0, 1]]]
+params = [[['a0', 'b0'], ['c0', 'd0']],
+          [['a1', 'b1'], ['c1', 'd1']]]
+output = [['c0'], ['b1']]
+</pre> <p>See also <a href="gather"><code translate="no" dir="ltr">tf.gather</code></a>.</p> <h4 id="args">Args:</h4> <ul> <li>
+<b><code translate="no" dir="ltr">params</code></b>: A <code translate="no" dir="ltr">Tensor</code>. The tensor from which to gather values.</li> <li>
+<b><code translate="no" dir="ltr">indices</code></b>: A <code translate="no" dir="ltr">Tensor</code>. Must be one of the following types: <code translate="no" dir="ltr">int32</code>, <code translate="no" dir="ltr">int64</code>. Index tensor.</li> <li>
+<b><code translate="no" dir="ltr">name</code></b>: A name for the operation (optional).</li> <li>
+<b><code translate="no" dir="ltr">batch_dims</code></b>: An integer or a scalar 'Tensor'. The number of batch dimensions.</li> </ul> <h4 id="returns">Returns:</h4> <p>A <code translate="no" dir="ltr">Tensor</code>. Has the same type as <code translate="no" dir="ltr">params</code>.</p> <h2 id="compat_aliases">Compat aliases</h2> <ul> <li><a href="gather_nd"><code translate="no" dir="ltr">tf.compat.v2.gather_nd</code></a></li> </ul>  <devsite-page-rating position="footer" selected-rating="0" hover-rating-star="0"> </devsite-page-rating><div class="_attribution">
+  <p class="_attribution-p">
+    &copy; 2019 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/api_docs/python/tf/gather_nd" class="_attribution-link">https://www.tensorflow.org/api_docs/python/tf/gather_nd</a>
+  </p>
+</div>

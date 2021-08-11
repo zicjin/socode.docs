@@ -1,0 +1,27 @@
+<h1 id="native-file-drag--drop">Native File Drag &amp; Drop</h1> <h2 id="overview">Overview</h2> <p>Certain kinds of applications that manipulate files might want to support the operating system's native file drag &amp; drop feature. Dragging files into web content is common and supported by many websites. Electron additionally supports dragging files and content out from web content into the operating system's world.</p> <p>To implement this feature in your app, you need to call the <a href="../api/web-contents#contentsstartdragitem"><code>webContents.startDrag(item)</code></a> API in response to the <code>ondragstart</code> event.</p> <h2 id="example">Example</h2> <p>An example demonstrating how you can create a file on the fly to be dragged out of the window.</p> <h3 id="preloadjs">Preload.js</h3> <p>In <code>preload.js</code> use the <a href="../api/context-bridge"><code>contextBridge</code></a> to inject a method <code>window.electron.startDrag(...)</code> that will send an IPC message to the main process.</p> <pre data-language="js">const { contextBridge, ipcRenderer } = require('electron')
+const path = require('path')
+
+contextBridge.exposeInMainWorld('electron', {
+  startDrag: (fileName) =&gt; {
+    ipcRenderer.send('ondragstart', path.join(process.cwd(), fileName))
+  }
+})
+</pre> <h3 id="indexhtml">Index.html</h3> <p>Add a draggable element to <code>index.html</code>, and reference your renderer script:</p> <pre data-language="html">&lt;div style="border:2px solid black;border-radius:3px;padding:5px;display:inline-block" draggable="true" id="drag"&gt;Drag me&lt;/div&gt;
+&lt;script src="renderer.js"&gt;&lt;/script&gt;
+</pre> <h3 id="rendererjs">Renderer.js</h3> <p>In <code>renderer.js</code> set up the renderer process to handle drag events by calling the method you added via the <a href="../api/context-bridge"><code>contextBridge</code></a> above.</p> <pre data-language="javascript">document.getElementById('drag').ondragstart = (event) =&gt; {
+  event.preventDefault()
+  window.electron.startDrag('drag-and-drop.md')
+}
+</pre> <h3 id="mainjs">Main.js</h3> <p>In the Main process (<code>main.js</code> file), expand the received event with a path to the file that is being dragged and an icon:</p> <pre data-language="javascript">const { ipcMain } = require('electron')
+
+ipcMain.on('ondragstart', (event, filePath) =&gt; {
+  event.sender.startDrag({
+    file: filePath,
+    icon: '/path/to/icon.png'
+  })
+})
+</pre> <p>After launching the Electron application, try dragging and dropping the item from the BrowserWindow onto your desktop. In this guide, the item is a Markdown file located in the root of the project:</p> <p><img src="https://cdn.rawgit.com/electron/electron/v13.1.7//docs/images/drag-and-drop.gif" alt="Drag and drop"></p><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.electronjs.org/docs/tutorial/native-file-drag-drop" class="_attribution-link" target="_blank">https://www.electronjs.org/docs/tutorial/native-file-drag-drop</a>
+  </p>
+</div>

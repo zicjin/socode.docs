@@ -1,0 +1,56 @@
+<h1 class="fqn">Module std::stream</h1>
+<div class="item-info"><div class="stab unstable">
+<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>async_stream</code> <a href="https://github.com/rust-lang/rust/issues/79024">#79024</a>)</div></div>
+<details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock">
+<p>Composable asynchronous iteration.</p> <p>If futures are asynchronous values, then streams are asynchronous iterators. If you’ve found yourself with an asynchronous collection of some kind, and needed to perform an operation on the elements of said collection, you’ll quickly run into ‘streams’. Streams are heavily used in idiomatic asynchronous Rust code, so it’s worth becoming familiar with them.</p> <p>Before explaining more, let’s talk about how this module is structured:</p> <h2 id="organization" class="section-header">Organization</h2> <p>This module is largely organized by type:</p> <ul> <li>
+<a href="#traits">Traits</a> are the core portion: these traits define what kind of streams exist and what you can do with them. The methods of these traits are worth putting some extra study time into.</li> <li>Functions provide some helpful ways to create some basic streams.</li> <li>Structs are often the return types of the various methods on this module’s traits. You’ll usually want to look at the method that creates the <code>struct</code>, rather than the <code>struct</code> itself. For more detail about why, see ‘<a href="#implementing-stream">Implementing Stream</a>’.</li> </ul> <p>That’s it! Let’s dig into streams.</p> <h2 id="stream" class="section-header">Stream</h2> <p>The heart and soul of this module is the <a href="trait.stream" title="Stream"><code>Stream</code></a> trait. The core of <a href="trait.stream" title="Stream"><code>Stream</code></a> looks like this:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+trait Stream {
+    type Item;
+    fn poll_next(self: Pin&lt;&amp;mut Self&gt;, cx: &amp;mut Context&lt;'_&gt;) -&gt; Poll&lt;Option&lt;Self::Item&gt;&gt;;
+}</pre></div> <p>Unlike <code>Iterator</code>, <code>Stream</code> makes a distinction between the <a href="trait.stream#tymethod.poll_next"><code>poll_next</code></a> method which is used when implementing a <code>Stream</code>, and a (to-be-implemented) <code>next</code> method which is used when consuming a stream. Consumers of <code>Stream</code> only need to consider <code>next</code>, which when called, returns a future which yields <code>Option&lt;Stream::Item&gt;</code>.</p> <p>The future returned by <code>next</code> will yield <code>Some(Item)</code> as long as there are elements, and once they’ve all been exhausted, will yield <code>None</code> to indicate that iteration is finished. If we’re waiting on something asynchronous to resolve, the future will wait until the stream is ready to yield again.</p> <p>Individual streams may choose to resume iteration, and so calling <code>next</code> again may or may not eventually yield <code>Some(Item)</code> again at some point.</p> <p><a href="trait.stream" title="Stream"><code>Stream</code></a>’s full definition includes a number of other methods as well, but they are default methods, built on top of <a href="trait.stream#tymethod.poll_next"><code>poll_next</code></a>, and so you get them for free.</p> <h2 id="implementing-stream" class="section-header">Implementing Stream</h2> <p>Creating a stream of your own involves two steps: creating a <code>struct</code> to hold the stream’s state, and then implementing <a href="trait.stream" title="Stream"><code>Stream</code></a> for that <code>struct</code>.</p> <p>Let’s make a stream named <code>Counter</code> which counts from <code>1</code> to <code>5</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+#![feature(async_stream)]
+
+// First, the struct:
+
+/// A stream which counts from one to five
+struct Counter {
+    count: usize,
+}
+
+// we want our count to start at one, so let's add a new() method to help.
+// This isn't strictly necessary, but is convenient. Note that we start
+// `count` at zero, we'll see why in `poll_next()`'s implementation below.
+impl Counter {
+    fn new() -&gt; Counter {
+        Counter { count: 0 }
+    }
+}
+
+// Then, we implement `Stream` for our `Counter`:
+
+impl Stream for Counter {
+    // we will be counting with usize
+    type Item = usize;
+
+    // poll_next() is the only required method
+    fn poll_next(mut self: Pin&lt;&amp;mut Self&gt;, cx: &amp;mut Context&lt;'_&gt;) -&gt; Poll&lt;Option&lt;Self::Item&gt;&gt; {
+        // Increment our count. This is why we started at zero.
+        self.count += 1;
+
+        // Check to see if we've finished counting or not.
+        if self.count &lt; 6 {
+            Poll::Ready(Some(self.count))
+        } else {
+            Poll::Ready(None)
+        }
+    }
+}</pre></div> <h2 id="laziness" class="section-header">Laziness</h2> <p>Streams are <em>lazy</em>. This means that just creating a stream doesn’t <em>do</em> a whole lot. Nothing really happens until you call <code>next</code>. This is sometimes a source of confusion when creating a stream solely for its side effects. The compiler will warn us about this kind of behavior:</p> <pre>warning: unused result that must be used: streams do nothing unless polled
+</pre> </div></details><h3 id="traits" class="section-header">Traits</h3> <table><tr class="unstable module-item">
+<td><a class="trait" href="trait.stream" title="std::stream::Stream trait">Stream</a></td>
+<td class="docblock-short">
+<span class="stab unstable" title="">Experimental</span><p>An interface for dealing with asynchronous iterators.</p> </td>
+</tr></table><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://doc.rust-lang.org/std/stream/index.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/std/stream/index.html</a>
+  </p>
+</div>

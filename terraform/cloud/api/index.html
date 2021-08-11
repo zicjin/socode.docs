@@ -1,0 +1,133 @@
+ <h1 id="terraform-cloud-api-documentation">  Terraform Cloud API Documentation </h1> <p>Terraform Cloud provides an API for a subset of its features. If you have any questions or want to request new API features, please email <a href="mailto:support@hashicorp.com">support@hashicorp.com</a>.</p> <p>See the navigation sidebar for the list of available endpoints.</p> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> Before planning an API integration, consider whether <a href="https://registry.terraform.io/providers/hashicorp/tfe/latest/docs">the <code>tfe</code> Terraform provider</a> meets your needs. It can't create or approve runs in response to arbitrary events, but it's a useful tool for managing your organizations, teams, and workspaces as code.</p> </blockquote> <p>HashiCorp provides a <a href="stability-policy">stability policy</a> for the Terraform Cloud API, ensuring backwards compatibility for stable endpoints.</p> <h2 id="authentication">  Authentication </h2> <p>All requests must be authenticated with a bearer token. Use the HTTP header <code>Authorization</code> with the value <code>Bearer &lt;token&gt;</code>. If the token is absent or invalid, Terraform Cloud responds with <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/401">HTTP status 401</a> and a <a href="https://jsonapi.org/format/#error-objects">JSON API error object</a>. The 401 status code is reserved for problems with the authentication token; forbidden requests with a valid token result in a 404.</p> <p>There are three kinds of token available:</p> <ul> <li>
+<a href="../users-teams-organizations/users#api-tokens">User tokens</a> — each Terraform Cloud user can have any number of API tokens, which can make requests on their behalf. </li> <li>
+<a href="../users-teams-organizations/api-tokens#team-api-tokens">Team tokens</a> — each team can have one API token at a time. This is intended for performing plans and applies via a CI/CD pipeline. </li> <li>
+<a href="../users-teams-organizations/api-tokens#organization-api-tokens">Organization tokens</a> — each organization can have one API token at a time. This is intended for automating the management of teams, team membership, and workspaces. The organization token cannot perform plans and applies. </li> </ul> <h3 id="blob-storage-authentication">  Blob Storage Authentication </h3> <p>Terraform Cloud relies on a HashiCorp-developed blob storage service for storing statefiles and multiple other pieces of customer data, all of which are documented on our <a href="../architectural-details/data-security">data security page</a>.</p> <p>Unlike the Terraform Cloud API, this service does not require that a bearer token be submitted with each request. Instead, each URL includes a securely generated secret and is only valid for 25 hours.</p> <p>For example, the <a href="state-versions">state versions api</a> returns a field named <code>hosted-state-download</code>, which is a URL of this form: <code>https://archivist.terraform.io/v1/object/&lt;secret value&gt;</code></p> <p>This is a broadly accepted pattern for secure access. It is important to treat these URLs themselves as secrets. They should not be logged, nor shared with untrusted parties.</p> <h2 id="feature-entitlements">  Feature Entitlements </h2> <p>Terraform Cloud is available at multiple pricing tiers (including free), which offer different feature sets.</p> <p>Each organization has a set of <em>entitlements</em> that corresponds to its pricing tier. These entitlements determine which Terraform Cloud features the organization can use.</p> <p>If an organization doesn't have the necessary entitlement to use a given feature, Terraform Cloud returns a 404 error for API requests to any endpoints devoted to that feature.</p> <p>The <a href="organizations#show-the-entitlement-set">show entitlement set</a> endpoint can return information about an organization's current entitlements, which is useful if your client needs to change its interface when a given feature isn't available.</p> <p>The following entitlements are available:</p> <ul> <li>
+<a href="#agents"><code>agents</code></a> — Allows isolated, private or on-premises infrastructure to communicate with an organization in Terraform Cloud. Affects the <a href="agents">agent pools</a>, <a href="agents">agents</a>, and <a href="agent-tokens">agent tokens</a> endpoints. </li> <li>
+<a href="#audit-logging"><code>audit-logging</code></a> — Allows an organization to access <a href="audit-trails">audit trails</a>. </li> <li>
+<a href="#configuration-designer"><code>configuration-designer</code></a> — Allows an organization to use the <a href="../registry/design">Configuration Designer</a>. </li> <li>
+<a href="#cost-estimation"><code>cost-estimation</code></a> — Allows an organization to access <a href="../cost-estimation/index">cost estimation</a>. </li> <li>
+<a href="#operations"><code>operations</code></a> — Allows an organization to perform runs within Terraform Cloud. Affects the <a href="run">runs</a>, <a href="plans">plans</a>, and <a href="applies">applies</a> endpoints. </li> <li>
+<a href="#private-module-registry"><code>private-module-registry</code></a> — Allows an organization to publish and use modules with the <a href="../registry/index">private module registry</a>. Affects the <a href="modules">registry modules</a> endpoints. </li> <li>
+<a href="#self-serve-billing"><code>self-serve-billing</code></a> — Allows an organization to pay via credit card using the in-app billing UI. </li> <li>
+<a href="#state-storage"><code>state-storage</code></a> — Allows an organization to store state versions in its workspaces, which enables local Terraform runs with the remote backend. Affects the <a href="state-versions">state versions</a> endpoints. </li> <li>
+<a href="#sentinel"><code>sentinel</code></a> — Allows an organization to use <a href="../sentinel/index">Sentinel</a>. Affects the <a href="policies">policies</a>, <a href="policy-sets">policy sets</a>, and <a href="policy-checks">policy checks</a> endpoints. </li> <li>
+<a href="#sso"><code>sso</code></a> — Allows an organization to manage and authenticate users via <a href="../users-teams-organizations/single-sign-on">single sign on</a>. </li> <li>
+<a href="#teams"><code>teams</code></a> — Allows an organization to manage access to its workspaces with <a href="../users-teams-organizations/teams">teams</a>. Without this entitlement, an organization only has an owners team. Affects the <a href="teams">teams</a>, <a href="team-members">team members</a>, <a href="team-access">team access</a>, and <a href="team-tokens">team tokens</a> endpoints. </li> <li>
+<a href="#user-limit"><code>user-limit</code></a> — An integer value representing the maximum number of users allowed for the organization. If blank, there is no limit.<br> </li> <li>
+<a href="#vcs-integrations"><code>vcs-integrations</code></a> — Allows an organization to <a href="../vcs/index">connect with a VCS provider</a> and link VCS repositories to workspaces. Affects the <a href="oauth-clients">OAuth Clients</a>, and <a href="oauth-tokens">OAuth Tokens</a> endpoints, and determines whether the <code>data.attributes.vcs-repo</code> property can be set for <a href="workspaces">workspaces</a>. </li> </ul> <h2 id="response-codes">  Response Codes </h2> <p>This API returns standard HTTP response codes.</p> <p>We return 404 Not Found codes for resources that a user doesn't have access to, as well as for resources that don't exist. This is to avoid telling a potential attacker that a given resource exists.</p> <h2 id="versioning">  Versioning </h2> <p>The API documented in these pages is the second version of Terraform Cloud's API, and resides under the <code>/v2</code> prefix.</p> <p>Future APIs will increment this version, leaving the <code>/v1</code> API intact, though in the future we might deprecate certain features. In that case, we'll provide ample notice to migrate to the new API.</p> <h2 id="paths">  Paths </h2> <p>All V2 API endpoints use <code>/api/v2</code> as a prefix unless otherwise specified.</p> <p>For example, if the API endpoint documentation defines the path <code>/runs</code> then the full path is <code>/api/v2/runs</code>.</p> <h2 id="json-api-formatting">  JSON API Formatting </h2> <p>The Terraform Cloud endpoints use the <a href="https://jsonapi.org/">JSON API specification</a>, which specifies key aspects of the API. Most notably:</p> <ul> <li>
+<a href="https://jsonapi.org/examples/#error-objects-error-codes">HTTP error codes</a> </li> <li>
+<a href="https://jsonapi.org/examples/#error-objects-basics">Error objects</a> </li> <li>
+<a href="https://jsonapi.org/format/#document-structure">Document structure</a> </li> <li>
+<a href="https://jsonapi.org/format/#content-negotiation">HTTP request/response headers</a> </li> </ul> <h3 id="json-api-documents">  JSON API Documents </h3> <p>Since our API endpoints use the JSON API spec, most of them return <a href="https://jsonapi.org/format/#document-structure">JSON API documents</a>.</p> <p>Endpoints that use the POST method also require a JSON API document as the request payload. A request object usually looks something like this:</p> <pre data-language="json">{
+  "data": {
+    "type":"vars",
+    "attributes": {
+      "key":"some_key",
+      "value":"some_value",
+      "category":"terraform",
+      "hcl":false,
+      "sensitive":false
+    },
+    "relationships": {
+      "workspace": {
+        "data": {
+          "id":"ws-4j8p6jX1w33MiDC7",
+          "type":"workspaces"
+        }
+      }
+    }
+  }
+}
+</pre>
+<p>These objects always include a top-level <code>data</code> property, which:</p> <ul> <li>Must have a <code>type</code> property to indicate what type of API object you're interacting with. </li> <li>Often has an <code>attributes</code> property to specify attributes of the object you're creating or modifying. </li> <li>Sometimes has a <code>relationships</code> property to specify other objects that are linked to what you're working with. </li> </ul> <p>In the documentation for each API method, we use dot notation to explain the structure of nested objects in the request. For example, the properties of the request object above are listed as follows:</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"vars"</code>.</td> </tr> <tr> <td><code>data.attributes.key</code></td> <td>string</td> <td></td> <td>The name of the variable.</td> </tr> <tr> <td><code>data.attributes.value</code></td> <td>string</td> <td></td> <td>The value of the variable.</td> </tr> <tr> <td><code>data.attributes.category</code></td> <td>string</td> <td></td> <td>Whether this is a Terraform or environment variable. Valid values are <code>"terraform"</code> or <code>"env"</code>.</td> </tr> <tr> <td><code>data.attributes.hcl</code></td> <td>bool</td> <td><code>false</code></td> <td>Whether to evaluate the value of the variable as a string of HCL code. Has no effect for environment variables.</td> </tr> <tr> <td><code>data.attributes.sensitive</code></td> <td>bool</td> <td><code>false</code></td> <td>Whether the value is sensitive. If true then the variable is written once and not visible thereafter.</td> </tr> <tr> <td><code>data.relationships.workspace.data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"workspaces"</code>.</td> </tr> <tr> <td><code>data.relationships.workspace.data.id</code></td> <td>string</td> <td></td> <td>The ID of the workspace that owns the variable.</td> </tr> </tbody>
+</table> <p>We also always include a sample payload object, to show the document structure more visually.</p> <h3 id="query-parameters">  Query Parameters </h3> <p>Although most of our API endpoints use the POST method and receive their parameters as a JSON object in the request payload, some of them use the GET method. These GET endpoints sometimes require URL query parameters, in the standard <code>...path?key1=value1&amp;key2=value2</code> format.</p> <p>Since these parameters were originally designed as part of a JSON object, they sometimes have characters that must be <a href="https://en.wikipedia.org/wiki/Percent-encoding">percent-encoded</a> in a query parameter. For example, <code>[</code> becomes <code>%5B</code> and <code>]</code> becomes <code>%5D</code>.</p> <p>For more about URI structure and query strings, see <a href="https://tools.ietf.org/html/rfc3986">the specification (RFC 3986)</a> or <a href="https://en.wikipedia.org/wiki/Uniform_Resource_Identifier">the Wikipedia page on URIs</a>.</p> <h3 id="pagination">  Pagination </h3> <p>Most of the endpoints that return lists of objects support pagination. A client may pass the following query parameters to control pagination on supported endpoints:</p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>page[number]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return the first page.</td> </tr> <tr> <td><code>page[size]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return 20 items per page. The maximum page size is 100.</td> </tr> </tbody>
+</table> <p>Additional data is returned in the <code>links</code> and <code>meta</code> top level attributes of the response.</p> <pre data-language="json">{
+  "data": [...],
+  "links": {
+    "self": "https://app.terraform.io/api/v2/organizations/hashicorp/workspaces?page%5Bnumber%5D=1&amp;page%5Bsize%5D=20",
+    "first": "https://app.terraform.io/api/v2/organizations/hashicorp/workspaces?page%5Bnumber%5D=1&amp;page%5Bsize%5D=20",
+    "prev": null,
+    "next": "https://app.terraform.io/api/v2/organizations/hashicorp/workspaces?page%5Bnumber%5D=2&amp;page%5Bsize%5D=20",
+    "last": "https://app.terraform.io/api/v2/organizations/hashicorp/workspaces?page%5Bnumber%5D=2&amp;page%5Bsize%5D=20"
+  },
+  "meta": {
+    "pagination": {
+      "current-page": 1,
+      "prev-page": null,
+      "next-page": 2,
+      "total-pages": 2,
+      "total-count": 21
+    }
+  }
+}
+</pre>
+<h3 id="inclusion-of-related-resources">  Inclusion of Related Resources </h3> <p>Some of the API's GET endpoints can return additional information about nested resources by adding an <code>include</code> query parameter, whose value is a comma-separated list of resource types.</p> <p>The related resource options are listed in each endpoint's documentation where available.</p> <p>The related resources will appear in an <code>included</code> section of the response.</p> <p>Example:</p> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request GET \
+  https://app.terraform.io/api/v2/teams/team-n8UQ6wfhyym25sMe?include=users
+</pre>
+<pre data-language="json">{
+  "data": {
+    "id": "team-n8UQ6wfhyym25sMe",
+    "type": "teams",
+    "attributes": {
+      "name": "owners",
+      "users-count": 1
+      ...
+    },
+    "relationships": {
+      "users": {
+        "data": [
+          {
+              "id": "user-62goNpx1ThQf689e",
+              "type": "users"
+          }
+        ]
+      } ...
+    }
+    ...
+  },
+  "included": [
+    {
+      "id": "user-62goNpx1ThQf689e",
+      "type": "users",
+      "attributes": {
+        "username": "hashibot"
+        ...
+      } ...
+    }
+  ]
+}
+</pre>
+<h2 id="rate-limiting">  Rate Limiting </h2> <p>You can make up to 30 requests per second to the API as an authenticated or unauthenticated request. If you reach the rate limit then your access will be throttled and an error response will be returned.</p> <p>Authenticated requests are allocated to the user associated with the authentication token. This means that a user with multiple tokens will still be limited to 30 requests per second, additional tokens will not allow you to increase the requests per second permitted.</p> <p>Unauthenticated requests are associated with the requesting IP address.</p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429">429</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Rate limit has been reached.</td> </tr> </tbody>
+</table> <pre data-language="json">{
+  "errors": [
+    {
+      "detail": "You have exceeded the API's rate limit of 30 requests per second.",
+      "status": 429,
+      "title": "Too many requests"
+    }
+  ]
+}
+</pre>
+<h2 id="client-libraries-and-tools">  Client libraries and tools </h2> <p>HashiCorp maintains <a href="https://github.com/hashicorp/go-tfe">go-tfe</a>, a Go client for Terraform Cloud's API.</p> <p>Additionally, the community of Terraform Cloud users and vendors have built client libraries in other languages. These client libraries and tools are not tested nor officially maintained by HashiCorp, but are listed below in order to help users find them easily.</p> <p>If you have built a client library and would like to add it to this community list, please <a href="https://github.com/hashicorp/terraform-website">contribute</a> to <a href="https://github.com/hashicorp/terraform-website/blob/master/content/source/docs/cloud/api/index.html.md">this page</a>.</p> <ul> <li>
+<a href="https://github.com/hashicorp-community/tf-helper">tfh</a>: UNIX shell console app </li> <li>
+<a href="https://github.com/PlethoraOfHate/tf_api_gateway">tf_api_gateway</a>: Python API library and console app </li> <li>
+<a href="https://github.com/dahlke/terrasnek">terrasnek</a>: Python API library </li> <li>
+<a href="https://github.com/adeo/iwc-tfc-client">tfc-client</a>: Object oriented Python API library. </li> <li>
+<a href="https://github.com/skierkowski/terraform-enterprise-client">terraform-enterprise-client</a>: Ruby API library and console app </li> <li>
+<a href="https://github.com/JFryy/terraform-enterprise-api-python-client">pyterprise</a>: A simple Python API client library. </li> <li>
+<a href="https://github.com/everis-technology/Tfe.NetClient">Tfe.NetClient</a>: .NET Client Library </li> </ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/cloud/api/index.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/cloud/api/index.html</a>
+  </p>
+</div>

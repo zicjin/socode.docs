@@ -1,0 +1,106 @@
+<div class="navPusher"><div class="docMainWrapper wrapper">
+
+<div class="container mainContainer docsContainer"><div class="wrapper"><div class="post">
+<header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">@babel/plugin-proposal-private-methods</h1></header><article><div><span><blockquote> <p><strong>NOTE</strong>: This plugin is included in <code>@babel/preset-env</code></p> </blockquote> <p><details> <summary>History</summary></details></p> <table> <thead> <tr>
+<th>Version</th>
+<th>Changes</th>
+</tr> </thead> <tbody> <tr>
+<td><code>v7.3.0</code></td>
+<td>Support private accessors (getters and setters)</td>
+</tr> <tr>
+<td><code>v7.2.0</code></td>
+<td>Initial Release</td>
+</tr> </tbody> </table>  <h2>
+Example</h2> <pre><code class="hljs css language-js">class Counter extends HTMLElement {
+  #xValue = 0;
+
+  get #x() {
+    return this.#xValue;
+  }
+  set #x(value) {
+    this.#xValue = value;
+    window.requestAnimationFrame(this.#render.bind(this));
+  }
+
+  #clicked() {
+    this.#x++;
+  }
+}
+</code></pre> <h2>
+Installation</h2> <pre><code class="hljs css language-sh">$ npm install @babel/plugin-proposal-private-methods --save-dev
+</code></pre> <h2>
+Usage</h2> <h3>
+With a configuration file (Recommended)</h3> <p>Without options:</p> <pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"plugins"</span>: [<span class="hljs-string">"@babel/plugin-proposal-private-methods"</span>]
+}
+</code></pre> <p>With options:</p> <pre><code class="hljs css language-json">{
+  <span class="hljs-attr">"plugins"</span>: [[<span class="hljs-string">"@babel/plugin-proposal-private-methods"</span>, { <span class="hljs-attr">"loose"</span>: <span class="hljs-literal">true</span> }]]
+}
+</code></pre> <h3>
+Via CLI</h3> <pre><code class="hljs css language-sh">$ babel --plugins @babel/plugin-proposal-private-methods script.js
+</code></pre> <h3>
+Via Node API</h3> <pre><code class="hljs css language-javascript"><span class="hljs-built_in">require</span>(<span class="hljs-string">"@babel/core"</span>).transformSync(<span class="hljs-string">"code"</span>, {
+  <span class="hljs-attr">plugins</span>: [<span class="hljs-string">"@babel/plugin-proposal-private-methods"</span>],
+});
+</code></pre> <h2>
+Options</h2> <h3>
+<code>loose</code>
+</h3> <p><code>boolean</code>, defaults to <code>false</code>.</p> <blockquote> <p>Note: The <code>loose</code> mode configuration setting <em>must</em> be the same as <a href="../babel-plugin-proposal-class-properties/index"><code>@babel/plugin-proposal-class-properties</code></a>.</p> </blockquote> <p>When true, private methods will be assigned directly on its parent via <code>Object.defineProperty</code> rather than a <code>WeakSet</code>. This results in improved performance and debugging (normal property access vs <code>.get()</code>) at the expense of potentially leaking "privates" via things like <code>Object.getOwnPropertyNames</code>.</p> <blockquote> <p>⚠️ Consider migrating to the top level <a href="../assumptions/index#privatefieldsasproperties"><code>privateFieldsAsProperties</code></a> assumption.</p> </blockquote> <pre><code class="hljs css language-jsonc"><span class="hljs-comment">// babel.config.json</span>
+{
+  <span class="hljs-attr">"assumptions"</span>: {
+    <span class="hljs-attr">"privateFieldsAsProperties"</span>: <span class="hljs-literal">true</span>,
+    <span class="hljs-attr">"setPublicClassFields"</span>: <span class="hljs-literal">true</span>
+  }
+}
+</code></pre> <p>Note that both <code>privateFieldsAsProperties</code> and <code>setPublicClassFields</code> must be set to <code>true</code>.</p> <p>Let's use the following as an example:</p> <pre><code class="hljs css language-javascript">class Foo {
+  constructor() {
+    this.publicField = this.#privateMethod();
+  }
+
+  #privateMethod() {
+    return 42;
+  }
+}
+</code></pre> <p>By default, this becomes:</p> <pre><code class="hljs css language-javascript"><span class="hljs-keyword">var</span> Foo = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">Foo</span>() </span>{
+  <span class="hljs-string">"use strict"</span>;
+
+  babelHelpers.classCallCheck(<span class="hljs-keyword">this</span>, Foo);
+
+  _privateMethod.add(<span class="hljs-keyword">this</span>);
+
+  <span class="hljs-keyword">this</span>.publicField = babelHelpers
+    .classPrivateMethodGet(<span class="hljs-keyword">this</span>, _privateMethod, _privateMethod2)
+    .call(<span class="hljs-keyword">this</span>);
+};
+
+<span class="hljs-keyword">var</span> _privateMethod = <span class="hljs-keyword">new</span> <span class="hljs-built_in">WeakSet</span>();
+
+<span class="hljs-keyword">var</span> _privateMethod2 = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">_privateMethod2</span>() </span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-number">42</span>;
+};
+</code></pre> <p>With <code>{ privateFieldsAsProperties: true }</code>, it becomes:</p> <pre><code class="hljs css language-javascript"><span class="hljs-keyword">var</span> Foo = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">Foo</span>() </span>{
+  <span class="hljs-string">"use strict"</span>;
+
+  babelHelpers.classCallCheck(<span class="hljs-keyword">this</span>, Foo);
+  <span class="hljs-built_in">Object</span>.defineProperty(<span class="hljs-keyword">this</span>, _privateMethod, {
+    <span class="hljs-attr">value</span>: _privateMethod2,
+  });
+  <span class="hljs-keyword">this</span>.publicField = babelHelpers
+    .classPrivateFieldLooseBase(<span class="hljs-keyword">this</span>, _privateMethod)
+    [_privateMethod]();
+};
+
+<span class="hljs-keyword">var</span> _privateMethod = babelHelpers.classPrivateFieldLooseKey(<span class="hljs-string">"privateMethod"</span>);
+
+<span class="hljs-keyword">var</span> _privateMethod2 = <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">_privateMethod2</span>() </span>{
+  <span class="hljs-keyword">return</span> <span class="hljs-number">42</span>;
+};
+</code></pre> <blockquote> <p>You can read more about configuring plugin options <a href="../plugins/index#plugin-options">here</a></p> </blockquote> <h2>
+References</h2> <ul> <li><a href="https://github.com/tc39/proposal-private-methods">Proposal: Private methods and getter/setters for JavaScript classes</a></li> </ul> </span></div></article>
+</div></div></div>
+
+</div></div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://babeljs.io/docs/en/babel-plugin-proposal-private-methods/" class="_attribution-link" target="_blank">https://babeljs.io/docs/en/babel-plugin-proposal-private-methods/</a>
+  </p>
+</div>

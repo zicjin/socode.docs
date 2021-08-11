@@ -1,0 +1,204 @@
+<h1 class="fqn">Trait std::io::Seek</h1>
+<pre class="rust trait" data-language="rust">pub trait Seek {
+    fn seek(&amp;mut self, pos: SeekFrom) -&gt; Result&lt;u64&gt;;
+
+    fn rewind(&amp;mut self) -&gt; Result&lt;()&gt; { ... }
+    fn stream_len(&amp;mut self) -&gt; Result&lt;u64&gt; { ... }
+    fn stream_position(&amp;mut self) -&gt; Result&lt;u64&gt; { ... }
+}</pre>
+<details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock">
+<p>The <code>Seek</code> trait provides a cursor which can be moved within a stream of bytes.</p> <p>The stream typically has a fixed size, allowing seeking relative to either end or the current offset.</p> <h2 id="examples" class="section-header">Examples</h2> <p><a href="../fs/struct.file"><code>File</code></a>s implement <code>Seek</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::io;
+use std::io::prelude::*;
+use std::fs::File;
+use std::io::SeekFrom;
+
+fn main() -&gt; io::Result&lt;()&gt; {
+    let mut f = File::open("foo.txt")?;
+
+    // move the cursor 42 bytes from the start of the file
+    f.seek(SeekFrom::Start(42))?;
+    Ok(())
+}</pre></div> </div></details><h2 id="required-methods" class="small-section-header">Required methods</h2>
+<div class="methods"><details class="rustdoc-toggle" open><summary><div id="tymethod.seek" class="method has-srclink">
+<h4 class="code-header">fn seek(&amp;mut self, pos: SeekFrom) -&gt; Result&lt;u64&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#1674" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Seek to an offset, in bytes, in a stream.</p> <p>A seek beyond the end of a stream is allowed, but behavior is defined by the implementation.</p> <p>If the seek operation completed successfully, this method returns the new position from the start of the stream. That position can be used later with <a href="enum.seekfrom#variant.Start" title="SeekFrom::Start"><code>SeekFrom::Start</code></a>.</p> <h2 id="errors" class="section-header">Errors</h2> <p>Seeking can fail, for example because it might involve flushing a buffer.</p> <p>Seeking to a negative offset is considered an error.</p> </div></details></div>
+<h2 id="provided-methods" class="small-section-header">Provided methods</h2>
+<div class="methods">
+<details class="rustdoc-toggle" open><summary><div id="method.rewind" class="method has-srclink">
+<h4 class="code-header">fn rewind(&amp;mut self) -&gt; Result&lt;()&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#1706-1709" title="goto source code">[src]</a>
+</div></summary><div class="item-info"><div class="stab unstable">
+<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>seek_rewind</code> <a href="https://github.com/rust-lang/rust/issues/85149">#85149</a>)</div></div>
+<div class="docblock">
+<p>Rewind to the beginning of a stream.</p> <p>This is a convenience method, equivalent to <code>seek(SeekFrom::Start(0))</code>.</p> <h2 id="errors-1" class="section-header">Errors</h2> <p>Rewinding can fail, for example because it might involve flushing a buffer.</p> <h2 id="example" class="section-header">Example</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+#![feature(seek_rewind)]
+use std::io::{Read, Seek, Write};
+use std::fs::OpenOptions;
+
+let mut f = OpenOptions::new()
+    .write(true)
+    .read(true)
+    .create(true)
+    .open("foo.txt").unwrap();
+
+let hello = "Hello!\n";
+write!(f, "{}", hello).unwrap();
+f.rewind().unwrap();
+
+let mut buf = String::new();
+f.read_to_string(&amp;mut buf).unwrap();
+assert_eq!(&amp;buf, hello);</pre></div> </div></details><details class="rustdoc-toggle" open><summary><div id="method.stream_len" class="method has-srclink">
+<h4 class="code-header">fn stream_len(&amp;mut self) -&gt; Result&lt;u64&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#1746-1757" title="goto source code">[src]</a>
+</div></summary><div class="item-info"><div class="stab unstable">
+<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>seek_stream_len</code> <a href="https://github.com/rust-lang/rust/issues/59359">#59359</a>)</div></div>
+<div class="docblock">
+<p>Returns the length of this stream (in bytes).</p> <p>This method is implemented using up to three seek operations. If this method returns successfully, the seek position is unchanged (i.e. the position before calling this method is the same as afterwards). However, if this method returns an error, the seek position is unspecified.</p> <p>If you need to obtain the length of <em>many</em> streams and you don’t care about the seek position afterwards, you can reduce the number of seek operations by simply calling <code>seek(SeekFrom::End(0))</code> and using its return value (it is also the stream length).</p> <p>Note that length of a stream can change over time (for example, when data is appended to a file). So calling this method multiple times does not necessarily return the same length each time.</p> <h2 id="example-1" class="section-header">Example</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+#![feature(seek_stream_len)]
+use std::{
+    io::{self, Seek},
+    fs::File,
+};
+
+fn main() -&gt; io::Result&lt;()&gt; {
+    let mut f = File::open("foo.txt")?;
+
+    let len = f.stream_len()?;
+    println!("The file is currently {} bytes long", len);
+    Ok(())
+}</pre></div> </div></details><details class="rustdoc-toggle" open><summary><div id="method.stream_position" class="method has-srclink">
+<h4 class="code-header">fn stream_position(&amp;mut self) -&gt; Result&lt;u64&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#1783-1785" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.51.0">1.51.0</span>
+</div></summary><div class="docblock">
+<p>Returns the current seek position from the start of the stream.</p> <p>This is equivalent to <code>self.seek(SeekFrom::Current(0))</code>.</p> <h2 id="example-2" class="section-header">Example</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::{
+    io::{self, BufRead, BufReader, Seek},
+    fs::File,
+};
+
+fn main() -&gt; io::Result&lt;()&gt; {
+    let mut f = BufReader::new(File::open("foo.txt")?);
+
+    let before = f.stream_position()?;
+    f.read_line(&amp;mut String::new())?;
+    let after = f.stream_position()?;
+
+    println!("The first line was {} bytes long", after - before);
+    Ok(())
+}</pre></div> </div></details>
+</div>
+<h2 id="implementors" class="small-section-header">Implementors</h2>
+<div class="item-list" id="implementors-list">
+<details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Seek" class="impl has-srclink">
+<h3 class="code-header in-band">impl Seek for &amp;File</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/fs.rs.html#697-701" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><div id="method.seek" class="method trait-impl has-srclink">
+<h4 class="code-header">fn seek(&amp;mut self, pos: SeekFrom) -&gt; Result&lt;u64&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/fs.rs.html#698-700" title="goto source code">[src]</a>
+</div></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Seek-1" class="impl has-srclink">
+<h3 class="code-header in-band">impl Seek for File</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/fs.rs.html#651-655" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><div id="method.seek-1" class="method trait-impl has-srclink">
+<h4 class="code-header">fn seek(&amp;mut self, pos: SeekFrom) -&gt; Result&lt;u64&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/fs.rs.html#652-654" title="goto source code">[src]</a>
+</div></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Seek-2" class="impl has-srclink">
+<h3 class="code-header in-band">impl Seek for Empty</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/util.rs.html#64-76" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.51.0">1.51.0</span>
+</div></summary><div class="impl-items">
+<div id="method.seek-2" class="method trait-impl has-srclink">
+<h4 class="code-header">fn seek(&amp;mut self, _pos: SeekFrom) -&gt; Result&lt;u64&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/util.rs.html#65-67" title="goto source code">[src]</a>
+</div>
+<details class="rustdoc-toggle method-toggle" open><summary><div id="method.stream_len-1" class="method trait-impl has-srclink">
+<h4 class="code-header">fn stream_len(&amp;mut self) -&gt; Result&lt;u64&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/util.rs.html#69-71" title="goto source code">[src]</a>
+</div></summary><div class="item-info"><div class="stab unstable">
+<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>seek_stream_len</code> <a href="https://github.com/rust-lang/rust/issues/59359">#59359</a>)</div></div></details><div id="method.stream_position-1" class="method trait-impl has-srclink">
+<h4 class="code-header">fn stream_position(&amp;mut self) -&gt; Result&lt;u64&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/util.rs.html#73-75" title="goto source code">[src]</a>
+</div>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Seek-3" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;R: Seek&gt; Seek for BufReader&lt;R&gt;</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/buffered/bufreader.rs.html#347-438" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle method-toggle" open><summary><div id="method.seek-3" class="method trait-impl has-srclink">
+<h4 class="code-header">fn seek(&amp;mut self, pos: SeekFrom) -&gt; Result&lt;u64&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/buffered/bufreader.rs.html#370-393" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Seek to an offset, in bytes, in the underlying reader.</p> <p>The position used for seeking with <a href="enum.seekfrom#variant.Current" title="SeekFrom::Current"><code>SeekFrom::Current</code></a><code>(_)</code> is the position the underlying reader would be at if the <code>BufReader&lt;R&gt;</code> had no internal buffer.</p> <p>Seeking always discards the internal buffer, even if the seek position would otherwise fall within it. This guarantees that calling <a href="struct.bufreader#method.into_inner" title="BufReader::into_inner()"><code>BufReader::into_inner()</code></a> immediately after a seek yields the underlying reader at the same position.</p> <p>To seek without discarding the internal buffer, use <a href="struct.bufreader#method.seek_relative" title="BufReader::seek_relative"><code>BufReader::seek_relative</code></a>.</p> <p>See <a href="trait.seek"><code>std::io::Seek</code></a> for more details.</p> <p>Note: In the edge case where you’re seeking with <a href="enum.seekfrom#variant.Current" title="SeekFrom::Current"><code>SeekFrom::Current</code></a><code>(n)</code> where <code>n</code> minus the internal buffer length overflows an <code>i64</code>, two seeks will be performed instead of one. If the second seek returns <a href="../result/enum.result#variant.Err" title="Err"><code>Err</code></a>, the underlying reader will be left at the same position it would have if you called <code>seek</code> with <a href="enum.seekfrom#variant.Current" title="SeekFrom::Current"><code>SeekFrom::Current</code></a><code>(0)</code>.</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.stream_position-2" class="method trait-impl has-srclink">
+<h4 class="code-header">fn stream_position(&amp;mut self) -&gt; Result&lt;u64&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/buffered/bufreader.rs.html#430-437" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns the current seek position from the start of the stream.</p> <p>The value returned is equivalent to <code>self.seek(SeekFrom::Current(0))</code> but does not flush the internal buffer. Due to this optimization the function does not guarantee that calling <code>.into_inner()</code> immediately afterwards will yield the underlying reader at the same position. Use <a href="struct.bufreader#method.seek" title="BufReader::seek"><code>BufReader::seek</code></a> instead if you require that guarantee.</p> <h2 id="panics" class="section-header">Panics</h2> <p>This function will panic if the position of the inner reader is smaller than the amount of buffered data. That can happen if the inner reader has an incorrect implementation of <a href="trait.seek#method.stream_position" title="Seek::stream_position"><code>Seek::stream_position</code></a>, or if the position has gone out of sync due to calling <a href="trait.seek#tymethod.seek" title="Seek::seek"><code>Seek::seek</code></a> directly on the underlying reader.</p> <h2 id="example-3" class="section-header">Example</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::{
+    io::{self, BufRead, BufReader, Seek},
+    fs::File,
+};
+
+fn main() -&gt; io::Result&lt;()&gt; {
+    let mut f = BufReader::new(File::open("foo.txt")?);
+
+    let before = f.stream_position()?;
+    f.read_line(&amp;mut String::new())?;
+    let after = f.stream_position()?;
+
+    println!("The first line was {} bytes long", after - before);
+    Ok(())
+}</pre></div> </div></details>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Seek-4" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;S: Seek + ?Sized&gt; Seek for &amp;mut S</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#85-95" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<div id="method.seek-4" class="method trait-impl has-srclink">
+<h4 class="code-header">fn seek(&amp;mut self, pos: SeekFrom) -&gt; Result&lt;u64&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#87-89" title="goto source code">[src]</a>
+</div>
+<div id="method.stream_position-3" class="method trait-impl has-srclink">
+<h4 class="code-header">fn stream_position(&amp;mut self) -&gt; Result&lt;u64&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#92-94" title="goto source code">[src]</a>
+</div>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Seek-5" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;S: Seek + ?Sized&gt; Seek for Box&lt;S&gt;</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#189-199" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<div id="method.seek-5" class="method trait-impl has-srclink">
+<h4 class="code-header">fn seek(&amp;mut self, pos: SeekFrom) -&gt; Result&lt;u64&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#191-193" title="goto source code">[src]</a>
+</div>
+<div id="method.stream_position-4" class="method trait-impl has-srclink">
+<h4 class="code-header">fn stream_position(&amp;mut self) -&gt; Result&lt;u64&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#196-198" title="goto source code">[src]</a>
+</div>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Seek-6" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T&gt; Seek for Cursor&lt;T&gt; <span class="where fmt-newline">where<br> T: <a class="trait" href="../convert/trait.asref" title="trait std::convert::AsRef">AsRef</a>&lt;<a class="primitive" href="../primitive.slice">[</a><a class="primitive" href="../primitive.u8">u8</a><a class="primitive" href="../primitive.slice">]</a>&gt;, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/cursor.rs.html#226-263" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<div id="method.seek-6" class="method trait-impl has-srclink">
+<h4 class="code-header">fn seek(&amp;mut self, style: SeekFrom) -&gt; Result&lt;u64&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/cursor.rs.html#230-254" title="goto source code">[src]</a>
+</div>
+<details class="rustdoc-toggle method-toggle" open><summary><div id="method.stream_len-2" class="method trait-impl has-srclink">
+<h4 class="code-header">fn stream_len(&amp;mut self) -&gt; Result&lt;u64&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/cursor.rs.html#256-258" title="goto source code">[src]</a>
+</div></summary><div class="item-info"><div class="stab unstable">
+<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>seek_stream_len</code> <a href="https://github.com/rust-lang/rust/issues/59359">#59359</a>)</div></div></details><div id="method.stream_position-5" class="method trait-impl has-srclink">
+<h4 class="code-header">fn stream_position(&amp;mut self) -&gt; Result&lt;u64&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/cursor.rs.html#260-262" title="goto source code">[src]</a>
+</div>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Seek-7" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;W: Write + Seek&gt; Seek for BufWriter&lt;W&gt;</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/buffered/bufwriter.rs.html#653-661" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.seek-7" class="method trait-impl has-srclink">
+<h4 class="code-header">fn seek(&amp;mut self, pos: SeekFrom) -&gt; Result&lt;u64&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/buffered/bufwriter.rs.html#657-660" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Seek to the offset, in bytes, in the underlying writer.</p> <p>Seeking always writes out the internal buffer before seeking.</p> </div></details></div></details>
+</div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://doc.rust-lang.org/std/io/trait.Seek.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/std/io/trait.Seek.html</a>
+  </p>
+</div>

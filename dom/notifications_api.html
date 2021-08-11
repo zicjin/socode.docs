@@ -1,0 +1,505 @@
+<h1>Notifications API</h1>
+
+<div class="notecard note"> <p><strong>Note:</strong> This feature is available in <a href="web_workers_api">Web Workers</a></p> </div>
+<div class="notecard secure">
+<strong id="secure_context">Secure context</strong><p>This feature is available only in <a href="https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts">secure contexts</a> (HTTPS), in some or all <a href="#browser_compatibility">supporting browsers</a>.</p>
+</div>
+ <p class="summary">The Notifications API allows web pages to control the display of system notifications to the end user. These are outside the top-level browsing context viewport, so therefore can be displayed even when the user has switched tabs or moved to a different app. The API is designed to be compatible with existing notification systems, across different platforms.</p>
+<h2 id="concepts_and_usage">Concepts and usage</h2>
+<p>On supported platforms, showing a system notification generally involves two things. First, the user needs to grant the current origin permission to display system notifications, which is generally done when the app or site initialises, using the <a href="notification/requestpermission"><code>Notification.requestPermission()</code></a> method. This should be done in response to a user gesture, such as clicking a button, for example:</p> <div class="code-example"><pre data-language="js">btn<span class="token punctuation">.</span><span class="token function">addEventListener</span><span class="token punctuation">(</span><span class="token string">'click'</span><span class="token punctuation">,</span> <span class="token keyword">function</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+  <span class="token keyword">let</span> promise <span class="token operator">=</span> Notification<span class="token punctuation">.</span><span class="token function">requestPermission</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token comment">// wait for permission</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span></pre></div> <p>This is not only best practice — you should not be spamming users with notifications they didn't agree to — but going forward browsers will explicitly disallow notifications not triggered in response to a user gesture. Firefox is already doing this from version 72, for example.</p> <p>This will spawn a request dialog, along the following lines:</p> <p><img alt="" src="data:image/png;base64,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" width="643" height="183" loading="lazy"></p> <p>From here the user can choose to allow notifications from this origin, or block them. Once a choice has been made, the setting will generally persist for the current session.</p> <div class="note notecard"> <p><strong>Note</strong>: As of Firefox 44, the permissions for Notifications and <a href="push_api">Push</a> have been merged. If permission is granted for notifications, push will also be enabled.</p> </div> <p>Next, a new notification is created using the <a href="notification/notification"><code>Notification()</code></a> constructor. This must be passed a title argument, and can optionally be passed an options object to specify options, such as text direction, body text, icon to display, notification sound to play, and more.</p> <p>In addition, the Notifications API spec specifies a number of additions to the <a href="service_worker_api">ServiceWorker API</a>, to allow service workers to fire notifications.</p> <div class="note notecard"> <p><strong>Note</strong>: To find out more about using notifications in your own app, read <a href="notifications_api/using_the_notifications_api">Using the Notifications API</a>.</p> </div>
+<h2 id="notifications_interfaces">Notifications interfaces</h2>
+<dl> <dt><a href="notification"><code>Notification</code></a></dt> <dd>Defines a notification object.</dd> </dl>
+<h3 id="service_worker_additions">Service worker additions</h3>
+<dl> <dt><a href="serviceworkerregistration"><code>ServiceWorkerRegistration</code></a></dt> <dd>Includes the <a href="serviceworkerregistration/shownotification"><code>ServiceWorkerRegistration.showNotification()</code></a> and <a href="serviceworkerregistration/getnotifications"><code>ServiceWorkerRegistration.getNotifications()</code></a> method, for controlling the display of notifications.</dd> <dt><a href="serviceworkerglobalscope"><code>ServiceWorkerGlobalScope</code></a></dt> <dd>Includes the <a href="serviceworkerglobalscope/onnotificationclick"><code>ServiceWorkerGlobalScope.onnotificationclick</code></a> handler, for firing custom functions when a notification is clicked.</dd> <dt><a href="notificationevent"><code>NotificationEvent</code></a></dt> <dd>A specific type of event object, based on <a href="extendableevent"><code>ExtendableEvent</code></a>, which represents a notification that has fired.</dd> </dl>
+<h2 id="specifications">Specifications</h2>
+<div class="_table"><table class="standard-table"> <thead> <tr> <th scope="col">Specification</th> <th scope="col">Status</th> <th scope="col">Comment</th> </tr> </thead> <tbody> <tr> <td><a href="https://notifications.spec.whatwg.org/" hreflang="en" rel=" noopener">Notifications API</a></td> <td><span class="spec-living">Living Standard</span></td> <td>Living standard</td> </tr> </tbody> </table></div>
+<h2 id="browser_compatibility">Browser compatibility</h2>
+<table>
+<thead>
+<tr id="bct-browser-type">
+<th></th>
+<th colspan="6">Desktop</th>
+<th colspan="6">Mobile</th>
+</tr>
+<tr id="bct-browsers">
+<th></th>
+<th>Chrome</th>
+<th>Edge</th>
+<th>Firefox</th>
+<th>Internet Explorer</th>
+<th>Opera</th>
+<th>Safari</th>
+<th>WebView Android</th>
+<th>Chrome Android</th>
+<th>Firefox for Android</th>
+<th>Opera Android</th>
+<th>Safari on IOS</th>
+<th>Samsung Internet</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<th><code>Notifications_API</code></th>
+<td class="bc-supports-yes">
+<div>22</div>
+<div>Before Chrome 22, the support for notification followed an old prefixed version of the specification and used the <code>navigator.webkitNotifications</code> object to instantiate a new notification. Before Chrome 32, <code>Notification.permission</code> was not supported. Before Chrome 42, service worker additions were not supported. Starting in Chrome 49, notifications do not work in incognito mode.</div>
+<div>5</div>
+</td>
+<td class="bc-supports-yes"><div>14</div></td>
+<td class="bc-supports-yes">
+<div>22</div>
+<div>4</div>
+</td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>25</div></td>
+<td class="bc-supports-yes"><div>7</div></td>
+<td class="bc-supports-no">
+<div>No</div>
+<div>See <a href="https://crbug.com/551446">bug 551446</a>
+</div>
+</td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes">
+<div>22</div>
+<div>4</div>
+</td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+</tr>
+<tr>
+<th><code>Notification</code></th>
+<td class="bc-supports-yes">
+<div>22</div>
+<div>5</div>
+</td>
+<td class="bc-supports-yes"><div>≤18</div></td>
+<td class="bc-supports-yes">
+<div>22</div>
+<div>4</div>
+</td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>25</div></td>
+<td class="bc-supports-yes"><div>7</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes">
+<div>22</div>
+<div>4</div>
+</td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+</tr>
+<tr>
+<th><code>actions</code></th>
+<td class="bc-supports-yes"><div>53</div></td>
+<td class="bc-supports-yes"><div>18</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>39</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>53</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>41</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>6.0</div></td>
+</tr>
+<tr>
+<th><code>badge</code></th>
+<td class="bc-supports-yes"><div>53</div></td>
+<td class="bc-supports-yes"><div>18</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>39</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>53</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>41</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>6.0</div></td>
+</tr>
+<tr>
+<th><code>body</code></th>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>14</div></td>
+<td class="bc-supports-yes"><div>26</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>11</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>26</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+</tr>
+<tr>
+<th><code>close</code></th>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>14</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>7</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+</tr>
+<tr>
+<th><code>data</code></th>
+<td class="bc-supports-yes"><div>44</div></td>
+<td class="bc-supports-yes"><div>16</div></td>
+<td class="bc-supports-yes"><div>34</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>31</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>44</div></td>
+<td class="bc-supports-yes"><div>34</div></td>
+<td class="bc-supports-yes"><div>32</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>4.0</div></td>
+</tr>
+<tr>
+<th><code>dir</code></th>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>14</div></td>
+<td class="bc-supports-yes"><div>26</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>7</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>26</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+</tr>
+<tr>
+<th><code>icon</code></th>
+<td class="bc-supports-yes">
+<div>22</div>
+<div>5</div>
+</td>
+<td class="bc-supports-yes"><div>14</div></td>
+<td class="bc-supports-yes">
+<div>22</div>
+<div>4</div>
+</td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>25</div></td>
+<td class="bc-supports-yes"><div>11</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes">
+<div>22</div>
+<div>4</div>
+</td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+</tr>
+<tr>
+<th><code>image</code></th>
+<td class="bc-supports-yes"><div>53</div></td>
+<td class="bc-supports-yes"><div>18</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>40</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>53</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>41</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>6.0</div></td>
+</tr>
+<tr>
+<th><code>lang</code></th>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>14</div></td>
+<td class="bc-supports-yes"><div>26</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>11</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>26</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+</tr>
+<tr>
+<th><code>maxActions</code></th>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>18</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+</tr>
+<tr>
+<th><code>onclick</code></th>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>14</div></td>
+<td class="bc-supports-yes"><div>22</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>7</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+</tr>
+<tr>
+<th><code>onclose</code></th>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>14</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>7</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+</tr>
+<tr>
+<th><code>onerror</code></th>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>14</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>7</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+</tr>
+<tr>
+<th><code>onshow</code></th>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>14</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>7</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+</tr>
+<tr>
+<th><code>permission</code></th>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>14</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>7</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+</tr>
+<tr>
+<th><code>renotify</code></th>
+<td class="bc-supports-yes"><div>50</div></td>
+<td class="bc-supports-yes"><div>79</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>37</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>50</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>37</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>5.0</div></td>
+</tr>
+<tr>
+<th><code>requestPermission</code></th>
+<td class="bc-supports-yes"><div>46</div></td>
+<td class="bc-supports-yes"><div>14</div></td>
+<td class="bc-supports-yes">
+<div>47</div>
+<div>["From Firefox 70 onwards, cannot be called from a cross-origin IFrame.", "From Firefox 72 onwards, can only be called in response to a user gesture such as a <code>click</code> event."]</div>
+</td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>40</div></td>
+<td class="bc-supports-yes"><div>7</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>46</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>41</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>5.0</div></td>
+</tr>
+<tr>
+<th><code>requireInteraction</code></th>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>17</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+</tr>
+<tr>
+<th><code>secure_context_required</code></th>
+<td class="bc-supports-yes"><div>62</div></td>
+<td class="bc-supports-yes"><div>≤79</div></td>
+<td class="bc-supports-yes"><div>67</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>49</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>62</div></td>
+<td class="bc-supports-yes"><div>67</div></td>
+<td class="bc-supports-yes"><div>46</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>8.0</div></td>
+</tr>
+<tr>
+<th><code>silent</code></th>
+<td class="bc-supports-yes"><div>43</div></td>
+<td class="bc-supports-yes"><div>17</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>30</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>43</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>30</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>4.0</div></td>
+</tr>
+<tr>
+<th><code>tag</code></th>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>14</div></td>
+<td class="bc-supports-yes"><div>26</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>7</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>26</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+</tr>
+<tr>
+<th><code>timestamp</code></th>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>17</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+</tr>
+<tr>
+<th><code>title</code></th>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>14</div></td>
+<td class="bc-supports-yes"><div>26</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>11</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-yes"><div>26</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+</tr>
+<tr>
+<th><code>vibrate</code></th>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes">
+<div>53</div>
+<div>
+<a href="https://crbug.com/971422">Does not work</a> on Android O or later regardless of Chrome version.</div>
+</td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes">
+<div>41</div>
+<div>
+<a href="https://crbug.com/971422">Does not work</a> on Android O or later regardless of Chrome version.</div>
+</td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes">
+<div>6.0</div>
+<div>
+<a href="https://crbug.com/971422">Does not work</a> on Android O or later regardless of Chrome version.</div>
+</td>
+</tr>
+<tr>
+<th><code>worker_support</code></th>
+<td class="bc-supports-yes"><div>45</div></td>
+<td class="bc-supports-yes"><div>≤18</div></td>
+<td class="bc-supports-yes"><div>41</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>32</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>45</div></td>
+<td class="bc-supports-yes"><div>41</div></td>
+<td class="bc-supports-yes"><div>32</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>5.0</div></td>
+</tr>
+</tbody>
+</table>
+
+
+<h2 id="see_also">See also</h2>
+<ul> <li><a href="notifications_api/using_the_notifications_api">Using the Notifications API</a></li> </ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.mozilla.org/en-US/docs/Web/API/Notifications_API" class="_attribution-link" target="_blank">https://developer.mozilla.org/en-US/docs/Web/API/Notifications_API</a>
+  </p>
+</div>

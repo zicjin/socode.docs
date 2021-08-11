@@ -1,0 +1,22 @@
+ <h1 id="terraform-cloud-operator-for-kubernetes-setup-instructions">  Terraform Cloud Operator for Kubernetes Setup Instructions </h1> <h2 id="overview">  Overview </h2> <p>HashiCorp Terraform Cloud customers can integrate with Kubernetes using the official <a href="https://github.com/hashicorp/terraform-k8s">Terraform Cloud Operator for Kubernetes</a> to provision infrastructure internal or external to the Kubernetes cluster directly from the Kubernetes control plane. Using the Terraform Cloud Operator for Kubernetes' CustomResourceDefinition (CRD), users can dynamically create Terraform Cloud workspaces using a Terraform configuration from a git repository or from the <a href="https://registry.terraform.io/">Terraform Registry</a>, populate variables, and perform Terraform runs to provision infrastructure.</p> <h2 id="prerequisites">  Prerequisites </h2> <p>All Terraform Cloud users can use the Terraform Cloud Operator for Kubernetes. Some features of Terraform Cloud that are <a href="../../paid">limited to certain tiers</a> aren't available to the Terraform Cloud Operator for Kubernetes unless you've purchased the corresponding tier.</p> <h2 id="terraform-cloud-operator-for-kubernetes">  Terraform Cloud Operator for Kubernetes </h2> <h3 id="networking-requirements">  Networking Requirements </h3> <p>In order for the Terraform Cloud Operator for Kubernetes to function properly, it must be able to make outbound requests over HTTPS (TCP port 443) to the Terraform Cloud application APIs. This may require perimeter networking as well as container host networking changes, depending on your environment. The IP ranges are documented in the <a href="../../architectural-details/ip-ranges">Terraform Cloud IP Ranges documentation</a>. The services which run on these IP ranges are described in the table below.</p> <table>
+<thead> <tr> <th>Hostname</th> <th>Port/Protocol</th> <th>Directionality</th> <th>Purpose</th> </tr> </thead>
+<tbody> <tr> <td>app.terraform.io</td> <td>tcp/443, HTTPS</td> <td>Outbound</td> <td>Dynamically managing Terraform Cloud Workspaces and returning the output to Kubernetes via the Terraform Cloud API</td> </tr> </tbody>
+</table> <h3 id="compatibility">  Compatibility </h3> <p>The current release of the Terraform Cloud Operator for Kubernetes supports the following versions:</p> <ul> <li>Helm 3.0.1 and above </li> <li>Kubernetes 1.15 and above </li> </ul> <h3 id="installation-amp-configuration">  Installation &amp; Configuration </h3> <ol> <li>
+<p>Generate an <a href="../../users-teams-organizations/api-tokens#organization-api-tokens">organization token</a> within Terraform Cloud and save it to a file. (These instructions assume you're using a file named <code>credentials</code>.)</p> </li> <li>
+<p>Create a <a href="https://kubernetes.io/docs/concepts/configuration/secret/">Kubernetes Secret</a> with the Terraform Cloud API credentials.</p> <pre>kubectl -n $NAMESPACE create secret generic terraformrc --from-file=credentials
+</pre>
+</li> <li>
+<p>Add sensitive variables, such as your cloud provider credentials, to the workspace.</p> <pre>kubectl -n $NAMESPACE create secret generic workspacesecrets --from-literal=secret_key=abc123
+</pre>
+</li> <li>
+<p>Install the <a href="https://github.com/hashicorp/terraform-helm">Terraform Cloud Operator for Kubernetes via Helm</a>.</p> <pre>helm repo add hashicorp https://helm.releases.hashicorp.com
+
+helm install --namespace ${RELEASE_NAMESPACE} hashicorp/terraform --generate-name
+</pre>
+</li> <li>
+<p>To create a Terraform workspace, you can create a separate Helm chart to deploy the custom resource or examine these <a href="https://github.com/hashicorp/terraform-helm/tree/master/example">examples</a>.</p> </li> </ol> <h3 id="upgrading">  Upgrading </h3> <p>When a new version of the Terraform Cloud Operator for Kubernetes Helm Chart is available from the HashiCorp Helm repository, it can be upgraded with the following command:</p> <pre>helm upgrade --namespace ${RELEASE_NAMESPACE} ${RELEASE_NAME} hashicorp/terraform
+</pre><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/cloud/integrations/kubernetes/index.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/cloud/integrations/kubernetes/index.html</a>
+  </p>
+</div>

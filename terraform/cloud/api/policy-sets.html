@@ -1,0 +1,614 @@
+ <h1 id="policy-sets-api">  Policy Sets API </h1> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> Sentinel policies are a paid feature, available as part of the <strong>Team &amp; Governance</strong> upgrade package. <a href="https://www.hashicorp.com/products/terraform/pricing">Learn more about Terraform Cloud pricing here</a>.</p> </blockquote> <p><a href="../sentinel/index">Sentinel Policy as Code</a> is an embedded policy as code framework integrated with Terraform Cloud.</p> <p>Policy sets are groups of policies that are applied together to related workspaces. By using policy sets, you can group your policies by attributes such as environment or region. Individual policies within a policy set will only be checked for workspaces that the policy set is attached to. Policy sets can group indidual policies created via the <a href="policies">policies API</a>, or act as versioned sets which are either sourced from a version control system (such as GitHub) or uploaded as a whole via the <a href="#create-a-policy-set-version">policy set versions API</a>.</p> <p>This page documents the API endpoints to create, read, update, and delete policy sets in an organization. To view and manage policies, use the <a href="policies">Policies API</a>.</p> <p>Interacting with policy sets requires permission to manage policies. (<a href="../users-teams-organizations/permissions">More about permissions</a>.)</p> <h2 id="create-a-policy-set">  Create a Policy Set </h2> <p><code>POST /organizations/:organization_name/policy-sets</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:organization_name</code></td> <td>The organization to create the policy set in. The organization must already exist in the system, and the token authenticating the API request must have permission to manage policies. (<a href="../users-teams-organizations/permissions">More about permissions.</a>)</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/201">201</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "policy-sets"</code>)</td> <td>Successfully created a policy set</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Organization not found, or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Malformed request body (missing attributes, wrong types, etc.)</td> </tr> </tbody>
+</table> <h3 id="request-body">  Request Body </h3> <p>This POST endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"policy-sets"</code>.</td> </tr> <tr> <td><code>data.attributes.name</code></td> <td>string</td> <td></td> <td>The name of the policy set. Can include letters, numbers, <code>-</code>, and <code>_</code>.</td> </tr> <tr> <td><code>data.attributes.description</code></td> <td>string</td> <td><code>null</code></td> <td>A description of the set's purpose. This field supports Markdown and will be rendered in the Terraform Cloud UI.</td> </tr> <tr> <td><code>data.attributes.global</code></td> <td>boolean</td> <td><code>false</code></td> <td>Whether or not this policies in this set should be checked on all of the organization's workspaces, or only on workspaces the policy set is attached to.</td> </tr> <tr> <td><code>data.attributes.vcs-repo</code></td> <td>object</td> <td><code>null</code></td> <td>VCS repository information. When present, the policies and configuration will be sourced from the specified VCS repository instead of being defined within Terraform Cloud. Note that this option and <code>policies</code> relationships are mutually exclusive and may not be used simultaneously.</td> </tr> <tr> <td><code>data.attributes.vcs-repo.branch</code></td> <td>string</td> <td><code>null</code></td> <td>The branch of the VCS repo. If empty, the VCS provider's default branch value will be used.</td> </tr> <tr> <td><code>data.attributes.vcs-repo.identifier</code></td> <td>string</td> <td></td> <td>The identifier of the VCS repository in the format <code>&lt;namespace&gt;/&lt;repo&gt;</code>. For example, on GitHub, this would be something like <code>hashicorp/my-policy-set</code>. The format for Azure DevOps is <code>&lt;org&gt;/&lt;project&gt;/_git/&lt;repo&gt;</code>.</td> </tr> <tr> <td><code>data.attributes.vcs-repo.oauth-token-id</code></td> <td>string</td> <td></td> <td>The OAuth Token ID to use to connect to the VCS host.</td> </tr> <tr> <td><code>data.attributes.vcs-repo.ingress-submodules</code></td> <td>boolean</td> <td><code>false</code></td> <td>Determines whether repository submodules will be instantiated during the clone operation.</td> </tr> <tr> <td><code>data.attributes.policies-path</code></td> <td>string</td> <td><code>null</code></td> <td>The subdirectory of the attached VCS repository that contains the policies for this policy set. Files and directories outside of this sub-path will be ignored, and changes to those unrelated files won't cause the policy set to be updated. This option may only be specified when a VCS repo is present.</td> </tr> <tr> <td><code>data.relationships.workspaces.data[]</code></td> <td>array[object]</td> <td><code>[]</code></td> <td>A list of resource identifier objects that defines which workspaces the new set will be attached to. These objects must contain <code>id</code> and <code>type</code> properties, and the <code>type</code> property must be <code>workspaces</code> (e.g. <code>{ "id": "ws-2HRvNs49EWPjDqT1", "type": "workspaces" }</code>). Obtain workspace IDs from the <a href="../workspaces/settings">workspace settings</a> or the <a href="workspaces#show-workspace">Show Workspace</a> endpoint. Individual workspaces cannot be attached to the policy set when <code>data.attributes.global</code> is <code>true</code>.</td> </tr> <tr> <td><code>data.relationships.policies.data[]</code></td> <td>array[object]</td> <td><code>[]</code></td> <td>
+<strong>DEPRECATED.</strong> A list of resource identifier objects that defines which policies will be members of the new set. These objects must contain <code>id</code> and <code>type</code> properties, and the <code>type</code> property must be <code>policies</code> (e.g. <code>{ "id": "pol-u3S5p2Uwk21keu1s", "type": "policies" }</code>). <strong>Important:</strong> This deprecated option will be removed in the future in favor of VCS policy sets.</td> </tr> </tbody>
+</table> <h3 id="sample-payload">  Sample Payload </h3> <pre data-language="json">{
+  "data": {
+    "type": "policy-sets",
+    "attributes": {
+      "name": "production",
+      "description": "This set contains policies that should be checked on all production infrastructure workspaces.",
+      "global": false,
+      "policies-path": "/policy-sets/foo",
+      "vcs-repo": {
+        "branch": "master",
+        "identifier": "hashicorp/my-policy-sets",
+        "ingress-submodules": false,
+        "oauth-token-id": "ot-7Fr9d83jWsi8u23A"
+      }
+    },
+    "relationships": {
+      "workspaces": {
+        "data": [
+          { "id": "ws-2HRvNs49EWPjDqT1", "type": "workspaces" }
+        ]
+      }
+    }
+  }
+}
+</pre>
+<h3 id="sample-payload-with-individual-policy-relationships-deprecated-">  Sample payload with individual policy relationships (deprecated) </h3> <pre data-language="json">{
+  "data": {
+    "type": "policy-sets",
+    "attributes": {
+      "name": "production",
+      "description": "This set contains policies that should be checked on all production infrastructure workspaces.",
+      "global": false
+    },
+    "relationships": {
+      "policies": {
+        "data": [
+          { "id": "pol-u3S5p2Uwk21keu1s", "type": "policies" }
+        ]
+      },
+      "workspaces": {
+        "data": [
+          { "id": "ws-2HRvNs49EWPjDqT1", "type": "workspaces" }
+        ]
+      }
+    }
+  }
+}
+</pre>
+<h3 id="sample-request">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/organizations/my-organization/policy-sets
+</pre>
+<h3 id="sample-response">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id":"polset-3yVQZvHzf5j3WRJ1",
+    "type":"policy-sets",
+    "attributes": {
+      "name": "production",
+      "description": "This set contains policies that should be checked on all production infrastructure workspaces.",
+      "global": false,
+      "workspace-count": 1,
+      "policies-path": "/policy-sets/foo",
+      "versioned": true,
+      "vcs-repo": {
+        "branch": "master",
+        "identifier": "hashicorp/my-policy-sets",
+        "ingress-submodules": false,
+        "oauth-token-id": "ot-7Fr9d83jWsi8u23A"
+      },
+      "created-at": "2018-09-11T18:21:21.784Z",
+      "updated-at": "2018-09-11T18:21:21.784Z"
+    },
+    "relationships": {
+      "organization": {
+        "data": { "id": "my-organization", "type": "organizations" }
+      },
+      "workspaces": {
+        "data": [
+          { "id": "ws-2HRvNs49EWPjDqT1", "type": "workspaces" }
+        ]
+      }
+    },
+    "links": {
+      "self":"/api/v2/policy-sets/polset-3yVQZvHzf5j3WRJ1"
+    }
+  }
+}
+</pre>
+<h3 id="sample-response-with-individual-policy-relationships-deprecated-">  Sample response with individual policy relationships (deprecated) </h3> <pre data-language="json">{
+  "data": {
+    "id":"polset-3yVQZvHzf5j3WRJ1",
+    "type":"policy-sets",
+    "attributes": {
+      "name": "production",
+      "description": "This set contains policies that should be checked on all production infrastructure workspaces.",
+      "global": false,
+      "policy-count": 1,
+      "workspace-count": 1,
+      "versioned": false,
+      "created-at": "2018-09-11T18:21:21.784Z",
+      "updated-at": "2018-09-11T18:21:21.784Z"
+    },
+    "relationships": {
+      "organization": {
+        "data": { "id": "my-organization", "type": "organizations" }
+      },
+      "policies": {
+        "data": [
+          { "id": "pol-u3S5p2Uwk21keu1s", "type": "policies" }
+        ]
+      },
+      "workspaces": {
+        "data": [
+          { "id": "ws-2HRvNs49EWPjDqT1", "type": "workspaces" }
+        ]
+      }
+    },
+    "links": {
+      "self":"/api/v2/policy-sets/polset-3yVQZvHzf5j3WRJ1"
+    }
+  }
+}
+</pre>
+<h2 id="list-policy-sets">  List Policy Sets </h2> <p><code>GET /organizations/:organization_name/policy-sets</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:organization_name</code></td> <td>The organization to list policy sets for.</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "policy-sets"</code>)</td> <td>Request was successful</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Organization not found, or user unauthorized to perform action</td> </tr> </tbody>
+</table> <h3 id="query-parameters">  Query Parameters </h3> <p>This endpoint supports pagination <a href="index#query-parameters">with standard URL query parameters</a>; remember to percent-encode <code>[</code> as <code>%5B</code> and <code>]</code> as <code>%5D</code> if your tooling doesn't automatically encode URLs.</p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>filter[versioned]</code></td> <td>
+<strong>Optional.</strong> Allows filtering policy sets based on whether they are versioned (VCS-managed or API-managed), or use individual policy relationships. Accepts a boolean true/false value. A <code>true</code> value returns versioned sets, and a <code>false</code> value returns sets with individual policy relationships. If omitted, all policy sets are returned.</td> </tr> <tr> <td><code>include</code></td> <td>
+<strong>Optional.</strong> Allows including related resource data. Value must be a comma-separated list containing one or more of <code>workspaces</code>, <code>policies</code>, <code>newest_version</code>, or <code>current_version</code>. See the <a href="#relationships">relationships section</a> for details.</td> </tr> <tr> <td><code>page[number]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return the first page.</td> </tr> <tr> <td><code>page[size]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return 20 policy sets per page.</td> </tr> <tr> <td><code>search[name]</code></td> <td>
+<strong>Optional.</strong> Allows searching the organization's policy sets by name.</td> </tr> </tbody>
+</table> <h3 id="sample-request-1">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  https://app.terraform.io/api/v2/organizations/my-organization/policy-sets
+</pre>
+<h3 id="sample-response-1">  Sample Response </h3> <pre data-language="json">{
+  "data": [
+    {
+      "id":"polset-3yVQZvHzf5j3WRJ1",
+      "type":"policy-sets",
+      "attributes": {
+        "name": "production",
+        "description": "This set contains policies that should be checked on all production infrastructure workspaces.",
+        "global": false,
+        "workspace-count": 1,
+        "policies-path": "/policy-sets/foo",
+        "versioned": true,
+        "vcs-repo": {
+          "branch": "master",
+          "identifier": "hashicorp/my-policy-sets",
+          "ingress-submodules": false,
+          "oauth-token-id": "ot-7Fr9d83jWsi8u23A"
+        },
+        "created-at": "2018-09-11T18:21:21.784Z",
+        "updated-at": "2018-09-11T18:21:21.784Z"
+      },
+      "relationships": {
+        "organization": {
+          "data": { "id": "my-organization", "type": "organizations" }
+        },
+        "workspaces": {
+          "data": [
+            { "id": "ws-2HRvNs49EWPjDqT1", "type": "workspaces" }
+          ]
+        }
+      },
+      "links": {
+        "self":"/api/v2/policy-sets/polset-3yVQZvHzf5j3WRJ1"
+      }
+    }
+  ]
+}
+</pre>
+<h3 id="sample-response-with-individual-policy-relationships-deprecated--1">  Sample response with individual policy relationships (deprecated) </h3> <pre data-language="json">{
+  "data": [
+    {
+      "id":"polset-3yVQZvHzf5j3WRJ1",
+      "type":"policy-sets",
+      "attributes": {
+        "name": "production",
+        "description": "This set contains policies that should be checked on all production infrastructure workspaces.",
+        "global": false,
+        "policy-count": 1,
+        "workspace-count": 1,
+        "versioned": false,
+        "created-at": "2018-09-11T18:21:21.784Z",
+        "updated-at": "2018-09-11T18:21:21.784Z"
+      },
+      "relationships": {
+        "organization": {
+          "data": { "id": "my-organization", "type": "organizations" }
+        },
+        "policies": {
+          "data": [
+            { "id": "pol-u3S5p2Uwk21keu1s", "type": "policies" }
+          ]
+        },
+        "workspaces": {
+          "data": [
+            { "id": "ws-2HRvNs49EWPjDqT1", "type": "workspaces" }
+          ]
+        }
+      },
+      "links": {
+        "self":"/api/v2/policy-sets/polset-3yVQZvHzf5j3WRJ1"
+      }
+    },
+  ]
+}
+</pre>
+<h2 id="show-a-policy-set">  Show a Policy Set </h2> <p><code>GET /policy-sets/:id</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:id</code></td> <td>The ID of the policy set to show. Use the "List Policy Sets" endpoint to find IDs.</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "policy-sets"</code>)</td> <td>The request was successful</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Policy set not found or user unauthorized to perform action</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>include</code></td> <td>
+<strong>Optional.</strong> Allows including related resource data. Value must be a comma-separated list containing one or more of <code>workspaces</code>, <code>policies</code>, <code>newest_version</code>, or <code>current_version</code>. See the <a href="#relationships">relationships section</a> for details.</td> </tr> </tbody>
+</table> <h3 id="sample-request-2">  Sample Request </h3> <pre data-language="shell">curl --request GET \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/vnd.api+json" \
+  https://app.terraform.io/api/v2/policy-sets/polset-3yVQZvHzf5j3WRJ1?include=current_version
+</pre>
+<h3 id="sample-response-2">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id":"polset-3yVQZvHzf5j3WRJ1",
+    "type":"policy-sets",
+    "attributes": {
+      "name": "production",
+      "description": "This set contains policies that should be checked on all production infrastructure workspaces.",
+      "global": false,
+      "policy-count": 0,
+      "workspace-count": 1,
+      "policies-path": "/policy-sets/foo",
+      "versioned": true,
+      "vcs-repo": {
+        "branch": "master",
+        "identifier": "hashicorp/my-policy-sets",
+        "ingress-submodules": false,
+        "oauth-token-id": "ot-7Fr9d83jWsi8u23A"
+      },
+      "created-at": "2018-09-11T18:21:21.784Z",
+      "updated-at": "2018-09-11T18:21:21.784Z"
+    },
+    "relationships": {
+      "organization": {
+        "data": { "id": "my-organization", "type": "organizations" }
+      },
+      "current-version": {
+        "data": {
+          "id": "polsetver-m4yhbUBCgyDVpDL4",
+          "type": "policy-set-versions"
+        }
+      },
+      "workspaces": {
+        "data": [
+          { "id": "ws-2HRvNs49EWPjDqT1", "type": "workspaces" }
+        ]
+      }
+    },
+    "links": {
+      "self":"/api/v2/policy-sets/polset-3yVQZvHzf5j3WRJ1"
+    }
+  },
+  "included": [
+    {
+      "id": "polsetver-m4yhbUBCgyDVpDL4",
+      "type": "policy-set-versions",
+      "attributes": {
+        "source": "github",
+        "status": "ready",
+        "status-timestamps": {
+          "ready-at": "2019-06-21T21:29:48+00:00",
+          "ingressing-at": "2019-06-21T21:29:47+00:00"
+        },
+        "error": null,
+        "ingress-attributes": {
+          "commit-sha": "8766a423cb902887deb0f7da4d9beaed432984bb",
+          "commit-url": "https://github.com/hashicorp/my-policy-sets/commit/8766a423cb902887deb0f7da4d9beaed432984bb",
+          "identifier": "hashicorp/my-policy-sets"
+        },
+        "created-at": "2019-06-21T21:29:47.792Z",
+        "updated-at": "2019-06-21T21:29:48.887Z"
+      },
+      "relationships": {
+        "policy-set": {
+          "data": {
+            "id": "polset-a2mJwtmKygrA11dh",
+            "type": "policy-sets"
+          }
+        }
+      },
+      "links": {
+        "self": "/api/v2/policy-set-versions/polsetver-E4S7jz8HMjBienLS"
+      }
+    }
+  ]
+}
+</pre>
+<h3 id="sample-response-with-individual-policy-relationships-deprecated--2">  Sample response with individual policy relationships (deprecated) </h3> <pre data-language="json">{
+  "data": {
+    "id":"polset-3yVQZvHzf5j3WRJ1",
+    "type":"policy-sets",
+    "attributes": {
+      "name": "production",
+      "description": "This set contains policies that should be checked on all production infrastructure workspaces.",
+      "global": false,
+      "policy-count": 1,
+      "workspace-count": 1,
+      "versioned": false,
+      "created-at": "2018-09-11T18:21:21.784Z",
+      "updated-at": "2018-09-11T18:21:21.784Z",
+    },
+    "relationships": {
+      "organization": {
+        "data": { "id": "my-organization", "type": "organizations" }
+      },
+      "policies": {
+        "data": [
+          { "id": "pol-u3S5p2Uwk21keu1s", "type": "policies" }
+        ]
+      },
+      "workspaces": {
+        "data": [
+          { "id": "ws-2HRvNs49EWPjDqT1", "type": "workspaces" }
+        ]
+      }
+    },
+    "links": {
+      "self":"/api/v2/policy-sets/polset-3yVQZvHzf5j3WRJ1"
+    }
+  }
+}
+</pre>
+<blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> The <code>data.relationships.workspaces</code> object refers to workspaces directly attached to the policy set. This key is omitted for policy sets marked as global, which are implicitly related to all of the organization's workspaces.</p> </blockquote> <h2 id="update-a-policy-set">  Update a Policy Set </h2> <p><code>PATCH /policy-sets/:id</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:id</code></td> <td>The ID of the policy set to update. Use the "List Policy Sets" endpoint to find IDs.</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "policy-sets"</code>)</td> <td>The request was successful</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Policy set not found or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Malformed request body (missing attributes, wrong types, etc.)</td> </tr> </tbody>
+</table> <h3 id="request-body-1">  Request Body </h3> <p>This PATCH endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"policy-sets"</code>.</td> </tr> <tr> <td><code>data.attributes.name</code></td> <td>string</td> <td>(previous value)</td> <td>The name of the policy set. Can include letters, numbers, <code>-</code>, and <code>_</code>.</td> </tr> <tr> <td><code>data.attributes.description</code></td> <td>string</td> <td>(previous value)</td> <td>A description of the set's purpose. This field supports Markdown and will be rendered in the Terraform Cloud UI.</td> </tr> <tr> <td><code>data.attributes.global</code></td> <td>boolean</td> <td>(previous value)</td> <td>Whether or not this policies in this set should be checked on all of the organization's workspaces, or only on workspaces directly attached to the set.</td> </tr> <tr> <td><code>data.attributes.vcs-repo</code></td> <td>object</td> <td>(previous value)</td> <td>VCS repository information. When present, the policies and configuration will be sourced from the specified VCS repository instead of being defined within Terraform Cloud. Note that this option and <code>policies</code> relationships are mutually exclusive and may not be used simultaneously.</td> </tr> <tr> <td><code>data.attributes.vcs-repo.branch</code></td> <td>string</td> <td>(previous value)</td> <td>The branch of the VCS repo. If empty, the VCS provider's default branch value will be used.</td> </tr> <tr> <td><code>data.attributes.vcs-repo.identifier</code></td> <td>string</td> <td>(previous value)</td> <td>The identifier of the VCS repository in the format <code>&lt;namespace&gt;/&lt;repo&gt;</code>. For example, on GitHub, this would be something like <code>hashicorp/my-policy-set</code>. The format for Azure DevOps is <code>&lt;org&gt;/&lt;project&gt;/_git/&lt;repo&gt;</code>.</td> </tr> <tr> <td><code>data.attributes.vcs-repo.oauth-token-id</code></td> <td>string</td> <td>(previous value)</td> <td>The OAuth Token ID to use to connect to the VCS host.</td> </tr> <tr> <td><code>data.attributes.vcs-repo.ingress-submodules</code></td> <td>boolean</td> <td>(previous value)</td> <td>Determines whether repository submodules will be instantiated during the clone operation.</td> </tr> <tr> <td><code>data.attributes.policies-path</code></td> <td>boolean</td> <td>(previous value)</td> <td>The subdirectory of the attached VCS repository that contains the policies for this policy set. Files and directories outside of this sub-path will be ignored, and changes to those unrelated files won't cause the policy set to be updated. This option may only be specified when a VCS repo is present.</td> </tr> </tbody>
+</table> <h3 id="sample-payload-1">  Sample Payload </h3> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "name": "a-global-set",
+      "description": "**WARNING:** Any policies added to this set will be checked in _all_ workspaces!",
+      "global": true
+    },
+    "type": "policy-sets"
+  }
+}
+</pre>
+<h3 id="sample-request-3">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request PATCH \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/policy-sets/polset-3yVQZvHzf5j3WRJ1
+</pre>
+<h3 id="sample-response-3">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id":"polset-3yVQZvHzf5j3WRJ1",
+    "type":"policy-sets",
+    "attributes": {
+      "name": "a-global-set",
+      "description": "**WARNING:** Any policies added to this set will be checked in _all_ workspaces!",
+      "global": true,
+      "policy-count": 1,
+      "workspace-count": 4,
+      "versioned": false,
+      "created-at": "2018-09-11T18:21:21.784Z",
+      "updated-at": "2018-09-11T18:21:21.784Z"
+    },
+    "relationships": {
+      "organization": {
+        "data": { "id": "my-organization", "type": "organizations" }
+      },
+      "policies": {
+        "data": [
+          { "id": "pol-u3S5p2Uwk21keu1s", "type": "policies" }
+        ]
+      }
+    },
+    "links": {
+      "self":"/api/v2/policy-sets/polset-3yVQZvHzf5j3WRJ1"
+    }
+  }
+}
+</pre>
+<h2 id="add-policies-to-the-policy-set">  Add Policies to the Policy Set </h2> <p><code>POST /policy-sets/:id/relationships/policies</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:id</code></td> <td>The ID of the policy set to add policies to. Use the "List Policy Sets" endpoint to find IDs.</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204">204</a></td> <td>Nothing</td> <td>The request was successful</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Policy set not found or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Malformed request body (one or more policies not found, wrong types, etc.)</td> </tr> </tbody>
+</table> <blockquote class="alert alert-warning" role="alert"> <p><strong>Note:</strong> This endpoint may only be used when there is no VCS repository associated with the policy set.</p> </blockquote> <h3 id="request-body-2">  Request Body </h3> <p>This POST endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data[]</code></td> <td>array[object]</td> <td></td> <td>A list of resource identifier objects that defines which policies will be added to the set. These objects must contain <code>id</code> and <code>type</code> properties, and the <code>type</code> property must be <code>policies</code> (e.g. <code>{ "id": "pol-u3S5p2Uwk21keu1s", "type": "policies" }</code>).</td> </tr> </tbody>
+</table> <h3 id="sample-payload-2">  Sample Payload </h3> <pre data-language="json">{
+  "data": [
+    { "id": "pol-u3S5p2Uwk21keu1s", "type": "policies" },
+    { "id": "pol-2HRvNs49EWPjDqT1", "type": "policies" }
+  ]
+}
+</pre>
+<h3 id="sample-request-4">  Sample Request </h3> <pre data-language="shell">curl \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/policy-sets/polset-3yVQZvHzf5j3WRJ1/relationships/policies
+</pre>
+<h2 id="attach-a-policy-set-to-workspaces">  Attach a Policy Set to workspaces </h2> <p><code>POST /policy-sets/:id/relationships/workspaces</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:id</code></td> <td>The ID of the policy set to attach to workspaces. Use the "List Policy Sets" endpoint to find IDs.</td> </tr> </tbody>
+</table> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> Policy sets marked as global cannot be attached to individual workspaces.</p> </blockquote> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204">204</a></td> <td>Nothing</td> <td>The request was successful</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Policy set not found or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Malformed request body (one or more workspaces not found, wrong types, etc.)</td> </tr> </tbody>
+</table> <h3 id="request-body-3">  Request Body </h3> <p>This POST endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data[]</code></td> <td>array[object]</td> <td></td> <td>A list of resource identifier objects that defines the workspaces the policy set will be attached to. These objects must contain <code>id</code> and <code>type</code> properties, and the <code>type</code> property must be <code>workspaces</code> (e.g. <code>{ "id": "ws-2HRvNs49EWPjDqT1", "type": "workspaces" }</code>).</td> </tr> </tbody>
+</table> <h3 id="sample-payload-3">  Sample Payload </h3> <pre data-language="json">{
+  "data": [
+    { "id": "ws-u3S5p2Uwk21keu1s", "type": "workspaces" },
+    { "id": "ws-2HRvNs49EWPjDqT1", "type": "workspaces" }
+  ]
+}
+</pre>
+<h3 id="sample-request-5">  Sample Request </h3> <pre data-language="shell">curl \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/policy-sets/polset-3yVQZvHzf5j3WRJ1/relationships/workspaces
+</pre>
+<h2 id="remove-policies-from-the-policy-set">  Remove Policies from the Policy Set </h2> <p><code>DELETE /policy-sets/:id/relationships/policies</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:id</code></td> <td>The ID of the policy set to remove policies from. Use the "List Policy Sets" endpoint to find IDs.</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204">204</a></td> <td>Nothing</td> <td>The request was successful</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Policy set not found or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Malformed request body (wrong types, etc.)</td> </tr> </tbody>
+</table> <blockquote class="alert alert-warning" role="alert"> <p><strong>Note:</strong> This endpoint may only be used when there is no VCS repository associated with the policy set.</p> </blockquote> <h3 id="request-body-4">  Request Body </h3> <p>This DELETE endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data[]</code></td> <td>array[object]</td> <td></td> <td>A list of resource identifier objects that defines which policies will be removed from the set. These objects must contain <code>id</code> and <code>type</code> properties, and the <code>type</code> property must be <code>policies</code> (e.g. <code>{ "id": "pol-u3S5p2Uwk21keu1s", "type": "policies" }</code>).</td> </tr> </tbody>
+</table> <h3 id="sample-payload-4">  Sample Payload </h3> <pre data-language="json">{
+  "data": [
+    { "id": "pol-u3S5p2Uwk21keu1s", "type": "policies" },
+    { "id": "pol-2HRvNs49EWPjDqT1", "type": "policies" }
+  ]
+}
+</pre>
+<h3 id="sample-request-6">  Sample Request </h3> <pre data-language="shell">curl \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/vnd.api+json" \
+  --request DELETE \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/policy-sets/polset-3yVQZvHzf5j3WRJ1/relationships/policies
+</pre>
+<h2 id="detach-the-policy-set-from-workspaces">  Detach the Policy Set from workspaces </h2> <p><code>DELETE /policy-sets/:id/relationships/workspaces</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:id</code></td> <td>The ID of the policy set to detach from workspaces. Use the "List Policy Sets" endpoint to find IDs.</td> </tr> </tbody>
+</table> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> Policy sets marked as global cannot be detached from individual workspaces.</p> </blockquote> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204">204</a></td> <td>Nothing</td> <td>The request was successful</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Policy set not found or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Malformed request body (wrong types, etc.)</td> </tr> </tbody>
+</table> <h3 id="request-body-5">  Request Body </h3> <p>This DELETE endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data[]</code></td> <td>array[object]</td> <td></td> <td>A list of resource identifier objects that defines which workspaces the policy set will be detached from. These objects must contain <code>id</code> and <code>type</code> properties, and the <code>type</code> property must be <code>workspaces</code> (e.g. <code>{ "id": "ws-2HRvNs49EWPjDqT1", "type": "workspaces" }</code>). Obtain workspace IDs from the <a href="../workspaces/settings">workspace settings</a> or the <a href="workspaces#show-workspace">Show Workspace</a> endpoint.</td> </tr> </tbody>
+</table> <h3 id="sample-payload-5">  Sample Payload </h3> <pre data-language="json">{
+  "data": [
+    { "id": "ws-u3S5p2Uwk21keu1s", "type": "workspaces" },
+    { "id": "ws-2HRvNs49EWPjDqT1", "type": "workspaces" }
+  ]
+}
+</pre>
+<h3 id="sample-request-7">  Sample Request </h3> <pre data-language="shell">curl \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/vnd.api+json" \
+  --request DELETE \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/policy-sets/polset-3yVQZvHzf5j3WRJ1/relationships/workspaces
+</pre>
+<h2 id="delete-a-policy-set">  Delete a Policy Set </h2> <p><code>DELETE /policy-sets/:id</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:id</code></td> <td>The ID of the policy set to delete. Use the "List Policy Sets" endpoint to find IDs.</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204">204</a></td> <td>Nothing</td> <td>Successfully deleted the policy set</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Policy set not found, or user unauthorized to perform action</td> </tr> </tbody>
+</table> <h3 id="sample-request-8">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request DELETE \
+  https://app.terraform.io/api/v2/policy-sets/polset-3yVQZvHzf5j3WRJ1
+</pre>
+<h2 id="create-a-policy-set-version">  Create a Policy Set Version </h2> <p>For versioned policy sets which have no VCS repository attached, versions of policy code may be uploaded directly to the API by creating a new policy set version and, in a subsequent request, uploading a tarball (tar.gz) of data to it.</p> <p><code>POST /policy-sets/:id/versions</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:id</code></td> <td>The ID of the policy set to create a new version for.</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/201">201</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "policy-set-versions"</code>)</td> <td>The request was successful.</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Policy set not found or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>The policy set does not support uploading versions.</td> </tr> </tbody>
+</table> <h3 id="sample-request-9">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  https://app.terraform.io/api/v2/policy-sets/polset-3yVQZvHzf5j3WRJ1/versions
+</pre>
+<h3 id="sample-response-4">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id": "polsetver-cXciu9nQwmk9Cfrn",
+    "type": "policy-set-versions",
+    "attributes": {
+      "source": "tfe-api",
+      "status": "pending",
+      "status-timestamps": {},
+      "error": null,
+      "created-at": "2019-06-28T23:53:15.875Z",
+      "updated-at": "2019-06-28T23:53:15.875Z"
+    },
+    "relationships": {
+      "policy-set": {
+        "data": {
+          "id": "polset-ws1CZBzm2h5K6ZT5",
+          "type": "policy-sets"
+        }
+      }
+    },
+    "links": {
+      "self": "/api/v2/policy-set-versions/polsetver-cXciu9nQwmk9Cfrn",
+      "upload": "https://archivist.terraform.io/v1/object/dmF1bHQ6djE6NWJPbHQ4QjV4R1ox..."
+    }
+  }
+}
+</pre>
+<p>The <code>upload</code> link URL in the above response is valid for one hour after creation. Make a <code>PUT</code> request to this URL directly, sending the policy set contents in <code>tar.gz</code> format as the request body. Once uploaded successfully, you can request the <a href="#show-a-policy-set">Show Policy Set</a> endpoint again to verify that the status has changed from <code>pending</code> to <code>ready</code>.</p> <h2 id="upload-policy-set-versions">  Upload Policy Set Versions </h2> <p><code>PUT https://archivist.terraform.io/v1/object/&lt;UNIQUE OBJECT ID&gt;</code></p> <p>The URL is provided in the <code>upload</code> attribute in the <code>policy-set-versions</code> resource.</p> <h3 id="sample-request-10">  Sample Request </h3> <p>In the example below, <code>policy-set.tar.gz</code> is the local filename of the policy set version file to upload.</p> <pre data-language="shell">curl \
+  --header "Content-Type: application/octet-stream" \
+  --request PUT \
+  --data-binary @policy-set.tar.gz \
+  https://archivist.terraform.io/v1/object/dmF1bHQ6djE6NWJPbHQ4QjV4R1ox...
+</pre>
+<h2 id="show-a-policy-set-version">  Show a Policy Set Version </h2> <p><code>GET /policy-set-versions/:id</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:id</code></td> <td>The ID of the policy set version to show.</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "policy-set-versions"</code>)</td> <td>The request was successful.</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Policy set version not found or user unauthorized to perform action</td> </tr> </tbody>
+</table> <h3 id="sample-request-11">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --request GET \
+  https://app.terraform.io/api/v2/policy-set-versions/polsetver-cXciu9nQwmk9Cfrn
+</pre>
+<h3 id="sample-response-5">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id": "polsetver-cXciu9nQwmk9Cfrn",
+    "type": "policy-set-versions",
+    "attributes": {
+      "source": "tfe-api",
+      "status": "pending",
+      "status-timestamps": {},
+      "error": null,
+      "created-at": "2019-06-28T23:53:15.875Z",
+      "updated-at": "2019-06-28T23:53:15.875Z"
+    },
+    "relationships": {
+      "policy-set": {
+        "data": {
+          "id": "polset-ws1CZBzm2h5K6ZT5",
+          "type": "policy-sets"
+        }
+      }
+    },
+    "links": {
+      "self": "/api/v2/policy-set-versions/polsetver-cXciu9nQwmk9Cfrn",
+      "upload": "https://archivist.terraform.io/v1/object/dmF1bHQ6djE6NWJPbHQ4QjV4R1ox..."
+    }
+  }
+}
+</pre>
+<p>The <code>upload</code> link URL in the above response is valid for one hour after the <code>created_at</code> timestamp of the policy set version. Make a <code>PUT</code> request to this URL directly, sending the policy set contents in <code>tar.gz</code> format as the request body. Once uploaded successfully, you can request the <a href="#show-a-policy-set-version">Show Policy Set Version</a> endpoint again to verify that the status has changed from <code>pending</code> to <code>ready</code>.</p> <h2 id="relationships">  Relationships </h2> <p>The following relationships may be present in various responses:</p> <ul> <li>
+<a href="#workspaces"><code>workspaces</code></a>: The workspaces to which the policy set applies. </li> <li>
+<a href="#policies"><code>policies</code></a>: Individually managed policies which are associated with the policy set. </li> <li>
+<a href="#newest-version"><code>newest-version</code></a>: The most recently created policy set version, regardless of status. Note that this relationship may include an errored and unusable version, and is intended to allow checking for VCS errors. </li> <li>
+<a href="#current-version"><code>current-version</code></a>: The most recent <strong>successful</strong> policy set version. </li> </ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/cloud/api/policy-sets.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/cloud/api/policy-sets.html</a>
+  </p>
+</div>

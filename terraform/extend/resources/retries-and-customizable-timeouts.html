@@ -1,0 +1,96 @@
+ <h1 id="resources-retries-and-customizable-timeouts">  Resources - Retries and Customizable Timeouts </h1> <p>The reality of cloud infrastructure is that it typically takes time to perform operations such as booting operating systems, discovering services, and replicating state across network edges. As the provider developer you should take known delays in resource APIs into account in the CRUD functions of the resource. Terraform supports configurable timeouts to assist in these situations.</p> <pre>package example
+
+import (
+    "fmt"
+
+    "github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+    "github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+)
+
+func resourceExampleInstance() *schema.Resource {
+    return &amp;schema.Resource{
+        Create: resourceExampleInstanceCreate,
+        Read:   resourceExampleInstanceRead,
+        Update: resourceExampleInstanceUpdate,
+        Delete: resourceExampleInstanceDelete,
+
+        Schema: map[string]*schema.Schema{
+            "name": {
+                Type:     schema.TypeString,
+                Required: true,
+            },
+        },
+        Timeouts: &amp;schema.ResourceTimeout{
+            Create: schema.DefaultTimeout(45 * time.Minute),
+        },
+    }
+}
+</pre>
+<p>In the above example we see the usage of the timeouts in the schema being configured for what is deemed the appropriate amount of time for the <code>Create</code> function. <code>Read</code>, <code>Update</code>, and <code>Delete</code> are also configurable as well as a <code>Default</code>. These configured timeouts can be fetched later in the CRUD functions from the passed in <code>*schema.ResourceData</code>.</p> <h2 id="retry">  Retry </h2> <p>The retry helper takes a timeout and a retry function.</p> <ul> <li>The <strong>timeout</strong> value specifies the maximum time Terraform will invoke the retry function. You can retrieve the timeout from the <code>*schema.ResourceData</code> struct by passing the timeout key (<code>schema.TimeoutCreate</code>) to the <code>Timeout</code> method. </li> <li>The <strong>retry function</strong> returns either a <code>resource.NonRetryableError</code> for unexpected errors/states or a <code>resource.RetryableError</code> for expected errrors/states. If the function returns a <code>resource.RetryableError</code>, it will re-run the function. </li> </ul> <p>In the context of a <code>CREATE</code> function, once the backend responds with the desired state, invoke the <code>READ</code> function. If <code>READ</code> errors, return that error wrapped with <code>resource.NonRetryableError</code>. Otherwise, return <code>nil</code> (no error) from the retry function.</p> <pre>func resourceExampleInstanceCreate(d *schema.ResourceData, meta interface{}) error {
+    name := d.Get("name").(string)
+    client := meta.(*ExampleClient)
+    resp, err := client.CreateInstance(name)
+
+    if err != nil {
+        return fmt.Errorf("Error creating instance: %s", err)
+    }
+
+    return resource.Retry(d.Timeout(schema.TimeoutCreate), func() *resource.RetryError {
+        resp, err := client.DescribeInstance(name)
+
+        if err != nil {
+            return resource.NonRetryableError(fmt.Errorf("Error describing instance: %s", err))
+        }
+
+        if resp.Status != "CREATED" {
+            return resource.RetryableError(fmt.Errorf("Expected instance to be created but was in state %s", resp.Status))
+        }
+
+        err = resourceExampleInstanceRead(d, meta)
+        if err != nil {
+            return resource.NonRetryableError(err)
+        } else {
+            return nil
+        }
+    })
+}
+</pre>
+<h2 id="statechangeconf">  StateChangeConf </h2> <p><code>resource.Retry</code> is useful for simple scenarios, particularly when the API response is either success or failure, but sometimes handling an APIs latency or eventual consistency requires more fine tuning. <code>resource.Retry</code> is in fact a wrapper for a another helper: <code>resource.StateChangeConf</code>.</p> <p>Use <code>resource.StateChangeConf</code> when your resource has multiple states to progress though, you require fine grained control of retry and delay timing, or you want to ensure a minimum number of occurrences of a target state is reached (this is very common when dealing with eventually consistent APIs, where a response can reply back with an old state between calls before becoming consistent).</p> <pre>func resourceExampleInstanceCreate(d *schema.ResourceData, meta interface{}) error {
+    name := d.Get("name").(string)
+    client := meta.(*ExampleClient)
+    resp, err := client.CreateInstance(name)
+
+    createStateConf := &amp;resource.StateChangeConf{
+        Pending: []string{
+            client.ExampleInstanceStateRequesting,
+            client.ExampleInstanceStatePending,
+            client.ExampleInstanceStateCreating,
+            client.ExampleInstanceStateVerifying,
+        },
+        Target: []string{
+            client.ExampleInstanceStateCreateComplete,
+        },
+        Refresh: func() (interface{}, string, error) {
+            resp, err := client.DescribeInstance(name)
+            if err != nil {
+                0, "", err
+            }
+            return resp, resp.Status, nil
+        },
+        Timeout:    d.Timeout(schema.TimeoutCreate),
+        Delay:      10 * time.Second,
+        MinTimeout: 5 * time.Second,
+        ContinuousTargetOccurence: 5,
+    }
+    _, err = createStateConf.WaitForState()
+    if err != nil {
+        return fmt.Errorf("Error waiting for example instance (%s) to be created: %s", d.Id(), err)
+    }
+
+    return resourceExampleInstanceRead(d, meta)
+}
+</pre><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/extend/resources/retries-and-customizable-timeouts.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/extend/resources/retries-and-customizable-timeouts.html</a>
+  </p>
+</div>

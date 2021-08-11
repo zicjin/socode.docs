@@ -1,0 +1,64 @@
+ <div class="theme-default-content content__default">
+<h1 id="events-api"> Events API <div class="migration-badge-wrapper" data-v-cb310528><span class="migration-badge is-breaking" data-v-cb310528> breaking </span></div>
+</h1> <h2 id="overview"> Overview</h2> <p><code>$on</code>, <code>$off</code> and <code>$once</code> instance methods are removed. Component instances no longer implement the event emitter interface.</p> <h2 id="_2-x-syntax"> 2.x Syntax</h2> <p>In 2.x, a Vue instance could be used to trigger handlers attached imperatively via the event emitter API (<code>$on</code>, <code>$off</code> and <code>$once</code>). This could be used to create an <em>event bus</em> to create global event listeners used across the whole application:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">// eventBus.js
+
+const eventBus = new Vue()
+
+export default eventBus</pre> </div>
+<div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">// ChildComponent.vue
+import eventBus from './eventBus'
+
+export default {
+  mounted() {
+    // adding eventBus listener
+    eventBus.$on('custom-event', () =&gt; {
+      console.log('Custom event triggered!')
+    })
+  },
+  beforeDestroy() {
+    // removing eventBus listener
+    eventBus.$off('custom-event')
+  }
+}</pre> </div>
+<div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">// ParentComponent.vue
+import eventBus from './eventBus'
+
+export default {
+  methods: {
+    callGlobalCustomEvent() {
+      eventBus.$emit('custom-event') // if ChildComponent is mounted, we will have a message in the console
+    }
+  }
+}</pre> </div>
+<h2 id="_3-x-update"> 3.x Update</h2> <p>We removed <code>$on</code>, <code>$off</code> and <code>$once</code> methods from the instance completely. <code>$emit</code> is still a part of the existing API as it's used to trigger event handlers declaratively attached by a parent component.</p> <h2 id="migration-strategy"> Migration Strategy</h2> <p><a href="migration-build#compat-configuration">Migration build flag: <code>INSTANCE_EVENT_EMITTER</code></a></p> <p>In Vue 3, it is no longer possible to use these APIs to listen to a component's own emitted events from within a component. There is no migration path for that use case.</p> <h3 id="root-component-events"> Root Component Events</h3> <p>Static event listeners can be added to the root component by passing them as props to <code>createApp</code>:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">createApp(App, {
+  // Listen for the 'expand' event
+  onExpand() {
+    console.log('expand')
+  }
+})</pre> </div>
+<h3 id="event-bus"> Event Bus</h3> <p>The event bus pattern can be replaced by using an external library implementing the event emitter interface, for example <a href="https://github.com/developit/mitt" target="_blank" rel="noopener noreferrer">mitt<span> <span class="sr-only">(opens new window)</span></span></a> or <a href="https://github.com/scottcorgan/tiny-emitter" target="_blank" rel="noopener noreferrer">tiny-emitter<span> <span class="sr-only">(opens new window)</span></span></a>.</p> <p>Example:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">// eventBus.js
+import emitter from 'tiny-emitter/instance'
+
+export default {
+  $on: (...args) =&gt; emitter.on(...args),
+  $once: (...args) =&gt; emitter.once(...args),
+  $off: (...args) =&gt; emitter.off(...args),
+  $emit: (...args) =&gt; emitter.emit(...args)
+}</pre> </div>
+<p>This provides the same event emitter API as in Vue 2.</p> <p>In most circumstances, using a global event bus for communicating between components is discouraged. While it is often the simplest solution in the short term, it almost invariably proves to be a maintenance headache in the long term. Depending on the circumstances, there are various alternatives to using an event bus:</p> <ul>
+<li>
+<a href="../component-basics#passing-data-to-child-components-with-props">Props</a> and <a href="../component-basics#listening-to-child-components-events">events</a> should be your first choice for parent-child communication. Siblings can communicate via their parent.</li> <li>
+<a href="../component-provide-inject">Provide and inject</a> allow a component to communicate with its slot contents. This is useful for tightly-coupled components that are always used together.</li> <li>
+<code>provide</code>/<code>inject</code> can also be used for long-distance communication between components. It can help to avoid 'prop drilling', where props need to be passed down through many levels of components that don't need those props themselves.</li> <li>Prop drilling can also be avoided by refactoring to use slots. If an interim component doesn't need the props then it might indicate a problem with separation of concerns. Introducing a slot in that component allows the parent to create the content directly, so that props can be passed without the interim component needing to get involved.</li> <li>
+<a href="../state-management">Global state management</a>, such as <a href="https://next.vuex.vuejs.org/" target="_blank" rel="noopener noreferrer">Vuex<span> <span class="sr-only">(opens new window)</span></span></a>.</li>
+</ul>
+</div>   <div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://v3.vuejs.org/guide/migration/events-api.html" class="_attribution-link" target="_blank">https://v3.vuejs.org/guide/migration/events-api.html</a>
+  </p>
+</div>

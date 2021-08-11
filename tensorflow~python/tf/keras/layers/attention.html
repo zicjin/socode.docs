@@ -1,0 +1,57 @@
+<h1 class="devsite-page-title">tf.keras.layers.Attention</h1>     <div itemscope itemtype="http://developers.google.com/ReferenceObject"> <meta itemprop="name" content="tf.keras.layers.Attention"> <meta itemprop="path" content="Stable"> <meta itemprop="property" content="__init__"> </div>   <table class="tfo-notebook-buttons tfo-api" align="left"> <td> <a target="_blank" href="https://www.tensorflow.org/versions/r1.15/api_docs/python/tf/keras/layers/Attention">  TensorFlow 1 version</a> </td> <td> <a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/keras/layers/dense_attention.py#L187-L313">  View source on GitHub </a> </td>
+</table>  <h2 id="class_attention_2">Class <code translate="no" dir="ltr">Attention</code>
+</h2> <p>Dot-product attention layer, a.k.a. Luong-style attention.</p>  <p>Inputs are <code translate="no" dir="ltr">query</code> tensor of shape <code translate="no" dir="ltr">[batch_size, Tq, dim]</code>, <code translate="no" dir="ltr">value</code> tensor of shape <code translate="no" dir="ltr">[batch_size, Tv, dim]</code> and <code translate="no" dir="ltr">key</code> tensor of shape <code translate="no" dir="ltr">[batch_size, Tv, dim]</code>. The calculation follows the steps:</p> <ol> <li>Calculate scores with shape <code translate="no" dir="ltr">[batch_size, Tq, Tv]</code> as a <code translate="no" dir="ltr">query</code>-<code translate="no" dir="ltr">key</code> dot product: <code translate="no" dir="ltr">scores = tf.matmul(query, key, transpose_b=True)</code>.</li> <li>Use scores to calculate a distribution with shape <code translate="no" dir="ltr">[batch_size, Tq, Tv]</code>: <code translate="no" dir="ltr">distribution = tf.nn.softmax(scores)</code>.</li> <li>Use <code translate="no" dir="ltr">distribution</code> to create a linear combination of <code translate="no" dir="ltr">value</code> with shape <code translate="no" dir="ltr">batch_size, Tq, dim]</code>: <code translate="no" dir="ltr">return tf.matmul(distribution, value)</code>.</li> </ol> <h4 id="args_2">Args:</h4> <ul> <li>
+<b><code translate="no" dir="ltr">use_scale</code></b>: If <code translate="no" dir="ltr">True</code>, will create a scalar variable to scale the attention scores.</li> <li>
+<b><code translate="no" dir="ltr">causal</code></b>: Boolean. Set to <code translate="no" dir="ltr">True</code> for decoder self-attention. Adds a mask such that position <code translate="no" dir="ltr">i</code> cannot attend to positions <code translate="no" dir="ltr">j &gt; i</code>. This prevents the flow of information from the future towards the past.</li> </ul> <h4 id="call_arguments_2">Call Arguments:</h4> <ul> <li>
+<b><code translate="no" dir="ltr">inputs</code></b>: List of the following tensors: <ul> <li>query: Query <code translate="no" dir="ltr">Tensor</code> of shape <code translate="no" dir="ltr">[batch_size, Tq, dim]</code>.</li> <li>value: Value <code translate="no" dir="ltr">Tensor</code> of shape <code translate="no" dir="ltr">[batch_size, Tv, dim]</code>.</li> <li>key: Optional key <code translate="no" dir="ltr">Tensor</code> of shape <code translate="no" dir="ltr">[batch_size, Tv, dim]</code>. If not given, will use <code translate="no" dir="ltr">value</code> for both <code translate="no" dir="ltr">key</code> and <code translate="no" dir="ltr">value</code>, which is the most common case.</li> </ul>
+</li> <li>
+<b><code translate="no" dir="ltr">mask</code></b>: List of the following tensors: <ul> <li>query_mask: A boolean mask <code translate="no" dir="ltr">Tensor</code> of shape <code translate="no" dir="ltr">[batch_size, Tq]</code>. If given, the output will be zero at the positions where <code translate="no" dir="ltr">mask==False</code>.</li> <li>value_mask: A boolean mask <code translate="no" dir="ltr">Tensor</code> of shape <code translate="no" dir="ltr">[batch_size, Tv]</code>. If given, will apply the mask such that values at positions where <code translate="no" dir="ltr">mask==False</code> do not contribute to the result.</li> </ul>
+</li> </ul> <h4 id="output_shape_2">Output shape:</h4> <p>Attention outputs of shape <code translate="no" dir="ltr">[batch_size, Tq, dim]</code>.</p> <p>The meaning of <code translate="no" dir="ltr">query</code>, <code translate="no" dir="ltr">value</code> and <code translate="no" dir="ltr">key</code> depend on the application. In the case of text similarity, for example, <code translate="no" dir="ltr">query</code> is the sequence embeddings of the first piece of text and <code translate="no" dir="ltr">value</code> is the sequence embeddings of the second piece of text. <code translate="no" dir="ltr">key</code> is usually the same tensor as <code translate="no" dir="ltr">value</code>.</p> <p>Here is a code example for using <code translate="no" dir="ltr">Attention</code> in a CNN+Attention network:</p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python"># Variable-length int sequences.
+query_input = tf.keras.Input(shape=(None,), dtype='int32')
+value_input = tf.keras.Input(shape=(None,), dtype='int32')
+
+# Embedding lookup.
+token_embedding = tf.keras.layers.Embedding(max_tokens, dimension)
+# Query embeddings of shape [batch_size, Tq, dimension].
+query_embeddings = token_embedding(query_input)
+# Value embeddings of shape [batch_size, Tv, dimension].
+value_embeddings = token_embedding(query_input)
+
+# CNN layer.
+cnn_layer = tf.keras.layers.Conv1D(
+    filters=100,
+    kernel_size=4,
+    # Use 'same' padding so outputs have the same shape as inputs.
+    padding='same')
+# Query encoding of shape [batch_size, Tq, filters].
+query_seq_encoding = cnn_layer(query_embeddings)
+# Value encoding of shape [batch_size, Tv, filters].
+value_seq_encoding = cnn_layer(value_embeddings)
+
+# Query-value attention of shape [batch_size, Tq, filters].
+query_value_attention_seq = tf.keras.layers.Attention()(
+    [query_seq_encoding, value_seq_encoding])
+
+# Reduce over the sequence axis to produce encodings of shape
+# [batch_size, filters].
+query_encoding = tf.keras.layers.GlobalAveragePooling1D()(
+    query_seq_encoding)
+query_value_attention = tf.keras.layers.GlobalAveragePooling1D()(
+    query_value_attention_seq)
+
+# Concatenate query and document encodings to produce a DNN input layer.
+input_layer = tf.keras.layers.Concatenate()(
+    [query_encoding, query_value_attention])
+
+# Add DNN layers, and create Model.
+# ...
+</pre> <h2 id="__init__"><code translate="no" dir="ltr">__init__</code></h2> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/keras/layers/dense_attention.py#L279-L281">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">__init__(
+    use_scale=False,
+    **kwargs
+)
+</pre> <h2 id="compat_aliases_2">Compat aliases</h2> <ul> <li><a href="attention"><code translate="no" dir="ltr">tf.compat.v1.keras.layers.Attention</code></a></li> <li><a href="attention"><code translate="no" dir="ltr">tf.compat.v2.keras.layers.Attention</code></a></li> </ul>  <devsite-page-rating position="footer" selected-rating="0" hover-rating-star="0"> </devsite-page-rating><div class="_attribution">
+  <p class="_attribution-p">
+    &copy; 2019 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/api_docs/python/tf/keras/layers/Attention" class="_attribution-link">https://www.tensorflow.org/api_docs/python/tf/keras/layers/Attention</a>
+  </p>
+</div>

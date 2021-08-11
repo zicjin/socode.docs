@@ -1,0 +1,107 @@
+ <h1 id="defining-policies">  Defining Policies </h1> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> Sentinel policies are a paid feature, available as part of the <strong>Team &amp; Governance</strong> upgrade package. <a href="https://www.hashicorp.com/products/terraform/pricing">Learn more about Terraform Cloud pricing here</a>.</p> </blockquote> <p>Sentinel Policies for Terraform are defined using the <a href="https://docs.hashicorp.com/sentinel/language">Sentinel policy language</a>. A policy can include <a href="https://docs.hashicorp.com/sentinel/concepts/imports">imports</a> which enable a policy to access reusable libraries, external data and functions. Terraform Cloud provides four imports to define policy rules for the plan, configuration, state, and run associated with a policy check.</p> <ul> <li>
+<a href="tfplan">tfplan</a> - This provides access to a Terraform plan, the file created as a result of <code>terraform plan</code>. The plan represents the changes that Terraform needs to make to infrastructure to reach the desired state represented by the configuration. </li> <li>
+<a href="tfconfig">tfconfig</a> - This provides access to a Terraform configuration, the set of "tf" files that are used to describe the desired infrastructure state. </li> <li>
+<a href="tfstate">tfstate</a> - This provides access to the Terraform state, the file used by Terraform to map real world resources to your configuration. </li> <li>
+<a href="tfrun">tfrun</a> - This provides access to data associated with a run in Terraform Cloud, such as the run's workspace. </li> </ul> <p>Terraform Cloud allows you to create mocks of these imports from plans for use with the mocking or testing features of the <a href="https://docs.hashicorp.com/sentinel/commands">Sentinel CLI</a>. For more information, see <a href="../mock">Mocking Terraform Sentinel Data</a>.</p> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> Terraform Cloud does not currently support custom imports.</p> </blockquote> <h2 id="useful-functions-and-idioms-for-terraform-sentinel-policies">  Useful Functions and Idioms for Terraform Sentinel Policies </h2> <p>The following functions and idioms will be useful as you start writing Sentinel policies for Terraform.</p> <h3 id="iterate-over-modules-and-find-resources">  Iterate over Modules and Find Resources </h3> <p>The most basic Sentinel task for Terraform is to enforce a rule on all resources of a given type. Before you can do that, you need to get a collection of all the relevant resources from all modules. The easiest way to do that is to copy and use a function like the following into your policies:</p> <pre>import "tfplan"
+import "strings"
+
+# Find all resources of specific type from all modules using the tfplan import
+find_resources_from_plan = func(type) {
+    resources = {}
+    for tfplan.module_paths as path {
+        for tfplan.module(path).resources[type] else {} as name, instances {
+            for instances as index, r {
+                # Get the address of the resource instance
+                if length(path) == 0 {
+                    # root module
+                    address = type + "." + name + "[" + string(index) + "]"
+                } else {
+                    # non-root module
+                    address = "module." + strings.join(path, ".module.") + "." +
+                              type + "." + name + "[" + string(index) + "]"
+                }
+                # Add the instance to resources, setting the key to the address
+                resources[address] = r
+            }
+        }
+    }
+    return resources
+}
+</pre>
+<blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> This example uses the <code>tfplan</code> import. You can find similar functions that iterate over the <code>tfconfig</code> and <code>tfstate</code> imports <a href="https://github.com/hashicorp/terraform-guides/tree/master/governance/second-generation/common-functions">here</a>.</p> </blockquote> <p>You can call this function to get all resources of a desired type by passing the type as a string in quotes:</p> <pre>aws_instances = find_resources_from_plan("aws_instance")
+</pre>
+<p>This example function does several useful things while finding resources:</p> <ul> <li>It checks every module (including the root module) for resources of the specified type by iterating over the <code>module_paths</code> namespace. The top-level <code>resources</code> namespace is more convenient, but it only reveals resources from the root module. </li> <li>It iterates over the named resources and <a href="../../../language/expressions/references#resources">resource instances</a> found in each module, starting with <code>tfplan.module(path).resources[type]</code> which is a series of nested maps keyed by resource names and instance counts. </li> <li>It uses the Sentinel <a href="https://docs.hashicorp.com/sentinel/language/spec#else-operator"><code>else</code> operator</a> to recover from <code>undefined</code> values which would occur for modules that don't have any resources of the specified type. </li> <li>It builds a flat <code>resources</code> map of all resource instances of the specified type. Using a flat map simplifies the code used by Sentinel policies to evaluate rules. </li> <li>It computes an <code>address</code> variable for each resource instance and uses this as the key in the <code>resources</code> map. This allows writers of Sentinel policies to print the full <a href="../../../cli/state/resource-addressing">address</a> of each resource instance that violate a policy, using the same address format used in plan and apply logs. Doing this tells users who see violation messages exactly which resources they need to modify in their Terraform code to comply with the Sentinel policies. </li> <li>It sets the value of the <code>resources</code> map to the data associated with the resource instance (<code>r</code>). This is the data that Sentinel policies apply rules against. </li> </ul> <h3 id="validate-resource-attributes">  Validate Resource Attributes </h3> <p>Once you have a collection of resources instances of a desired type indexed by their addresses, you usually want to validate that one or more resource attributes meets some conditions by iterating over the resource instances.</p> <p>While you could use Sentinel's <a href="https://docs.hashicorp.com/sentinel/language/boolexpr#any-all-expressions"><code>all</code> and <code>any</code> expressions</a> directly inside Sentinel rules, your rules would only report the first violation because Sentinel uses short-circuit logic. It is therefore usually preferred to use a <a href="https://docs.hashicorp.com/sentinel/language/loops"><code>for</code> loop</a> outside of your rules so that you can report all violations that occur. You can do this inside functions or directly in the policy itself.</p> <p>Here is a function that calls the <code>find_resources_from_plan</code> function and validates that the instance types of all EC2 instances being provisioned are in a given list:</p> <pre># Validate that all EC2 instances have instance_type in the allowed_types list
+validate_ec2_instance_types = func(allowed_types) {
+    validated = true
+    aws_instances = find_resources_from_plan("aws_instance")
+    for aws_instances as address, r {
+        # Determine if the attribute is computed
+        if r.diff["instance_type"].computed else false is true {
+            print("EC2 instance", address,
+                  "has attribute, instance_type, that is computed.")
+        } else {
+            # Validate that each instance has allowed value
+            if (r.applied.instance_type else "") not in allowed_types {
+                print("EC2 instance", address, "has instance_type",
+                    r.applied.instance_type, "that is not in the allowed list:",
+                    allowed_types)
+                validated = false
+            }
+        }
+    }
+    return validated
+}
+</pre>
+<p>The boolean variable <code>validated</code> is initially set to <code>true</code>, but it is set to <code>false</code> if any resource instance violates the condition requiring that the <code>instance_type</code> attribute be in the <code>allowed_types</code> list. Since the function returns <code>true</code> or <code>false</code>, it can be called inside Sentinel rules.</p> <p>Note that this function prints a warning message for <strong>every</strong> resource instance that violates the condition. This allows writers of Terraform code to fix all violations after just one policy check. It also prints warnings when the attribute being evaluated is <a href="tfplan#value-computed">computed</a> and does not evaluate the condition in this case since the applied value will not be known.</p> <p>While this function allows a rule to validate an attribute against a list, some rules will only need to validate an attribute against a single value; in those cases, you could either use a list with a single value or embed that value inside the function itself, drop the <code>allowed_types</code> parameter from the function definition, and use the <code>is</code> operator instead of the <code>in</code> operator to compare the resource attribute against the embedded value.</p> <h3 id="write-rules">  Write Rules </h3> <p>Having used the standardized <code>find_resources_from_plan</code> function and having written your own function to validate that resources instances of a specific type satisfy some condition, you can define a list with allowed values and write a rule that evaluates the value returned by your validation function.</p> <pre># Allowed Types
+allowed_types = [
+    "t2.small",
+    "t2.medium",
+    "t2.large",
+]
+
+# Main rule
+main = rule {
+    validate_ec2_instance_types(allowed_types)
+}
+
+</pre>
+<h3 id="validate-multiple-conditions-in-a-single-policy">  Validate Multiple Conditions in a Single Policy </h3> <p>If you want a policy to validate multiple conditions against resources of a specific type, you could define a separate validation function for each condition or use a single function to evaluate all the conditions. In the latter case, you would make this function return a list of boolean values, using one for each condition. You can then use multiple Sentinel rules that evaluate those boolean values or evaluate all of them in your <code>main</code> rule. Here is a partial example:</p> <pre># Function to validate that S3 buckets have private ACL and use KMS encryption
+validate_private_acl_and_kms_encryption = func() {
+    result = {
+        "private":          true,
+        "encrypted_by_kms": true,
+    }
+    s3_buckets = find_resources_from_plan("aws_s3_bucket")
+    # Iterate over resource instances and check that S3 buckets
+    # have private ACL and are encrypted by a KMS key
+    # If an S3 bucket is not private, set result["private"] to false
+    # If an S3 bucket is not encrypted, set result["encrypted_by_kms"] to false
+    for s3_buckets as joined_path, resource_map {
+        #...
+    }
+    return result
+}
+
+# Call the validation function
+validations = validate_private_acl_and_kms_encryption()
+
+# ACL rule
+is_private = rule {
+    validations["private"]
+}
+
+# KMS Encryption Rule
+is_encrypted_by_kms = rule {
+    validations["encrypted_by_kms"]
+}
+
+# Main rule
+main = rule {
+    is_private and is_encrypted_by_kms
+}
+</pre>
+<p>Similar functions and policies can be written to restrict Terraform configurations using the tfconfig import and to restrict Terraform state using the tfstate import.</p><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/cloud/sentinel/import/index.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/cloud/sentinel/import/index.html</a>
+  </p>
+</div>

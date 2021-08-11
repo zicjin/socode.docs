@@ -1,0 +1,61 @@
+<p>The <code>webapp</code> package is what lets your Meteor app serve content to a web browser. It is included in the <code>meteor-base</code> set of packages that is automatically added when you run <code>meteor create</code>. You can easily build a Meteor app without it - for example if you wanted to make a command-line tool that still used the Meteor package system and DDP.</p> <p>This package also allows you to add handlers for HTTP requests. This lets other services access your app’s data through an HTTP API, allowing it to easily interoperate with tools and frameworks that don’t yet support DDP.</p> <p><code>webapp</code> exposes the <a href="https://github.com/senchalabs/connect" target="_blank" rel="noopener">connect</a> API for handling requests through <code>WebApp.connectHandlers</code>. Here’s an example that will let you handle a specific URL:</p>  <pre class="line-numbers" style><code class="language-js">// Listen to incoming HTTP requests (can only be used on the server).
+WebApp.connectHandlers.use('/hello', (req, res, next) =&gt; {
+  res.writeHead(200);
+  res.end(`Hello world from: ${Meteor.release}`);
+});
+</code></pre> <p><code>WebApp.connectHandlers.use([path], handler)</code> has two arguments:</p> <p><strong>path</strong> - an optional path field. This handler will only be called on paths that match</p> <p>this string. The match has to border on a <code>/</code> or a <code>.</code>. For example, <code>/hello</code> will match <code>/hello/world</code> and <code>/hello.world</code>, but not <code>/hello_world</code>.</p> <p><strong>handler</strong> - this is a function that takes three arguments:</p> <ul> <li>
+<strong>req</strong> - a Node.js <a href="https://nodejs.org/api/http.html#http_class_http_incomingmessage" target="_blank" rel="noopener">IncomingMessage</a> object with some extra properties. This argument can be used to get information about the incoming request.</li> <li>
+<strong>res</strong> - a Node.js <a href="http://nodejs.org/api/http.html#http_class_http_serverresponse" target="_blank" rel="noopener">ServerResponse</a> object. Use this to write data that should be sent in response to the request, and call <code>res.end()</code> when you are done.</li> <li>
+<strong>next</strong> - a function. Calling this function will pass on the handling of this request to the next relevant handler.</li> </ul> <h3 id="Serving-a-Static-Landing-Page">
+Serving a Static Landing Page</h3>
+<p>One of the really cool things you can do with WebApp is serve static HTML for a landing page where TTFB (time to first byte) is of utmost importance.</p> <p>The <a href="bundle-visualizer">Bundle Visualizer</a> and <a href="dynamic-import">Dynamic Imports</a> are great tools to help you minimize initial page load times. But sometimes you just need to skinny down your initial page load to bare metal.</p> <p>The good news is that WebApp makes this is really easy to do.</p> <p>Step one is to create a your static HTML file and place it in the <em>private</em> folder at the root of your application.</p> <p>Here’s a sample <em>index.html</em> you might use to get started:</p>  <pre class="line-numbers" style><code class="language-clike">&lt;head&gt;
+    &lt;title&gt;Fast Landing Page&lt;/title&gt;
+    &lt;meta charset="utf-8" /&gt;
+    &lt;meta http-equiv="x-ua-compatible" content="ie=edge"&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0 user-scalable=no" /&gt;   
+    &lt;link rel="stylesheet" href="path to your style sheet etc"&gt;
+&lt;/head&gt;
+
+    &lt;body&gt;
+        &lt;!-- your content --&gt;
+    &lt;/body&gt;
+
+    &lt;script&gt;
+
+    // any functions you need to support your landing page
+ 
+    &lt;/script&gt;
+
+&lt;/html&gt;
+</code></pre> <p>Then using the connectHandlers method described above serve up your static HTML on app-root/ page load as shown below.</p>  <pre class="line-numbers" style><code class="language-clike">/* global WebApp Assets */
+import crypto from 'crypto'
+import connectRoute from 'connect-route'
+
+WebApp.connectHandlers.use(connectRoute(function (router) {
+    router.get('/', function (req, res, next) {
+        const buf = Assets.getText('index.html')
+
+        if (buf.length &gt; 0) {
+            const eTag = crypto.createHash('md5').update(buf).digest('hex')
+
+            if (req.headers['if-none-match'] === eTag) {
+                res.writeHead(304, 'Not Modified')
+                return res.end()
+            }
+
+            res.writeHead(200, {
+                ETag: eTag,
+                'Content-Type': 'text/html'
+            })
+
+            return res.end(buf);
+        }
+
+        return res.end('&lt;html&gt;&lt;body&gt;Index page not found!&lt;/body&gt;&lt;/html&gt;')
+    })
+}))
+</code></pre> <p>There are a couple things to think about with this approach.</p> <p>We’re reading the contents of index.html using the <a href="../api/assets">Assets</a> module that makes it really easy to read files out of the <em>private</em> root folder.</p> <p>We’re using the <a href="https://www.npmjs.com/package/connect-route" target="_blank" rel="noopener">connect-route</a> NPM package to simplify WebApp route processing. But you can use any package you want to understand what is being requested.</p> <p>And finally, if you decide to use this technique you’ll want to make sure you understand how conflicting client side routing will affect user experience.</p><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://docs.meteor.com/packages/webapp.html" class="_attribution-link" target="_blank">https://docs.meteor.com/packages/webapp.html</a>
+  </p>
+</div>

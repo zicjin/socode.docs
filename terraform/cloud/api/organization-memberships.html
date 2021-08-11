@@ -1,0 +1,358 @@
+ <h1 id="organization-memberships-api">  Organization Memberships API </h1> <p>Users are added to organizations by inviting them to join. Once accepted, they become members of the organization. The Organization Membership resource represents this membership.</p> <p>You can invite users who already have an account, as well as new users. If the user has an existing account with the same email address used to invite them, they can reuse the same login.</p> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> Once a user is a member of the organization, you can manage their team memberships using <a href="team-members">the Team Membership API</a>.</p> </blockquote> <h2 id="invite-a-user-to-an-organization">  Invite a User to an Organization </h2> <p><code>POST /organizations/:organization_name/organization-memberships</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:organization_name</code></td> <td>The name of the organization the user will be invited to join. The inviting user must have permission to manage organization memberships.</td> </tr> </tbody>
+</table> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> Organization membership management is restricted to members of the owners team, the owners <a href="../users-teams-organizations/api-tokens#team-api-tokens">team API token</a>, and the <a href="../users-teams-organizations/api-tokens#organization-api-tokens">organization API token</a>.</p> </blockquote> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/201">201</a></td> <td><a href="index#json-api-documents">JSON API document</a></td> <td>Successfully invited the user</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400">400</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Unable to invite user due to organization limits</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Organization not found, or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Unable to invite user due to validation errors</td> </tr> </tbody>
+</table> <h3 id="request-body">  Request Body </h3> <p>This POST endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"organization-memberships"</code>.</td> </tr> <tr> <td><code>data.attributes.email</code></td> <td>string</td> <td></td> <td>The email address of the user to be invited.</td> </tr> <tr> <td><code>data.relationships.teams.data[]</code></td> <td>array[object]</td> <td></td> <td>A list of resource identifier objects that defines which teams the invited user will be a member of. These objects must contain <code>id</code> and <code>type</code> properties, and the <code>type</code> property must be <code>teams</code> (e.g. <code>{ "id": "team-GeLZkdnK6xAVjA5H", "type": "teams" }</code>). Obtain team IDs from the <a href="teams#list-teams">List Teams</a> endpoint. All users must be added to at least one team.</td> </tr> </tbody>
+</table> <h3 id="sample-payload">  Sample Payload </h3> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "email": "test@example.com"
+    },
+    "relationships": {
+      "teams": {
+        "data": [
+          {
+            "type": "teams",
+            "id": "team-GeLZkdnK6xAVjA5H"
+          }
+        ]
+      },
+    },
+    "type": "organization-memberships"
+  }
+}
+</pre>
+<h3 id="sample-request">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/organizations/my-organization/organization-memberships
+</pre>
+<h3 id="sample-response">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id": "ou-nX7inDHhmC3quYgy",
+    "type": "organization-memberships",
+    "attributes": {
+      "status": "invited"
+    },
+    "relationships": {
+      "teams": {
+        "data": [
+          {
+            "id": "team-GeLZkdnK6xAVjA5H",
+            "type": "teams"
+          }
+        ]
+      },
+      "user": {
+        "data": {
+          "id": "user-J8oxGmRk5eC2WLfX",
+          "type": "users"
+        }
+      },
+      "organization": {
+        "data": {
+          "id": "my-organization",
+          "type": "organizations"
+        }
+      }
+    }
+  },
+  "included": [
+    {
+      "id": "user-J8oxGmRk5eC2WLfX",
+      "type": "users",
+      "attributes": {
+        "username": null,
+        "is-service-account": false,
+        "avatar-url": "https://www.gravatar.com/avatar/55502f40dc8b7c769880b10874abc9d0?s=100&amp;d=mm",
+        "two-factor": {
+          "enabled": false,
+          "verified": false
+        },
+        "email": "test@example.com",
+        "permissions": {
+          "can-create-organizations": true,
+          "can-change-email": true,
+          "can-change-username": true,
+          "can-manage-user-tokens": false
+        }
+      },
+      "relationships": {
+        "authentication-tokens": {
+          "links": {
+            "related": "/api/v2/users/user-J8oxGmRk5eC2WLfX/authentication-tokens"
+          }
+        }
+      },
+      "links": {
+        "self": "/api/v2/users/user-J8oxGmRk5eC2WLfX"
+      }
+    }
+  ]
+}
+</pre>
+<h2 id="list-memberships-for-an-organization">  List Memberships for an Organization </h2> <p><code>GET /organizations/:organization_name/organization-memberships</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:organization_name</code></td> <td>The name of the organization to list the memberships of.</td> </tr> </tbody>
+</table> <h3 id="query-parameters">  Query Parameters </h3> <p><a href="index#query-parameters">These are standard URL query parameters</a>; remember to percent-encode <code>[</code> as <code>%5B</code> and <code>]</code> as <code>%5D</code> if your tooling doesn't automatically encode URLs.</p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>q</code></td> <td>
+<strong>Optional.</strong> A search query string. Organization memberships are searchable by user name and email.</td> </tr> <tr> <td><code>filter[status]</code></td> <td>
+<strong>Optional.</strong> If specified, restricts results to those with the matching status value. Valid values are <code>invited</code> and <code>active</code>.</td> </tr> <tr> <td><code>page[number]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return the first page.</td> </tr> <tr> <td><code>page[size]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return 20 users per page.</td> </tr> </tbody>
+</table> <h3 id="sample-request-1">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  https://app.terraform.io/api/v2/organizations/my-organization/organization-memberships
+</pre>
+<h3 id="sample-response-1">  Sample Response </h3> <pre data-language="json">{
+  "data": [
+    {
+      "id": "ou-tTJph1AQVK5ZmdND",
+      "type": "organization-memberships",
+      "attributes": {
+        "status": "active"
+      },
+      "relationships": {
+        "teams": {
+          "data": [
+            {
+              "id": "team-yUrEehvfG4pdmSjc",
+              "type": "teams"
+            }
+          ]
+        },
+        "user": {
+          "data": {
+            "id": "user-vaQqszES9JnuK4eB",
+            "type": "users"
+          }
+        },
+        "organization": {
+          "data": {
+            "id": "my-organization",
+            "type": "organizations"
+          }
+        }
+      }
+    },
+    {
+      "id": "ou-D6HPYFt4GzeBt3gB",
+      "type": "organization-memberships",
+      "attributes": {
+        "status": "active"
+      },
+      "relationships": {
+        "teams": {
+          "data": [
+            {
+              "id": "team-yUrEehvfG4pdmSjc",
+              "type": "teams"
+            }
+          ]
+        },
+        "user": {
+          "data": {
+            "id": "user-oqCgH7NgTn95jTGc",
+            "type": "users"
+          }
+        },
+        "organization": {
+          "data": {
+            "id": "my-organization",
+            "type": "organizations"
+          }
+        }
+      }
+    },
+    {
+      "id": "ou-x1E2eBwYwusLDC7h",
+      "type": "organization-memberships",
+      "attributes": {
+        "status": "invited"
+      },
+      "relationships": {
+        "teams": {
+          "data": [
+            {
+              "id": "team-yUrEehvfG4pdmSjc",
+              "type": "teams"
+            }
+          ]
+        },
+        "user": {
+          "data": {
+            "id": "user-UntUdBTHsVRQMzC8",
+            "type": "users"
+          }
+        },
+        "organization": {
+          "data": {
+            "id": "my-organization",
+            "type": "organizations"
+          }
+        }
+      }
+    }
+  ],
+  "links": {
+    "self": "https://app.terraform.io/api/v2/organizations/my-organization/organization-memberships?page%5Bnumber%5D=1&amp;page%5Bsize%5D=20",
+    "first": "https://app.terraform.io/api/v2/organizations/my-organization/organization-memberships?page%5Bnumber%5D=1&amp;page%5Bsize%5D=20",
+    "prev": null,
+    "next": null,
+    "last": "https://app.terraform.io/api/v2/organizations/my-organization/organization-memberships?page%5Bnumber%5D=1&amp;page%5Bsize%5D=20"
+  },
+  "meta": {
+    "status-counts": {
+      "total": 3,
+      "active": 2,
+      "invited": 1
+    },
+    "pagination": {
+      "current-page": 1,
+      "prev-page": null,
+      "next-page": null,
+      "total-pages": 1,
+      "total-count": 3
+    }
+  }
+}
+</pre>
+<h2 id="list-user-39-s-own-memberships">  List User's Own Memberships </h2> <p><code>GET /organization-memberships</code></p> <h3 id="sample-request-2">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  https://app.terraform.io/api/v2/organization-memberships
+</pre>
+<h3 id="sample-response-2">  Sample Response </h3> <pre data-language="json">{
+  "data": [
+    {
+      "id": "ou-VgJgfbDVN3APUm2F",
+      "type": "organization-memberships",
+      "attributes": {
+        "status": "invited"
+      },
+      "relationships": {
+        "teams": {
+          "data": [
+            {
+              "id": "team-4QrJKzxB3J5N4cJc",
+              "type": "teams"
+            }
+          ]
+        },
+        "user": {
+          "data": {
+            "id": "user-vaQqszES9JnuK4eB",
+            "type": "users"
+          }
+        },
+        "organization": {
+          "data": {
+            "id": "acme-corp",
+            "type": "organizations"
+          }
+        }
+      }
+    },
+    {
+      "id": "ou-tTJph1AQVK5ZmdND",
+      "type": "organization-memberships",
+      "attributes": {
+        "status": "active"
+      },
+      "relationships": {
+        "teams": {
+          "data": [
+            {
+              "id": "team-yUrEehvfG4pdmSjc",
+              "type": "teams"
+            }
+          ]
+        },
+        "user": {
+          "data": {
+            "id": "user-vaQqszES9JnuK4eB",
+            "type": "users"
+          }
+        },
+        "organization": {
+          "data": {
+            "id": "my-organization",
+            "type": "organizations"
+          }
+        }
+      }
+    }
+  ]
+}
+</pre>
+<h2 id="show-a-membership">  Show a Membership </h2> <p><code>GET /organization-memberships/:organization_membership_id</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:organization_membership_id</code></td> <td>The organization membership</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "organization-memberships"</code>)</td> <td>The request was successful</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Organization membership not found, or user unauthorized to perform action</td> </tr> </tbody>
+</table> <h3 id="sample-request-3">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  https://app.terraform.io/api/v2/organization-memberships/ou-kit6GaMo3zPGCzWb
+</pre>
+<h3 id="sample-response-3">  Sample Response </h3> <pre data-language="json">{
+    "data": {
+        "id": "ou-kit6GaMo3zPGCzWb",
+        "type": "organization-memberships",
+        "attributes": {
+            "status": "active"
+        },
+        "relationships": {
+            "teams": {
+                "data": [
+                    {
+                        "id": "team-97LkM7QciNkwb2nh",
+                        "type": "teams"
+                    }
+                ]
+            },
+            "user": {
+                "data": {
+                    "id": "user-hn6v2WK1naDpGadd",
+                    "type": "users"
+                }
+            },
+            "organization": {
+                "data": {
+                    "id": "hashicorp",
+                    "type": "organizations"
+                }
+            }
+        }
+    }
+}
+</pre>
+<h2 id="remove-user-from-organization">  Remove User from Organization </h2> <p><code>DELETE /organization-memberships/:organization_membership_id</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:organization_membership_id</code></td> <td>The organization membership</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204">204</a></td> <td>Empty body</td> <td>Successfully removed the user from the organization</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403">403</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Unable to remove the user: you cannot remove yourself from organizations which you own</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Organization membership not found, or user unauthorized to perform action</td> </tr> </tbody>
+</table> <h3 id="sample-request-4">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request DELETE \
+  https://app.terraform.io/api/v2/organization-memberships/ou-tTJph1AQVK5ZmdND
+</pre>
+<h2 id="available-related-resources">  Available Related Resources </h2> <p>The GET endpoints above can optionally return related resources, if requested with <a href="index#inclusion-of-related-resources">the <code>include</code> query parameter</a>. The following resource types are available:</p> <ul> <li>
+<a href="#user"><code>user</code></a> - The user associated with the membership. </li> <li>
+<a href="#teams"><code>teams</code></a> - Teams the user is a member of. </li> </ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/cloud/api/organization-memberships.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/cloud/api/organization-memberships.html</a>
+  </p>
+</div>

@@ -1,0 +1,53 @@
+<h1> Logger.Backends.Console   </h1> <section id="moduledoc"> <p>A logger backend that logs messages by printing them to the console.</p>
+<h2 id="module-options" class="section-heading">  Options </h2> <ul>
+<li><p><code class="inline">:level</code> - the level to be logged by this backend. Note that messages are filtered by the general <code class="inline">:level</code> configuration for the <code class="inline">:logger</code> application first.</p></li>
+<li><p><code class="inline">:format</code> - the format message used to print logs. Defaults to: <code class="inline">"\n$time $metadata[$level] $levelpad$message\n"</code>. It may also be a <code class="inline">{module, function}</code> tuple that is invoked with the log level, the message, the current timestamp and the metadata.</p></li>
+<li><p><code class="inline">:metadata</code> - the metadata to be printed by <code class="inline">$metadata</code>. Defaults to an empty list (no metadata). Setting <code class="inline">:metadata</code> to <code class="inline">:all</code> prints all metadata. See the "Metadata" section for more information.</p></li>
+<li><p><code class="inline">:colors</code> - a keyword list of coloring options.</p></li>
+<li><p><code class="inline">:device</code> - the device to log error messages to. Defaults to <code class="inline">:user</code> but can be changed to something else such as <code class="inline">:standard_error</code>.</p></li>
+<li><p><code class="inline">:max_buffer</code> - maximum events to buffer while waiting for a confirmation from the IO device (default: 32). Once the buffer is full, the backend will block until a confirmation is received.</p></li>
+</ul>
+<p>The supported keys in the <code class="inline">:colors</code> keyword list are:</p>
+<ul>
+<li><p><code class="inline">:enabled</code> - boolean value that allows for switching the coloring on and off. Defaults to: <a href="https://hexdocs.pm/elixir/1.12/IO.ANSI.html#enabled?/0"><code class="inline">IO.ANSI.enabled?/0</code></a></p></li>
+<li><p><code class="inline">:debug</code> - color for debug messages. Defaults to: <code class="inline">:cyan</code></p></li>
+<li><p><code class="inline">:info</code> - color for info and notice messages. Defaults to: <code class="inline">:normal</code></p></li>
+<li><p><code class="inline">:warn</code> - color for warning messages. Defaults to: <code class="inline">:yellow</code></p></li>
+<li><p><code class="inline">:error</code> - color for error and higher messages. Defaults to: <code class="inline">:red</code></p></li>
+</ul>
+<p>See the <a href="https://hexdocs.pm/elixir/1.12/IO.ANSI.html"><code class="inline">IO.ANSI</code></a> module for a list of colors and attributes.</p>
+<p>Here is an example of how to configure the <code class="inline">:console</code> backend in a <code class="inline">config/config.exs</code> file:</p>
+<pre data-language="elixir">config :logger, :console,
+  format: "\n$time $metadata[$level] $levelpad$message\n",
+  metadata: [:user_id]</pre>
+<h2 id="module-custom-formatting" class="section-heading">  Custom formatting </h2> <p>The console backend allows you to customize the format of your log messages with the <code class="inline">:format</code> option.</p>
+<p>You may set <code class="inline">:format</code> to either a string or a <code class="inline">{module, function}</code> tuple if you wish to provide your own format function. Here is an example of how to configure the <code class="inline">:console</code> backend in a <code class="inline">config/config.exs</code> file:</p>
+<pre data-language="elixir">config :logger, :console,
+  format: {MyConsoleLogger, :format}</pre>
+<p>And here is an example of how you can define <code class="inline">MyConsoleLogger.format/4</code> from the above configuration:</p>
+<pre data-language="elixir">defmodule MyConsoleLogger do
+  def format(level, message, timestamp, metadata) do
+    # Custom formatting logic...
+  end
+end</pre>
+<p>It is extremely important that <strong>the formatting function does not fail</strong>, as it will bring that particular logger instance down, causing your system to temporarily lose messages. If necessary, wrap the function in a <code class="inline">rescue</code> and log a default message instead:</p>
+<pre data-language="elixir">defmodule MyConsoleLogger do
+  def format(level, message, timestamp, metadata) do
+    # Custom formatting logic...
+  rescue
+    _ -&gt; "could not format: #{inspect({level, message, metadata})}"
+  end
+end</pre>
+<p>The <code class="inline">{module, function}</code> will be invoked with four arguments:</p>
+<ul>
+<li>the log level: an atom</li>
+<li>the message: this is usually chardata, but in some cases it may contain invalid data. Since the formatting function should <em>never</em> fail, you need to prepare for the message being anything</li>
+<li>the current timestamp: a term of type <a href="logger.formatter#t:time/0"><code class="inline">Logger.Formatter.time/0</code></a>
+</li>
+<li>the metadata: a keyword list</li>
+</ul>
+<p>You can read more about formatting in <a href="logger.formatter"><code class="inline">Logger.Formatter</code></a>, especially if you want to support custom formatting in a custom backend.</p> </section><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://hexdocs.pm/logger/1.12.0/Logger.Backends.Console.html" class="_attribution-link" target="_blank">https://hexdocs.pm/logger/1.12.0/Logger.Backends.Console.html</a>
+  </p>
+</div>

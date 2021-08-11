@@ -1,0 +1,55 @@
+<h1 id="class-Fiber::SchedulerInterface" class="class"> class Fiber::SchedulerInterface </h1>
+<dl class="meta">
+<dt>Parent:</dt>
+<dd class="meta-parent"><a href="../object">Object</a></dd>
+</dl> <section class="description"> <p>This is not an existing class, but documentation of the interface that Scheduler object should comply in order to be used as <a href="../fiber#method-c-scheduler"><code>Fiber.scheduler</code></a> and handle non-blocking fibers. See also the “Non-blocking fibers” section in <a href="../fiber"><code>Fiber</code></a> class docs for explanations of some concepts.</p> <p>Scheduler's behavior and usage are expected to be as follows:</p> <ul>
+<li> <p>When the execution in the non-blocking <a href="../fiber"><code>Fiber</code></a> reaches some blocking operation (like sleep, wait for a process, or a non-ready I/O), it calls some of the scheduler's hook methods, listed below.</p> </li>
+<li> <p>Scheduler somehow registers what the current fiber is waited for, and yields control to other fibers with <a href="../fiber#method-c-yield"><code>Fiber.yield</code></a> (so the fiber would be suspended while expecting its wait to end, and other fibers in the same thread can perform)</p> </li>
+<li> <p>At the end of the current thread execution, the scheduler's method <a href="schedulerinterface#method-i-close"><code>close</code></a> is called</p> </li>
+<li> <p>The scheduler runs into a wait loop, checking all the blocked fibers (which it has registered on hook calls) and resuming them when the awaited resource is ready (I/O ready, sleep time passed).</p> </li>
+</ul> <p>A typical implementation would probably rely for this closing loop on a gem like <a href="https://github.com/eventmachine/eventmachine">EventMachine</a> or <a href="https://github.com/socketry/async">Async</a>.</p> <p>This way concurrent execution will be achieved in a way that is transparent for every individual Fiber's code.</p> <p>Hook methods are:</p> <ul>
+<li> <p><a href="schedulerinterface#method-i-io_wait"><code>io_wait</code></a></p> </li>
+<li> <p><a href="schedulerinterface#method-i-process_wait"><code>process_wait</code></a></p> </li>
+<li> <p><a href="schedulerinterface#method-i-kernel_sleep"><code>kernel_sleep</code></a></p> </li>
+<li> <p><a href="schedulerinterface#method-i-block"><code>block</code></a> and <a href="schedulerinterface#method-i-unblock"><code>unblock</code></a></p> </li>
+<li> <p>(the list is expanded as Ruby developers make more methods having non-blocking calls)</p> </li>
+</ul> <p>When not specified otherwise, the hook implementations are mandatory: if they are not implemented, the methods trying to call hook will fail. To provide backward compatibility, in the future hooks will be optional (if they are not implemented, due to the scheduler being created for the older Ruby version, the code which needs this hook will not fail, and will just behave in a blocking fashion).</p> <p>It is also strongly suggested that the scheduler implement the <a href="schedulerinterface#method-i-fiber"><code>fiber</code></a> method, which is delegated to by <a href="../fiber#method-c-schedule"><code>Fiber.schedule</code></a>.</p> <p>Sample <em>toy</em> implementation of the scheduler can be found in Ruby's code, in <code>test/fiber/scheduler.rb</code></p> </section> <section id="5Buntitled-5D" class="documentation-section"> <section id="public-instance-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Instance Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-i-block"> <span class="method-callseq"> block(blocker, timeout = nil) </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description">
+<div class="method-source-code" id="block-source"> <pre class="c" data-language="c">static VALUE
+rb_fiber_scheduler_interface_block(VALUE self)
+{
+}</pre> </div> <p>Invoked by methods like <a href="../thread#method-i-join"><code>Thread.join</code></a>, and by <a href="../mutex"><code>Mutex</code></a>, to signify that current <a href="../fiber"><code>Fiber</code></a> is blocked till further notice (e.g. <a href="schedulerinterface#method-i-unblock"><code>unblock</code></a>) or till <code>timeout</code> will pass.</p> <p><code>blocker</code> is what we are waiting on, informational only (for debugging and logging). There are no guarantees about its value.</p> <p>Expected to return boolean, specifying whether the blocking operation was successful or not.</p>  </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-close"> <span class="method-name">close</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description">
+<div class="method-source-code" id="close-source"> <pre class="c" data-language="c">static VALUE
+rb_fiber_scheduler_interface_close(VALUE self)
+{
+}</pre> </div> <p>Called when the current thread exits. The scheduler is expected to implement this method in order to allow all waiting fibers to finalize their execution.</p> <p>The suggested pattern is to implement the main event loop in the <a href="schedulerinterface#method-i-close"><code>close</code></a> method.</p>  </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-fiber"> <span class="method-callseq"> fiber(&amp;block) </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description">
+<div class="method-source-code" id="fiber-source"> <pre class="c" data-language="c">static VALUE
+rb_fiber_scheduler_interface_fiber(VALUE self)
+{
+}</pre> </div> <p>Implementation of the <a href="../fiber#method-c-schedule"><code>Fiber.schedule</code></a>. The method is <em>expected</em> to immediately run passed block of code in a separate non-blocking fiber, and to return that <a href="../fiber"><code>Fiber</code></a>.</p> <p>Minimal suggested implementation is:</p> <pre class="ruby" data-language="ruby">def fiber(&amp;block)
+  Fiber.new(blocking: false, &amp;block).tap(&amp;:resume)
+end
+</pre>  </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-io_wait"> <span class="method-callseq"> io_wait(io, events, timeout) </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description">
+<div class="method-source-code" id="io_wait-source"> <pre class="c" data-language="c">static VALUE
+rb_fiber_scheduler_interface_io_wait(VALUE self)
+{
+}</pre> </div> <p>Invoked by <a href="../io#method-i-wait"><code>IO#wait</code></a>, <a href="../io#method-i-wait_readable"><code>IO#wait_readable</code></a>, <a href="../io#method-i-wait_writable"><code>IO#wait_writable</code></a> to ask whether the specified descriptor is ready for specified events within the specified <code>timeout</code>.</p> <p><code>events</code> is a bit mask of <code>IO::READABLE</code>, <code>IO::WRITABLE</code>, and <code>IO::PRIORITY</code>.</p> <p>Suggested implementation should register which <a href="../fiber"><code>Fiber</code></a> is waiting for which resources and immediately calling <a href="../fiber#method-c-yield"><code>Fiber.yield</code></a> to pass control to other fibers. Then, in the <a href="schedulerinterface#method-i-close"><code>close</code></a> method, the scheduler might dispatch all the I/O resources to fibers waiting for it.</p> <p>Expected to return the subset of events that are ready immediately.</p>  </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-kernel_sleep"> <span class="method-callseq"> kernel_sleep(duration = nil) </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description">
+<div class="method-source-code" id="kernel_sleep-source"> <pre class="c" data-language="c">static VALUE
+rb_fiber_scheduler_interface_kernel_sleep(VALUE self)
+{
+}</pre> </div> <p>Invoked by <a href="../kernel#method-i-sleep"><code>Kernel#sleep</code></a> and <a href="../mutex#method-i-sleep"><code>Mutex#sleep</code></a> and is expected to provide an implementation of sleeping in a non-blocking way. Implementation might register the current fiber in some list of “what fiber waits till what moment”, call <a href="../fiber#method-c-yield"><code>Fiber.yield</code></a> to pass control, and then in <a href="schedulerinterface#method-i-close"><code>close</code></a> resume the fibers whose wait period have ended.</p>  </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-process_wait"> <span class="method-callseq"> process_wait(pid, flags) </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description">
+<div class="method-source-code" id="process_wait-source"> <pre class="c" data-language="c">static VALUE
+rb_fiber_scheduler_interface_process_wait(VALUE self)
+{
+}</pre> </div> <p>Invoked by <a href="../process/status#method-c-wait"><code>Process::Status.wait</code></a> in order to wait for a specified process. See that method description for arguments description.</p> <p>Suggested minimal implementation:</p> <pre class="ruby" data-language="ruby">Thread.new do
+  Process::Status.wait(pid, flags)
+end.value
+</pre> <p>This hook is optional: if it is not present in the current scheduler, <a href="../process/status#method-c-wait"><code>Process::Status.wait</code></a> will behave as a blocking method.</p> <p>Expected to returns a <a href="../process/status"><code>Process::Status</code></a> instance.</p>  </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-unblock"> <span class="method-callseq"> unblock(blocker, fiber) </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description">
+<div class="method-source-code" id="unblock-source"> <pre class="c" data-language="c">static VALUE
+rb_fiber_scheduler_interface_unblock(VALUE self)
+{
+}</pre> </div> <p>Invoked to wake up <a href="../fiber"><code>Fiber</code></a> previously blocked with <a href="schedulerinterface#method-i-block"><code>block</code></a> (for example, <a href="../mutex#method-i-lock"><code>Mutex#lock</code></a> calls <a href="schedulerinterface#method-i-block"><code>block</code></a> and <a href="../mutex#method-i-unlock"><code>Mutex#unlock</code></a> calls <a href="schedulerinterface#method-i-unblock"><code>unblock</code></a>). The scheduler should use the <code>fiber</code> parameter to understand which fiber is unblocked.</p> <p><code>blocker</code> is what was awaited for, but it is informational only (for debugging and logging), and it is not guaranteed to be the same value as the <code>blocker</code> for <a href="schedulerinterface#method-i-block"><code>block</code></a>.</p>  </div> </div> </section> </section><div class="_attribution">
+  <p class="_attribution-p">
+    Ruby Core &copy; 1993&ndash;2020 Yukihiro Matsumoto<br>Licensed under the Ruby License.<br>Ruby Standard Library &copy; contributors<br>Licensed under their own licenses.<br>
+    
+  </p>
+</div>

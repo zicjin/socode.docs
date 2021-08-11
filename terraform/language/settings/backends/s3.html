@@ -1,0 +1,148 @@
+ <h1 id="s3">  S3 </h1> <p><strong>Kind: Standard (with locking via DynamoDB)</strong></p> <p>Stores the state as a given key in a given bucket on <a href="https://aws.amazon.com/s3/">Amazon S3</a>. This backend also supports state locking and consistency checking via <a href="https://aws.amazon.com/dynamodb/">Dynamo DB</a>, which can be enabled by setting the <code>dynamodb_table</code> field to an existing DynamoDB table name. A single DynamoDB table can be used to lock multiple remote state files. Terraform generates key names that include the values of the <code>bucket</code> and <code>key</code> variables.</p> <blockquote class="alert alert-warning" role="alert"> <p><strong>Warning!</strong> It is highly recommended that you enable <a href="http://docs.aws.amazon.com/AmazonS3/latest/UG/enable-bucket-versioning.html">Bucket Versioning</a> on the S3 bucket to allow for state recovery in the case of accidental deletions and human error.</p> </blockquote> <h2 id="example-configuration">  Example Configuration </h2> <pre data-language="ruby">terraform {
+  backend "s3" {
+    bucket = "mybucket"
+    key    = "path/to/my/key"
+    region = "us-east-1"
+  }
+}
+</pre>
+<p>This assumes we have a bucket created called <code>mybucket</code>. The Terraform state is written to the key <code>path/to/my/key</code>.</p> <p>Note that for the access credentials we recommend using a <a href="configuration#partial-configuration">partial configuration</a>.</p> <h3 id="s3-bucket-permissions">  S3 Bucket Permissions </h3> <p>Terraform will need the following AWS IAM permissions on the target backend bucket:</p> <ul> <li>
+<a href="#s3-listbucket"><code>s3:ListBucket</code></a> on <code>arn:aws:s3:::mybucket</code> </li> <li>
+<a href="#s3-getobject"><code>s3:GetObject</code></a> on <code>arn:aws:s3:::mybucket/path/to/my/key</code> </li> <li>
+<a href="#s3-putobject"><code>s3:PutObject</code></a> on <code>arn:aws:s3:::mybucket/path/to/my/key</code> </li> </ul> <p>This is seen in the following AWS IAM Statement:</p> <pre data-language="json">{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::mybucket"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject"],
+      "Resource": "arn:aws:s3:::mybucket/path/to/my/key"
+    }
+  ]
+}
+</pre>
+<blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> AWS can control access to S3 buckets with either IAM policies attached to users/groups/roles (like the example above) or resource policies attached to bucket objects (which look similar but also require a <code>Principal</code> to indicate which entity has those permissions). For more details, see Amazon's documentation about <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-access-control.html">S3 access control</a>.</p> </blockquote> <h3 id="dynamodb-table-permissions">  DynamoDB Table Permissions </h3> <p>If you are using state locking, Terraform will need the following AWS IAM permissions on the DynamoDB table (<code>arn:aws:dynamodb:::table/mytable</code>):</p> <ul> <li>
+<a href="#dynamodb-getitem"><code>dynamodb:GetItem</code></a> </li> <li>
+<a href="#dynamodb-putitem"><code>dynamodb:PutItem</code></a> </li> <li>
+<a href="#dynamodb-deleteitem"><code>dynamodb:DeleteItem</code></a> </li> </ul> <p>This is seen in the following AWS IAM Statement:</p> <pre data-language="json">{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:DeleteItem"
+      ],
+      "Resource": "arn:aws:dynamodb:*:*:table/mytable"
+    }
+  ]
+}
+</pre>
+<h2 id="data-source-configuration">  Data Source Configuration </h2> <p>To make use of the S3 remote state in another configuration, use the <a href="../../state/remote-state-data"><code>terraform_remote_state</code> data source</a>.</p> <pre data-language="ruby">data "terraform_remote_state" "network" {
+  backend = "s3"
+  config = {
+    bucket = "terraform-state-prod"
+    key    = "network/terraform.tfstate"
+    region = "us-east-1"
+  }
+}
+</pre>
+<p>The <code>terraform_remote_state</code> data source will return all of the root module outputs defined in the referenced remote state (but not any outputs from nested modules unless they are explicitly output again in the root). An example output might look like:</p> <pre>data.terraform_remote_state.network:
+  id = 2016-10-29 01:57:59.780010914 +0000 UTC
+  addresses.# = 2
+  addresses.0 = 52.207.220.222
+  addresses.1 = 54.196.78.166
+  backend = s3
+  config.% = 3
+  config.bucket = terraform-state-prod
+  config.key = network/terraform.tfstate
+  config.region = us-east-1
+  elb_address = web-elb-790251200.us-east-1.elb.amazonaws.com
+  public_subnet_id = subnet-1e05dd33
+</pre>
+<h2 id="configuration">  Configuration </h2> <p>This backend requires the configuration of the AWS Region and S3 state storage. Other configuration, such as enabling DynamoDB state locking, is optional.</p> <h3 id="credentials-and-shared-configuration">  Credentials and Shared Configuration </h3> <p>The following configuration is required:</p> <ul> <li>
+<a href="#region"><code>region</code></a> - (Required) AWS Region of the S3 Bucket and DynamoDB Table (if used). This can also be sourced from the <code>AWS_DEFAULT_REGION</code> and <code>AWS_REGION</code> environment variables. </li> </ul> <p>The following configuration is optional:</p> <ul> <li>
+<a href="#access_key"><code>access_key</code></a> - (Optional) AWS access key. If configured, must also configure <code>secret_key</code>. This can also be sourced from the <code>AWS_ACCESS_KEY_ID</code> environment variable, AWS shared credentials file (e.g. <code>~/.aws/credentials</code>), or AWS shared configuration file (e.g. <code>~/.aws/config</code>). </li> <li>
+<a href="#secret_key"><code>secret_key</code></a> - (Optional) AWS access key. If configured, must also configure <code>access_key</code>. This can also be sourced from the <code>AWS_SECRET_ACCESS_KEY</code> environment variable, AWS shared credentials file (e.g. <code>~/.aws/credentials</code>), or AWS shared configuration file (e.g. <code>~/.aws/config</code>). </li> <li>
+<a href="#iam_endpoint"><code>iam_endpoint</code></a> - (Optional) Custom endpoint for the AWS Identity and Access Management (IAM) API. This can also be sourced from the <code>AWS_IAM_ENDPOINT</code> environment variable. </li> <li>
+<a href="#max_retries"><code>max_retries</code></a> - (Optional) The maximum number of times an AWS API request is retried on retryable failure. Defaults to 5. </li> <li>
+<a href="#profile"><code>profile</code></a> - (Optional) Name of AWS profile in AWS shared credentials file (e.g. <code>~/.aws/credentials</code>) or AWS shared configuration file (e.g. <code>~/.aws/config</code>) to use for credentials and/or configuration. This can also be sourced from the <code>AWS_PROFILE</code> environment variable. </li> <li>
+<a href="#shared_credentials_file"><code>shared_credentials_file</code></a> - (Optional) Path to the AWS shared credentials file. Defaults to <code>~/.aws/credentials</code>. </li> <li>
+<a href="#skip_credentials_validation"><code>skip_credentials_validation</code></a> - (Optional) Skip credentials validation via the STS API. </li> <li>
+<a href="#skip_region_validation"><code>skip_region_validation</code></a> - (Optional) Skip validation of provided region name. </li> <li>
+<a href="#skip_metadata_api_check"><code>skip_metadata_api_check</code></a> - (Optional) Skip usage of EC2 Metadata API. </li> <li>
+<a href="#sts_endpoint"><code>sts_endpoint</code></a> - (Optional) Custom endpoint for the AWS Security Token Service (STS) API. This can also be sourced from the <code>AWS_STS_ENDPOINT</code> environment variable. </li> <li>
+<a href="#token"><code>token</code></a> - (Optional) Multi-Factor Authentication (MFA) token. This can also be sourced from the <code>AWS_SESSION_TOKEN</code> environment variable. </li> </ul> <h4 id="assume-role-configuration">  Assume Role Configuration </h4> <p>The following configuration is optional:</p> <ul> <li>
+<a href="#assume_role_duration_seconds"><code>assume_role_duration_seconds</code></a> - (Optional) Number of seconds to restrict the assume role session duration. </li> <li>
+<a href="#assume_role_policy"><code>assume_role_policy</code></a> - (Optional) IAM Policy JSON describing further restricting permissions for the IAM Role being assumed. </li> <li>
+<a href="#assume_role_policy_arns"><code>assume_role_policy_arns</code></a> - (Optional) Set of Amazon Resource Names (ARNs) of IAM Policies describing further restricting permissions for the IAM Role being assumed. </li> <li>
+<a href="#assume_role_tags"><code>assume_role_tags</code></a> - (Optional) Map of assume role session tags. </li> <li>
+<a href="#assume_role_transitive_tag_keys"><code>assume_role_transitive_tag_keys</code></a> - (Optional) Set of assume role session tag keys to pass to any subsequent sessions. </li> <li>
+<a href="#external_id"><code>external_id</code></a> - (Optional) External identifier to use when assuming the role. </li> <li>
+<a href="#role_arn"><code>role_arn</code></a> - (Optional) Amazon Resource Name (ARN) of the IAM Role to assume. </li> <li>
+<a href="#session_name"><code>session_name</code></a> - (Optional) Session name to use when assuming the role. </li> </ul> <h3 id="s3-state-storage">  S3 State Storage </h3> <p>The following configuration is required:</p> <ul> <li>
+<a href="#bucket"><code>bucket</code></a> - (Required) Name of the S3 Bucket. </li> <li>
+<a href="#key"><code>key</code></a> - (Required) Path to the state file inside the S3 Bucket. When using a non-default <a href="../../state/workspaces">workspace</a>, the state path will be <code>/workspace_key_prefix/workspace_name/key</code> (see also the <code>workspace_key_prefix</code> configuration). </li> </ul> <p>The following configuration is optional:</p> <ul> <li>
+<a href="#acl"><code>acl</code></a> - (Optional) <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#canned-acl">Canned ACL</a> to be applied to the state file. </li> <li>
+<a href="#encrypt"><code>encrypt</code></a> - (Optional) Enable <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingServerSideEncryption.html">server side encryption</a> of the state file. </li> <li>
+<a href="#endpoint"><code>endpoint</code></a> - (Optional) Custom endpoint for the AWS S3 API. This can also be sourced from the <code>AWS_S3_ENDPOINT</code> environment variable. </li> <li>
+<a href="#force_path_style"><code>force_path_style</code></a> - (Optional) Enable path-style S3 URLs (<code>https://&lt;HOST&gt;/&lt;BUCKET&gt;</code> instead of <code>https://&lt;BUCKET&gt;.&lt;HOST&gt;</code>). </li> <li>
+<a href="#kms_key_id"><code>kms_key_id</code></a> - (Optional) Amazon Resource Name (ARN) of a Key Management Service (KMS) Key to use for encrypting the state. </li> <li>
+<a href="#sse_customer_key"><code>sse_customer_key</code></a> - (Optional) The key to use for encrypting state with <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html">Server-Side Encryption with Customer-Provided Keys (SSE-C)</a>. This is the base64-encoded value of the key, which must decode to 256 bits. This can also be sourced from the <code>AWS_SSE_CUSTOMER_KEY</code> environment variable, which is recommended due to the sensitivity of the value. Setting it inside a terraform file will cause it to be persisted to disk in <code>terraform.tfstate</code>. </li> <li>
+<a href="#workspace_key_prefix"><code>workspace_key_prefix</code></a> - (Optional) Prefix applied to the state path inside the bucket. This is only relevant when using a non-default workspace. Defaults to <code>env:</code>. </li> </ul> <h3 id="dynamodb-state-locking">  DynamoDB State Locking </h3> <p>The following configuration is optional:</p> <ul> <li>
+<a href="#dynamodb_endpoint"><code>dynamodb_endpoint</code></a> - (Optional) Custom endpoint for the AWS DynamoDB API. This can also be sourced from the <code>AWS_DYNAMODB_ENDPOINT</code> environment variable. </li> <li>
+<a href="#dynamodb_table"><code>dynamodb_table</code></a> - (Optional) Name of DynamoDB Table to use for state locking and consistency. The table must have a primary key named <code>LockID</code> with type of <code>string</code>. If not configured, state locking will be disabled. </li> </ul> <h2 id="multi-account-aws-architecture">  Multi-account AWS Architecture </h2> <p>A common architectural pattern is for an organization to use a number of separate AWS accounts to isolate different teams and environments. For example, a "staging" system will often be deployed into a separate AWS account than its corresponding "production" system, to minimize the risk of the staging environment affecting production infrastructure, whether via rate limiting, misconfigured access controls, or other unintended interactions.</p> <p>The S3 backend can be used in a number of different ways that make different tradeoffs between convenience, security, and isolation in such an organization. This section describes one such approach that aims to find a good compromise between these tradeoffs, allowing use of <a href="../../state/workspaces">Terraform's workspaces feature</a> to switch conveniently between multiple isolated deployments of the same configuration.</p> <p>Use this section as a starting-point for your approach, but note that you will probably need to make adjustments for the unique standards and regulations that apply to your organization. You will also need to make some adjustments to this approach to account for <em>existing</em> practices within your organization, if for example other tools have previously been used to manage infrastructure.</p> <p>Terraform is an administrative tool that manages your infrastructure, and so ideally the infrastructure that is used by Terraform should exist outside of the infrastructure that Terraform manages. This can be achieved by creating a separate <em>administrative</em> AWS account which contains the user accounts used by human operators and any infrastructure and tools used to manage the other accounts. Isolating shared administrative tools from your main environments has a number of advantages, such as avoiding accidentally damaging the administrative infrastructure while changing the target infrastructure, and reducing the risk that an attacker might abuse production infrastructure to gain access to the (usually more privileged) administrative infrastructure.</p> <h3 id="administrative-account-setup">  Administrative Account Setup </h3> <p>Your administrative AWS account will contain at least the following items:</p> <ul> <li>One or more <a href="http://docs.aws.amazon.com/IAM/latest/UserGuide/id_users.html">IAM user</a> for system administrators that will log in to maintain infrastructure in the other accounts. </li> <li>Optionally, one or more <a href="http://docs.aws.amazon.com/IAM/latest/UserGuide/id_groups.html">IAM groups</a> to differentiate between different groups of users that have different levels of access to the other AWS accounts. </li> <li>An <a href="http://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html">S3 bucket</a> that will contain the Terraform state files for each workspace. </li> <li>A <a href="http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/HowItWorks.CoreComponents.html#HowItWorks.CoreComponents.TablesItemsAttributes">DynamoDB table</a> that will be used for locking to prevent concurrent operations on a single workspace. </li> </ul> <p>Provide the S3 bucket name and DynamoDB table name to Terraform within the S3 backend configuration using the <code>bucket</code> and <code>dynamodb_table</code> arguments respectively, and configure a suitable <code>workspace_key_prefix</code> to contain the states of the various workspaces that will subsequently be created for this configuration.</p> <h3 id="environment-account-setup">  Environment Account Setup </h3> <p>For the sake of this section, the term "environment account" refers to one of the accounts whose contents are managed by Terraform, separate from the administrative account described above.</p> <p>Your environment accounts will eventually contain your own product-specific infrastructure. Along with this it must contain one or more <a href="http://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles.html">IAM roles</a> that grant sufficient access for Terraform to perform the desired management tasks.</p> <h3 id="delegating-access">  Delegating Access </h3> <p>Each Administrator will run Terraform using credentials for their IAM user in the administrative account. <a href="http://docs.aws.amazon.com/IAM/latest/UserGuide/tutorial_cross-account-with-roles.html">IAM Role Delegation</a> is used to grant these users access to the roles created in each environment account.</p> <p>Full details on role delegation are covered in the AWS documentation linked above. The most important details are:</p> <ul> <li>Each role's <em>Assume Role Policy</em> must grant access to the administrative AWS account, which creates a trust relationship with the administrative AWS account so that its users may assume the role. </li> <li>The users or groups within the administrative account must also have a policy that creates the converse relationship, allowing these users or groups to assume that role. </li> </ul> <p>Since the purpose of the administrative account is only to host tools for managing other accounts, it is useful to give the administrative accounts restricted access only to the specific operations needed to assume the environment account role and access the Terraform state. By blocking all other access, you remove the risk that user error will lead to staging or production resources being created in the administrative account by mistake.</p> <p>When configuring Terraform, use either environment variables or the standard credentials file <code>~/.aws/credentials</code> to provide the administrator user's IAM credentials within the administrative account to both the S3 backend <em>and</em> to Terraform's AWS provider.</p> <p>Use conditional configuration to pass a different <code>assume_role</code> value to the AWS provider depending on the selected workspace. For example:</p> <pre data-language="ruby">variable "workspace_iam_roles" {
+  default = {
+    staging    = "arn:aws:iam::STAGING-ACCOUNT-ID:role/Terraform"
+    production = "arn:aws:iam::PRODUCTION-ACCOUNT-ID:role/Terraform"
+  }
+}
+
+provider "aws" {
+  # No credentials explicitly set here because they come from either the
+  # environment or the global credentials file.
+
+  assume_role = "${var.workspace_iam_roles[terraform.workspace]}"
+}
+</pre>
+<p>If workspace IAM roles are centrally managed and shared across many separate Terraform configurations, the role ARNs could also be obtained via a data source such as <a href="../../state/remote-state-data"><code>terraform_remote_state</code></a> to avoid repeating these values.</p> <h3 id="creating-and-selecting-workspaces">  Creating and Selecting Workspaces </h3> <p>With the necessary objects created and the backend configured, run <code>terraform init</code> to initialize the backend and establish an initial workspace called "default". This workspace will not be used, but is created automatically by Terraform as a convenience for users who are not using the workspaces feature.</p> <p>Create a workspace corresponding to each key given in the <code>workspace_iam_roles</code> variable value above:</p> <pre>$ terraform workspace new staging
+Created and switched to workspace "staging"!
+
+...
+
+$ terraform workspace new production
+Created and switched to workspace "production"!
+
+...
+</pre>
+<p>Due to the <code>assume_role</code> setting in the AWS provider configuration, any management operations for AWS resources will be performed via the configured role in the appropriate environment AWS account. The backend operations, such as reading and writing the state from S3, will be performed directly as the administrator's own user within the administrative account.</p> <pre>$ terraform workspace select staging
+$ terraform apply
+...
+</pre>
+<h3 id="running-terraform-in-amazon-ec2">  Running Terraform in Amazon EC2 </h3> <p>Teams that make extensive use of Terraform for infrastructure management often <a href="https://learn.hashicorp.com/tutorials/terraform/automate-terraform?in=terraform/automation&amp;utm_source=WEBSITE&amp;utm_medium=WEB_IO&amp;utm_offer=ARTICLE_PAGE&amp;utm_content=DOCS">run Terraform in automation</a> to ensure a consistent operating environment and to limit access to the various secrets and other sensitive information that Terraform configurations tend to require.</p> <p>When running Terraform in an automation tool running on an Amazon EC2 instance, consider running this instance in the administrative account and using an <a href="http://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html">instance profile</a> in place of the various administrator IAM users suggested above. An IAM instance profile can also be granted cross-account delegation access via an IAM policy, giving this instance the access it needs to run Terraform.</p> <p>To isolate access to different environment accounts, use a separate EC2 instance for each target account so that its access can be limited only to the single account.</p> <p>Similar approaches can be taken with equivalent features in other AWS compute services, such as ECS.</p> <h3 id="protecting-access-to-workspace-state">  Protecting Access to Workspace State </h3> <p>In a simple implementation of the pattern described in the prior sections, all users have access to read and write states for all workspaces. In many cases it is desirable to apply more precise access constraints to the Terraform state objects in S3, so that for example only trusted administrators are allowed to modify the production state, or to control <em>reading</em> of a state that contains sensitive information.</p> <p>Amazon S3 supports fine-grained access control on a per-object-path basis using IAM policy. A full description of S3's access control mechanism is beyond the scope of this guide, but an example IAM policy granting access to only a single state object within an S3 bucket is shown below:</p> <pre data-language="json">{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::myorg-terraform-states"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject"],
+      "Resource": "arn:aws:s3:::myorg-terraform-states/myapp/production/tfstate"
+    }
+  ]
+}
+</pre>
+<p>It is not possible to apply such fine-grained access control to the DynamoDB table used for locking, so it is possible for any user with Terraform access to lock any workspace state, even if they do not have access to read or write that state. If a malicious user has such access they could block attempts to use Terraform against some or all of your workspaces as long as locking is enabled in the backend configuration.</p> <h3 id="configuring-custom-user-agent-information">  Configuring Custom User-Agent Information </h3> <p>Note this feature is optional and only available in Terraform v0.13.1+.</p> <p>By default, the underlying AWS client used by the Terraform AWS Provider creates requests with User-Agent headers including information about Terraform and AWS Go SDK versions. To provide additional information in the User-Agent headers, the <code>TF_APPEND_USER_AGENT</code> environment variable can be set and its value will be directly added to HTTP requests. e.g.</p> <pre data-language="shell">$ export TF_APPEND_USER_AGENT="JenkinsAgent/i-12345678 BuildID/1234 (Optional Extra Information)"
+</pre><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/language/settings/backends/s3.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/language/settings/backends/s3.html</a>
+  </p>
+</div>

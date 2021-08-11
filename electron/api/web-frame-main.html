@@ -1,0 +1,78 @@
+<h1 id="webframemain">webFrameMain</h1> <blockquote> <p>Control web pages and iframes.</p> </blockquote> <p>Process: <a href="../glossary#main-process">Main</a></p> <p>The <code>webFrameMain</code> module can be used to lookup frames across existing <a href="web-contents"><code>WebContents</code></a> instances. Navigation events are the common use case.</p> <pre data-language="javascript">const { BrowserWindow, webFrameMain } = require('electron')
+
+const win = new BrowserWindow({ width: 800, height: 1500 })
+win.loadURL('https://twitter.com')
+
+win.webContents.on(
+  'did-frame-navigate',
+  (event, url, isMainFrame, frameProcessId, frameRoutingId) =&gt; {
+    const frame = webFrameMain.fromId(frameProcessId, frameRoutingId)
+    if (frame) {
+      const code = 'document.body.innerHTML = document.body.innerHTML.replaceAll("heck", "h*ck")'
+      frame.executeJavaScript(code)
+    }
+  }
+)
+</pre> <p>You can also access frames of existing pages by using the <code>mainFrame</code> property of <a href="web-contents"><code>WebContents</code></a>.</p> <pre data-language="javascript">const { BrowserWindow } = require('electron')
+
+async function main () {
+  const win = new BrowserWindow({ width: 800, height: 600 })
+  await win.loadURL('https://reddit.com')
+
+  const youtubeEmbeds = win.webContents.mainFrame.frames.filter((frame) =&gt; {
+    try {
+      const url = new URL(frame.url)
+      return url.host === 'www.youtube.com'
+    } catch {
+      return false
+    }
+  })
+
+  console.log(youtubeEmbeds)
+}
+
+main()
+</pre> <h2 id="methods">Methods</h2> <p>These methods can be accessed from the <code>webFrameMain</code> module:</p> <h3 id="webframemainfromidprocessid-routingid"><code>webFrameMain.fromId(processId, routingId)</code></h3> <ul> <li>
+<code>processId</code> Integer - An <code>Integer</code> representing the internal ID of the process which owns the frame.</li> <li>
+<code>routingId</code> Integer - An <code>Integer</code> representing the unique frame ID in the current renderer process. Routing IDs can be retrieved from <code>WebFrameMain</code> instances (<code>frame.routingId</code>) and are also passed by frame specific <code>WebContents</code> navigation events (e.g. <code>did-frame-navigate</code>).</li> </ul> <p>Returns <code>WebFrameMain | undefined</code> - A frame with the given process and routing IDs, or <code>undefined</code> if there is no WebFrameMain associated with the given IDs.</p> <h2 id="class-webframemain">Class: WebFrameMain</h2> <p>Process: <a href="../glossary#main-process">Main</a></p> <h3 id="instance-methods">Instance Methods</h3> <h4 id="frameexecutejavascriptcode-usergesture"><code>frame.executeJavaScript(code[, userGesture])</code></h4> <ul> <li>
+<code>code</code> String</li> <li>
+<code>userGesture</code> Boolean (optional) - Default is <code>false</code>.</li> </ul> <p>Returns <code>Promise&lt;unknown&gt;</code> - A promise that resolves with the result of the executed code or is rejected if execution throws or results in a rejected promise.</p> <p>Evaluates <code>code</code> in page.</p> <p>In the browser window some HTML APIs like <code>requestFullScreen</code> can only be invoked by a gesture from the user. Setting <code>userGesture</code> to <code>true</code> will remove this limitation.</p> <h4 id="framereload"><code>frame.reload()</code></h4> <p>Returns <code>boolean</code> - Whether the reload was initiated successfully. Only results in <code>false</code> when the frame has no history.</p> <h4 id="framesendchannel-args"><code>frame.send(channel, ...args)</code></h4> <ul> <li>
+<code>channel</code> String</li> <li>
+<code>...args</code> any[]</li> </ul> <p>Send an asynchronous message to the renderer process via <code>channel</code>, along with arguments. Arguments will be serialized with the [Structured Clone Algorithm][SCA], just like [<code>postMessage</code>][], so prototype chains will not be included. Sending Functions, Promises, Symbols, WeakMaps, or WeakSets will throw an exception.</p> <p>The renderer process can handle the message by listening to <code>channel</code> with the <a href="ipc-renderer"><code>ipcRenderer</code></a> module.</p> <h4 id="framepostmessagechannel-message-transfer"><code>frame.postMessage(channel, message, [transfer])</code></h4> <ul> <li>
+<code>channel</code> String</li> <li>
+<code>message</code> any</li> <li>
+<code>transfer</code> MessagePortMain
+</li> </ul> <p>Send a message to the renderer process, optionally transferring ownership of zero or more [<code>MessagePortMain</code>][] objects.</p> <p>The transferred <code>MessagePortMain</code> objects will be available in the renderer process by accessing the <code>ports</code> property of the emitted event. When they arrive in the renderer, they will be native DOM <code>MessagePort</code> objects.</p> <p>For example:</p> <pre data-language="js">// Main process
+const { port1, port2 } = new MessageChannelMain()
+webContents.mainFrame.postMessage('port', { message: 'hello' }, [port1])
+
+// Renderer process
+ipcRenderer.on('port', (e, msg) =&gt; {
+  const [port] = e.ports
+  // ...
+})
+</pre> <h3 id="instance-properties">Instance Properties</h3> <h4 id="frameurl-readonly">
+<code>frame.url</code> <em>Readonly</em>
+</h4> <p>A <code>string</code> representing the current URL of the frame.</p> <h4 id="frametop-readonly">
+<code>frame.top</code> <em>Readonly</em>
+</h4> <p>A <code>WebFrameMain | null</code> representing top frame in the frame hierarchy to which <code>frame</code> belongs.</p> <h4 id="frameparent-readonly">
+<code>frame.parent</code> <em>Readonly</em>
+</h4> <p>A <code>WebFrameMain | null</code> representing parent frame of <code>frame</code>, the property would be <code>null</code> if <code>frame</code> is the top frame in the frame hierarchy.</p> <h4 id="frameframes-readonly">
+<code>frame.frames</code> <em>Readonly</em>
+</h4> <p>A <code>WebFrameMain[]</code> collection containing the direct descendents of <code>frame</code>.</p> <h4 id="frameframesinsubtree-readonly">
+<code>frame.framesInSubtree</code> <em>Readonly</em>
+</h4> <p>A <code>WebFrameMain[]</code> collection containing every frame in the subtree of <code>frame</code>, including itself. This can be useful when traversing through all frames.</p> <h4 id="frameframetreenodeid-readonly">
+<code>frame.frameTreeNodeId</code> <em>Readonly</em>
+</h4> <p>An <code>Integer</code> representing the id of the frame's internal FrameTreeNode instance. This id is browser-global and uniquely identifies a frame that hosts content. The identifier is fixed at the creation of the frame and stays constant for the lifetime of the frame. When the frame is removed, the id is not used again.</p> <h4 id="framename-readonly">
+<code>frame.name</code> <em>Readonly</em>
+</h4> <p>A <code>String</code> representing the frame name.</p> <h4 id="frameosprocessid-readonly">
+<code>frame.osProcessId</code> <em>Readonly</em>
+</h4> <p>An <code>Integer</code> representing the operating system <code>pid</code> of the process which owns this frame.</p> <h4 id="frameprocessid-readonly">
+<code>frame.processId</code> <em>Readonly</em>
+</h4> <p>An <code>Integer</code> representing the Chromium internal <code>pid</code> of the process which owns this frame. This is not the same as the OS process ID; to read that use <code>frame.osProcessId</code>.</p> <h4 id="frameroutingid-readonly">
+<code>frame.routingId</code> <em>Readonly</em>
+</h4> <p>An <code>Integer</code> representing the unique frame id in the current renderer process. Distinct <code>WebFrameMain</code> instances that refer to the same underlying frame will have the same <code>routingId</code>.</p><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.electronjs.org/docs/api/web-frame-main" class="_attribution-link" target="_blank">https://www.electronjs.org/docs/api/web-frame-main</a>
+  </p>
+</div>

@@ -1,0 +1,107 @@
+ <div class="theme-default-content content__default">
+<h1 id="setup"> Setup</h1> <blockquote><p>This section uses <a href="single-file-component">single-file component</a> syntax for code examples</p></blockquote> <blockquote><p>This guide assumes that you have already read the <a href="composition-api-introduction">Composition API Introduction</a> and <a href="reactivity-fundamentals">Reactivity Fundamentals</a>. Read that first if you are new to Composition API.</p></blockquote> <h2 id="arguments"> Arguments</h2> <p>When using the <code>setup</code> function, it will take two arguments:</p> <ol>
+<li><code>props</code></li> <li><code>context</code></li>
+</ol> <p>Let's dive deeper into how each argument can be used.</p> <h3 id="props"> Props</h3> <p>The first argument in the <code>setup</code> function is the <code>props</code> argument. Just as you would expect in a standard component, <code>props</code> inside of a <code>setup</code> function are reactive and will be updated when new props are passed in.</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">// MyBook.vue
+
+export default {
+  props: {
+    title: String
+  },
+  setup(props) {
+    console.log(props.title)
+  }
+}</pre> </div>
+<div class="custom-block warning">
+<strong class="custom-block-title">WARNING</strong> <p>However, because <code>props</code> are reactive, you <strong>cannot use ES6 destructuring</strong> because it will remove props reactivity.</p>
+</div> <p>If you need to destructure your props, you can do this by utilizing the <a href="reactivity-fundamentals#destructuring-reactive-state">toRefs</a> inside of the <code>setup</code> function:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">// MyBook.vue
+
+import { toRefs } from 'vue'
+
+setup(props) {
+  const { title } = toRefs(props)
+
+  console.log(title.value)
+}</pre> </div>
+<p>If <code>title</code> is an optional prop, it could be missing from <code>props</code>. In that case, <code>toRefs</code> won't create a ref for <code>title</code>. Instead you'd need to use <code>toRef</code>:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">// MyBook.vue
+
+import { toRef } from 'vue'
+
+setup(props) {
+  const title = toRef(props, 'title')
+
+  console.log(title.value)
+}</pre> </div>
+<h3 id="context"> Context</h3> <p>The second argument passed to the <code>setup</code> function is the <code>context</code>. The <code>context</code> is a normal JavaScript object that exposes three component properties:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">// MyBook.vue
+
+export default {
+  setup(props, context) {
+    // Attributes (Non-reactive object)
+    console.log(context.attrs)
+
+    // Slots (Non-reactive object)
+    console.log(context.slots)
+
+    // Emit Events (Method)
+    console.log(context.emit)
+  }
+}</pre> </div>
+<p>The <code>context</code> object is a normal JavaScript object, i.e., it is not reactive, this means you can safely use ES6 destructuring on <code>context</code>.</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">// MyBook.vue
+export default {
+  setup(props, { attrs, slots, emit }) {
+    ...
+  }
+}</pre> </div>
+<p><code>attrs</code> and <code>slots</code> are stateful objects that are always updated when the component itself is updated. This means you should avoid destructuring them and always reference properties as <code>attrs.x</code> or <code>slots.x</code>. Also note that unlike <code>props</code>, <code>attrs</code> and <code>slots</code> are <strong>not</strong> reactive. If you intend to apply side effects based on <code>attrs</code> or <code>slots</code> changes, you should do so inside an <code>onUpdated</code> lifecycle hook.</p> <h2 id="accessing-component-properties"> Accessing Component Properties</h2> <p>When <code>setup</code> is executed, the component instance has not been created yet. As a result, you will only be able to access the following properties:</p> <ul>
+<li><code>props</code></li> <li><code>attrs</code></li> <li><code>slots</code></li> <li><code>emit</code></li>
+</ul> <p>In other words, you <strong>will not have access</strong> to the following component options:</p> <ul>
+<li><code>data</code></li> <li><code>computed</code></li> <li><code>methods</code></li>
+</ul> <h2 id="usage-with-templates"> Usage with Templates</h2> <p>If <code>setup</code> returns an object, the properties on the object can be accessed in the component's template, as well as the properties of the <code>props</code> passed into <code>setup</code>:</p> <div class="language-vue-html line-numbers-mode">
+<pre class="language-vue-html" data-language="javascript">&lt;!-- MyBook.vue --&gt;
+&lt;template&gt;
+  &lt;div&gt;{{ collectionName }}: {{ readersNumber }} {{ book.title }}&lt;/div&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+  import { ref, reactive } from 'vue'
+
+  export default {
+    props: {
+      collectionName: String
+    },
+    setup(props) {
+      const readersNumber = ref(0)
+      const book = reactive({ title: 'Vue 3 Guide' })
+
+      // expose to template
+      return {
+        readersNumber,
+        book
+      }
+    }
+  }
+&lt;/script&gt;</pre> </div>
+<p>Note that <a href="../api/refs-api#ref">refs</a> returned from <code>setup</code> are <a href="reactivity-fundamentals#ref-unwrapping">automatically shallow unwrapped</a> when accessed in the template so you shouldn't use <code>.value</code> in templates.</p> <h2 id="usage-with-render-functions"> Usage with Render Functions</h2> <p><code>setup</code> can also return a render function which can directly make use of the reactive state declared in the same scope:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">// MyBook.vue
+
+import { h, ref, reactive } from 'vue'
+
+export default {
+  setup() {
+    const readersNumber = ref(0)
+    const book = reactive({ title: 'Vue 3 Guide' })
+    // Please note that we need to explicitly expose ref value here
+    return () =&gt; h('div', [readersNumber.value, book.title])
+  }
+}</pre> </div>
+<h2 id="usage-of-this"> Usage of <code>this</code>
+</h2> <p><strong>Inside <code>setup()</code>, <code>this</code> won't be a reference to the current active instance</strong> Since <code>setup()</code> is called before other component options are resolved, <code>this</code> inside <code>setup()</code> will behave quite differently from <code>this</code> in other options. This might cause confusions when using <code>setup()</code> along other Options API.</p>
+</div>   <div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://v3.vuejs.org/guide/composition-api-setup.html" class="_attribution-link" target="_blank">https://v3.vuejs.org/guide/composition-api-setup.html</a>
+  </p>
+</div>

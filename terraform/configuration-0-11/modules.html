@@ -1,0 +1,120 @@
+ <h1 id="module">  Module </h1> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> This page is about Terraform 0.11 and earlier. For Terraform 0.12 and later, see <a href="../language/modules/index">Configuration Language: Modules</a>.</p> </blockquote> <p>A <em>module</em> is a container for multiple resources that are used together.</p> <p>Every Terraform configuration has at least one module, known as its <em>root module</em>, which consists of the resources defined in the <code>.tf</code> files in the main working directory.</p> <p>A module can call other modules, which lets you include the child module's resources into the configuration in a concise way. Modules can also be called multiple times, either within the same configuration or in separate configurations, allowing resource configurations to be packaged and re-used.</p> <p>This page describes how to call one module from another. Other pages in this section of the documentation describe the different elements that make up modules, and there is further information about how modules can be used, created, and published in <a href="../language/modules/develop/index">the dedicated <em>Modules</em> section</a>.</p> <h2 id="calling-a-child-module">  Calling a Child Module </h2> <p>To <em>call</em> a module means to include the contents of that module into the configuration with specific values for its <a href="variables">input variables</a>. Modules are called from within other modules using <code>module</code> blocks:</p> <pre data-language="ruby">module "servers" {
+  source = "./app-cluster"
+
+  servers = 5
+}
+</pre>
+<p>A module that includes a <code>module</code> block like this is the <em>calling module</em> of the child module.</p> <p>The label immediately after the <code>module</code> keyword is a local name, which the calling module can use to refer to this instance of the module.</p> <p>Within the block body (between <code>{</code> and <code>}</code>) are the arguments for the module. Most of the arguments correspond to <a href="variables">input variables</a> defined by the module, including the <code>servers</code> argument in the above example. Terraform also defines a few meta-arguments that are reserved by Terraform and used for its own purposes; we will discuss those throughout the rest of this section.</p> <p>All modules require a <code>source</code> argument, which is a meta-argument defined by Terraform CLI. Its value is either the path to a local directory of the module's configuration files, or a remote module source that Terraform should download and use. This value must be a literal string with no template sequences; interpolations are not allowed. For more information on possible values for this argument, see <a href="../language/modules/sources">Module Sources</a>.</p> <p>The same source address can be specified in multiple <code>module</code> blocks to create multiple copies of the resources defined within, possibly with different variable values.</p> <p>After adding, removing, or modifying <code>module</code> blocks, you must re-run <code>terraform init</code> to allow Terraform the opportunity to adjust the installed modules. By default this command will not upgrade an already-installed module; use the <code>-upgrade</code> option to instead upgrade to the newest available version.</p> <h2 id="accessing-module-output-values">  Accessing Module Output Values </h2> <p>The resources defined in a module are encapsulated, so the calling module cannot access their attributes directly. However, the child module can declare <a href="outputs">output values</a> to selectively export certain values to be accessed by the calling module.</p> <p>For example, if the <code>./app-cluster</code> module referenced in the example above exported an output value named <code>instance_ids</code> then the calling module can reference that result using the expression <code>module.servers.instance_ids</code>:</p> <pre data-language="ruby">resource "aws_elb" "example" {
+  # ...
+
+  instances = module.servers.instance_ids
+}
+</pre>
+<p>For more information about referring to named values, see <a href="interpolation">Interpolation</a>.</p> <h2 id="module-versions">  Module Versions </h2> <p>We recommend explicitly constraining the acceptable version numbers for each external module to avoid unexpected or unwanted changes.</p> <p>Use the <code>version</code> attribute in the <code>module</code> block to specify versions:</p> <pre data-language="shell">module "consul" {
+  source  = "hashicorp/consul/aws"
+  version = "0.0.5"
+
+  servers = 3
+}
+</pre>
+<p>The <code>version</code> attribute value may either be a single explicit version or a version constraint expression. Constraint expressions use the following syntax to specify a <em>range</em> of versions that are acceptable:</p> <ul> <li>
+<a href="#gt-1-2-0"><code>&gt;= 1.2.0</code></a>: version 1.2.0 or newer </li> <li>
+<a href="#lt-1-2-0"><code>&lt;= 1.2.0</code></a>: version 1.2.0 or older </li> <li>
+<a href="#gt-1-2-0-1"><code>~&gt; 1.2.0</code></a>: any non-beta version <code>&gt;= 1.2.0</code> and <code>&lt; 1.3.0</code>, e.g. <code>1.2.X</code> </li> <li>
+<a href="#gt-1-2"><code>~&gt; 1.2</code></a>: any non-beta version <code>&gt;= 1.2.0</code> and <code>&lt; 2.0.0</code>, e.g. <code>1.X.Y</code> </li> <li>
+<a href="#gt-1-0-0-lt-2-0-0"><code>&gt;= 1.0.0, &lt;= 2.0.0</code></a>: any version between 1.0.0 and 2.0.0 inclusive </li> </ul> <p>When depending on third-party modules, references to specific versions are recommended since this ensures that updates only happen when convenient to you.</p> <p>For modules maintained within your organization, a version range strategy may be appropriate if a semantic versioning methodology is used consistently or if there is a well-defined release process that avoids unwanted updates.</p> <p>Version constraints are supported only for modules installed from a module registry, such as the <a href="https://registry.terraform.io/">Terraform Registry</a> or <a href="../cloud/registry/index">Terraform Cloud's private module registry</a>. Other module sources can provide their own versioning mechanisms within the source string itself, or might not support versions at all. In particular, modules sourced from local file paths do not support <code>version</code>; since they're loaded from the same source repository, they always share the same version as their caller.</p> <h2 id="other-meta-arguments">  Other Meta-arguments </h2> <p>Along with the <code>source</code> meta-argument described above, module blocks have some more meta-arguments that have special meaning across all modules, described in more detail in other sections:</p> <ul> <li>
+<p><a href="#version"><code>version</code></a> - (Optional) A <a href="#module-versions">version constraint</a> string that specifies which versions of the referenced module are acceptable. The newest version matching the constraint will be used. <code>version</code> is supported only for modules retrieved from module registries.</p> </li> <li>
+<p><a href="#providers"><code>providers</code></a> - (Optional) A map whose keys are provider configuration names that are expected by child module and whose values are corresponding provider names in the calling module. This allows <a href="#passing-providers-explicitly">provider configurations to be passed explicitly to child modules</a>. If not specified, the child module inherits all of the default (un-aliased) provider configurations from the calling module.</p> </li> </ul> <p>In addition to the above, the argument names <code>count</code>, <code>for_each</code> and <code>lifecycle</code> are not currently used by Terraform but are reserved for planned future features.</p> <p>Since modules are a complex feature in their own right, further detail about how modules can be used, created, and published is included in <a href="../language/modules/develop/index">the dedicated section on modules</a>.</p> <h2 id="providers-within-modules">  Providers within Modules </h2> <p>In a configuration with multiple modules, there are some special considerations for how resources are associated with provider configurations.</p> <p>While in principle <code>provider</code> blocks can appear in any module, it is recommended that they be placed only in the <em>root</em> module of a configuration, since this approach allows users to configure providers just once and re-use them across all descendent modules.</p> <p>Each resource in the configuration must be associated with one provider configuration, which may either be within the same module as the resource or be passed from the parent module. Providers can be passed down to descendent modules in two ways: either <em>implicitly</em> through inheritance, or <em>explicitly</em> via the <code>providers</code> argument within a <code>module</code> block. These two options are discussed in more detail in the following sections.</p> <p>In all cases it is recommended to keep explicit provider configurations only in the root module and pass them (whether implicitly or explicitly) down to descendent modules. This avoids the provider configurations from being "lost" when descendent modules are removed from the configuration. It also allows the user of a configuration to determine which providers require credentials by inspecting only the root module.</p> <p>Provider configurations are used for all operations on associated resources, including destroying remote objects and refreshing state. Terraform retains, as part of its state, a reference to the provider configuration that was most recently used to apply changes to each resource. When a <code>resource</code> block is removed from the configuration, this record in the state is used to locate the appropriate configuration because the resource's <code>provider</code> argument (if any) is no longer present in the configuration.</p> <p>As a consequence, it is required that all resources created for a particular provider configuration must be destroyed before that provider configuration is removed, unless the related resources are re-configured to use a different provider configuration first.</p> <h3 id="implicit-provider-inheritance">  Implicit Provider Inheritance </h3> <p>For convenience in simple configurations, a child module automatically inherits default (un-aliased) provider configurations from its parent. This means that explicit <code>provider</code> blocks appear only in the root module, and downstream modules can simply declare resources for that provider and have them automatically associated with the root provider configurations.</p> <p>For example, the root module might contain only a <code>provider</code> block and a <code>module</code> block to instantiate a child module:</p> <pre data-language="ruby">provider "aws" {
+  region = "us-west-1"
+}
+
+module "child" {
+  source = "./child"
+}
+</pre>
+<p>The child module can then use any resource from this provider with no further provider configuration required:</p> <pre data-language="ruby">resource "aws_s3_bucket" "example" {
+  bucket = "provider-inherit-example"
+}
+</pre>
+<p>This approach is recommended in the common case where only a single configuration is needed for each provider across the entire configuration.</p> <p>In more complex situations there may be <a href="providers#multiple-provider-instances">multiple provider instances</a>, or a child module may need to use different provider settings than its parent. For such situations, it's necessary to pass providers explicitly as we will see in the next section.</p> <h2 id="passing-providers-explicitly">  Passing Providers Explicitly </h2> <p>When child modules each need a different configuration of a particular provider, or where the child module requires a different provider configuration than its parent, the <code>providers</code> argument within a <code>module</code> block can be used to define explicitly which provider configs are made available to the child module. For example:</p> <pre data-language="ruby"># The default "aws" configuration is used for AWS resources in the root
+# module where no explicit provider instance is selected.
+provider "aws" {
+  region = "us-west-1"
+}
+
+# A non-default, or "aliased" configuration is also defined for a different
+# region.
+provider "aws" {
+  alias  = "usw2"
+  region = "us-west-2"
+}
+
+# An example child module is instantiated with the _aliased_ configuration,
+# so any AWS resources it defines will use the us-west-2 region.
+module "example" {
+  source    = "./example"
+  providers = {
+    aws = "aws.usw2"
+  }
+}
+</pre>
+<p>The <code>providers</code> argument within a <code>module</code> block is similar to the <code>provider</code> argument within a resource as described for <a href="providers#multiple-provider-instances">multiple provider instances</a>, but is a map rather than a single string because a module may contain resources from many different providers.</p> <p>Once the <code>providers</code> argument is used in a <code>module</code> block, it overrides all of the default inheritance behavior, so it is necessary to enumerate mappings for <em>all</em> of the required providers. This is to avoid confusion and surprises that may result when mixing both implicit and explicit provider passing.</p> <p>Additional provider configurations (those with the <code>alias</code> argument set) are <em>never</em> inherited automatically by child modules, and so must always be passed explicitly using the <code>providers</code> map. For example, a module that configures connectivity between networks in two AWS regions is likely to need both a source and a destination region. In that case, the root module may look something like this:</p> <pre data-language="ruby">provider "aws" {
+  alias  = "usw1"
+  region = "us-west-1"
+}
+
+provider "aws" {
+  alias  = "usw2"
+  region = "us-west-2"
+}
+
+module "tunnel" {
+  source    = "./tunnel"
+  providers = {
+    aws.src = "aws.usw1"
+    aws.dst = "aws.usw2"
+  }
+}
+</pre>
+<p>In the <code>providers</code> map, the keys are provider names as expected by the child module, while the values are the names of corresponding configurations in the <em>current</em> module. The subdirectory <code>./tunnel</code> must then contain <em>proxy configuration blocks</em> like the following, to declare that it requires configurations to be passed with these from the <code>providers</code> block in the parent's <code>module</code> block:</p> <pre data-language="ruby">provider "aws" {
+  alias = "src"
+}
+
+provider "aws" {
+  alias = "dst"
+}
+</pre>
+<p>Each resource should then have its own <code>provider</code> attribute set to either <code>"aws.src"</code> or <code>"aws.dst"</code> to choose which of the two provider instances to use.</p> <p>At this time it is required to write an explicit proxy configuration block even for default (un-aliased) provider configurations when they will be passed via an explicit <code>providers</code> block:</p> <pre data-language="ruby">provider "aws" {
+}
+</pre>
+<p>If such a block is not present, the child module will behave as if it has no configurations of this type at all, which may cause input prompts to supply any required provider configuration arguments. This limitation will be addressed in a future version of Terraform.</p> <h2 id="multiple-instances-of-a-module">  Multiple Instances of a Module </h2> <p>A particular module source can be instantiated multiple times:</p> <pre data-language="ruby"># my_buckets.tf
+
+module "assets_bucket" {
+  source = "./publish_bucket"
+  name   = "assets"
+}
+
+module "media_bucket" {
+  source = "./publish_bucket"
+  name   = "media"
+}
+</pre>
+<pre data-language="ruby"># publish_bucket/bucket-and-cloudfront.tf
+
+variable "name" {} # this is the input parameter of the module
+
+resource "aws_s3_bucket" "example" {
+  # ...
+}
+
+resource "aws_iam_user" "deploy_user" {
+  # ...
+}
+</pre>
+<p>This example defines a local child module in the <code>./publish_bucket</code> subdirectory. That module has configuration to create an S3 bucket. The module wraps the bucket and all the other implementation details required to configure a bucket.</p> <p>We can then instantiate the module multiple times in our configuration by giving each instance a unique name -- here <code>module "assets_bucket"</code> and <code>module "media_bucket"</code> -- whilst specifying the same <code>source</code> value.</p> <p>Resources from child modules are prefixed with <code>module.&lt;module-instance-name&gt;</code> when displayed in plan output and elsewhere in the UI. For example, the <code>./publish_bucket</code> module contains <code>aws_s3_bucket.example</code>, and so the two instances of this module produce S3 bucket resources with <a href="../cli/state/resource-addressing"><em>resource addresses</em></a> <code>module.assets_bucket.aws_s3_bucket.example</code> and <code>module.media_bucket.aws_s3_bucket.example</code> respectively. These full addresses are used within the UI and on the command line, but are not valid within interpolation expressions due to the encapsulation behavior described above.</p> <p>When refactoring an existing configuration to introduce modules, moving resource blocks between modules causes Terraform to see the new location as an entirely separate resource to the old. Always check the execution plan after performing such actions to ensure that no resources are surprisingly deleted.</p> <p>Each instance of a module may optionally have different providers passed to it using the <code>providers</code> argument described above. This can be useful in situations where, for example, a duplicated set of resources must be created across several regions or datacenters.</p> <h2 id="tainting-resources-within-a-module">  Tainting resources within a module </h2> <p>The <a href="../cli/commands/taint">taint command</a> can be used to <em>taint</em> specific resources within a module:</p> <pre data-language="shell">$ terraform taint -module=salt_master aws_instance.salt_master
+</pre>
+<p>It is not possible to taint an entire module. Instead, each resource within the module must be tainted separately.</p><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/configuration-0-11/modules.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/configuration-0-11/modules.html</a>
+  </p>
+</div>

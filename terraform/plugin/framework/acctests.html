@@ -1,0 +1,23 @@
+ <h1 id="acceptance-tests">  Acceptance Tests </h1> <p>The framework for Terraform provider development currently relies on the <a href="../../extend/testing/acceptance-tests/index">acceptance test framework</a> shipped with SDKv2. You will write and run tests with the same steps, and they are otherwise indistinguishable from testing against SDKv2. The major difference is in how the provider is specified in <a href="../../extend/testing/acceptance-tests/testcase">the <code>TestCase</code> struct</a>.</p> <h2 id="specify-providers">  Specify Providers </h2> <p>In SDKv2, providers were specified by using the <a href="https://pkg.go.dev/github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource#TestCase.Providers"><code>Providers</code> property of the <code>resource.TestCase</code></a> to supply a map of <a href="https://pkg.go.dev/github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema/#Provider"><code>schema.Provider</code></a>s.</p> <p>For the framework, the same pattern applies, but instead use the <a href="https://pkg.go.dev/github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource#TestCase.ProtoV6ProviderFactories"><code>ProtoV6ProviderFactories</code> property of <code>resource.TestCase</code></a> to supply a map of functions that return a <a href="https://pkg.go.dev/github.com/hashicorp/terraform-plugin-go/tfprotov6/#ProviderServer"><code>tfprotov6.ProviderServer</code></a>. To get a <code>tfprotov6.ProviderServer</code> from a <a href="https://pkg.go.dev/github.com/hashicorp/terraform-plugin-framework/tfsdk#Provider"><code>tfsdk.Provider</code></a>, you need to use the <a href="https://pkg.go.dev/github.com/hashicorp/terraform-plugin-framework/tfsdk#NewProtocol6Server"><code>tfsdk.NewProtocol6Server</code></a> helper. For example:</p> <pre>resource.Test(t, resource.TestCase{
+    PreCheck: func() { testAccPreCheck(t) },
+    ProtoV6ProviderFactories: map[string]func() (tfprotov6.ProviderServer, error) {
+        "example_provider": func() (tfprotov6.ProviderServer, error) {
+            // newProvider is your function that returns a
+            // tfsdk.Provider implementation
+            return tfsdk.NewProtocol6Server(newProvider()), nil
+        },
+    },
+    CheckDestroy: testAccCheckExampleResourceDestroy,
+    Steps: []resource.TestStep{
+        {
+            Config: testAccExampleResource,
+            Check: testAccCheckExampleResourceExists,
+        },
+    },
+})
+</pre>
+<p>See the <a href="../../extend/testing/acceptance-tests/testcase"><code>TestCase</code> documentation</a> for more information on using <code>resource.TestCase</code>.</p> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> We anticipate releasing an improved testing experience for the framework in the near future.</p> </blockquote><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/plugin/framework/acctests.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/plugin/framework/acctests.html</a>
+  </p>
+</div>

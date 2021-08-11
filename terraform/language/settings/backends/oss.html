@@ -1,0 +1,57 @@
+ <h1 id="oss">  OSS </h1> <p><strong>Kind: Standard (with locking via TableStore)</strong></p> <p>Stores the state as a given key in a given bucket on Stores <a href="https://www.alibabacloud.com/help/product/31815.htm">Alibaba Cloud OSS</a>. This backend also supports state locking and consistency checking via <a href="https://www.alibabacloud.com/help/doc-detail/27280.htm">Alibaba Cloud Table Store</a>, which can be enabled by setting the <code>tablestore_table</code> field to an existing TableStore table name.</p> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> The OSS backend is available from terraform version 0.12.2.</p> </blockquote> <h2 id="example-configuration">  Example Configuration </h2> <pre data-language="ruby">terraform {
+  backend "oss" {
+    bucket = "bucket-for-terraform-state"
+    prefix   = "path/mystate"
+    key   = "version-1.tfstate"
+    region = "cn-beijing"
+    tablestore_endpoint = "https://terraform-remote.cn-hangzhou.ots.aliyuncs.com"
+    tablestore_table = "statelock"
+  }
+}
+</pre>
+<p>This assumes we have a <a href="https://registry.terraform.io/providers/aliyun/alicloud/latest/docs/resources/oss_bucket">OSS Bucket</a> created called <code>bucket-for-terraform-state</code>, a <a href="https://registry.terraform.io/providers/aliyun/alicloud/latest/docs/resources/ots_instance">OTS Instance</a> called <code>terraform-remote</code> and a <a href="https://registry.terraform.io/providers/aliyun/alicloud/latest/docs/resources/ots_table">OTS TableStore</a> called <code>statelock</code>. The Terraform state will be written into the file <code>path/mystate/version-1.tfstate</code>. The <code>TableStore</code> must have a primary key named <code>LockID</code> of type <code>String</code>.</p> <h2 id="data-source-configuration">  Data Source Configuration </h2> <p>To make use of the OSS remote state in another configuration, use the <a href="../../state/remote-state-data"><code>terraform_remote_state</code> data source</a>.</p> <pre data-language="ruby">terraform {
+  backend "oss" {
+    bucket = "remote-state-dns"
+    prefix = "mystate/state"
+    key    = "terraform.tfstate"
+    region = "cn-beijing"
+  }
+}
+</pre>
+<p>The <code>terraform_remote_state</code> data source will return all of the root outputs defined in the referenced remote state, an example output might look like:</p> <pre>data "terraform_remote_state" "network" {
+    backend   = "oss"
+    config    = {
+        bucket = "remote-state-dns"
+        key    = "terraform.tfstate"
+        prefix = "mystate/state"
+        region = "cn-beijing"
+    }
+    outputs   = {}
+    workspace = "default"
+}
+</pre>
+<h2 id="configuration-variables">  Configuration variables </h2> <p>The following configuration options or environment variables are supported:</p> <ul> <li>
+<a href="#access_key"><code>access_key</code></a> - (Optional) Alibaba Cloud access key. It supports environment variables <code>ALICLOUD_ACCESS_KEY</code> and <code>ALICLOUD_ACCESS_KEY_ID</code>. </li> <li>
+<a href="#secret_key"><code>secret_key</code></a> - (Optional) Alibaba Cloud secret access key. It supports environment variables <code>ALICLOUD_SECRET_KEY</code> and <code>ALICLOUD_ACCESS_KEY_SECRET</code>. </li> <li>
+<a href="#security_token"><code>security_token</code></a> - (Optional) STS access token. It supports environment variable <code>ALICLOUD_SECURITY_TOKEN</code>. </li> <li>
+<a href="#ecs_role_name"><code>ecs_role_name</code></a> - (Optional, Available in 0.12.14+) The RAM Role Name attached on a ECS instance for API operations. You can retrieve this from the 'Access Control' section of the Alibaba Cloud console. </li> <li>
+<a href="#region"><code>region</code></a> - (Optional) The region of the OSS bucket. It supports environment variables <code>ALICLOUD_REGION</code> and <code>ALICLOUD_DEFAULT_REGION</code>. </li> <li>
+<a href="#endpoint"><code>endpoint</code></a> - (Optional) A custom endpoint for the OSS API. It supports environment variables <code>ALICLOUD_OSS_ENDPOINT</code> and <code>OSS_ENDPOINT</code>. </li> <li>
+<a href="#bucket"><code>bucket</code></a> - (Required) The name of the OSS bucket. </li> <li>
+<a href="#prefix"><code>prefix</code></a> - (Opeional) The path directory of the state file will be stored. Default to "env:". </li> <li>
+<a href="#key"><code>key</code></a> - (Optional) The name of the state file. Defaults to <code>terraform.tfstate</code>. </li> <li>
+<a href="#tablestore_endpoint"><code>tablestore_endpoint</code></a> / <code>ALICLOUD_TABLESTORE_ENDPOINT</code> - (Optional) A custom endpoint for the TableStore API. </li> <li>
+<a href="#tablestore_table"><code>tablestore_table</code></a> - (Optional) A TableStore table for state locking and consistency. The table must have a primary key named <code>LockID</code> of type <code>String</code>. </li> <li>
+<a href="#encrypt"><code>encrypt</code></a> - (Optional) Whether to enable server side encryption of the state file. If it is true, OSS will use 'AES256' encryption algorithm to encrypt state file. </li> <li>
+<a href="#acl"><code>acl</code></a> - (Optional) <a href="https://www.alibabacloud.com/help/doc-detail/52284.htm">Object ACL</a> to be applied to the state file. </li> <li>
+<a href="#shared_credentials_file"><code>shared_credentials_file</code></a> - (Optional, Available in 0.12.8+) This is the path to the shared credentials file. It can also be sourced from the <code>ALICLOUD_SHARED_CREDENTIALS_FILE</code> environment variable. If this is not set and a profile is specified, <code>~/.aliyun/config.json</code> will be used. </li> <li>
+<a href="#profile"><code>profile</code></a> - (Optional, Available in 0.12.8+) This is the Alibaba Cloud profile name as set in the shared credentials file. It can also be sourced from the <code>ALICLOUD_PROFILE</code> environment variable. </li> <li>
+<a href="#assume_role"><code>assume_role</code></a> - (Optional, Available in 0.12.6+) If provided with a role ARN, will attempt to assume this role using the supplied credentials. </li> </ul> <p>The nested <code>assume_role</code> block supports the following:</p> <ul> <li>
+<p><a href="#role_arn"><code>role_arn</code></a> - (Required) The ARN of the role to assume. If ARN is set to an empty string, it does not perform role switching. It supports environment variable <code>ALICLOUD_ASSUME_ROLE_ARN</code>. Terraform executes configuration on account with provided credentials.</p> </li> <li>
+<p><a href="#policy"><code>policy</code></a> - (Optional) A more restrictive policy to apply to the temporary credentials. This gives you a way to further restrict the permissions for the resulting temporary security credentials. You cannot use this policy to grant permissions which exceed those of the role that is being assumed.</p> </li> <li>
+<p><a href="#session_name"><code>session_name</code></a> - (Optional) The session name to use when assuming the role. If omitted, 'terraform' is passed to the AssumeRole call as session name. It supports environment variable <code>ALICLOUD_ASSUME_ROLE_SESSION_NAME</code>.</p> </li> <li>
+<p><a href="#session_expiration"><code>session_expiration</code></a> - (Optional) The time after which the established session for assuming role expires. Valid value range: [900-3600] seconds. Default to 3600 (in this case Alibaba Cloud use own default value). It supports environment variable <code>ALICLOUD_ASSUME_ROLE_SESSION_EXPIRATION</code>.</p> </li> </ul> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> If you want to store state in the custom OSS endpoint, you can specify a environment variable <code>OSS_ENDPOINT</code>, like "oss-cn-beijing-internal.aliyuncs.com"</p> </blockquote><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/language/settings/backends/oss.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/language/settings/backends/oss.html</a>
+  </p>
+</div>

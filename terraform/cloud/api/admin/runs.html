@@ -1,0 +1,130 @@
+ <h1 id="admin-runs-api">  Admin Runs API </h1> <blockquote class="alert alert-info" role="alert"> <p><strong>Terraform Enterprise feature:</strong> The admin API is exclusive to Terraform Enterprise, and can only be used by the admins and operators who install and maintain their organization's Terraform Enterprise instance.</p> </blockquote> <blockquote class="alert alert-info" role="alert"> <p>These API endpoints are available in Terraform Enterprise as of version 201807-1.</p> </blockquote> <p>The Runs Admin API contains endpoints to help site administrators manage runs.</p> <h2 id="list-all-runs">  List all runs </h2> <p><code>GET /api/v2/admin/runs</code></p> <p>This endpoint lists all runs in the Terraform Enterprise installation.</p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="../index#json-api-documents">JSON API document</a> (<code>type: "runs"</code>)</td> <td>Successfully listed runs</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Client is not an administrator.</td> </tr> </tbody>
+</table> <h3 id="query-parameters">  Query Parameters </h3> <p><a href="../index#query-parameters">These are standard URL query parameters</a>; remember to percent-encode <code>[</code> as <code>%5B</code> and <code>]</code> as <code>%5D</code> if your tooling doesn't automatically encode URLs.</p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>q</code></td> <td>
+<strong>Optional.</strong> A search query string. Runs are searchable by ID, workspace name, organization name or email, and VCS repository identifier.</td> </tr> <tr> <td><code>filter[status]</code></td> <td>
+<strong>Optional.</strong> A comma-separated list of Run statuses to restrict results to, which can include any of the following: <code>"pending"</code>, <code>"plan_queued"</code>, <code>"planning"</code>, <code>"planned"</code>, <code>"confirmed"</code>, <code>"apply_queued"</code>, <code>"applying"</code>, <code>"applied"</code>, <code>"discarded"</code>, <code>"errored"</code>, <code>"canceled"</code>, <code>"cost_estimating"</code>, <code>"cost_estimated"</code>, <code>"policy_checking"</code>, <code>"policy_override"</code>, <code>"policy_soft_failed"</code>, <code>"policy_checked"</code>, and <code>"planned_and_finished"</code>.</td> </tr> <tr> <td><code>page[number]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return the first page.</td> </tr> <tr> <td><code>page[size]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return 20 runs per page.</td> </tr> </tbody>
+</table> <p>A VCS repository identifier is a reference to a VCS repository in the format <code>:org/:repo</code>, where <code>:org</code> and <code>:repo</code> refer to the organization (or project) and repository in your VCS provider.</p> <h3 id="available-related-resources">  Available Related Resources </h3> <p>This GET endpoint can optionally return related resources, if requested with <a href="../index#inclusion-of-related-resources">the <code>include</code> query parameter</a>. The following resource types are available:</p> <table>
+<thead> <tr> <th>Resource Name</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>workspace</code></td> <td>The workspace this run belongs in.</td> </tr> <tr> <td><code>workspace.organization</code></td> <td>The organization of the associated workspace.</td> </tr> </tbody>
+</table> <h3 id="sample-request">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  "https://app.terraform.io/api/v2/admin/runs"
+</pre>
+<h3 id="sample-response">  Sample Response </h3> <pre data-language="json">{
+  "data": [
+    {
+      "id": "run-VCsNJXa59eUza53R",
+      "type": "runs",
+      "attributes": {
+        "status": "pending",
+        "status-timestamps": {
+          "planned-at": "2018-03-02T23:42:06+00:00",
+          "discarded-at": "2018-03-02T23:42:06+00:00"
+        },
+        "has-changes": true,
+        "created-at": "2018-03-02T23:42:06.651Z"
+      },
+      "relationships": {
+        "workspace": {
+          "data": {
+            "id": "ws-mJtb6bXGybq5zbf3",
+            "type": "workspaces"
+          }
+        }
+      },
+      "links": {
+        "self": "/api/v2/runs/run-VCsNJXa59eUza53R"
+      }
+    }
+  ],
+  "links": {
+    "self": "https://app.terraform.io/api/v2/admin/runs?page%5Bnumber%5D=1&amp;page%5Bsize%5D=20",
+    "first": "https://app.terraform.io/api/v2/admin/runs?page%5Bnumber%5D=1&amp;page%5Bsize%5D=20",
+    "prev": null,
+    "next": null,
+    "last": "https://app.terraform.io/api/v2/admin/runs?page%5Bnumber%5D=1&amp;page%5Bsize%5D=20"
+  },
+  "meta": {
+    "pagination": {
+      "current-page": 1,
+      "prev-page": null,
+      "next-page": null,
+      "total-pages": 1,
+      "total-count": 1
+    },
+    "status-counts": {
+      "pending": 1,
+      "planning": 0,
+      "planned": 0,
+      "confirmed": 0,
+      "applying": 0,
+      "applied": 0,
+      "discarded": 0,
+      "errored": 0,
+      "canceled": 0,
+      "policy-checking": 0,
+      "policy-override": 0,
+      "policy-checked": 0,
+      "total": 1
+    }
+  }
+}
+</pre>
+<h2 id="force-a-run-into-the-quot-cancelled-quot-state">  Force a run into the "cancelled" state </h2> <p><code>POST /admin/runs/:id/actions/force-cancel</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:id</code></td> <td>The ID of the run to cancel.</td> </tr> </tbody>
+</table> <p>This endpoint forces a run (and its plan/apply, if applicable) into the <code>"canceled"</code> state. This action should only be performed for runs that are stuck and no longer progressing normally, as there is a risk of lost state data if a progressing apply is force-canceled. Healthy runs can be <a href="../../run/states">requested for cancellation by end-users</a>.</p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="../index#json-api-documents">JSON API document</a> (<code>type: "runs"</code>)</td> <td>Successfully canceled the run.</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Run not found, or client is not an administrator.</td> </tr> </tbody>
+</table> <h3 id="request-body">  Request body </h3> <p>This POST endpoint allows an optional JSON object with the following properties as a request payload.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>comment</code></td> <td>string</td> <td><code>null</code></td> <td>An optional explanation for why the run was force-canceled.</td> </tr> </tbody>
+</table> <h3 id="sample-payload">  Sample Payload </h3> <pre data-language="json">{
+  "comment": "This run was stuck and would never finish."
+}
+</pre>
+<h3 id="sample-request-1">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  "https://app.terraform.io/api/v2/admin/runs/run-VCsNJXa59eUza53R/actions/force-cancel"
+</pre>
+<h3 id="sample-response-1">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id": "run-VCsNJXa59eUza53R",
+    "type": "runs",
+    "attributes": {
+      "status": "errored",
+      "status-timestamps": {
+        "planned-at": "2018-03-02T23:42:06Z"
+      },
+      "has-changes": true,
+      "created-at": "2018-03-02T23:42:06.651Z"
+    },
+    "relationships": {
+      "workspace": {
+        "data": {
+          "id": "ws-mJtb6bXGybq5zbf3",
+          "type": "workspaces"
+        }
+      }
+    },
+    "links": {
+      "self": "/api/v2/runs/run-VCsNJXa59eUza53R"
+    }
+  }
+}
+</pre><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/cloud/api/admin/runs.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/cloud/api/admin/runs.html</a>
+  </p>
+</div>

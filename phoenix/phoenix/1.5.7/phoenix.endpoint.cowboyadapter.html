@@ -1,0 +1,48 @@
+<h1> Phoenix.Endpoint.CowboyAdapter   </h1> <section id="moduledoc"> <p>The Cowboy adapter for Phoenix.</p>
+<p>It implements the required <code class="inline">child_spec/3</code> function as well as the handler for the WebSocket transport.</p>
+<h2 id="module-custom-dispatch-options" class="section-heading">  Custom dispatch options </h2> <p><em>NOTE</em>: This feature depends on the internals of Cowboy 1.0 API and how it integrates with Phoenix. Those may change at <em>any time</em>, without backwards compatibility.</p>
+<p>You can provide custom dispatch options in order to use Phoenix's builtin Cowboy server with custom handlers. For example, to handle raw WebSockets <a href="https://github.com/ninenines/cowboy/tree/1.0.x/examples">as shown in Cowboy's docs</a>).</p>
+<p>The options are passed to both <code class="inline">:http</code> and <code class="inline">:https</code> keys in the endpoint configuration. However, once you pass your custom dispatch options, you will need to manually wire all Phoenix endpoints, including the socket transports.</p>
+<p>You will need the following rules:</p>
+<ul>
+<li>
+<p>Per websocket transport:</p>
+<pre data-language="elixir">{"/socket/websocket", Phoenix.Endpoint.CowboyWebSocket,
+  {Phoenix.Transports.WebSocket,
+    {MyAppWeb.Endpoint, MyAppWeb.UserSocket, websocket_config}}}</pre>
+</li>
+<li>
+<p>Per longpoll transport:</p>
+<pre data-language="elixir">{"/socket/long_poll", Plug.Adapters.Cowboy.Handler,
+  {Phoenix.Transports.LongPoll,
+    {MyAppWeb.Endpoint, MyAppWeb.UserSocket, longpoll_config}}}</pre>
+</li>
+<li>
+<p>For the live-reload websocket:</p>
+<pre data-language="elixir">{"/phoenix/live_reload/socket/websocket", Phoenix.Endpoint.CowboyWebSocket,
+  {Phoenix.Transports.WebSocket,
+    {MyAppWeb.Endpoint, Phoenix.LiveReloader.Socket, websocket_config}}}</pre>
+<p>If you decide to include the live-reload websocket, you should disable it when building for production.</p>
+</li>
+<li>
+<p>For the endpoint:</p>
+<pre data-language="elixir">{:_, Plug.Adapters.Cowboy.Handler, {MyAppWeb.Endpoint, []}}</pre>
+</li>
+</ul>
+<p>For example:</p>
+<pre data-language="elixir">config :myapp, MyAppWeb.Endpoint,
+  http: [dispatch: [
+          {:_, [
+              {"/foo", MyAppWeb.CustomHandler, []},
+              {"/bar", MyAppWeb.AnotherHandler, []},
+              {"/phoenix/live_reload/socket/websocket", Phoenix.Endpoint.CowboyWebSocket,
+                {Phoenix.Transports.WebSocket,
+                  {MyAppWeb.Endpoint, Phoenix.LiveReloader.Socket, websocket_config}}},
+              {:_, Plug.Adapters.Cowboy.Handler, {MyAppWeb.Endpoint, []}}
+            ]}]]</pre>
+<p>Note: if you reconfigure HTTP options in <code class="inline">MyAppWeb.Endpoint.init/1</code>, your dispatch options set in mix config will be overwritten.</p>
+<p>It is also important to specify your handlers first, otherwise Phoenix will intercept the requests before they get to your handler.</p> </section><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://hexdocs.pm/phoenix/1.5.7/Phoenix.Endpoint.CowboyAdapter.html" class="_attribution-link" target="_blank">https://hexdocs.pm/phoenix/1.5.7/Phoenix.Endpoint.CowboyAdapter.html</a>
+  </p>
+</div>

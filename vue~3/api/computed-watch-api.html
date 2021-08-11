@@ -1,0 +1,147 @@
+ <div class="theme-default-content content__default">
+<h1 id="computed-and-watch"> Computed and watch</h1> <blockquote><p>This section uses <a href="../guide/single-file-component">single-file component</a> syntax for code examples</p></blockquote> <h2 id="computed"> <code>computed</code>
+</h2> <p>Takes a getter function and returns an immutable reactive <a href="refs-api#ref">ref</a> object for the returned value from the getter.</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">const count = ref(1)
+const plusOne = computed(() =&gt; count.value + 1)
+
+console.log(plusOne.value) // 2
+
+plusOne.value++ // error</pre> </div>
+<p>Alternatively, it can take an object with <code>get</code> and <code>set</code> functions to create a writable ref object.</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">const count = ref(1)
+const plusOne = computed({
+  get: () =&gt; count.value + 1,
+  set: val =&gt; {
+    count.value = val - 1
+  }
+})
+
+plusOne.value = 1
+console.log(count.value) // 0</pre> </div>
+<p><strong>Typing:</strong></p> <div class="language-ts line-numbers-mode">
+<pre class="language-ts" data-language="javascript">// read-only
+function computed&lt;T&gt;(
+  getter: () =&gt; T,
+  debuggerOptions?: DebuggerOptions
+): Readonly&lt;Ref&lt;Readonly&lt;T&gt;&gt;&gt;
+
+// writable
+function computed&lt;T&gt;(
+  options: {
+    get: () =&gt; T
+    set: (value: T) =&gt; void
+  },
+  debuggerOptions?: DebuggerOptions
+): Ref&lt;T&gt;
+
+interface DebuggerOptions {
+  onTrack?: (event: DebuggerEvent) =&gt; void
+  onTrigger?: (event: DebuggerEvent) =&gt; void
+}
+
+interface DebuggerEvent {
+  effect: ReactiveEffect
+  target: any
+  type: OperationTypes
+  key: string | symbol | undefined
+}</pre> </div>
+<h2 id="watcheffect"> <code>watchEffect</code>
+</h2> <p>Runs a function immediately while reactively tracking its dependencies and re-runs it whenever the dependencies are changed.</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">const count = ref(0)
+
+watchEffect(() =&gt; console.log(count.value))
+// -&gt; logs 0
+
+setTimeout(() =&gt; {
+  count.value++
+  // -&gt; logs 1
+}, 100)</pre> </div>
+<p><strong>Typing:</strong></p> <div class="language-ts line-numbers-mode">
+<pre class="language-ts" data-language="javascript">function watchEffect(
+  effect: (onInvalidate: InvalidateCbRegistrator) =&gt; void,
+  options?: WatchEffectOptions
+): StopHandle
+
+interface WatchEffectOptions {
+  flush?: 'pre' | 'post' | 'sync' // default: 'pre'
+  onTrack?: (event: DebuggerEvent) =&gt; void
+  onTrigger?: (event: DebuggerEvent) =&gt; void
+}
+
+interface DebuggerEvent {
+  effect: ReactiveEffect
+  target: any
+  type: OperationTypes
+  key: string | symbol | undefined
+}
+
+type InvalidateCbRegistrator = (invalidate: () =&gt; void) =&gt; void
+
+type StopHandle = () =&gt; void</pre> </div>
+<p><strong>See also</strong>: <a href="../guide/reactivity-computed-watchers#watcheffect"><code>watchEffect</code> guide</a></p> <h2 id="watchposteffect"> <code>watchPostEffect</code> <span class="badge tip" style="vertical-align:top;" data-v-0cc74adb>3.2+</span>
+</h2> <p>Alias of <code>watchEffect</code> with <code>flush: 'post'</code> option.</p> <h2 id="watchsynceffect"> <code>watchSyncEffect</code> <span class="badge tip" style="vertical-align:top;" data-v-0cc74adb>3.2+</span>
+</h2> <p>Alias of <code>watchEffect</code> with <code>flush: 'sync'</code> option.</p> <h2 id="watch"> <code>watch</code>
+</h2> <p>The <code>watch</code> API is the exact equivalent of the Options API <a href="instance-methods#watch">this.$watch</a> (and the corresponding <a href="options-data#watch">watch</a> option). <code>watch</code> requires watching a specific data source and applies side effects in a separate callback function. It also is lazy by default - i.e. the callback is only called when the watched source has changed.</p> <ul><li>
+<p>Compared to <a href="#watcheffect">watchEffect</a>, <code>watch</code> allows us to:</p> <ul>
+<li>Perform the side effect lazily;</li> <li>Be more specific about what state should trigger the watcher to re-run;</li> <li>Access both the previous and current value of the watched state.</li>
+</ul>
+</li></ul> <h3 id="watching-a-single-source"> Watching a Single Source</h3> <p>A watcher data source can either be a getter function that returns a value, or directly a <a href="refs-api#ref">ref</a>:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">// watching a getter
+const state = reactive({ count: 0 })
+watch(
+  () =&gt; state.count,
+  (count, prevCount) =&gt; {
+    /* ... */
+  }
+)
+
+// directly watching a ref
+const count = ref(0)
+watch(count, (count, prevCount) =&gt; {
+  /* ... */
+})</pre> </div>
+<h3 id="watching-multiple-sources"> Watching Multiple Sources</h3> <p>A watcher can also watch multiple sources at the same time using an array:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">watch([fooRef, barRef], ([foo, bar], [prevFoo, prevBar]) =&gt; {
+  /* ... */
+})</pre> </div>
+<h3 id="shared-behavior-with-watcheffect"> Shared Behavior with <code>watchEffect</code>
+</h3> <p><code>watch</code> shares behavior with <a href="#watcheffect"><code>watchEffect</code></a> in terms of <a href="../guide/reactivity-computed-watchers#stopping-the-watcher">manual stoppage</a>, <a href="../guide/reactivity-computed-watchers#side-effect-invalidation">side effect invalidation</a> (with <code>onInvalidate</code> passed to the callback as the 3rd argument instead), <a href="../guide/reactivity-computed-watchers#effect-flush-timing">flush timing</a> and <a href="../guide/reactivity-computed-watchers#watcher-debugging">debugging</a>.</p> <p><strong>Typing:</strong></p> <div class="language-ts line-numbers-mode">
+<pre class="language-ts" data-language="javascript">// watching single source
+function watch&lt;T&gt;(
+  source: WatcherSource&lt;T&gt;,
+  callback: (
+    value: T,
+    oldValue: T,
+    onInvalidate: InvalidateCbRegistrator
+  ) =&gt; void,
+  options?: WatchOptions
+): StopHandle
+
+// watching multiple sources
+function watch&lt;T extends WatcherSource&lt;unknown&gt;[]&gt;(
+  sources: T
+  callback: (
+    values: MapSources&lt;T&gt;,
+    oldValues: MapSources&lt;T&gt;,
+    onInvalidate: InvalidateCbRegistrator
+  ) =&gt; void,
+  options? : WatchOptions
+): StopHandle
+
+type WatcherSource&lt;T&gt; = Ref&lt;T&gt; | (() =&gt; T)
+
+type MapSources&lt;T&gt; = {
+  [K in keyof T]: T[K] extends WatcherSource&lt;infer V&gt; ? V : never
+}
+
+// see `watchEffect` typing for shared options
+interface WatchOptions extends WatchEffectOptions {
+  immediate?: boolean // default: false
+  deep?: boolean
+}</pre> </div>
+<p><strong>See also</strong>: <a href="../guide/reactivity-computed-watchers#watch"><code>watch</code> guide</a></p>
+</div>   <div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://v3.vuejs.org/api/computed-watch-api.html" class="_attribution-link" target="_blank">https://v3.vuejs.org/api/computed-watch-api.html</a>
+  </p>
+</div>

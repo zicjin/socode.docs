@@ -1,0 +1,290 @@
+ <div class="theme-default-content content__default">
+<h1 id="provide-inject"> Provide / Inject</h1> <blockquote><p>This guide assumes that you have already read <a href="component-provide-inject">Provide / Inject</a>, <a href="composition-api-introduction">Composition API Introduction</a>, and <a href="reactivity-fundamentals">Reactivity Fundamentals</a>.</p></blockquote> <p>We can use <a href="component-provide-inject">provide / inject</a> with the Composition API as well. Both can only be called during <a href="composition-api-setup"><code>setup()</code></a> with a current active instance.</p> <h2 id="scenario-background"> Scenario Background</h2> <p>Let's assume that we want to rewrite the following code, which contains a <code>MyMap</code> component that provides a <code>MyMarker</code> component with the user's location, using the Composition API.</p> <div class="language-vue line-numbers-mode">
+<pre class="language-vue" data-language="javascript">&lt;!-- src/components/MyMap.vue --&gt;
+&lt;template&gt;
+  &lt;MyMarker /&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+import MyMarker from './MyMarker.vue'
+
+export default {
+  components: {
+    MyMarker
+  },
+  provide: {
+    location: 'North Pole',
+    geolocation: {
+      longitude: 90,
+      latitude: 135
+    }
+  }
+}
+&lt;/script&gt;</pre> </div>
+<div class="language-vue line-numbers-mode">
+<pre class="language-vue" data-language="javascript">&lt;!-- src/components/MyMarker.vue --&gt;
+&lt;script&gt;
+export default {
+  inject: ['location', 'geolocation']
+}
+&lt;/script&gt;</pre> </div>
+<h2 id="using-provide"> Using Provide</h2> <p>When using <code>provide</code> in <code>setup()</code>, we start by explicitly importing the method from <code>vue</code>. This allows us to define each property with its own invocation of <code>provide</code>.</p> <p>The <code>provide</code> function allows you to define the property through two parameters:</p> <ol>
+<li>The property's name (<code>&lt;String&gt;</code> type)</li> <li>The property's value</li>
+</ol> <p>Using our <code>MyMap</code> component, our provided values can be refactored as the following:</p> <div class="language-vue line-numbers-mode">
+<div class="highlight-lines">
+<br><br><br><br><br><br>
+<br><br><br><br><br><br>
+
+
+
+
+
+
+<br><br><br>
+</div>
+<pre class="language-vue" data-language="javascript">&lt;!-- src/components/MyMap.vue --&gt;
+&lt;template&gt;
+  &lt;MyMarker /&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+import { provide } from 'vue'
+import MyMarker from './MyMarker.vue'
+
+export default {
+  components: {
+    MyMarker
+  },
+  setup() {
+    provide('location', 'North Pole')
+    provide('geolocation', {
+      longitude: 90,
+      latitude: 135
+    })
+  }
+}
+&lt;/script&gt;</pre>
+</div>
+<h2 id="using-inject"> Using Inject</h2> <p>When using <code>inject</code> in <code>setup()</code>, we also need to explicitly import it from <code>vue</code>. Once we do so, this allows us to invoke it to define how we want to expose it to our component.</p> <p>The <code>inject</code> function takes two parameters:</p> <ol>
+<li>The name of the property to inject</li> <li>A default value (<strong>Optional</strong>)</li>
+</ol> <p>Using our <code>MyMarker</code> component, we can refactor it with the following code:</p> <div class="language-vue line-numbers-mode">
+<div class="highlight-lines">
+<br><br>
+<br><br>
+
+
+
+
+
+
+
+
+<br><br><br>
+</div>
+<pre class="language-vue" data-language="javascript">&lt;!-- src/components/MyMarker.vue --&gt;
+&lt;script&gt;
+import { inject } from 'vue'
+
+export default {
+  setup() {
+    const userLocation = inject('location', 'The Universe')
+    const userGeolocation = inject('geolocation')
+
+    return {
+      userLocation,
+      userGeolocation
+    }
+  }
+}
+&lt;/script&gt;</pre>
+</div>
+<h2 id="reactivity"> Reactivity</h2> <h3 id="adding-reactivity"> Adding Reactivity</h3> <p>To add reactivity between provided and injected values, we can use a <a href="reactivity-fundamentals#creating-standalone-reactive-values-as-refs">ref</a> or <a href="reactivity-fundamentals#declaring-reactive-state">reactive</a> when providing a value.</p> <p>Using our <code>MyMap</code> component, our code can be updated as follows:</p> <div class="language-vue line-numbers-mode">
+<div class="highlight-lines">
+<br><br><br><br><br><br>
+<br><br><br><br><br><br><br>
+
+
+
+
+
+
+
+<br><br><br><br>
+</div>
+<pre class="language-vue" data-language="javascript">&lt;!-- src/components/MyMap.vue --&gt;
+&lt;template&gt;
+  &lt;MyMarker /&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+import { provide, reactive, ref } from 'vue'
+import MyMarker from './MyMarker.vue'
+
+export default {
+  components: {
+    MyMarker
+  },
+  setup() {
+    const location = ref('North Pole')
+    const geolocation = reactive({
+      longitude: 90,
+      latitude: 135
+    })
+
+    provide('location', location)
+    provide('geolocation', geolocation)
+  }
+}
+&lt;/script&gt;</pre>
+</div>
+<p>Now, if anything changes in either property, the <code>MyMarker</code> component will automatically be updated as well!</p> <h3 id="mutating-reactive-properties"> Mutating Reactive Properties</h3> <p>When using reactive provide / inject values, <strong>it is recommended to keep any mutations to reactive properties inside of the <em>provider</em> whenever possible</strong>.</p> <p>For example, in the event we needed to change the user's location, we would ideally do this inside of our <code>MyMap</code> component.</p> <div class="language-vue line-numbers-mode">
+<div class="highlight-lines">
+<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+
+
+
+
+<br><br><br>
+</div>
+<pre class="language-vue" data-language="javascript">&lt;!-- src/components/MyMap.vue --&gt;
+&lt;template&gt;
+  &lt;MyMarker /&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+import { provide, reactive, ref } from 'vue'
+import MyMarker from './MyMarker.vue'
+
+export default {
+  components: {
+    MyMarker
+  },
+  setup() {
+    const location = ref('North Pole')
+    const geolocation = reactive({
+      longitude: 90,
+      latitude: 135
+    })
+
+    provide('location', location)
+    provide('geolocation', geolocation)
+
+    return {
+      location
+    }
+  },
+  methods: {
+    updateLocation() {
+      this.location = 'South Pole'
+    }
+  }
+}
+&lt;/script&gt;</pre>
+</div>
+<p>However, there are times where we need to update the data inside of the component where the data is injected. In this scenario, we recommend providing a method that is responsible for mutating the reactive property.</p> <div class="language-vue line-numbers-mode">
+<div class="highlight-lines">
+<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+
+
+<br><br><br>
+<br><br><br><br>
+</div>
+<pre class="language-vue" data-language="javascript">&lt;!-- src/components/MyMap.vue --&gt;
+&lt;template&gt;
+  &lt;MyMarker /&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+import { provide, reactive, ref } from 'vue'
+import MyMarker from './MyMarker.vue'
+
+export default {
+  components: {
+    MyMarker
+  },
+  setup() {
+    const location = ref('North Pole')
+    const geolocation = reactive({
+      longitude: 90,
+      latitude: 135
+    })
+
+    const updateLocation = () =&gt; {
+      location.value = 'South Pole'
+    }
+
+    provide('location', location)
+    provide('geolocation', geolocation)
+    provide('updateLocation', updateLocation)
+  }
+}
+&lt;/script&gt;</pre>
+</div>
+<div class="language-vue line-numbers-mode">
+<div class="highlight-lines">
+<br><br><br><br><br><br><br><br>
+<br><br><br><br>
+<br><br><br><br><br>
+</div>
+<pre class="language-vue" data-language="javascript">&lt;!-- src/components/MyMarker.vue --&gt;
+&lt;script&gt;
+import { inject } from 'vue'
+
+export default {
+  setup() {
+    const userLocation = inject('location', 'The Universe')
+    const userGeolocation = inject('geolocation')
+    const updateUserLocation = inject('updateLocation')
+
+    return {
+      userLocation,
+      userGeolocation,
+      updateUserLocation
+    }
+  }
+}
+&lt;/script&gt;</pre>
+</div>
+<p>Finally, we recommend using <code>readonly</code> on provided property if you want to ensure that the data passed through <code>provide</code> cannot be mutated by the injected component.</p> <div class="language-vue line-numbers-mode">
+<div class="highlight-lines">
+<br><br><br><br><br><br>
+<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+
+<br><br><br><br><br>
+</div>
+<pre class="language-vue" data-language="javascript">&lt;!-- src/components/MyMap.vue --&gt;
+&lt;template&gt;
+  &lt;MyMarker /&gt;
+&lt;/template&gt;
+
+&lt;script&gt;
+import { provide, reactive, readonly, ref } from 'vue'
+import MyMarker from './MyMarker.vue'
+
+export default {
+  components: {
+    MyMarker
+  },
+  setup() {
+    const location = ref('North Pole')
+    const geolocation = reactive({
+      longitude: 90,
+      latitude: 135
+    })
+
+    const updateLocation = () =&gt; {
+      location.value = 'South Pole'
+    }
+
+    provide('location', readonly(location))
+    provide('geolocation', readonly(geolocation))
+    provide('updateLocation', updateLocation)
+  }
+}
+&lt;/script&gt;</pre>
+</div>
+</div>   <div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://v3.vuejs.org/guide/composition-api-provide-inject.html" class="_attribution-link" target="_blank">https://v3.vuejs.org/guide/composition-api-provide-inject.html</a>
+  </p>
+</div>

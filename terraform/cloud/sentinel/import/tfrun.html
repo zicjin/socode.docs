@@ -1,0 +1,81 @@
+ <h1 id="import-tfrun">  Import: tfrun </h1> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> Sentinel policies are a paid feature, available as part of the <strong>Team &amp; Governance</strong> upgrade package. <a href="https://www.hashicorp.com/products/terraform/pricing">Learn more about Terraform Cloud pricing here</a>.</p> </blockquote> <p>The <code>tfrun</code> import provides access to data associated with a <a href="../../../glossary#run">Terraform run</a>.</p> <p>This import currently consists of run attributes, as well as namespaces for the <code>organization</code>, <code>workspace</code> and <code>cost-estimate</code>. Each namespace provides static data regarding the Terraform Cloud application that can then be consumed by Sentinel during a policy evaluation.</p> <pre>tfrun
+├── id (string)
+├── created_at (string)
+├── message (string)
+├── commit_sha (string)
+├── is_destroy (boolean)
+├── refresh (boolean)
+├── refresh_only (boolean)
+├── replace_addrs (array of strings)
+├── speculative (boolean)
+├── target_addrs (array of strings)
+├── variables (map of keys)
+├── organization
+│   └── name (string)
+├── workspace
+│   ├── id (string)
+│   ├── name (string)
+│   ├── created_at (string)
+│   ├── description (string)
+│   ├── auto_apply (bool)
+│   ├── working_directory (string)
+│   └── vcs_repo (map of keys)
+└── cost_estimate
+    ├── prior_monthly_cost (string)
+    ├── proposed_monthly_cost (string)
+    └── delta_monthly_cost (string)
+</pre>
+<blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> When writing policies using this import, keep in mind that workspace data is generally editable by users outside of the context of policy enforcement. For example, consider the case of omitting the enforcement of policy rules for development workspaces by the workspace name (allowing the policy to pass if the workspace ends in <code>-dev</code>). While this is useful for extremely granular exceptions, the workspace name could be edited by workspace admins, effectively bypassing the policy. In this case, where an extremely strict separation of policy managers vs. workspace practitioners is required, using <a href="../manage-policies">policy sets</a> to only enforce the policy on non-development workspaces is more appropriate.</p> </blockquote> <h2 id="namespace-root">  Namespace: root </h2> <p>The <strong>root namespace</strong> contains data associated with the current run.</p> <h3 id="value-id">  Value: <code>id</code> </h3> <ul> <li>
+<strong>Value Type:</strong> String. </li> </ul> <p>Specifies the ID that is associated with the current Terraform run.</p> <h3 id="value-created_at">  Value: <code>created_at</code> </h3> <ul> <li>
+<strong>Value Type:</strong> String. </li> </ul> <p>The <code>created_at</code> value within the <a href="#namespace-root">root namespace</a> specifies the time that the run was created. The timestamp returned follows the format outlined in <a href="https://datatracker.ietf.org/doc/html/rfc3339">RFC3339</a>.</p> <p>Users can use the <code>time</code> import to <a href="https://docs.hashicorp.com/sentinel/imports/time#time-load-timeish">load</a> a run timestamp and create a new timespace from the specicied value. See the <code>time</code> import <a href="https://docs.hashicorp.com/sentinel/imports/time#import-time">documentation</a> for available actions that can be performed on timespaces.</p> <h3 id="value-message">  Value: <code>message</code> </h3> <ul> <li>
+<strong>Value Type:</strong> String. </li> </ul> <p>Specifies the message that is associated with the Terraform run.</p> <p>The default value is <em>"Queued manually via the Terraform Enterprise API"</em>.</p> <h3 id="value-commit_sha">  Value: <code>commit_sha</code> </h3> <ul> <li>
+<strong>Value Type:</strong> String. </li> </ul> <p>Specifies the checksum hash (SHA) that identifies the commit.</p> <h3 id="value-is_destroy">  Value: <code>is_destroy</code> </h3> <ul> <li>
+<strong>Value Type:</strong> Boolean. </li> </ul> <p>Specifies if the plan is a destroy plan, which will destroy all provisioned resources.</p> <h3 id="value-refresh">  Value: <code>refresh</code> </h3> <ul> <li>
+<strong>Value Type:</strong> Boolean. </li> </ul> <p>Specifies whether the state was refreshed prior to the plan.</p> <h3 id="value-refresh_only">  Value: <code>refresh_only</code> </h3> <ul> <li>
+<strong>Value Type:</strong> Boolean. </li> </ul> <p>Specifies whether the plan is in refresh-only mode, which ignores configuration changes and updates state with any changes made outside of Terraform.</p> <h3 id="value-replace_addrs">  Value: <code>replace_addrs</code> </h3> <ul> <li>
+<strong>Value Type:</strong> An array of strings representing <a href="../../../cli/state/resource-addressing">resource addresses</a>. </li> </ul> <p>Provides the targets specified using the <a href="../../../cli/commands/plan#resource-targeting"><code>-replace</code></a> flag in the CLI or the <code>replace-addrs</code> attribute in the API. Will be undefined if no resource targets are specified.</p> <h3 id="value-speculative">  Value: <code>speculative</code> </h3> <ul> <li>
+<strong>Value Type:</strong> Boolean. </li> </ul> <p>Specifies whether the plan associated with the run is a <a href="../../run/index#speculative-plans">speculative plan</a> only.</p> <h3 id="value-target_addrs">  Value: <code>target_addrs</code> </h3> <ul> <li>
+<strong>Value Type:</strong> An array of strings representing <a href="../../../cli/state/resource-addressing">resource addresses</a>. </li> </ul> <p>Provides the targets specified using the <a href="../../../cli/commands/plan#resource-targeting"><code>-target</code></a> flag in the CLI or the <code>target-addrs</code> attribute in the API. Will be undefined if no resource targets are specified.</p> <p>To prohibit targeted runs altogether, make sure the <code>target_addrs</code> value is undefined or empty:</p> <pre>import "tfrun"
+
+main = (length(tfrun.target_addrs) else 0) == 0
+</pre>
+<h3 id="value-variables">  Value: <code>variables</code> </h3> <ul> <li>
+<strong>Value Type:</strong> A string-keyed map of values. </li> </ul> <p>Provides the names of the variables that are configured within the run and the <a href="../../workspaces/variables#sensitive-values">sensitivity</a> state of the value.</p> <pre>variables (map of keys)
+└── name (string)
+    └── category (string)
+    └── sensitive (boolean)
+</pre>
+<h2 id="namespace-organization">  Namespace: organization </h2> <p>The <strong>organization namespace</strong> contains data associated with the current run's Terraform Cloud <a href="../../users-teams-organizations/organizations">organization</a>.</p> <h3 id="value-name">  Value: <code>name</code> </h3> <ul> <li>
+<strong>Value Type:</strong> String. </li> </ul> <p>Specifies the name assigned to the Terraform Cloud organization.</p> <h2 id="namespace-workspace">  Namespace: workspace </h2> <p>The <strong>workspace namespace</strong> contains data associated with the current run's workspace.</p> <h3 id="value-id-1">  Value: <code>id</code> </h3> <ul> <li>
+<strong>Value Type:</strong> String. </li> </ul> <p>Specifies the ID that is associated with the Terraform workspace.</p> <h3 id="value-name-1">  Value: <code>name</code> </h3> <ul> <li>
+<strong>Value Type:</strong> String. </li> </ul> <p>The name of the workspace, which can only include letters, numbers, <code>-</code>, and <code>_</code>.</p> <p>As an example, in a workspace named <code>app-us-east-dev</code> the following policy would evaluate to <code>true</code>:</p> <pre># Enforces production rules on all non-development workspaces
+
+import "tfrun"
+import "strings"
+
+# (Actual policy logic omitted)
+evaluate_production_policy = rule { ... }
+
+main = rule when strings.has_suffix(tfrun.workspace.name, "-dev") is false {
+    evaluate_production_policy
+}
+</pre>
+<h3 id="value-created_at-1">  Value: <code>created_at</code> </h3> <ul> <li>
+<strong>Value Type:</strong> String. </li> </ul> <p>Specifies the time that the workspace was created. The timestamp returned follows the format outlined in <a href="https://datatracker.ietf.org/doc/html/rfc3339">RFC3339</a>.</p> <p>Users can use the <code>time</code> import to <a href="https://docs.hashicorp.com/sentinel/imports/time#time-load-timeish">load</a> a workspace timestamp, and create a new timespace from the specicied value. See the <code>time</code> import <a href="https://docs.hashicorp.com/sentinel/imports/time#import-time">documentation</a> for available actions that can be performed on timespaces.</p> <h3 id="value-description">  Value: <code>description</code> </h3> <ul> <li>
+<strong>Value Type:</strong> String. </li> </ul> <p>Contains the description for the workspace.</p> <p>This value can be <code>null</code>.</p> <h3 id="value-auto_apply">  Value: <code>auto_apply</code> </h3> <ul> <li>
+<strong>Value Type:</strong> Boolean. </li> </ul> <p>Contains the workspace's <a href="../../workspaces/settings#auto-apply-and-manual-apply">auto-apply</a> setting.</p> <h3 id="value-working_directory">  Value: <code>working_directory</code> </h3> <ul> <li>
+<strong>Value Type:</strong> String. </li> </ul> <p>Contains the configured <a href="../../workspaces/settings#terraform-working-directory">Terraform working directory</a> of the workspace.</p> <p>This value can be <code>null</code>.</p> <h3 id="value-vcs_repo">  Value: <code>vcs_repo</code> </h3> <ul> <li>
+<strong>Value Type:</strong> A string-keyed map of values. </li> </ul> <p>Contains data associated with a VCS repository connected to the workspace.</p> <p>Details regarding each attribute can be found in the documentation for the Terraform Cloud <a href="../../api/workspaces">Workspaces API</a>.</p> <p>This value can be <code>null</code>.</p> <pre>vcs_repo (map of keys)
+├── identifier (string)
+├── display_identifier (string)
+├── branch (string)
+└── ingress_submodules (bool)
+</pre>
+<h2 id="namespace-cost_estimate">  Namespace: cost_estimate </h2> <p>The <strong>cost_estimation namespace</strong> contains data associated with the current run's cost estimate.</p> <p>This namespace is only present if a cost estimate is available.</p> <blockquote class="alert alert-info" role="alert"> <p>Cost estimation is disabled for runs using <a href="../../../cli/commands/plan#resource-targeting">resource targeting</a>, which may cause unexpected failures.</p> </blockquote> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> Cost estimates are not available for Terraform 0.11.</p> </blockquote> <h3 id="value-prior_monthly_cost">  Value: <code>prior_monthly_cost</code> </h3> <ul> <li>
+<strong>Value Type:</strong> String. </li> </ul> <p>Contains the monthly cost estimate at the beginning of a plan.</p> <p>This value contains a positive decimal and can be <code>"0.0"</code>.</p> <h3 id="value-proposed_monthly_cost">  Value: <code>proposed_monthly_cost</code> </h3> <ul> <li>
+<strong>Value Type:</strong> String. </li> </ul> <p>Contains the monthly cost estimate if the plan were to be applied.</p> <p>This value contains a positive decimal and can be <code>"0.0"</code>.</p> <h3 id="value-delta_monthly_cost">  Value: <code>delta_monthly_cost</code> </h3> <ul> <li>
+<strong>Value Type:</strong> String. </li> </ul> <p>Contains the difference between the prior and proposed monthly cost estimates.</p> <p>This value may contain a positive or negative decimal and can be <code>"0.0"</code>.</p><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/cloud/sentinel/import/tfrun.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/cloud/sentinel/import/tfrun.html</a>
+  </p>
+</div>

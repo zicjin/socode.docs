@@ -1,0 +1,79 @@
+<p>Hot Module Replacement (HMR) is a method of updating javascript modules within a running application. This reduces the feedback cycle while developing, so you can view and test changes quicker. In Meteor’s implementation, the app can be updated before the build has even finished.</p> <blockquote class="pullquote warning">
+<p><code>hot-module-replacement</code> package was introduced in Meteor 2.0</p> </blockquote> <p>To enable HMR for an app, it should use the <code>hot-module-replacement</code> package. HMR is currently not supported for packages, but packages can depend on the <code>hot-module-replacement</code> package to ensure access to the hot API. When a change can not be accepted with HMR, Meteor uses hot code push to update the app, as is normally done when HMR is not used.</p> <p>HMR currently supports the modern web architecture. It is always disabled in other architectures and in production.</p> <h3 id="How-the-app-is-updated">
+How the app is updated</h3>
+<p>While rebuilding a supported architecture, Meteor checks which files were modified, and sends the modified files to the client. The client then uses this process:</p> <ol> <li>It checks if the modified module accepts or declines updates. If the module does neither, Meteor looks at the modules that imported it to see if they accept or decline the update, and then the modules that import those, and so on. If all paths it followed leads to modules that accept the update, it uses HMR. Otherwise, it uses hot code push.</li> <li>Many js modules do things that have a long term effect on the app. They might create Tracker autoruns, register event listeners, or have UI components that have been rendered. Modules can register dispose handlers to clean up the old version of a module so it no longer affects the app. At this point in the update process, those dispose handlers are called.</li> <li>Meteor runs the new version of the module, the modules that accepted the update, and all of the modules between them. This ensures the module’s new exports are used. Because of this, usually the only modules that accept updates are the ones that have no exports or that have another way of updating the exports used by parent modules. At this point, there are two versions of these modules running, but the old version is no longer in use if it was disposed properly.</li> </ol> <p>For HMR to work properly, the correct modules have to accept or decline updates, and dispose handlers have to be written. Fortunately, most apps do not need to manually do either. Instead, you can use integrations that automatically detect modules that can accept updates, and how to clean up specific types of modules. For example, the React integration is enabled by default in Meteor apps, and is able to automatically update React components.</p> <h3 id="API">
+API</h3>
+<p>The hot-module-replacement package provides an API to control how HMR is used. The API is available at <code>module.hot</code>. Since the API isn’t always available (for example, in production or in architectures not supported by HMR), the code should make sure <code>module.hot</code> is defined before using it:</p>  <pre class="line-numbers" style><code class="language-js">if (module.hot) {
+  module.hot.accept();
+}
+</code></pre> <p>In a future Meteor version, using the if statement will allow minifiers to remove this block when minifying for production.</p> <p>Packages that use the <code>module.hot</code> api should use the <code>hot-module-reload</code> package to ensure access to the API.</p>  <h3 class="api-heading" id="module-hot-accept"> <div class="locus"> Client </div> <code>module.hot#accept</code> <div class="subtext-api"> <a class="src-code link secondary" href="https://github.com/meteor/meteor/blob/master/packages/hot-module-replacement/hot-api.js#L24" target="_blank"> (hot-module-replacement/hot-api.js, line 24) </a> </div> </h3>   <p>Accept updates to this module. Also applies to its dependencies, as long as the other modules that import the dependencies also accept updates.</p>    <p>HMR reruns files that import the modified modules so the files use the new exports. In addition to configuring which modules can be updated with HMR, <code>module.hot.accept()</code> also controls how many files are re-ran. Meteor re-runs the files that import the modified modules, the files that import those files, and so on, until it reaches the modules that accepted the update. Because of this, usually the only modules that accept updates are ones that have no exports, are have another way of updating the exports used by its parent modules.</p>  <h3 class="api-heading" id="module-hot-decline"> <div class="locus"> Client </div> <code>module.hot#decline</code> <div class="subtext-api"> <a class="src-code link secondary" href="https://github.com/meteor/meteor/blob/master/packages/hot-module-replacement/hot-api.js#L39" target="_blank"> (hot-module-replacement/hot-api.js, line 39) </a> </div> </h3>   <p>Disable updating this module or its dependencies with HMR. Hot code push will be used instead.</p>     <h3 class="api-heading" id="module-hot-dispose"> <div class="locus"> Client </div> <code>module.hot#dispose</code> <div class="subtext-api"> <a class="src-code link secondary" href="https://github.com/meteor/meteor/blob/master/packages/hot-module-replacement/hot-api.js#L54" target="_blank"> (hot-module-replacement/hot-api.js, line 54) </a> </div> </h3>   <p>Add a call back to clean up the module before replacing it</p>  <h4 class="subheading">Arguments</h4> <dl class="args"> <dt> <code>callback</code> <span class="type">module.hot.DisposeFunction</span> </dt> <dd> <p>Called before replacing the old module.</p> </dd> </dl>   <p>The call back is run when this instance of the module will no longer be used. The main use is making sure the instance of the module no longer affects the app. Here is an example where we stop a Tracker computation:</p>  <pre class="line-numbers" style><code class="language-js">import { setLocale } from '/imports/utils/locale';
+
+const computation = Tracker.autorun(() =&gt; {
+  const user = Meteor.user();
+  
+  if (user &amp;&amp; user.locale) {
+    setLocale(user.locale);
+  }
+});
+
+if (module.hot) {
+  module.hot.dispose(() =&gt; {
+    computation.stop();
+  });
+}
+</code></pre> <p>If it did not stop the computation, each time the module is reran for HMR, there would be an additional computation. This can lead to unexpected behavior, especially if we’ve modified the computation function.</p> <p>The callback receives a data object that can be mutated to store information for the new instance of the module. This can be used to preserve class instances, state, or other data. For example, this module will preserve the value of the color variable:</p>  <pre class="line-numbers" style><code class="language-js">
+let color = 'blue';
+
+export function getColor() {
+  return color;
+}
+
+export function changeColor(newColor) {
+  color = newColor;
+}
+
+if (module.hot) {
+  if (module.hot.data) {
+    color = module.hot.data.color;
+  }
+
+  module.hot.dispose(data =&gt; {
+    data.color = color;
+  });
+}
+</code></pre> <p>When the module first runs, <code>module.hot.data</code> is null, so it leaves <code>color</code> set to blue. Eventually the app calls <code>changeColor</code> and sets the color to <code>purple</code>. If the module is re-ran, the old instance of the module stores the color in <code>data.color</code>. The new instance retrieves it from <code>module.hot.data.color</code>, and registers a new dispose handler for the next time it is re-run.</p>  <h3 class="api-heading" id="module-hot-data"> <div class="locus"> Client </div> <code>module.hot#data</code> <div class="subtext-api"> <a class="src-code link secondary" href="https://github.com/meteor/meteor/blob/master/packages/hot-module-replacement/hot-api.js#L80" target="_blank"> (hot-module-replacement/hot-api.js, line 80) </a> </div> </h3>   <p>Defaults to null. When the module is replaced, this is set to the object passed to dispose handlers.</p>     <h3 class="api-heading" id="module-hot-onRequire"> <div class="locus"> Client </div> <code>module.hot#onRequire</code> <div class="subtext-api"> <a class="src-code link secondary" href="https://github.com/meteor/meteor/blob/master/packages/hot-module-replacement/hot-api.js#L65" target="_blank"> (hot-module-replacement/hot-api.js, line 65) </a> </div> </h3>   <p>Add callbacks to run before and after a module is required</p>  <h4 class="subheading">Arguments</h4> <dl class="args"> <dt> <code>callbacks</code> <span class="type">Object</span> </dt> <dd> <p>Can have before and after methods, called before a module is required, and after it finished being evaluated</p> </dd> </dl>   <p>This is used by some HMR integrations to detect files that can be automatically updated with HMR, and handle cleaning up the old module instances and migrating state. For example, React Fast Refresh uses this to find the modules that only export React components, and have those modules accept updates.</p>  <pre class="line-numbers" style><code class="language-js">if (module.hot) {
+  module.hot.onRequire({
+    // requiredModule is the same object available in the
+    // required module as `module`, including access to `module.hot`
+    // and `module.exports`
+    // 
+    // parentId is a string with the path of the module that
+    // imported requiredModule. 
+    before(requiredModule, parentId) {
+      // Anything returned here is available to the
+      // after callback as the data parameter.
+      return {
+        importedBy: parentId,
+        previouslyEvaluated: !requiredModule.loaded
+      }
+    },
+    after(requiredModule, data) {
+      if (!data.previouslyEvaluated) {
+        console.log(`Finished evaluating ${requiredModule.id}`);
+        console.log(`It was imported by ${data.importedBy}`);
+        console.log(`Its exports are ${requiredModule.exports}`);
+      }
+
+      // canAcceptUpdates would look at the exports, and maybe the imports
+      // to check if this module can safely be updated with HMR.
+      if (requiredModule.hot &amp;&amp; canAcceptUpdates(requiredModule)) {
+        requiredModule.hot.accept();
+      }
+    }
+  });
+}
+</code></pre><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://docs.meteor.com/packages/hot-module-replacement.html" class="_attribution-link" target="_blank">https://docs.meteor.com/packages/hot-module-replacement.html</a>
+  </p>
+</div>

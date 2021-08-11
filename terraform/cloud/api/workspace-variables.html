@@ -1,0 +1,167 @@
+ <h1 id="workspace-variables-api">  Workspace Variables API </h1> <p>This set of APIs covers create, update, list and delete operations on workspace variables.</p> <p>Viewing variables requires permission to read variables for their workspace. Creating, updating, and deleting variables requires permission to read and write variables for their workspace. (<a href="../users-teams-organizations/permissions">More about permissions.</a>)</p> <h2 id="create-a-variable">  Create a Variable </h2> <p><code>POST /workspaces/:workspace_id/vars</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:workspace_id</code></td> <td>The ID of the workspace to create the variable in.</td> </tr> </tbody>
+</table> <h3 id="request-body">  Request Body </h3> <p>This POST endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"vars"</code>.</td> </tr> <tr> <td><code>data.attributes.key</code></td> <td>string</td> <td></td> <td>The name of the variable.</td> </tr> <tr> <td><code>data.attributes.value</code></td> <td>string</td> <td><code>""</code></td> <td>The value of the variable.</td> </tr> <tr> <td><code>data.attributes.description</code></td> <td>string</td> <td></td> <td>The description of the variable.</td> </tr> <tr> <td><code>data.attributes.category</code></td> <td>string</td> <td></td> <td>Whether this is a Terraform or environment variable. Valid values are <code>"terraform"</code> or <code>"env"</code>.</td> </tr> <tr> <td><code>data.attributes.hcl</code></td> <td>bool</td> <td><code>false</code></td> <td>Whether to evaluate the value of the variable as a string of HCL code. Has no effect for environment variables.</td> </tr> <tr> <td><code>data.attributes.sensitive</code></td> <td>bool</td> <td><code>false</code></td> <td>Whether the value is sensitive. If true then the variable is written once and not visible thereafter.</td> </tr> </tbody>
+</table> <p><strong>Deprecation warning</strong>: The custom <code>filter</code> properties are replaced by JSON API <code>relationships</code> and will be removed from future versions of the API!</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>filter.workspace.name</code></td> <td>string</td> <td></td> <td>The name of the workspace that owns the variable.</td> </tr> <tr> <td><code>filter.organization.name</code></td> <td>string</td> <td></td> <td>The name of the organization that owns the workspace.</td> </tr> </tbody>
+</table> <h3 id="sample-payload">  Sample Payload </h3> <pre data-language="json">{
+  "data": {
+    "type":"vars",
+    "attributes": {
+      "key":"some_key",
+      "value":"some_value",
+      "description":"some description",
+      "category":"terraform",
+      "hcl":false,
+      "sensitive":false
+    }
+  }
+}
+</pre>
+<h3 id="sample-request">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/workspaces/ws-4j8p6jX1w33MiDC7/vars
+</pre>
+<h3 id="sample-response">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id":"var-EavQ1LztoRTQHSNT",
+    "type":"vars",
+    "attributes": {
+      "key":"some_key",
+      "value":"some_value",
+      "description":"some description",
+      "sensitive":false,
+      "category":"terraform",
+      "hcl":false
+    },
+    "relationships": {
+      "configurable": {
+        "data": {
+          "id":"ws-4j8p6jX1w33MiDC7",
+          "type":"workspaces"
+        },
+        "links": {
+          "related":"/api/v2/organizations/my-organization/workspaces/my-workspace"
+        }
+      }
+    },
+    "links": {
+      "self":"/api/v2/workspaces/ws-4j8p6jX1w33MiDC7/vars/var-EavQ1LztoRTQHSNT"
+    }
+  }
+}
+</pre>
+<h2 id="list-variables">  List Variables </h2> <p><code>GET /workspaces/:workspace_id/vars</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:workspace_id</code></td> <td>The ID of the workspace to list variables for.</td> </tr> </tbody>
+</table> <h3 id="sample-request-1">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+"https://app.terraform.io/api/v2/workspaces/ws-cZE9LERN3rGPRAmH/vars"
+</pre>
+<h3 id="sample-response-1">  Sample Response </h3> <pre data-language="json">{
+  "data": [
+    {
+      "id":"var-AD4pibb9nxo1468E",
+      "type":"vars","attributes": {
+        "key":"name",
+        "value":"hello",
+        "description":"some description",
+        "sensitive":false,
+        "category":"terraform",
+        "hcl":false
+      },
+      "relationships": {
+        "configurable": {
+          "data": {
+            "id":"ws-cZE9LERN3rGPRAmH",
+            "type":"workspaces"
+          },
+          "links": {
+            "related":"/api/v2/organizations/my-organization/workspaces/my-workspace"
+          }
+        }
+      },
+      "links": {
+        "self":"/api/v2/workspaces/ws-cZE9LERN3rGPRAmH/vars/var-AD4pibb9nxo1468E"
+      }
+    }
+  ]
+}
+</pre>
+<h2 id="update-variables">  Update Variables </h2> <p><code>PATCH /workspaces/:workspace_id/vars/:variable_id</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:workspace_id</code></td> <td>The ID of the workspace that owns the variable.</td> </tr> <tr> <td><code>:variable_id</code></td> <td>The ID of the variable to be updated.</td> </tr> </tbody>
+</table> <h3 id="request-body-1">  Request Body </h3> <p>This PATCH endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"vars"</code>.</td> </tr> <tr> <td><code>data.id</code></td> <td>string</td> <td></td> <td>The ID of the variable to update.</td> </tr> <tr> <td><code>data.attributes</code></td> <td>object</td> <td></td> <td>New attributes for the variable. This object can include <code>key</code>, <code>value</code>, <code>description</code>, <code>category</code>, <code>hcl</code>, and <code>sensitive</code> properties, which are described above under <a href="#create-a-variable">create a variable</a>. All of these properties are optional; if omitted, a property will be left unchanged.</td> </tr> </tbody>
+</table> <h3 id="sample-payload-1">  Sample Payload </h3> <pre data-language="json">{
+  "data": {
+    "id":"var-yRmifb4PJj7cLkMG",
+    "attributes": {
+      "key":"name",
+      "value":"mars",
+      "description":"some description",
+      "category":"terraform",
+      "hcl": false,
+      "sensitive": false
+    },
+    "type":"vars"
+  }
+}
+</pre>
+<h3 id="sample-request-2">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request PATCH \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/workspaces/ws-4j8p6jX1w33MiDC7/vars/var-yRmifb4PJj7cLkMG
+</pre>
+<h3 id="sample-response-2">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id":"var-yRmifb4PJj7cLkMG",
+    "type":"vars",
+    "attributes": {
+      "key":"name",
+      "value":"mars",
+      "description":"some description",
+      "sensitive":false,
+      "category":"terraform",
+      "hcl":false
+    },
+    "relationships": {
+      "configurable": {
+        "data": {
+          "id":"ws-4j8p6jX1w33MiDC7",
+          "type":"workspaces"
+        },
+        "links": {
+          "related":"/api/v2/organizations/workspace-v2-06/workspaces/workspace-v2-06"
+        }
+      }
+    },
+    "links": {
+      "self":"/api/v2/workspaces/ws-4j8p6jX1w33MiDC7/vars/var-yRmifb4PJj7cLkMG"
+    }
+  }
+}
+</pre>
+<h2 id="delete-variables">  Delete Variables </h2> <p><code>DELETE /workspaces/:workspace_id/vars/:variable_id</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:workspace_id</code></td> <td>The ID of the workspace that owns the variable.</td> </tr> <tr> <td><code>:variable_id</code></td> <td>The ID of the variable to be deleted.</td> </tr> </tbody>
+</table> <h3 id="sample-request-3">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request DELETE \
+  https://app.terraform.io/api/v2/workspaces/ws-4j8p6jX1w33MiDC7/vars/var-yRmifb4PJj7cLkMG
+</pre><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/cloud/api/workspace-variables.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/cloud/api/workspace-variables.html</a>
+  </p>
+</div>

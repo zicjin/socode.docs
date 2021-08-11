@@ -1,0 +1,635 @@
+ <h1 id="terraform-plugin-sdk-v2-upgrade-guide">  Terraform Plugin SDK v2 Upgrade Guide </h1> <p>Version 2.0.0 of the Terraform Plugin SDK is a major release and includes some changes that you will need to consider when upgrading. This guide is meant to help you with that process, and only focuses on upgrades from version 1.13.1 to version 2.0.0.</p> <p>Most of the changes outlined in this guide have been previously marked as deprecated in the GoDoc comments for the functions involved in previous releases. These changes, such as deprecation notices, can always be found in the <a href="https://github.com/hashicorp/terraform-plugin-sdk/blob/v2.0.0/CHANGELOG.md">CHANGELOG</a>.</p> <p>Upgrade topics:</p> <ul> <li>
+<a href="#dropped-support-for-terraform-0-11-and-below">Dropped Support for Terraform 0.11 and Below</a> </li> <li>
+<a href="#version-2-of-the-module">Version 2 of the Module</a> </li> <li>
+<a href="#a-new-acceptance-testing-driver">A New Acceptance Testing Driver</a> </li> <li>
+<a href="#more-support-for-context-context">More Support for <code>context.Context</code></a> </li> <li>
+<a href="#support-for-diagnostics">Support for Diagnostics</a> </li> <li>
+<a href="#support-for-resource-level-and-field-level-descriptions">Support for Resource-Level and Field-Level Descriptions</a> </li> <li>
+<a href="#new-diagnostics-enabled-map-validators">New Diagnostics-Enabled Map Validators</a> </li> <li>
+<a href="#support-for-debuggable-provider-binaries">Support for Debuggable Provider Binaries</a> </li> <li>
+<a href="#support-for-provider-metadata">Support for Provider Metadata</a> </li> <li>
+<a href="#louder-helper-schema-resourcedata-set-errors-in-testing">Louder <code>helper/schema.ResourceData.Set</code> Errors in Testing</a> </li> <li>
+<a href="#more-consistent-usage-of-github-com-mitchellh-go-testing-interface">More Consistent Usage of <code>github.com/mitchellh/go-testing-interface</code></a> </li> <li>
+<a href="#corrected-results-of-helper-acctest-randintrange">Corrected Results of <code>helper/acctest.RandIntRange</code></a> </li> <li>
+<a href="#clearer-handling-of-nil-for-helper-resource-nonretryableerror-and-helper-resource-retryableerror">Clearer Handling of <code>nil</code> for <code>helper/resource.NonRetryableError</code> and <code>helper/resource.RetryableError</code></a> </li> <li>
+<a href="#more-robust-handling-of-helper-schema-typeset-hashes">More Robust Handling of <code>helper/schema.TypeSet</code> Hashes</a> </li> <li>
+<a href="#stronger-validation-for-helper-schema-schema-computed-fields">Stronger Validation for <code>helper/schema.Schema.Computed</code> Fields</a> </li> <li>
+<a href="#more-robust-validation-of-helper-schema-typemap-elems">More Robust Validation of <code>helper/schema.TypeMap</code> <code>Elem</code>s</a> </li> <li>
+<a href="#more-robust-validation-of-helper-resource-testcheckresourceattrpair">More Robust Validation of <code>helper/resource.TestCheckResourceAttrPair</code></a> </li> <li>
+<a href="#more-robust-validation-of-test-sweepers">More Robust Validation of Test Sweepers</a> </li> <li>
+<a href="#deprecation-of-helper-schema-existsfunc">Deprecation of <code>helper/schema.ExistsFunc</code></a> </li> <li>
+<a href="#deprecation-of-helper-schema-schemavalidatefunc">Deprecation of <code>helper/schema.SchemaValidateFunc</code></a> </li> <li>
+<a href="#removal-of-helper-mutexkv-package">Removal of <code>helper/mutexkv</code> Package</a> </li> <li>
+<a href="#removal-of-helper-pathorcontents-package">Removal of <code>helper/pathorcontents</code> Package</a> </li> <li>
+<a href="#removal-of-httpclient-package">Removal of <code>httpclient</code> Package</a> </li> <li>
+<a href="#removal-of-helper-hashcode-package">Removal of <code>helper/hashcode</code> Package</a> </li> <li>
+<a href="#removal-of-the-acctest-package">Removal of the <code>acctest</code> Package</a> </li> <li>
+<a href="#removal-of-the-terraform-resourceprovider-interface">Removal of the <code>terraform.ResourceProvider</code> Interface</a> </li> <li>
+<a href="#removal-of-the-helper-schema-provider-stopcontext-method">Removal of the <code>helper/schema.Provider.StopContext</code> method</a> </li> <li>
+<a href="#removal-of-helper-schema-resourcedata-setpartial">Removal of <code>helper/schema.ResourceData.SetPartial</code></a> </li> <li>
+<a href="#removal-of-the-helper-schema-provider-metareset-property">Removal of the <code>helper/schema.Provider.MetaReset</code> property</a> </li> <li>
+<a href="#removal-of-deprecated-validation-functions">Removal of Deprecated Validation Functions</a> </li> <li>
+<a href="#removal-of-helper-schema-schema-promotesingle">Removal of <code>helper/schema.Schema.PromoteSingle</code></a> </li> <li>
+<a href="#removal-of-helper-schema-resourcedata-unsafesetfieldraw">Removal of <code>helper/schema.ResourceData.UnsafeSetFieldRaw</code></a> </li> <li>
+<a href="#removal-of-helper-schema-resource-refresh">Removal of <code>helper/schema.Resource.Refresh</code></a> </li> <li>
+<a href="#removal-of-helper-schema-schema-removed">Removal of <code>helper/schema.Schema.Removed</code></a> </li> <li>
+<a href="#removal-of-helper-encryption-package">Removal of <code>helper/encryption</code> Package</a> </li> <li>
+<a href="#removal-of-discouraged-variables-functions-types-and-interfaces">Removal of Discouraged Variables, Functions, Types, and Interfaces</a> </li> </ul> <h2 id="dropped-support-for-terraform-0-11-and-below">  Dropped Support for Terraform 0.11 and Below </h2> <p>As part of the <a href="https://www.hashicorp.com/blog/deprecating-terraform-0-11-support-in-terraform-providers/">ongoing deprecation of Terraform 0.11</a>, version 2.0.0 of the Terraform Plugin SDK can only be used to build providers with support for Terraform 0.12 and higher.</p> <p>It is recommended, but not required, that providers that have not already dropped support for 0.11 issue a major version bump when upgrading to version 2 of the SDK, to indicate this dropped support.</p> <h2 id="version-2-of-the-module">  Version 2 of the Module </h2> <p>As part of the breaking changes, the Terraform Plugin SDK Go module has been upgraded to v2. This involves changing import paths from <code>github.com/hashicorp/terraform-plugin-sdk</code> to <code>github.com/hashicorp/terraform-plugin-sdk/v2</code>. This can be automated using the <a href="https://github.com/hashicorp/tf-sdk-migrator#tf-sdk-migrator-v2upgrade-migrate-from-sdkv1-to-sdkv2"><code>tf-sdk-migrator v2upgrade</code></a> command.</p> <h2 id="a-new-acceptance-testing-driver">  A New Acceptance Testing Driver </h2> <p>In version 1.7.0 of the Terraform Plugin SDK, we enabled an optional binary acceptance test driver. This driver improves upon the old driver, which was based on an approximated version of Terraform reproduced in the SDK, by using a production binary of the Terraform CLI to drive the provider. This allows easier testing against multiple versions of Terraform and provides more accurate test results.</p> <p>Version 2 of the SDK makes this driver the default and only acceptance test driver. It also modifies the test driver to run the provider in the same process as the test code, which enables use of debuggers and more accurate results from the Go test coverage and race detection tooling.</p> <p>As part of this upgrade, support for listing providers other than the provider under test in <code>helper/resource.TestCase.Providers</code> or <code>helper/resource.TestCase.ProviderFactories</code> was lost. Providers that rely on other providers in their tests should add provider blocks to their test code, which will result in production versions of those providers being located in the provider cache on the local filesystem, or downloaded, as part of the normal operation of <code>terraform init</code>.</p> <p>As part of this upgrade, changes to Terraform’s CLI were also required. This means that running the tests for a provider requires version 0.12.26 or higher of the Terraform CLI.</p> <h2 id="more-support-for-context-context">  More Support for <code>context.Context</code> </h2> <p>To obtain more reliable timeouts and cancellation in provider code, <code>context.Context</code> has been plumbed throughout the Terraform Plugin SDK. In some cases, this was done in a backwards-compatible way; for example, the <code>helper/schema.CreateFunc</code>, <code>helper/schema.UpdateFunc</code>, <code>helper/schema.ReadFunc</code>, and <code>helper/schema.DeleteFunc</code> types all got context-aware versions (<code>helper/schema.CreateContextFunc</code>, <code>helper/schema.UpdateContextFunc</code>, <code>helper/schema.ReadContextFunc</code>, <code>helper/schema.DeleteContextFunc</code>, respectively). The old versions are now deprecated, and we recommend you upgrade to the context-aware versions to get their improvements, but the old versions will continue working for now. Upgrading involves changing your function signature from <code>func(*helper/schema.ResourceData, interface{}) error</code> to <code>func(context.Context, *helper/schema.ResourceData, interface{})
+diag.Diagnostics</code>. (We’ll talk about <code>diag.Diagnostics</code> in the next section.)</p> <p>Not everything could have this backwards compatibility, however; some functions require the <code>context.Context</code> to be added now. Attempting to compile will list which of these affect your provider, but most people will see them in <code>helper/schema.CustomizeDiffFunc</code> and <code>helper/schema.StateUpgradeFunc</code>. All that needs to be done is adding a <code>context.Context</code> as the first parameter to these functions; it doesn’t need to be used or referenced.</p> <h2 id="support-for-diagnostics">  Support for Diagnostics </h2> <p>A number of new functions have been added that return a <code>diag.Diagnostics</code> type. This type can be used to return multiple errors and warnings to Terraform, and to associate those errors or warnings with specific fields. The functions supporting diagnostics are:</p> <ul> <li>
+<a href="#helper-schema-createcontextfunc"><code>helper/schema.CreateContextFunc</code></a> </li> <li>
+<a href="#helper-schema-readcontextfunc"><code>helper/schema.ReadContextFunc</code></a> </li> <li>
+<a href="#helper-schema-updatecontextfunc"><code>helper/schema.UpdateContextFunc</code></a> </li> <li>
+<a href="#helper-schema-deletecontextfunc"><code>helper/schema.DeleteContextFunc</code></a> </li> <li>
+<a href="#helper-schema-schemavalidatediagfunc"><code>helper/schema.SchemaValidateDiagFunc</code></a> </li> </ul> <p>This exposes diagnostics support when creating, reading, updating, deleting, and validating your resources.</p> <pre>func Create(ctx context.Context, *schema.ResourceData, meta interface{}) diag.Diagnostics {
+    // do some stuff
+    if err != nil {
+        // this is the standard way to convert a Go error to Diagnostics
+        return diag.FromErr(err)
+    }
+
+    // Warning or Errors can be collected in a slice type
+    var diags diag.Diagnostics
+
+    // Diagnostics supports warnings, a detailed message
+    // as well as linking to a specific attribute
+    // see github.com/hashicorp/go-cty for learning the Path types
+    if somethingThatRequiresWarning {
+        diags = append(diags, diag.Diagnostic{
+            Severity: diag.Warning,
+            Summary: "Warning level message",
+            Detail: "This is a warning, a very detailed one",
+            AttributePath: cty.Path{cty.GetAttrStep{Name: "foo"}},
+        })
+    }
+
+    // let’s return an error with the above warning
+    // another helper exists to format errors
+    if err != nil {
+        diags = append(diags, diag.Errorf("unexpected: %s", err)...)
+    }
+    return diags
+}
+</pre>
+<h2 id="support-for-resource-level-and-field-level-descriptions">  Support for Resource-Level and Field-Level Descriptions </h2> <p>The <code>helper/schema.Resource</code> and <code>helper/schema.Schema</code> types both now have <code>Description</code> properties that accept strings. These properties are laying the groundwork for future improvements to Terraform, and will have no visible effect to the Terraform CLI at the moment. If you’d like to build in support for your provider starting now, it’s recommended that you set these properties to whatever you’d document the resource or field as in your terraform.io docs for the resource.</p> <p>You can globally set the format of the text in these fields by setting the global variable <code>helper/schema.DescriptionKind</code>. Its acceptable values are <code>helper/schema.StringPlain</code> (plain text, the default) or <code>helper/schema.StringMarkdown</code> (markdown formatting).</p> <h2 id="new-diagnostics-enabled-map-validators">  New Diagnostics-Enabled Map Validators </h2> <p>The new <code>helper/validation.MapKeyLenBetween</code> validator function validates that all the keys in a map have lengths within a specified range, and will use diagnostics to indicate precisely which keys are not.</p> <p>The new <code>helper/validation.MapValueLenBetween</code> validator function validates that all the values in a map have lengths within a specified range, and will use diagnostics to indicate precisely which values are not.</p> <p>The new <code>helper/validation.MapKeyMatch</code> validator function validates that all the keys in a map match a regular expression, and will use diagnostics to indicate precisely which keys do not.</p> <p>The new <code>helper/validation.MapValueMatch</code> validator function validates that all the values in a map match a regular expression, and will use diagnostics to indicate precisely which values do not.</p> <h2 id="support-for-debuggable-provider-binaries">  Support for Debuggable Provider Binaries </h2> <p>It is now possible to publish providers that can have debuggers like delve attached to them. To debug these providers, three things must be done:</p> <p>First, Terraform 0.12.26 or higher must be used when debugging.</p> <p>Second, the provider must modify its <code>main</code> function to optionally start a debuggable server. We recommend the following approach:</p> <pre>func main() {
+    var debugMode bool
+
+    flag.BoolVar(&amp;debugMode, "debuggable", false, "set to true to run the provider with support for debuggers like delve")
+    flag.Parse()
+
+    if debugMode {
+        err := plugin.Debug(context.Background(), "registry.terraform.io/namespace/provider",
+            &amp;plugin.ServeOpts{
+                ProviderFunc: myprovider.Provider,
+            })
+        if err != nil {
+            log.Println(err.Error())
+        }
+    } else {
+        plugin.Serve(&amp;plugin.ServeOpts{
+            ProviderFunc: myprovider.Provider})
+    }
+}
+</pre>
+<p>The <code>registry.terraform.io/namespace/provider</code> string above should be set to a provider address. For Terraform 0.12, this should be <code>registry.terraform.io/-/your-provider-name</code>, where <code>your-provider-name</code> is what is declared in the provider block in your HCL. For Terraform 0.13 and above, this should be whatever you set as your provider source. For example, the random provider would use <code>registry.terraform.io/hashicorp/random</code>. <code>myprovider.Provider</code> should be the function that returns a <code>*helper/schema.Provider</code> that serves as an entry point for your provider.</p> <p>Third, the provider must be started by delve, and Terraform must be told how to connect to it. Providers using <code>plugin.Debug</code> will output instructions on how to tell Terraform how to connect.</p> <blockquote class="alert alert-info" role="alert"> <p><strong>Note</strong>: You can find more details on the <a href="../debugging">Debugging Providers page</a>.</p> </blockquote> <h2 id="support-for-provider-metadata">  Support for Provider Metadata </h2> <p>A new feature, provider metadata, is landing in Terraform 0.13. This feature allows module authors and providers to share information through Terraform configs that will get passed to the provider with every resource. It is not intended for wide use, and usage of it should be coordinated with the Terraform Core team by <a href="https://github.com/hashicorp/terraform/issues">opening an issue</a> so your use case can be understood and support for it can be maintained as this feature evolves over time.</p> <h2 id="louder-helper-schema-resourcedata-set-errors-in-testing">  Louder <code>helper/schema.ResourceData.Set</code> Errors in Testing </h2> <p>Previously, using the <code>TF_SCHEMA_PANIC_ON_ERROR</code> environment variable would cause errors returned from calls to <code>helper/schema.ResourceData.Set</code> to elevate into panics. This environment variable is now removed, and its behavior is enabled on all tests. Calls to <code>helper/schema.ResourceData.Set</code> that would return an error in production contexts continue to return errors.</p> <h2 id="more-consistent-usage-of-github-com-mitchellh-go-testing-interface">  More Consistent Usage of <code>github.com/mitchellh/go-testing-interface</code> </h2> <p>Previously, a number of our exported functions and methods in the <code>helper/resource</code>, <code>helper/schema</code>, and <code>helper/validation</code> packages relied on either Go’s built-in <code>testing</code> package or the SDK’s <code>helper/resource/testing</code> package. We have standardized around the <code>github.com/mitchellh/go-testing-interface</code> module instead. Changes required to accommodate this standardization should be caught at compile time, and should be fixed by updating the import.</p> <h2 id="corrected-results-of-helper-acctest-randintrange">  Corrected Results of <code>helper/acctest.RandIntRange</code> </h2> <p>The <code>helper/acctest.RandIntRange</code> function was previously buggy. It would return an integer between 0 and the difference between the arguments, not an integer between the arguments. It has been corrected to return an integer between the arguments. Any usage reliant on the old, buggy behavior should be updated.</p> <h2 id="clearer-handling-of-nil-for-helper-resource-nonretryableerror-and-helper-resource-retryableerror">  Clearer Handling of <code>nil</code> for <code>helper/resource.NonRetryableError</code> and <code>helper/resource.RetryableError</code> </h2> <p>Previously, passing a <code>nil</code> error to <code>helper/resource.RetryableError</code> and <code>helper/resource.NonRetryableError</code> could lead to subtle bugs and even crashes. It will now return an error. Providers should check that the error is not <code>nil</code> before calling <code>helper/resource.NonRetryableError</code> or <code>helper/resource.RetryableError</code>.</p> <h2 id="more-robust-handling-of-helper-schema-typeset-hashes">  More Robust Handling of <code>helper/schema.TypeSet</code> Hashes </h2> <p>Generated hashes for <code>helper/schema.TypeSet</code> fields used to be collapsed if all the sub-fields had <code>Computed</code> set to <code>true</code>. This behavior was an error, and has been remedied. Providers that relied on the old behavior should be updated to use the new behavior. Almost all providers will require no changes.</p> <h2 id="stronger-validation-for-helper-schema-schema-computed-fields">  Stronger Validation for <code>helper/schema.Schema.Computed</code> Fields </h2> <p>Fields with the <code>Computed</code> property of their <code>helper/schema.Schema</code> set to <code>true</code> and the <code>Optional</code> property set to <code>false</code> now return an error if other properties that are only applicable to fields that can be modified are set. These fields include:</p> <ul> <li>
+<a href="#atleastoneof"><code>AtLeastOneOf</code></a> </li> <li>
+<a href="#conflictswith"><code>ConflictsWith</code></a> </li> <li>
+<a href="#default"><code>Default</code></a> </li> <li>
+<a href="#defaultfunc"><code>DefaultFunc</code></a> </li> <li>
+<a href="#diffsuppressfunc"><code>DiffSuppressFunc</code></a> </li> <li>
+<a href="#exactlyoneof"><code>ExactlyOneOf</code></a> </li> <li>
+<a href="#inputdefault"><code>InputDefault</code></a> </li> <li>
+<a href="#maxitems"><code>MaxItems</code></a> </li> <li>
+<a href="#minitems"><code>MinItems</code></a> </li> <li>
+<a href="#statefunc"><code>StateFunc</code></a> </li> <li>
+<a href="#validatefunc"><code>ValidateFunc</code></a> </li> </ul> <p>These properties should never be set on fields that don’t accept user input, as they are meaningless and their behavior is undefined in those situations.</p> <h2 id="more-robust-validation-of-helper-schema-typemap-elems">  More Robust Validation of <code>helper/schema.TypeMap</code> <code>Elem</code>s </h2> <p>Using a <code>*helper/schema.Resource</code> as the value of the <code>Elem</code> property for a <code>*helper/schema.Schema</code> previously yielded unspecified and likely confusing behavior, and was unsupported. It now returns an error.</p> <h2 id="more-robust-validation-of-helper-resource-testcheckresourceattrpair">  More Robust Validation of <code>helper/resource.TestCheckResourceAttrPair</code> </h2> <p>Comparing the same field on the same resource with <code>helper/resource.TestCheckResourceAttrPair</code> will now return an error, as that comparison will always pass and is indicative of an implementation error.</p> <h2 id="more-robust-validation-of-test-sweepers">  More Robust Validation of Test Sweepers </h2> <p>Previously, when a sweeper had a dependency on another sweeper that doesn’t exist, the SDK would log a warning, which was easy to miss. Now an explicit error will be returned, to make the implementation error easier to spot and fix.</p> <h2 id="deprecation-of-helper-schema-existsfunc">  Deprecation of <code>helper/schema.ExistsFunc</code> </h2> <p>The <code>helper/schema.ExistsFunc</code> (usually set as the <code>Exists</code> property on <code>helper/schema.Resource</code>) is now deprecated. It duplicated functionality that could be achieved in Read, and often led to the same behavior being written twice. Providers should check for Not Found responses in Read, and call <code>helper/schema.ResourceData.SetId(“”)</code> and return no errors if a Not Found response is encountered, instead.</p> <h2 id="deprecation-of-helper-schema-schemavalidatefunc">  Deprecation of <code>helper/schema.SchemaValidateFunc</code> </h2> <p>The <code>helper/schema.SchemaValidateFunc</code> type and the properties that use it, including <code>helper/schema.Schema.ValidateFunc</code>, are now deprecated in favor of <code>helper/schema.SchemaValidateDiagFunc</code>, which gains awareness for diagnostics, allowing more accurate errors to be returned.</p> <p>The <code>helper/validation</code> helper functions will have <code>helper/schema.SchemaValidateDiagFunc</code> equivalents of the validation functions added in a future release to ease the transition. Until that point, a wrapper can be used that wraps the warnings and errors returned from <code>helper/schema.SchemaValidateFunc</code> in a <code>diag.Diagnostics</code>.</p> <h2 id="removal-of-helper-mutexkv-package">  Removal of <code>helper/mutexkv</code> Package </h2> <p>The <code>helper/mutexkv</code> package provided convenience helpers for managing concurrency, but is not specifically related to Terraform plugin development, so it has been removed. We also saw many misuses of the package: providers using constant strings as keys (which can be replaced by just using a mutex), or overcomplicating locking when a more simplistic approach would have the same performance characteristics.</p> <p>Providers that need the functionality provided by the <code>helper/mutexkv</code> package are encouraged to copy the types and functions it provided into their own codebase, provided here under a public domain license:</p> <pre>// MutexKV is a simple key/value store for arbitrary mutexes. It can be used to
+// serialize changes across arbitrary collaborators that share knowledge of the
+// keys they must serialize on.
+//
+// The initial use case is to let aws_security_group_rule resources serialize
+// their access to individual security groups based on SG ID.
+type MutexKV struct {
+    lock  sync.Mutex
+    store map[string]*sync.Mutex
+}
+
+// Locks the mutex for the given key. Caller is responsible for calling Unlock
+// for the same key
+func (m *MutexKV) Lock(key string) {
+    log.Printf("[DEBUG] Locking %q", key)
+    m.get(key).Lock()
+    log.Printf("[DEBUG] Locked %q", key)
+}
+
+// Unlock the mutex for the given key. Caller must have called Lock for the same key first
+func (m *MutexKV) Unlock(key string) {
+    log.Printf("[DEBUG] Unlocking %q", key)
+    m.get(key).Unlock()
+    log.Printf("[DEBUG] Unlocked %q", key)
+}
+
+// Returns a mutex for the given key, no guarantee of its lock status
+func (m *MutexKV) get(key string) *sync.Mutex {
+    m.lock.Lock()
+    defer m.lock.Unlock()
+    mutex, ok := m.store[key]
+    if !ok {
+        mutex = &amp;sync.Mutex{}
+        m.store[key] = mutex
+    }
+    return mutex
+}
+
+// Returns a properly initalized MutexKV
+func NewMutexKV() *MutexKV {
+    return &amp;MutexKV{
+        store: make(map[string]*sync.Mutex),
+    }
+}
+</pre>
+<h2 id="removal-of-helper-pathorcontents-package">  Removal of <code>helper/pathorcontents</code> Package </h2> <p>The <code>helper/pathorcontents</code> package provided convenience helpers for working with file paths or the contents of files interchangeably, but is not specifically related to Terraform plugin development, so it has been removed. Overuse of file contents in Terraform state can also lead to problems: there are size limitations, for example, binary data can cause problems when stored in state, and in some cases it is an anti-pattern to store file contents in state. Providers that need this functionality are encouraged to copy the function the package provided into their own codebase, provided here under a public domain license:</p> <pre>// If the argument is a path, Read loads it and returns the contents,
+// otherwise the argument is assumed to be the desired contents and is simply
+// returned.
+//
+// The boolean second return value can be called `wasPath` - it indicates if a
+// path was detected and a file loaded.
+func Read(poc string) (string, bool, error) {
+    if len(poc) == 0 {
+        return poc, false, nil
+    }
+
+    path := poc
+    if path[0] == '~' {
+        var err error
+        path, err = homedir.Expand(path)
+        if err != nil {
+            return path, true, err
+        }
+    }
+
+    if _, err := os.Stat(path); err == nil {
+        contents, err := ioutil.ReadFile(path)
+        if err != nil {
+            return string(contents), true, err
+        }
+        return string(contents), true, nil
+    }
+
+    return poc, false, nil
+}
+</pre>
+<h2 id="removal-of-httpclient-package">  Removal of <code>httpclient</code> Package </h2> <p>The <code>httpclient</code> provided a function to return a User-Agent string. Providers are encouraged to construct User-Agent strings to suit their needs, as they know best how to represent their provider to their APIs. Providers wishing to replicate the User-Agent string used in version 1 can use the following code:</p> <pre>fmt.Sprintf("HashiCorp Terraform/%s (+https://www.terraform.io) Terraform Plugin SDK/%s", version, meta.SDKVersionString())
+</pre>
+<p>Where <code>version</code> is the version of Terraform driving the plugin, available from <code>helper/schema.Provider.TerraformVersion</code>, and <code>meta</code> is the <code>meta</code> package in the Plugin SDK.</p> <p>For providers that don’t need compatibility with the old User-Agent string, the recommendation is to use the new <code>helper/schema.Provider.UserAgent</code> method, which will return a recommended User-Agent string when giving the provider name and version. We recommend <a href="https://www.digitalocean.com/community/tutorials/using-ldflags-to-set-version-information-for-go-applications">injecting provider versions at build time.</a></p> <h2 id="removal-of-helper-hashcode-package">  Removal of <code>helper/hashcode</code> Package </h2> <p>The <code>helper/hashcode</code> package was a loose wrapper around functionality included in the standard library. It shouldn’t be necessary for most providers; providers are encouraged to reexamine their usage of it as part of the upgrade to v2 of the SDK, and only use it if necessary. Providers that still find the <code>helper/hashcode</code> package necessary are encouraged to copy its functionality, provided here under a public domain license, into their own codebase:</p> <pre>// String hashes a string to a unique hashcode.
+//
+// crc32 returns a uint32, but for our use we need
+// and non negative integer. Here we cast to an integer
+// and invert it if the result is negative.
+func String(s string) int {
+    v := int(crc32.ChecksumIEEE([]byte(s)))
+    if v &gt;= 0 {
+        return v
+    }
+    if -v &gt;= 0 {
+        return -v
+    }
+    // v == MinInt
+    return 0
+}
+
+// Strings hashes a list of strings to a unique hashcode.
+func Strings(strings []string) string {
+    var buf bytes.Buffer
+
+    for _, s := range strings {
+        buf.WriteString(fmt.Sprintf("%s-", s))
+    }
+
+    return fmt.Sprintf("%d", String(buf.String()))
+}
+</pre>
+<h2 id="removal-of-the-acctest-package">  Removal of the <code>acctest</code> Package </h2> <p>The binary acceptance test driver used to require the provider to call <code>acctest.UseBinaryDriver</code> in the <code>TestMain</code> function of the provider. This is no longer required, which makes the <code>acctest</code> package no longer necessary. Code utilising it can be safely deleted.</p> <h2 id="removal-of-the-terraform-resourceprovider-interface">  Removal of the <code>terraform.ResourceProvider</code> Interface </h2> <p>The <code>terraform.ResourceProvider</code> interface has been removed. The concrete <code>*helper/schema.Provider</code> type should be used in its place. For most providers, this will involve changing the returned type of the <code>Provider()</code> function, and removing some type assertions; all necessary changes should be raised at compile time.</p> <h2 id="removal-of-the-helper-schema-provider-stopcontext-method">  Removal of the <code>helper/schema.Provider.StopContext</code> method </h2> <p>The <code>helper/schema.Provider.StopContext</code> method has been removed as its implementation has been reconfigured. Use <code>helper/schema.StopContext</code>, passing a <code>context.Context</code> originating from the context-aware <code>helper/schema.ConfigureContextFunc</code> instead.</p> <h2 id="removal-of-helper-schema-resourcedata-setpartial">  Removal of <code>helper/schema.ResourceData.SetPartial</code> </h2> <p>The <code>helper/schema.ResourceData.SetPartial</code> method was deprecated and has been removed. This method used to allow setting certain fields in state when <code>helper/schema.ResourceData.Partial</code> was set to <code>true</code>, but developers weren't clear under which circumstances that needed to happen.</p> <p>This method should never need to be used. <code>helper/schema.ResourceData.Partial</code> should be set to <code>true</code> before returning an error if the error should prevent any state from being part of the config being automatically persisted in state. For most providers, this doesn't matter, as the refresh step will take care of setting the state to what it should be.</p> <p>See <a href="https://github.com/hashicorp/terraform-plugin-sdk/issues/476">issue #476</a> for more information.</p> <h2 id="removal-of-the-helper-schema-provider-metareset-property">  Removal of the <code>helper/schema.Provider.MetaReset</code> property </h2> <p>The <code>helper/schema.Provider.MetaReset</code> property allowed providers to set a function that would be called during testing to reset the <code>meta</code> associated with the provider. This function was never actually called, and so the property has been removed.</p> <h2 id="removal-of-deprecated-validation-functions">  Removal of Deprecated Validation Functions </h2> <p>The following <code>helper/validation</code> functions have been renamed, and the deprecated aliases have been removed:</p> <ul> <li>
+<a href="#helper-validation-validatelistuniquestrings"><code>helper/validation.ValidateListUniqueStrings</code></a> (use <code>helper/validation.ListOfUniqueStrings</code> instead) </li> <li>
+<a href="#helper-validation-singleip"><code>helper/validation.SingleIP</code></a> (use <code>helper/validation.IsIPAddress</code> instead) </li> <li>
+<a href="#helper-validation-iprange"><code>helper/validation.IPRange</code></a> (use <code>helper/validation.IsIPv4Range</code> instead) </li> <li>
+<a href="#helper-validation-cidrnetwork"><code>helper/validation.CIDRNetwork</code></a> (use <code>helper/validation.IsCIDRNetwork</code> instead) </li> <li>
+<a href="#helper-validation-validatejsonstring"><code>helper/validation.ValidateJsonString</code></a> (use <code>helper/validation.StringIsJSON</code> instead) </li> <li>
+<a href="#helper-validation-validateregexp"><code>helper/validation.ValidateRegexp</code></a> (use <code>helper/validation.StringIsValidRegExp</code> instead) </li> <li>
+<a href="#helper-validation-validaterfc3339timestring"><code>helper/validation.ValidateRFC3339TimeString</code></a> (use <code>helper/validation.IsRFC3339Time</code> instead) </li> </ul> <h2 id="removal-of-helper-schema-schema-promotesingle">  Removal of <code>helper/schema.Schema.PromoteSingle</code> </h2> <p>The <code>PromotSingle</code> property of <code>*helper/schema.Schema</code> is a discouraged pattern and no longer valid after Terraform 0.12, and has been removed.</p> <h2 id="removal-of-helper-schema-resourcedata-unsafesetfieldraw">  Removal of <code>helper/schema.ResourceData.UnsafeSetFieldRaw</code> </h2> <p>The <code>helper/schema.ResourceData.UnsafeSetFieldRaw</code> method is a discouraged pattern that no longer functions after Terraform 0.12, and so the method has been removed.</p> <h2 id="removal-of-helper-schema-resource-refresh">  Removal of <code>helper/schema.Resource.Refresh</code> </h2> <p>The <code>helper/schema.Resource.Refresh</code> function was used in Terraform 0.11 and below, and is no longer needed. No providers should have been calling this function. Any that were, please <a href="https://github.com/hashicorp/terraform-plugin-sdk/issues">open an issue</a> on the SDK to help us understand your use case so we can recommend a path forward.</p> <h2 id="removal-of-helper-schema-schema-removed">  Removal of <code>helper/schema.Schema.Removed</code> </h2> <p>The <code>Removed</code> property of <code>helper/schema.Schema</code>, used to provide a friendly error message when a field has been removed after its <a href="../best-practices/deprecations">deprecation period</a>, behaved unexpectedly in tests and other situations. It has been removed. The recommendation is now to delete the field after the deprecation period, and let Terraform’s built-in error messaging indicate its removal.</p> <h2 id="removal-of-helper-encryption-package">  Removal of <code>helper/encryption</code> Package </h2> <p>The <code>helper/encryption</code> package supports an <a href="../best-practices/sensitive-state#don-39-t-encrypt-state">anti-pattern that is now discouraged</a>, so it has been removed. Providers relying on it should see the <a href="../best-practices/sensitive-state">documentation</a> on that pattern and select an alternative approach.</p> <h2 id="removal-of-discouraged-variables-functions-types-and-interfaces">  Removal of Discouraged Variables, Functions, Types, and Interfaces </h2> <p>The following variables, functions, types, and interfaces were part of the public API for the SDK, but were never intended for consumption by providers. They have all been removed. Any providers using them should <a href="https://github.com/hashicorp/terraform-plugin-sdk/issues">open an issue</a> detailing their use case, and we can help find a path forward.</p> <ul> <li>
+<a href="#helper-acctest-remotetestprecheck"><code>helper/acctest.RemoteTestPrecheck</code></a> </li> <li>
+<a href="#helper-acctest-skipremotetestsenvvar"><code>helper/acctest.SkipRemoteTestsEnvVar</code></a> </li> <li>
+<a href="#helper-resource-grpctestprovider"><code>helper/resource.GRPCTestProvider</code></a> </li> <li>
+<a href="#helper-resource-logoutput"><code>helper/resource.LogOutput</code></a> </li> <li>
+<a href="#helper-resource-map"><code>helper/resource.Map</code></a> </li> <li>
+<a href="#helper-resource-testprovider"><code>helper/resource.TestProvider</code></a> </li> <li>
+<a href="#helper-schema-multimapreader"><code>helper/schema.MultiMapReader</code></a> </li> <li>
+<a href="#helper-schema-provider-input"><code>helper/schema.Provider.Input</code></a> </li> <li>
+<a href="#plugin-client"><code>plugin.Client</code></a> </li> <li>
+<a href="#plugin-clientconfig"><code>plugin.ClientConfig</code></a> </li> <li>
+<a href="#plugin-defaultprotocolversion"><code>plugin.DefaultProtocolVersion</code></a> </li> <li>
+<a href="#plugin-grpcprovider"><code>plugin.GRPCProvider</code></a> </li> <li>
+<a href="#plugin-grpcproviderplugin"><code>plugin.GRPCProviderPlugin</code></a> </li> <li>
+<a href="#plugin-grpcprovisioner"><code>plugin.GRPCProvisioner</code></a> </li> <li>
+<a href="#plugin-grpcprovisionerplugin"><code>plugin.GRPCProvisionerPlugin</code></a> </li> <li>
+<a href="#plugin-handshake-protocolversion"><code>plugin.HandShake.ProtocolVersion</code></a> </li> <li>
+<a href="#plugin-resourceprovider"><code>plugin.ResourceProvider</code></a> </li> <li>
+<a href="#plugin-resourceproviderapplyargs"><code>plugin.ResourceProviderApplyArgs</code></a> </li> <li>
+<a href="#plugin-resourceproviderapplyresponse"><code>plugin.ResourceProviderApplyResponse</code></a> </li> <li>
+<a href="#plugin-resourceproviderconfigureresponse"><code>plugin.ResourceProviderConfigureResponse</code></a> </li> <li>
+<a href="#plugin-resourceproviderdiffargs"><code>plugin.ResourceProviderDiffArgs</code></a> </li> <li>
+<a href="#plugin-resourceproviderdiffresponse"><code>plugin.ResourceProviderDiffResponse</code></a> </li> <li>
+<a href="#plugin-resourceprovidergetschemaargs"><code>plugin.ResourceProviderGetSchemaArgs</code></a> </li> <li>
+<a href="#plugin-resourceprovidergetschemaresponse"><code>plugin.ResourceProviderGetSchemaResponse</code></a> </li> <li>
+<a href="#plugin-resourceproviderimportstateargs"><code>plugin.ResourceProviderImportStateArgs</code></a> </li> <li>
+<a href="#plugin-resourceproviderimportstateresponse"><code>plugin.ResourceProviderImportStateResponse</code></a> </li> <li>
+<a href="#plugin-resourceproviderinputargs"><code>plugin.ResourceProviderInputArgs</code></a> </li> <li>
+<a href="#plugin-resourceproviderinputresponse"><code>plugin.ResourceProviderInputResponse</code></a> </li> <li>
+<a href="#plugin-resourceproviderplugin"><code>plugin.ResourceProviderPlugin</code></a> </li> <li>
+<a href="#plugin-resourceproviderreaddataapplyargs"><code>plugin.ResourceProviderReadDataApplyArgs</code></a> </li> <li>
+<a href="#plugin-resourceproviderreaddataapplyresponse"><code>plugin.ResourceProviderReadDataApplyResponse</code></a> </li> <li>
+<a href="#plugin-resourceproviderreaddatadiffargs"><code>plugin.ResourceProviderReadDataDiffArgs</code></a> </li> <li>
+<a href="#plugin-resourceproviderreaddatadiffresponse"><code>plugin.ResourceProviderReadDataDiffResponse</code></a> </li> <li>
+<a href="#plugin-resourceproviderrefreshargs"><code>plugin.ResourceProviderRefreshArgs</code></a> </li> <li>
+<a href="#plugin-resourceproviderrefreshresponse"><code>plugin.ResourceProviderRefreshResponse</code></a> </li> <li>
+<a href="#plugin-resourceproviderserver"><code>plugin.ResourceProviderServer</code></a> </li> <li>
+<a href="#plugin-resourceproviderstopresponse"><code>plugin.ResourceProviderStopResponse</code></a> </li> <li>
+<a href="#plugin-resourceprovidervalidateargs"><code>plugin.ResourceProviderValidateArgs</code></a> </li> <li>
+<a href="#plugin-resourceprovidervalidateresourceargs"><code>plugin.ResourceProviderValidateResourceArgs</code></a> </li> <li>
+<a href="#plugin-resourceprovidervalidateresourceresponse"><code>plugin.ResourceProviderValidateResourceResponse</code></a> </li> <li>
+<a href="#plugin-resourceprovidervalidateresponse"><code>plugin.ResourceProviderValidateResponse</code></a> </li> <li>
+<a href="#plugin-uiinput"><code>plugin.UIInput</code></a> </li> <li>
+<a href="#plugin-uiinputinputresponse"><code>plugin.UIInputInputResponse</code></a> </li> <li>
+<a href="#plugin-uiinputserver"><code>plugin.UIInputServer</code></a> </li> <li>
+<a href="#plugin-uioutput"><code>plugin.UIOutput</code></a> </li> <li>
+<a href="#plugin-uioutputserver"><code>plugin.UIOutputServer</code></a> </li> <li>
+<a href="#plugin-versionedplugins-no-longer-has-a-quot-provisioner-quot-key"><code>plugin.VersionedPlugins no longer has a "provisioner" key</code></a> </li> <li>
+<a href="#resource-runnewtest"><code>resource.RunNewTest</code></a> </li> <li>
+<a href="#resource-testdisablebinarytestingflagenvvar"><code>resource.TestDisableBinaryTestingFlagEnvVar</code></a> </li> <li>
+<a href="#schema-backend"><code>schema.Backend</code></a> </li> <li>
+<a href="#schema-fromcontextbackendconfig"><code>schema.FromContextBackendConfig</code></a> </li> <li>
+<a href="#schema-setproto5"><code>schema.SetProto5</code></a> </li> <li>
+<a href="#terraform-applygraphbuilder"><code>terraform.ApplyGraphBuilder</code></a> </li> <li>
+<a href="#terraform-attachresourceconfigtransformer"><code>terraform.AttachResourceConfigTransformer</code></a> </li> <li>
+<a href="#terraform-attachschematransformer"><code>terraform.AttachSchemaTransformer</code></a> </li> <li>
+<a href="#terraform-attachstatetransformer"><code>terraform.AttachStateTransformer</code></a> </li> <li>
+<a href="#terraform-backendstate-config"><code>terraform.BackendState.Config</code></a> </li> <li>
+<a href="#terraform-backendstate-empty"><code>terraform.BackendState.Empty</code></a> </li> <li>
+<a href="#terraform-backendstate-forplan"><code>terraform.BackendState.ForPlan</code></a> </li> <li>
+<a href="#terraform-backendstate-setconfig"><code>terraform.BackendState.SetConfig</code></a> </li> <li>
+<a href="#terraform-basicgraphbuilder"><code>terraform.BasicGraphBuilder</code></a> </li> <li>
+<a href="#terraform-builtinevalcontext"><code>terraform.BuiltinEvalContext</code></a> </li> <li>
+<a href="#terraform-callbackuioutput"><code>terraform.CallbackUIOutput</code></a> </li> <li>
+<a href="#terraform-cbdedgetransformer"><code>terraform.CBDEdgeTransformer</code></a> </li> <li>
+<a href="#terraform-checkcoreversionrequirements"><code>terraform.CheckCoreVersionRequirements</code></a> </li> <li>
+<a href="#terraform-closeproviderevaltree"><code>terraform.CloseProviderEvalTree</code></a> </li> <li>
+<a href="#terraform-closeprovidertransformer"><code>terraform.CloseProviderTransformer</code></a> </li> <li>
+<a href="#terraform-closeprovisionertransformer"><code>terraform.CloseProvisionerTransformer</code></a> </li> <li>
+<a href="#terraform-concreteprovidernodefunc"><code>terraform.ConcreteProviderNodeFunc</code></a> </li> <li>
+<a href="#terraform-concreteresourceinstancedeposednodefunc"><code>terraform.ConcreteResourceInstanceDeposedNodeFunc</code></a> </li> <li>
+<a href="#terraform-concreteresourceinstancenodefunc"><code>terraform.ConcreteResourceInstanceNodeFunc</code></a> </li> <li>
+<a href="#terraform-concreteresourcenodefunc"><code>terraform.ConcreteResourceNodeFunc</code></a> </li> <li>
+<a href="#terraform-configtransformer"><code>terraform.ConfigTransformer</code></a> </li> <li>
+<a href="#terraform-configtreedependencies"><code>terraform.ConfigTreeDependencies</code></a> </li> <li>
+<a href="#terraform-connectionblocksupersetschema"><code>terraform.ConnectionBlockSupersetSchema</code></a> </li> <li>
+<a href="#terraform-context"><code>terraform.Context</code></a> </li> <li>
+<a href="#terraform-contextgraphopts"><code>terraform.ContextGraphOpts</code></a> </li> <li>
+<a href="#terraform-contextgraphwalker"><code>terraform.ContextGraphWalker</code></a> </li> <li>
+<a href="#terraform-contextmeta"><code>terraform.ContextMeta</code></a> </li> <li>
+<a href="#terraform-contextopts"><code>terraform.ContextOpts</code></a> </li> <li>
+<a href="#terraform-countboundarytransformer"><code>terraform.CountBoundaryTransformer</code></a> </li> <li>
+<a href="#terraform-defaultvariablevalues"><code>terraform.DefaultVariableValues</code></a> </li> <li>
+<a href="#terraform-destroyedge"><code>terraform.DestroyEdge</code></a> </li> <li>
+<a href="#terraform-destroyedgetransformer"><code>terraform.DestroyEdgeTransformer</code></a> </li> <li>
+<a href="#terraform-destroyoutputtransformer"><code>terraform.DestroyOutputTransformer</code></a> </li> <li>
+<a href="#terraform-destroyplangraphbuilder"><code>terraform.DestroyPlanGraphBuilder</code></a> </li> <li>
+<a href="#terraform-destroyvaluereferencetransformer"><code>terraform.DestroyValueReferenceTransformer</code></a> </li> <li>
+<a href="#terraform-diff-this-was-eventually-cut-"><code>terraform.Diff (this was eventually cut)</code></a> </li> <li>
+<a href="#terraform-diff-modulebypath"><code>terraform.Diff.ModuleByPath</code></a> </li> <li>
+<a href="#terraform-diff-rootmodule"><code>terraform.Diff.RootModule</code></a> </li> <li>
+<a href="#terraform-diffattrinput"><code>terraform.DiffAttrInput</code></a> </li> <li>
+<a href="#terraform-diffattroutput"><code>terraform.DiffAttrOutput</code></a> </li> <li>
+<a href="#terraform-diffattrtype"><code>terraform.DiffAttrType</code></a> </li> <li>
+<a href="#terraform-diffattrunknown"><code>terraform.DiffAttrUnknown</code></a> </li> <li>
+<a href="#terraform-diffchangetype"><code>terraform.DiffChangeType</code></a> </li> <li>
+<a href="#terraform-diffcreate"><code>terraform.DiffCreate</code></a> </li> <li>
+<a href="#terraform-diffdestroy"><code>terraform.DiffDestroy</code></a> </li> <li>
+<a href="#terraform-diffdestroycreate"><code>terraform.DiffDestroyCreate</code></a> </li> <li>
+<a href="#terraform-diffinvalid"><code>terraform.DiffInvalid</code></a> </li> <li>
+<a href="#terraform-diffnone"><code>terraform.DiffNone</code></a> </li> <li>
+<a href="#terraform-diffrefresh"><code>terraform.DiffRefresh</code></a> </li> <li>
+<a href="#terraform-difftransformer"><code>terraform.DiffTransformer</code></a> </li> <li>
+<a href="#terraform-diffupdate"><code>terraform.DiffUpdate</code></a> </li> <li>
+<a href="#terraform-ephemeralstate-deepcopy"><code>terraform.EphemeralState.DeepCopy</code></a> </li> <li>
+<a href="#terraform-errnostate"><code>terraform.ErrNoState</code></a> </li> <li>
+<a href="#terraform-eval"><code>terraform.Eval</code></a> </li> <li>
+<a href="#terraform-evalapply"><code>terraform.EvalApply</code></a> </li> <li>
+<a href="#terraform-evalapplypost"><code>terraform.EvalApplyPost</code></a> </li> <li>
+<a href="#terraform-evalapplypre"><code>terraform.EvalApplyPre</code></a> </li> <li>
+<a href="#terraform-evalapplyprovisioners"><code>terraform.EvalApplyProvisioners</code></a> </li> <li>
+<a href="#terraform-evalcheckmoduleremoved"><code>terraform.EvalCheckModuleRemoved</code></a> </li> <li>
+<a href="#terraform-evalcheckplannedchange"><code>terraform.EvalCheckPlannedChange</code></a> </li> <li>
+<a href="#terraform-evalcheckpreventdestroy"><code>terraform.EvalCheckPreventDestroy</code></a> </li> <li>
+<a href="#terraform-evalcloseprovider"><code>terraform.EvalCloseProvider</code></a> </li> <li>
+<a href="#terraform-evalcloseprovisioner"><code>terraform.EvalCloseProvisioner</code></a> </li> <li>
+<a href="#terraform-evalconfigblock"><code>terraform.EvalConfigBlock</code></a> </li> <li>
+<a href="#terraform-evalconfigexpr"><code>terraform.EvalConfigExpr</code></a> </li> <li>
+<a href="#terraform-evalconfigprovider"><code>terraform.EvalConfigProvider</code></a> </li> <li>
+<a href="#terraform-evalcontext"><code>terraform.EvalContext</code></a> </li> <li>
+<a href="#terraform-evalcountfixzerooneboundaryglobal"><code>terraform.EvalCountFixZeroOneBoundaryGlobal</code></a> </li> <li>
+<a href="#terraform-evaldataforinstancekey"><code>terraform.EvalDataForInstanceKey</code></a> </li> <li>
+<a href="#terraform-evaldatafornoinstancekey"><code>terraform.EvalDataForNoInstanceKey</code></a> </li> <li>
+<a href="#terraform-evaldeletelocal"><code>terraform.EvalDeleteLocal</code></a> </li> <li>
+<a href="#terraform-evaldeleteoutput"><code>terraform.EvalDeleteOutput</code></a> </li> <li>
+<a href="#terraform-evaldeposestate"><code>terraform.EvalDeposeState</code></a> </li> <li>
+<a href="#terraform-evaldiff"><code>terraform.EvalDiff</code></a> </li> <li>
+<a href="#terraform-evaldiffdestroy"><code>terraform.EvalDiffDestroy</code></a> </li> <li>
+<a href="#terraform-evalearlyexiterror"><code>terraform.EvalEarlyExitError</code></a> </li> <li>
+<a href="#terraform-evalfilter"><code>terraform.EvalFilter</code></a> </li> <li>
+<a href="#terraform-evalforgetresourcestate"><code>terraform.EvalForgetResourceState</code></a> </li> <li>
+<a href="#terraform-evalgetprovider"><code>terraform.EvalGetProvider</code></a> </li> <li>
+<a href="#terraform-evalgetprovisioner"><code>terraform.EvalGetProvisioner</code></a> </li> <li>
+<a href="#terraform-evalgraphbuilder"><code>terraform.EvalGraphBuilder</code></a> </li> <li>
+<a href="#terraform-evalif"><code>terraform.EvalIf</code></a> </li> <li>
+<a href="#terraform-evalimportstate"><code>terraform.EvalImportState</code></a> </li> <li>
+<a href="#terraform-evalimportstateverify"><code>terraform.EvalImportStateVerify</code></a> </li> <li>
+<a href="#terraform-evalinitprovider"><code>terraform.EvalInitProvider</code></a> </li> <li>
+<a href="#terraform-evalinitprovisioner"><code>terraform.EvalInitProvisioner</code></a> </li> <li>
+<a href="#terraform-evallocal"><code>terraform.EvalLocal</code></a> </li> <li>
+<a href="#terraform-evalmayberestoredeposedobject"><code>terraform.EvalMaybeRestoreDeposedObject</code></a> </li> <li>
+<a href="#terraform-evalmaybetainted"><code>terraform.EvalMaybeTainted</code></a> </li> <li>
+<a href="#terraform-evalmodulecallargument"><code>terraform.EvalModuleCallArgument</code></a> </li> <li>
+<a href="#terraform-evalnode"><code>terraform.EvalNode</code></a> </li> <li>
+<a href="#terraform-evalnodefilterable"><code>terraform.EvalNodeFilterable</code></a> </li> <li>
+<a href="#terraform-evalnodefilterfunc"><code>terraform.EvalNodeFilterFunc</code></a> </li> <li>
+<a href="#terraform-evalnodefilterop"><code>terraform.EvalNodeFilterOp</code></a> </li> <li>
+<a href="#terraform-evalnodeopfilterable"><code>terraform.EvalNodeOpFilterable</code></a> </li> <li>
+<a href="#terraform-evalnoop"><code>terraform.EvalNoop</code></a> </li> <li>
+<a href="#terraform-evalopfilter"><code>terraform.EvalOpFilter</code></a> </li> <li>
+<a href="#terraform-evalraw"><code>terraform.EvalRaw</code></a> </li> <li>
+<a href="#terraform-evalreaddata"><code>terraform.EvalReadData</code></a> </li> <li>
+<a href="#terraform-evalreaddataapply"><code>terraform.EvalReadDataApply</code></a> </li> <li>
+<a href="#terraform-evalreaddiff"><code>terraform.EvalReadDiff</code></a> </li> <li>
+<a href="#terraform-evalreadstate"><code>terraform.EvalReadState</code></a> </li> <li>
+<a href="#terraform-evalreadstatedeposed"><code>terraform.EvalReadStateDeposed</code></a> </li> <li>
+<a href="#terraform-evalreducediff"><code>terraform.EvalReduceDiff</code></a> </li> <li>
+<a href="#terraform-evalrefresh"><code>terraform.EvalRefresh</code></a> </li> <li>
+<a href="#terraform-evalrequirestate"><code>terraform.EvalRequireState</code></a> </li> <li>
+<a href="#terraform-evalreturnerror"><code>terraform.EvalReturnError</code></a> </li> <li>
+<a href="#terraform-evalsequence"><code>terraform.EvalSequence</code></a> </li> <li>
+<a href="#terraform-evalsetmodulecallarguments"><code>terraform.EvalSetModuleCallArguments</code></a> </li> <li>
+<a href="#terraform-evaluator"><code>terraform.Evaluator</code></a> </li> <li>
+<a href="#terraform-evalupdatestatehook"><code>terraform.EvalUpdateStateHook</code></a> </li> <li>
+<a href="#terraform-evalvalidatecount"><code>terraform.EvalValidateCount</code></a> </li> <li>
+<a href="#terraform-evalvalidateprovider"><code>terraform.EvalValidateProvider</code></a> </li> <li>
+<a href="#terraform-evalvalidateprovisioner"><code>terraform.EvalValidateProvisioner</code></a> </li> <li>
+<a href="#terraform-evalvalidateresource"><code>terraform.EvalValidateResource</code></a> </li> <li>
+<a href="#terraform-evalvalidateselfref"><code>terraform.EvalValidateSelfRef</code></a> </li> <li>
+<a href="#terraform-evalwritediff"><code>terraform.EvalWriteDiff</code></a> </li> <li>
+<a href="#terraform-evalwriteoutput"><code>terraform.EvalWriteOutput</code></a> </li> <li>
+<a href="#terraform-evalwriteresourcestate"><code>terraform.EvalWriteResourceState</code></a> </li> <li>
+<a href="#terraform-evalwritestate"><code>terraform.EvalWriteState</code></a> </li> <li>
+<a href="#terraform-evalwritestatedeposed"><code>terraform.EvalWriteStateDeposed</code></a> </li> <li>
+<a href="#terraform-expandtransform"><code>terraform.ExpandTransform</code></a> </li> <li>
+<a href="#terraform-forcedcbdtransformer"><code>terraform.ForcedCBDTransformer</code></a> </li> <li>
+<a href="#terraform-graph"><code>terraform.Graph</code></a> </li> <li>
+<a href="#terraform-graphbuilder"><code>terraform.GraphBuilder</code></a> </li> <li>
+<a href="#terraform-graphdot"><code>terraform.GraphDot</code></a> </li> <li>
+<a href="#terraform-graphnodeattachdestroyer"><code>terraform.GraphNodeAttachDestroyer</code></a> </li> <li>
+<a href="#terraform-graphnodeattachprovider"><code>terraform.GraphNodeAttachProvider</code></a> </li> <li>
+<a href="#terraform-graphnodeattachproviderconfigschema"><code>terraform.GraphNodeAttachProviderConfigSchema</code></a> </li> <li>
+<a href="#terraform-graphnodeattachprovisionerschema"><code>terraform.GraphNodeAttachProvisionerSchema</code></a> </li> <li>
+<a href="#terraform-graphnodeattachresourceconfig"><code>terraform.GraphNodeAttachResourceConfig</code></a> </li> <li>
+<a href="#terraform-graphnodeattachresourceschema"><code>terraform.GraphNodeAttachResourceSchema</code></a> </li> <li>
+<a href="#terraform-graphnodeattachresourcestate"><code>terraform.GraphNodeAttachResourceState</code></a> </li> <li>
+<a href="#terraform-graphnodecloseprovider"><code>terraform.GraphNodeCloseProvider</code></a> </li> <li>
+<a href="#terraform-graphnodecloseprovisioner"><code>terraform.GraphNodeCloseProvisioner</code></a> </li> <li>
+<a href="#terraform-graphnodecreator"><code>terraform.GraphNodeCreator</code></a> </li> <li>
+<a href="#terraform-graphnodedeposedresourceinstanceobject"><code>terraform.GraphNodeDeposedResourceInstanceObject</code></a> </li> <li>
+<a href="#terraform-graphnodedeposer"><code>terraform.GraphNodeDeposer</code></a> </li> <li>
+<a href="#terraform-graphnodedestroyer"><code>terraform.GraphNodeDestroyer</code></a> </li> <li>
+<a href="#terraform-graphnodedestroyercbd"><code>terraform.GraphNodeDestroyerCBD</code></a> </li> <li>
+<a href="#terraform-graphnodedynamicexpandable"><code>terraform.GraphNodeDynamicExpandable</code></a> </li> <li>
+<a href="#terraform-graphnodeevalable"><code>terraform.GraphNodeEvalable</code></a> </li> <li>
+<a href="#terraform-graphnodeexpandable"><code>terraform.GraphNodeExpandable</code></a> </li> <li>
+<a href="#terraform-graphnodeprovider"><code>terraform.GraphNodeProvider</code></a> </li> <li>
+<a href="#terraform-graphnodeproviderconsumer"><code>terraform.GraphNodeProviderConsumer</code></a> </li> <li>
+<a href="#terraform-graphnodeprovisioner"><code>terraform.GraphNodeProvisioner</code></a> </li> <li>
+<a href="#terraform-graphnodeprovisionerconsumer"><code>terraform.GraphNodeProvisionerConsumer</code></a> </li> <li>
+<a href="#terraform-graphnodereferenceable"><code>terraform.GraphNodeReferenceable</code></a> </li> <li>
+<a href="#terraform-graphnodereferenceoutside"><code>terraform.GraphNodeReferenceOutside</code></a> </li> <li>
+<a href="#terraform-graphnodereferencer"><code>terraform.GraphNodeReferencer</code></a> </li> <li>
+<a href="#terraform-graphnoderesource"><code>terraform.GraphNodeResource</code></a> </li> <li>
+<a href="#terraform-graphnoderesourceinstance"><code>terraform.GraphNodeResourceInstance</code></a> </li> <li>
+<a href="#terraform-graphnodesubgraph"><code>terraform.GraphNodeSubgraph</code></a> </li> <li>
+<a href="#terraform-graphnodesubpath"><code>terraform.GraphNodeSubPath</code></a> </li> <li>
+<a href="#terraform-graphnodetargetable"><code>terraform.GraphNodeTargetable</code></a> </li> <li>
+<a href="#terraform-graphnodetargetdownstream"><code>terraform.GraphNodeTargetDownstream</code></a> </li> <li>
+<a href="#terraform-graphtransformer"><code>terraform.GraphTransformer</code></a> </li> <li>
+<a href="#terraform-graphtransformif"><code>terraform.GraphTransformIf</code></a> </li> <li>
+<a href="#terraform-graphtransformmulti"><code>terraform.GraphTransformMulti</code></a> </li> <li>
+<a href="#terraform-graphtype"><code>terraform.GraphType</code></a> </li> <li>
+<a href="#terraform-graphtypeapply"><code>terraform.GraphTypeApply</code></a> </li> <li>
+<a href="#terraform-graphtypeeval"><code>terraform.GraphTypeEval</code></a> </li> <li>
+<a href="#terraform-graphtypeinvalid"><code>terraform.GraphTypeInvalid</code></a> </li> <li>
+<a href="#terraform-graphtypelegacy"><code>terraform.GraphTypeLegacy</code></a> </li> <li>
+<a href="#terraform-graphtypemap"><code>terraform.GraphTypeMap</code></a> </li> <li>
+<a href="#terraform-graphtypeplan"><code>terraform.GraphTypePlan</code></a> </li> <li>
+<a href="#terraform-graphtypeplandestroy"><code>terraform.GraphTypePlanDestroy</code></a> </li> <li>
+<a href="#terraform-graphtyperefresh"><code>terraform.GraphTypeRefresh</code></a> </li> <li>
+<a href="#terraform-graphtypevalidate"><code>terraform.GraphTypeValidate</code></a> </li> <li>
+<a href="#terraform-graphvertextransformer"><code>terraform.GraphVertexTransformer</code></a> </li> <li>
+<a href="#terraform-graphwalker"><code>terraform.GraphWalker</code></a> </li> <li>
+<a href="#terraform-hook"><code>terraform.Hook</code></a> </li> <li>
+<a href="#terraform-hookaction"><code>terraform.HookAction</code></a> </li> <li>
+<a href="#terraform-hookactioncontinue"><code>terraform.HookActionContinue</code></a> </li> <li>
+<a href="#terraform-hookactionhalt"><code>terraform.HookActionHalt</code></a> </li> <li>
+<a href="#terraform-importgraphbuilder"><code>terraform.ImportGraphBuilder</code></a> </li> <li>
+<a href="#terraform-importopts"><code>terraform.ImportOpts</code></a> </li> <li>
+<a href="#terraform-importprovidervalidatetransformer"><code>terraform.ImportProviderValidateTransformer</code></a> </li> <li>
+<a href="#terraform-importstatetransformer"><code>terraform.ImportStateTransformer</code></a> </li> <li>
+<a href="#terraform-importtarget"><code>terraform.ImportTarget</code></a> </li> <li>
+<a href="#terraform-inputmode"><code>terraform.InputMode</code></a> </li> <li>
+<a href="#terraform-inputmodeprovider"><code>terraform.InputModeProvider</code></a> </li> <li>
+<a href="#terraform-inputmodestd"><code>terraform.InputModeStd</code></a> </li> <li>
+<a href="#terraform-inputmodevar"><code>terraform.InputModeVar</code></a> </li> <li>
+<a href="#terraform-inputmodevarunset"><code>terraform.InputModeVarUnset</code></a> </li> <li>
+<a href="#terraform-inputopts"><code>terraform.InputOpts</code></a> </li> <li>
+<a href="#terraform-inputvalue"><code>terraform.InputValue</code></a> </li> <li>
+<a href="#terraform-inputvalues"><code>terraform.InputValues</code></a> </li> <li>
+<a href="#terraform-inputvaluesfromcaller"><code>terraform.InputValuesFromCaller</code></a> </li> <li>
+<a href="#terraform-instancediff-copy"><code>terraform.InstanceDiff.Copy</code></a> </li> <li>
+<a href="#terraform-instancediff-delattribute"><code>terraform.InstanceDiff.DelAttribute</code></a> </li> <li>
+<a href="#terraform-instancediff-getattributeslen"><code>terraform.InstanceDiff.GetAttributesLen</code></a> </li> <li>
+<a href="#terraform-instancediff-setattribute"><code>terraform.InstanceDiff.SetAttribute</code></a> </li> <li>
+<a href="#terraform-instancediff-setdestroy"><code>terraform.InstanceDiff.SetDestroy</code></a> </li> <li>
+<a href="#terraform-instancediff-setdestroydeposed"><code>terraform.InstanceDiff.SetDestroyDeposed</code></a> </li> <li>
+<a href="#terraform-instancediff-settainted"><code>terraform.InstanceDiff.SetTainted</code></a> </li> <li>
+<a href="#terraform-instanceinfo-resourceaddress"><code>terraform.InstanceInfo.ResourceAddress</code></a> </li> <li>
+<a href="#terraform-instancekeyevaldata"><code>terraform.InstanceKeyEvalData</code></a> </li> <li>
+<a href="#terraform-instancetype"><code>terraform.InstanceType</code></a> </li> <li>
+<a href="#terraform-loadschemas"><code>terraform.LoadSchemas</code></a> </li> <li>
+<a href="#terraform-localtransformer"><code>terraform.LocalTransformer</code></a> </li> <li>
+<a href="#terraform-missingprovidertransformer"><code>terraform.MissingProviderTransformer</code></a> </li> <li>
+<a href="#terraform-missingprovisionertransformer"><code>terraform.MissingProvisionerTransformer</code></a> </li> <li>
+<a href="#terraform-mockevalcontext"><code>terraform.MockEvalContext</code></a> </li> <li>
+<a href="#terraform-mockhook"><code>terraform.MockHook</code></a> </li> <li>
+<a href="#terraform-mockprovider"><code>terraform.MockProvider</code></a> </li> <li>
+<a href="#terraform-mockprovisioner"><code>terraform.MockProvisioner</code></a> </li> <li>
+<a href="#terraform-mockresourceprovider-this-was-removed-"><code>terraform.MockResourceProvider (this was removed)</code></a> </li> <li>
+<a href="#terraform-mockresourceprovider-input"><code>terraform.MockResourceProvider.Input</code></a> </li> <li>
+<a href="#terraform-mockresourceprovider-inputcalled"><code>terraform.MockResourceProvider.InputCalled</code></a> </li> <li>
+<a href="#terraform-mockresourceprovider-inputconfig"><code>terraform.MockResourceProvider.InputConfig</code></a> </li> <li>
+<a href="#terraform-mockresourceprovider-inputfn"><code>terraform.MockResourceProvider.InputFn</code></a> </li> <li>
+<a href="#terraform-mockresourceprovider-inputinput"><code>terraform.MockResourceProvider.InputInput</code></a> </li> <li>
+<a href="#terraform-mockresourceprovider-inputreturnconfig"><code>terraform.MockResourceProvider.InputReturnConfig</code></a> </li> <li>
+<a href="#terraform-mockresourceprovider-inputreturnerror"><code>terraform.MockResourceProvider.InputReturnError</code></a> </li> <li>
+<a href="#terraform-mockresourceprovisioner"><code>terraform.MockResourceProvisioner</code></a> </li> <li>
+<a href="#terraform-mockuiinput"><code>terraform.MockUIInput</code></a> </li> <li>
+<a href="#terraform-mockuioutput"><code>terraform.MockUIOutput</code></a> </li> <li>
+<a href="#terraform-modulediff-this-was-eventually-cut-"><code>terraform.ModuleDiff (this was eventually cut)</code></a> </li> <li>
+<a href="#terraform-modulediff-isroot"><code>terraform.ModuleDiff.IsRoot</code></a> </li> <li>
+<a href="#terraform-modulestate-empty"><code>terraform.ModuleState.Empty</code></a> </li> <li>
+<a href="#terraform-modulestate-isdescendent"><code>terraform.ModuleState.IsDescendent</code></a> </li> <li>
+<a href="#terraform-modulestate-isroot"><code>terraform.ModuleState.IsRoot</code></a> </li> <li>
+<a href="#terraform-modulestate-orphans"><code>terraform.ModuleState.Orphans</code></a> </li> <li>
+<a href="#terraform-modulestate-removedoutputs"><code>terraform.ModuleState.RemovedOutputs</code></a> </li> <li>
+<a href="#terraform-modulestate-view"><code>terraform.ModuleState.View</code></a> </li> <li>
+<a href="#terraform-modulevariabletransformer"><code>terraform.ModuleVariableTransformer</code></a> </li> <li>
+<a href="#terraform-mustshimlegacystate"><code>terraform.MustShimLegacyState</code></a> </li> <li>
+<a href="#terraform-newcontext"><code>terraform.NewContext</code></a> </li> <li>
+<a href="#terraform-newinstanceinfo"><code>terraform.NewInstanceInfo</code></a> </li> <li>
+<a href="#terraform-newlegacyresourceaddress"><code>terraform.NewLegacyResourceAddress</code></a> </li> <li>
+<a href="#terraform-newlegacyresourceinstanceaddress"><code>terraform.NewLegacyResourceInstanceAddress</code></a> </li> <li>
+<a href="#terraform-newnodeabstractresource"><code>terraform.NewNodeAbstractResource</code></a> </li> <li>
+<a href="#terraform-newnodeabstractresourceinstance"><code>terraform.NewNodeAbstractResourceInstance</code></a> </li> <li>
+<a href="#terraform-newreferencemap"><code>terraform.NewReferenceMap</code></a> </li> <li>
+<a href="#terraform-newresource"><code>terraform.NewResource</code></a> </li> <li>
+<a href="#terraform-newsemaphore"><code>terraform.NewSemaphore</code></a> </li> <li>
+<a href="#terraform-nilhook"><code>terraform.NilHook</code></a> </li> <li>
+<a href="#terraform-nodeabstractprovider"><code>terraform.NodeAbstractProvider</code></a> </li> <li>
+<a href="#terraform-nodeabstractresource"><code>terraform.NodeAbstractResource</code></a> </li> <li>
+<a href="#terraform-nodeabstractresourceinstance"><code>terraform.NodeAbstractResourceInstance</code></a> </li> <li>
+<a href="#terraform-nodeapplyablemodulevariable"><code>terraform.NodeApplyableModuleVariable</code></a> </li> <li>
+<a href="#terraform-nodeapplyableoutput"><code>terraform.NodeApplyableOutput</code></a> </li> <li>
+<a href="#terraform-nodeapplyableprovider"><code>terraform.NodeApplyableProvider</code></a> </li> <li>
+<a href="#terraform-nodeapplyableresource"><code>terraform.NodeApplyableResource</code></a> </li> <li>
+<a href="#terraform-nodeapplyableresourceinstance"><code>terraform.NodeApplyableResourceInstance</code></a> </li> <li>
+<a href="#terraform-nodecountboundary"><code>terraform.NodeCountBoundary</code></a> </li> <li>
+<a href="#terraform-nodedestroyabledataresourceinstance"><code>terraform.NodeDestroyableDataResourceInstance</code></a> </li> <li>
+<a href="#terraform-nodedestroyableoutput"><code>terraform.NodeDestroyableOutput</code></a> </li> <li>
+<a href="#terraform-nodedestroydeposedresourceinstanceobject"><code>terraform.NodeDestroyDeposedResourceInstanceObject</code></a> </li> <li>
+<a href="#terraform-nodedestroyresource"><code>terraform.NodeDestroyResource</code></a> </li> <li>
+<a href="#terraform-nodedestroyresourceinstance"><code>terraform.NodeDestroyResourceInstance</code></a> </li> <li>
+<a href="#terraform-nodedisabledprovider"><code>terraform.NodeDisabledProvider</code></a> </li> <li>
+<a href="#terraform-nodeevalableprovider"><code>terraform.NodeEvalableProvider</code></a> </li> <li>
+<a href="#terraform-nodelocal"><code>terraform.NodeLocal</code></a> </li> <li>
+<a href="#terraform-nodemoduleremoved"><code>terraform.NodeModuleRemoved</code></a> </li> <li>
+<a href="#terraform-nodeoutputorphan"><code>terraform.NodeOutputOrphan</code></a> </li> <li>
+<a href="#terraform-nodeplandeposedresourceinstanceobject"><code>terraform.NodePlanDeposedResourceInstanceObject</code></a> </li> <li>
+<a href="#terraform-nodeplandestroyableresourceinstance"><code>terraform.NodePlanDestroyableResourceInstance</code></a> </li> <li>
+<a href="#terraform-nodeplannableresource"><code>terraform.NodePlannableResource</code></a> </li> <li>
+<a href="#terraform-nodeplannableresourceinstance"><code>terraform.NodePlannableResourceInstance</code></a> </li> <li>
+<a href="#terraform-nodeplannableresourceinstanceorphan"><code>terraform.NodePlannableResourceInstanceOrphan</code></a> </li> <li>
+<a href="#terraform-nodeprovisioner"><code>terraform.NodeProvisioner</code></a> </li> <li>
+<a href="#terraform-noderefreshabledataresource"><code>terraform.NodeRefreshableDataResource</code></a> </li> <li>
+<a href="#terraform-noderefreshabledataresourceinstance"><code>terraform.NodeRefreshableDataResourceInstance</code></a> </li> <li>
+<a href="#terraform-noderefreshablemanagedresource"><code>terraform.NodeRefreshableManagedResource</code></a> </li> <li>
+<a href="#terraform-noderefreshablemanagedresourceinstance"><code>terraform.NodeRefreshableManagedResourceInstance</code></a> </li> <li>
+<a href="#terraform-noderootvariable"><code>terraform.NodeRootVariable</code></a> </li> <li>
+<a href="#terraform-nodevalidatableresource"><code>terraform.NodeValidatableResource</code></a> </li> <li>
+<a href="#terraform-nullgraphwalker"><code>terraform.NullGraphWalker</code></a> </li> <li>
+<a href="#terraform-orphanoutputtransformer"><code>terraform.OrphanOutputTransformer</code></a> </li> <li>
+<a href="#terraform-orphanresourcecounttransformer"><code>terraform.OrphanResourceCountTransformer</code></a> </li> <li>
+<a href="#terraform-orphanresourceinstancetransformer"><code>terraform.OrphanResourceInstanceTransformer</code></a> </li> <li>
+<a href="#terraform-orphanresourcetransformer"><code>terraform.OrphanResourceTransformer</code></a> </li> <li>
+<a href="#terraform-outputtransformer"><code>terraform.OutputTransformer</code></a> </li> <li>
+<a href="#terraform-parentprovidertransformer"><code>terraform.ParentProviderTransformer</code></a> </li> <li>
+<a href="#terraform-parseinstancetype"><code>terraform.ParseInstanceType</code></a> </li> <li>
+<a href="#terraform-parseresourceaddress"><code>terraform.ParseResourceAddress</code></a> </li> <li>
+<a href="#terraform-parseresourceaddressforinstancediff"><code>terraform.ParseResourceAddressForInstanceDiff</code></a> </li> <li>
+<a href="#terraform-parseresourceindex"><code>terraform.ParseResourceIndex</code></a> </li> <li>
+<a href="#terraform-parseresourcepath"><code>terraform.ParseResourcePath</code></a> </li> <li>
+<a href="#terraform-parseresourcestatekey"><code>terraform.ParseResourceStateKey</code></a> </li> <li>
+<a href="#terraform-pathobjectcachekey"><code>terraform.PathObjectCacheKey</code></a> </li> <li>
+<a href="#terraform-plan"><code>terraform.Plan</code></a> </li> <li>
+<a href="#terraform-plangraphbuilder"><code>terraform.PlanGraphBuilder</code></a> </li> <li>
+<a href="#terraform-prefixuiinput"><code>terraform.PrefixUIInput</code></a> </li> <li>
+<a href="#terraform-providerconfigtransformer"><code>terraform.ProviderConfigTransformer</code></a> </li> <li>
+<a href="#terraform-providerevaltree"><code>terraform.ProviderEvalTree</code></a> </li> <li>
+<a href="#terraform-providerhasdatasource"><code>terraform.ProviderHasDataSource</code></a> </li> <li>
+<a href="#terraform-providerhasresource"><code>terraform.ProviderHasResource</code></a> </li> <li>
+<a href="#terraform-providerschema-schemaforresourceaddr"><code>terraform.ProviderSchema.SchemaForResourceAddr</code></a> </li> <li>
+<a href="#terraform-providerschema-schemaforresourcetype"><code>terraform.ProviderSchema.SchemaForResourceType</code></a> </li> <li>
+<a href="#terraform-providertransformer"><code>terraform.ProviderTransformer</code></a> </li> <li>
+<a href="#terraform-provisionerfactory"><code>terraform.ProvisionerFactory</code></a> </li> <li>
+<a href="#terraform-provisionertransformer"><code>terraform.ProvisionerTransformer</code></a> </li> <li>
+<a href="#terraform-provisioneruioutput"><code>terraform.ProvisionerUIOutput</code></a> </li> <li>
+<a href="#terraform-pruneprovidertransformer"><code>terraform.PruneProviderTransformer</code></a> </li> <li>
+<a href="#terraform-pruneunusedvaluestransformer"><code>terraform.PruneUnusedValuesTransformer</code></a> </li> <li>
+<a href="#terraform-readplan"><code>terraform.ReadPlan</code></a> </li> <li>
+<a href="#terraform-readstate"><code>terraform.ReadState</code></a> </li> <li>
+<a href="#terraform-readstatev1"><code>terraform.ReadStateV1</code></a> </li> <li>
+<a href="#terraform-readstatev2"><code>terraform.ReadStateV2</code></a> </li> <li>
+<a href="#terraform-readstatev3"><code>terraform.ReadStateV3</code></a> </li> <li>
+<a href="#terraform-referencemap"><code>terraform.ReferenceMap</code></a> </li> <li>
+<a href="#terraform-referencesfromconfig"><code>terraform.ReferencesFromConfig</code></a> </li> <li>
+<a href="#terraform-referencetransformer"><code>terraform.ReferenceTransformer</code></a> </li> <li>
+<a href="#terraform-refreshgraphbuilder"><code>terraform.RefreshGraphBuilder</code></a> </li> <li>
+<a href="#terraform-remotestate-equals"><code>terraform.RemoteState.Equals</code></a> </li> <li>
+<a href="#terraform-removableifnottargeted"><code>terraform.RemovableIfNotTargeted</code></a> </li> <li>
+<a href="#terraform-removedmoduletransformer"><code>terraform.RemovedModuleTransformer</code></a> </li> <li>
+<a href="#terraform-resource"><code>terraform.Resource</code></a> </li> <li>
+<a href="#terraform-resourceaddress"><code>terraform.ResourceAddress</code></a> </li> <li>
+<a href="#terraform-resourceattrdiff-empty"><code>terraform.ResourceAttrDiff.Empty</code></a> </li> <li>
+<a href="#terraform-resourceconfig-checkset"><code>terraform.ResourceConfig.CheckSet</code></a> </li> <li>
+<a href="#terraform-resourceconfig-isset"><code>terraform.ResourceConfig.IsSet</code></a> </li> <li>
+<a href="#terraform-resourcecounttransformer"><code>terraform.ResourceCountTransformer</code></a> </li> <li>
+<a href="#terraform-resourceflag"><code>terraform.ResourceFlag</code></a> </li> <li>
+<a href="#terraform-resourceprovidercloser-this-was-removed-"><code>terraform.ResourceProviderCloser (this was removed)</code></a> </li> <li>
+<a href="#terraform-resourceproviderfactoryfixed-this-was-removed-"><code>terraform.ResourceProviderFactoryFixed (this was removed)</code></a> </li> <li>
+<a href="#terraform-resourceproviderresolver"><code>terraform.ResourceProviderResolver</code></a> </li> <li>
+<a href="#terraform-resourceproviderresolverfixed"><code>terraform.ResourceProviderResolverFixed</code></a> </li> <li>
+<a href="#terraform-resourceproviderresolverfunc"><code>terraform.ResourceProviderResolverFunc</code></a> </li> <li>
+<a href="#terraform-resourceprovisioner"><code>terraform.ResourceProvisioner</code></a> </li> <li>
+<a href="#terraform-resourceprovisionercloser"><code>terraform.ResourceProvisionerCloser</code></a> </li> <li>
+<a href="#terraform-resourceprovisionerfactory"><code>terraform.ResourceProvisionerFactory</code></a> </li> <li>
+<a href="#terraform-roottransformer"><code>terraform.RootTransformer</code></a> </li> <li>
+<a href="#terraform-rootvariabletransformer"><code>terraform.RootVariableTransformer</code></a> </li> <li>
+<a href="#terraform-schemas"><code>terraform.Schemas</code></a> </li> <li>
+<a href="#terraform-semaphore"><code>terraform.Semaphore</code></a> </li> <li>
+<a href="#terraform-shimlegacystate"><code>terraform.ShimLegacyState</code></a> </li> <li>
+<a href="#terraform-state-fromfutureterraform"><code>terraform.State.FromFutureTerraform</code></a> </li> <li>
+<a href="#terraform-state-marshalequal"><code>terraform.State.MarshalEqual</code></a> </li> <li>
+<a href="#terraform-statefilter"><code>terraform.StateFilter</code></a> </li> <li>
+<a href="#terraform-statefilterresult"><code>terraform.StateFilterResult</code></a> </li> <li>
+<a href="#terraform-statefilterresultslice"><code>terraform.StateFilterResultSlice</code></a> </li> <li>
+<a href="#terraform-statetransformer"><code>terraform.StateTransformer</code></a> </li> <li>
+<a href="#terraform-stateversion"><code>terraform.StateVersion</code></a> </li> <li>
+<a href="#terraform-targetstransformer"><code>terraform.TargetsTransformer</code></a> </li> <li>
+<a href="#terraform-teststatefile"><code>terraform.TestStateFile</code></a> </li> <li>
+<a href="#terraform-transformproviders"><code>terraform.TransformProviders</code></a> </li> <li>
+<a href="#terraform-transitivereductiontransformer"><code>terraform.TransitiveReductionTransformer</code></a> </li> <li>
+<a href="#terraform-typedeposed"><code>terraform.TypeDeposed</code></a> </li> <li>
+<a href="#terraform-typeinvalid"><code>terraform.TypeInvalid</code></a> </li> <li>
+<a href="#terraform-typeprimary"><code>terraform.TypePrimary</code></a> </li> <li>
+<a href="#terraform-typetainted"><code>terraform.TypeTainted</code></a> </li> <li>
+<a href="#terraform-uiinput"><code>terraform.UIInput</code></a> </li> <li>
+<a href="#terraform-uioutput"><code>terraform.UIOutput</code></a> </li> <li>
+<a href="#terraform-upgraderesourcestate"><code>terraform.UpgradeResourceState</code></a> </li> <li>
+<a href="#terraform-validategraphbuilder"><code>terraform.ValidateGraphBuilder</code></a> </li> <li>
+<a href="#terraform-valuefromautofile"><code>terraform.ValueFromAutoFile</code></a> </li> <li>
+<a href="#terraform-valuefromcaller"><code>terraform.ValueFromCaller</code></a> </li> <li>
+<a href="#terraform-valuefromcliarg"><code>terraform.ValueFromCLIArg</code></a> </li> <li>
+<a href="#terraform-valuefromconfig"><code>terraform.ValueFromConfig</code></a> </li> <li>
+<a href="#terraform-valuefromenvvar"><code>terraform.ValueFromEnvVar</code></a> </li> <li>
+<a href="#terraform-valuefrominput"><code>terraform.ValueFromInput</code></a> </li> <li>
+<a href="#terraform-valuefromnamedfile"><code>terraform.ValueFromNamedFile</code></a> </li> <li>
+<a href="#terraform-valuefromplan"><code>terraform.ValueFromPlan</code></a> </li> <li>
+<a href="#terraform-valuefromunknown"><code>terraform.ValueFromUnknown</code></a> </li> <li>
+<a href="#terraform-valuesourcetype"><code>terraform.ValueSourceType</code></a> </li> <li>
+<a href="#terraform-vertextransformer"><code>terraform.VertexTransformer</code></a> </li> <li>
+<a href="#terraform-writeplan"><code>terraform.WritePlan</code></a> </li> <li>
+<a href="#terraform-writestate"><code>terraform.WriteState</code></a> </li> </ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/extend/guides/v2-upgrade-guide.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/extend/guides/v2-upgrade-guide.html</a>
+  </p>
+</div>

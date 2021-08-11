@@ -1,0 +1,188 @@
+ <h1 id="import-tfplan">  Import: tfplan </h1> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> Sentinel policies are a paid feature, available as part of the <strong>Team &amp; Governance</strong> upgrade package. <a href="https://www.hashicorp.com/products/terraform/pricing">Learn more about Terraform Cloud pricing here</a>.</p> </blockquote> <p>The <code>tfplan</code> import provides access to a Terraform plan. A Terraform plan is the file created as a result of <code>terraform plan</code> and is the input to <code>terraform
+apply</code>. The plan represents the changes that Terraform needs to make to infrastructure to reach the desired state represented by the configuration.</p> <p>In addition to the diff data available in the plan, there is an <a href="#value-applied"><code>applied</code></a> state available that merges the plan with the state to create the planned state after apply.</p> <p>Finally, this import also allows you to access the configuration files and the Terraform state at the time the plan was run. See the section on <a href="#accessing-a-plan-39-s-state-and-configuration-data">accessing a plan's state and configuration data</a> for more information.</p> <h2 id="namespace-overview">  Namespace Overview </h2> <p>The following is a tree view of the import namespace. For more detail on a particular part of the namespace, see below.</p> <blockquote class="alert alert-info" role="alert"> <p>Note that the root-level alias keys shown here (<code>data</code>, <code>path</code>, and <code>resources</code>) are shortcuts to a <a href="#namespace-module">module namespace</a> scoped to the root module. For more details, see the section on <a href="#root-namespace-aliases">root namespace aliases</a>.</p> </blockquote> <pre>tfplan
+├── module() (function)
+│   └── (module namespace)
+│       ├── path ([]string)
+│       ├── data
+│       │   └── TYPE.NAME[NUMBER]
+│       │       ├── applied (map of keys)
+│       │       └── diff
+│       │           └── KEY
+│       │               ├── computed (bool)
+│       │               ├── new (string)
+│       │               └── old (string)
+│       └── resources
+│           └── TYPE.NAME[NUMBER]
+│               ├── applied (map of keys)
+│               ├── destroy (bool)
+│               ├── requires_new (bool)
+│               └── diff
+│                   └── KEY
+│                       ├── computed (bool)
+│                       ├── new (string)
+│                       └── old (string)
+├── module_paths ([][]string)
+├── terraform_version (string)
+├── variables (map of keys)
+│
+├── data (root module alias)
+├── path (root module alias)
+├── resources (root module alias)
+│
+├── config (tfconfig namespace alias)
+└── state (tfstate import alias)
+</pre>
+<h2 id="namespace-root">  Namespace: Root </h2> <p>The root-level namespace consists of the values and functions documented below.</p> <p>In addition to this, the root-level <code>data</code>, <code>path</code>, and <code>resources</code> keys alias to their corresponding namespaces or values within the <a href="#namespace-module">module namespace</a>.</p> <h3 id="accessing-a-plan-39-s-state-and-configuration-data">  Accessing a Plan's State and Configuration Data </h3> <p>The <code>config</code> and <code>state</code> keys alias to the <a href="tfconfig"><code>tfconfig</code></a> and <a href="tfstate"><code>tfstate</code></a> namespaces, respectively, with the data sourced from the Terraform <em>plan</em> (as opposed to actual configuration and state).</p> <blockquote class="alert alert-info" role="alert"> <p>Note that these aliases are not represented as maps. While they will appear empty when viewed as maps, the specific import namespace keys will still be accessible.</p> </blockquote> <blockquote class="alert alert-info" role="alert"> <p>Note that while current versions of Terraform Cloud source configuration and state data from the plan for the Terraform run in question, future versions may source data accessed through the <code>tfconfig</code> and <code>tfstate</code> imports (as opposed to <code>tfplan.config</code> and <code>tfplan.state</code>) from actual config bundles, or state as stored by Terraform Cloud. When this happens, the distinction here will be useful - the data in the aliased namespaces will be the config and state data as the <em>plan</em> sees it, versus the actual "physical" data.</p> </blockquote> <h3 id="function-module-">  Function: <code>module()</code> </h3> <pre>module = func(ADDR)
+</pre> <ul> <li>
+<strong>Return Type:</strong> A <a href="#namespace-module">module namespace</a>. </li> </ul> <p>The <code>module()</code> function in the <a href="#namespace-root">root namespace</a> returns the <a href="#namespace-module">module namespace</a> for a particular module address.</p> <p>The address must be a list and is the module address, split on the period (<code>.</code>), excluding the root module.</p> <p>Hence, a module with an address of simply <code>foo</code> (or <code>root.foo</code>) would be <code>["foo"]</code>, and a module within that (so address <code>foo.bar</code>) would be read as <code>["foo", "bar"]</code>.</p> <p><a href="https://docs.hashicorp.com/sentinel/language/spec#null"><code>null</code></a> is returned if a module address is invalid, or if the module is not present in the diff.</p> <p>As an example, given the following module block:</p> <pre data-language="ruby">module "foo" {
+  # ...
+}
+</pre>
+<p>If the module contained the following content:</p> <pre data-language="ruby">resource "null_resource" "foo" {
+  triggers = {
+    foo = "bar"
+  }
+}
+</pre>
+<p>The following policy would evaluate to <code>true</code>:</p> <pre>import "tfplan"
+
+main = rule { tfplan.module(["foo"]).resources.null_resource.foo[0].applied.triggers.foo is "bar" }
+</pre>
+<h3 id="value-module_paths">  Value: <code>module_paths</code> </h3> <ul> <li>
+<strong>Value Type:</strong> List of a list of strings. </li> </ul> <p>The <code>module_paths</code> value within the <a href="#namespace-root">root namespace</a> is a list of all of the modules within the Terraform diff for the current plan.</p> <p>Modules not present in the diff will not be present here, even if they are present in the configuration or state.</p> <p>This data is represented as a list of a list of strings, with the inner list being the module address, split on the period (<code>.</code>).</p> <p>The root module is included in this list, represented as an empty inner list, as long as there are changes.</p> <p>As an example, if the following module block was present within a Terraform configuration:</p> <pre data-language="ruby">module "foo" {
+  # ...
+}
+</pre>
+<p>The value of <code>module_paths</code> would be:</p> <pre>[
+    [],
+    ["foo"],
+]
+</pre>
+<p>And the following policy would evaluate to <code>true</code>:</p> <pre>import "tfplan"
+
+main = rule { tfplan.module_paths contains ["foo"] }
+</pre>
+<blockquote class="alert alert-info" role="alert"> <p>Note the above example only applies if the module is present in the diff.</p> </blockquote> <h4 id="iterating-through-modules">  Iterating Through Modules </h4> <p>Iterating through all modules to find particular resources can be useful. This <a href="index#iterate-over-modules-and-find-resources">example</a> shows how to use <code>module_paths</code> with the <a href="#function-module-"><code>module()</code> function</a> to find all resources of a particular type from all modules that have pending changes using the <code>tfplan</code> import.</p> <h3 id="value-terraform_version">  Value: <code>terraform_version</code> </h3> <ul> <li>
+<strong>Value Type:</strong> String. </li> </ul> <p>The <code>terraform_version</code> value within the <a href="#namespace-root">root namespace</a> represents the version of Terraform used to create the plan. This can be used to enforce a specific version of Terraform in a policy check.</p> <p>As an example, the following policy would evaluate to <code>true</code>, as long as the plan was made with a version of Terraform in the 0.11.x series, excluding any pre-release versions (example: <code>-beta1</code> or <code>-rc1</code>):</p> <pre>import "tfplan"
+
+main = rule { tfplan.terraform_version matches "^0\\.11\\.\\d+$" }
+</pre>
+<h3 id="value-variables">  Value: <code>variables</code> </h3> <ul> <li>
+<strong>Value Type:</strong> A string-keyed map of values. </li> </ul> <p>The <code>variables</code> value within the <a href="#namespace-root">root namespace</a> represents all of the variables that were set when creating the plan. This will only contain variables set for the root module.</p> <p>Note that unlike the <a href="tfconfig#value-default"><code>default</code></a> value in the <a href="tfconfig#namespace-variables"><code>tfconfig</code> variables namespace</a>, primitive values here are stringified, and type conversion will need to be performed to perform comparison for int, float, or boolean values. This only applies to variables that are primitives themselves and not primitives within maps and lists, which will be their original types.</p> <p>If a default was accepted for the particular variable, the default value will be populated here.</p> <p>As an example, given the following variable blocks:</p> <pre data-language="ruby">variable "foo" {
+  default = "bar"
+}
+
+variable "number" {
+  default = 42
+}
+
+variable "map" {
+  default = {
+    foo    = "bar"
+    number = 42
+  }
+}
+</pre>
+<p>The following policy would evaluate to <code>true</code>, if no values were entered to change these variables:</p> <pre>import "tfplan"
+
+default_foo = rule { tfplan.variables.foo is "bar" }
+default_number = rule { tfplan.variables.number is "42" }
+default_map_string = rule { tfplan.variables.map["foo"] is "bar" }
+default_map_int = rule { tfplan.variables.map["number"] is 42 }
+
+main = rule { default_foo and default_number and default_map_string and default_map_int }
+</pre>
+<h2 id="namespace-module">  Namespace: Module </h2> <p>The <strong>module namespace</strong> can be loaded by calling <a href="#function-module-"><code>module()</code></a> for a particular module.</p> <p>It can be used to load the following child namespaces, in addition to the values documented below:</p> <ul> <li>
+<a href="#data"><code>data</code></a> - Loads the <a href="#namespace-resources-data-sources">resource namespace</a>, filtered against data sources. </li> <li>
+<a href="#resources"><code>resources</code></a> - Loads the <a href="#namespace-resources-data-sources">resource namespace</a>, filtered against resources. </li> </ul> <h3 id="root-namespace-aliases">  Root Namespace Aliases </h3> <p>The root-level <code>data</code> and <code>resources</code> keys both alias to their corresponding namespaces within the module namespace, loaded for the root module. They are the equivalent of running <code>module([]).KEY</code>.</p> <h3 id="value-path">  Value: <code>path</code> </h3> <ul> <li>
+<strong>Value Type:</strong> List of strings. </li> </ul> <p>The <code>path</code> value within the <a href="#namespace-module">module namespace</a> contains the path of the module that the namespace represents. This is represented as a list of strings.</p> <p>As an example, if the following module block was present within a Terraform configuration:</p> <pre data-language="ruby">module "foo" {
+  # ...
+}
+</pre>
+<p>The following policy would evaluate to <code>true</code> <em>only</em> if the diff had changes for that module:</p> <pre>import "tfplan"
+
+main = rule { tfplan.module(["foo"]).path contains "foo" }
+</pre>
+<h2 id="namespace-resources-data-sources">  Namespace: Resources/Data Sources </h2> <p>The <strong>resource namespace</strong> is a namespace <em>type</em> that applies to both resources (accessed by using the <code>resources</code> namespace key) and data sources (accessed using the <code>data</code> namespace key).</p> <p>Accessing an individual resource or data source within each respective namespace can be accomplished by specifying the type, name, and resource number (as if the resource or data source had a <code>count</code> value in it) in the syntax <code>[resources|data].TYPE.NAME[NUMBER]</code>. Note that NUMBER is always needed, even if you did not use <code>count</code> in the resource.</p> <p>In addition, each of these namespace levels is a map, allowing you to filter based on type and name.</p> <blockquote class="alert alert-info" role="alert"> <p>The (somewhat strange) notation here of <code>TYPE.NAME[NUMBER]</code> may imply that the inner resource index map is actually a list, but it's not - using the square bracket notation over the dotted notation (<code>TYPE.NAME.NUMBER</code>) is required here as an identifier cannot start with a number.</p> </blockquote> <p>Some examples of multi-level access are below:</p> <ul> <li>To fetch all <code>aws_instance.foo</code> resource instances within the root module, you can specify <code>tfplan.resources.aws_instance.foo</code>. This would then be indexed by resource count index (<code>0</code>, <code>1</code>, <code>2</code>, and so on). Note that as mentioned above, these elements must be accessed using square-bracket map notation (so <code>[0]</code>, <code>[1]</code>, <code>[2]</code>, and so on) instead of dotted notation. </li> <li>To fetch all <code>aws_instance</code> resources within the root module, you can specify <code>tfplan.resources.aws_instance</code>. This would be indexed from the names of each resource (<code>foo</code>, <code>bar</code>, and so on), with each of those maps containing instances indexed by resource count index as per above. </li> <li>To fetch all resources within the root module, irrespective of type, use <code>tfplan.resources</code>. This is indexed by type, as shown above with <code>tfplan.resources.aws_instance</code>, with names being the next level down, and so on. </li> </ul> <blockquote class="alert alert-warning" role="alert"> <p>When <a href="../../../cli/commands/plan#resource-targeting">resource targeting</a> is in effect, <code>tfplan.resources</code> will only include the resources specified as targets for the run. This may lead to unexpected outcomes if a policy expects a resource to be present in the plan. To prohibit targeted runs altogether, ensure <a href="tfrun#value-target_addrs"><code>tfrun.target_addrs</code></a> is undefined or empty.</p> </blockquote> <p>Further explanation of the namespace will be in the context of resources. As mentioned, when operating on data sources, use the same syntax, except with <code>data</code> in place of <code>resources</code>.</p> <h3 id="value-applied">  Value: <code>applied</code> </h3> <ul> <li>
+<strong>Value Type:</strong> A string-keyed map of values. </li> </ul> <p>The <code>applied</code> value within the <a href="#namespace-resources-data-sources">resource namespace</a> contains a "predicted" representation of the resource's state post-apply. It's created by merging the pending resource's diff on top of the existing data from the resource's state (if any). The map is a complex representation of these values with data going as far down as needed to represent any state values such as maps, lists, and sets.</p> <p>As an example, given the following resource:</p> <pre data-language="ruby">resource "null_resource" "foo" {
+  triggers = {
+    foo = "bar"
+  }
+}
+</pre>
+<p>The following policy would evaluate to <code>true</code> if the resource was in the diff:</p> <pre>import "tfplan"
+
+main = rule { tfplan.resources.null_resource.foo[0].applied.triggers.foo is "bar" }
+</pre>
+<blockquote class="alert alert-info" role="alert"> <p>Note that some values will not be available in the <code>applied</code> state because they cannot be known until the plan is actually applied. In Terraform 0.11 or earlier, these values are represented by a placeholder (the UUID value <code>74D93920-ED26-11E3-AC10-0800200C9A66</code>) and in Terraform 0.12 or later they are <code>undefined</code>. <strong>In either case</strong>, you should instead use the <a href="#value-computed"><code>computed</code></a> key within the <a href="#namespace-resource-diff">diff namespace</a> to determine that a computed value will exist.</p> </blockquote> <blockquote class="alert alert-info" role="alert"> <p>If a resource is being destroyed, its <code>applied</code> value is omitted from the namespace and trying to fetch it will return undefined.</p> </blockquote> <h3 id="value-diff">  Value: <code>diff</code> </h3> <ul> <li>
+<strong>Value Type:</strong> A map of <a href="#namespace-resource-diff">diff namespaces</a>. </li> </ul> <p>The <code>diff</code> value within the <a href="#namespace-resources-data-sources">resource namespace</a> contains the diff for a particular resource. Each key within the map links to a <a href="#namespace-resource-diff">diff namespace</a> for that particular key.</p> <p>Note that unlike the <a href="#value-applied"><code>applied</code></a> value, this map is not complex; the map is only 1 level deep with each key possibly representing a diff for a particular complex value within the resource.</p> <p>See the below section for more details on the diff namespace, in addition to usage examples.</p> <h3 id="value-destroy">  Value: <code>destroy</code> </h3> <ul> <li>
+<strong>Value Type:</strong> Boolean. </li> </ul> <p>The <code>destroy</code> value within the <a href="#namespace-resources-data-sources">resource namespace</a> is <code>true</code> if a resource is being destroyed for <em>any</em> reason, including cases where it's being deleted as part of a resource re-creation, in which case <a href="#value-requires_new"><code>requires_new</code></a> will also be set.</p> <p>As an example, given the following resource:</p> <pre data-language="ruby">resource "null_resource" "foo" {
+  triggers = {
+    foo = "bar"
+  }
+}
+</pre>
+<p>The following policy would evaluate to <code>true</code> when <code>null_resource.foo</code> is being destroyed:</p> <pre>import "tfplan"
+
+main = rule { tfplan.resources.null_resource.foo[0].destroy }
+</pre>
+<h3 id="value-requires_new">  Value: <code>requires_new</code> </h3> <ul> <li>
+<strong>Value Type:</strong> Boolean. </li> </ul> <p>The <code>requires_new</code> value within the <a href="#namespace-resources-data-sources">resource namespace</a> is <code>true</code> if the resource is still present in the configuration, but must be replaced to satisfy its current diff. Whenever <code>requires_new</code> is <code>true</code>, <a href="#value-destroy"><code>destroy</code></a> is also <code>true</code>.</p> <p>As an example, given the following resource:</p> <pre data-language="ruby">resource "null_resource" "foo" {
+  triggers = {
+    foo = "bar"
+  }
+}
+</pre>
+<p>The following policy would evaluate to <code>true</code> if one of the <code>triggers</code> in <code>null_resource.foo</code> was being changed:</p> <pre>import "tfplan"
+
+main = rule { tfplan.resources.null_resource.foo[0].requires_new }
+</pre>
+<h2 id="namespace-resource-diff">  Namespace: Resource Diff </h2> <p>The <strong>diff namespace</strong> is a namespace that represents the diff for a specific attribute within a resource. For details on reading a particular attribute, see the <a href="#value-diff"><code>diff</code></a> value in the <a href="#namespace-resources-data-sources">resource namespace</a>.</p> <h3 id="value-computed">  Value: <code>computed</code> </h3> <ul> <li>
+<strong>Value Type:</strong> Boolean. </li> </ul> <p>The <code>computed</code> value within the <a href="#namespace-resource-diff">diff namespace</a> is <code>true</code> if the resource key in question depends on another value that isn't yet known. Typically, that means the value it depends on belongs to a resource that either doesn't exist yet, or is changing state in such a way as to affect the dependent value so that it can't be known until the apply is complete.</p> <blockquote class="alert alert-info" role="alert"> <p>Keep in mind that when using <code>computed</code> with complex structures such as maps, lists, and sets, it's sometimes necessary to test the count attribute for the structure, versus a key within it, depending on whether or not the diff has marked the whole structure as computed. This is demonstrated in the example below. Count keys are <code>%</code> for maps, and <code>#</code> for lists and sets. If you are having trouble determining the type of specific field within a resource, contact the support team.</p> </blockquote> <p>As an example, given the following resource:</p> <pre data-language="ruby">resource "null_resource" "foo" {
+  triggers = {
+    foo = "bar"
+  }
+}
+
+resource "null_resource" "bar" {
+  triggers = {
+    foo_id = "${null_resource.foo.id}"
+  }
+}
+</pre>
+<p>The following policy would evaluate to <code>true</code>, if the <code>id</code> of <code>null_resource.foo</code> was currently not known, such as when the resource is pending creation, or is being deleted and re-created:</p> <pre>import "tfplan"
+
+main = rule { tfplan.resources.null_resource.bar[0].diff["triggers.%"].computed }
+</pre>
+<h3 id="value-new">  Value: <code>new</code> </h3> <ul> <li>
+<strong>Value Type:</strong> String. </li> </ul> <p>The <code>new</code> value within the <a href="#namespace-resource-diff">diff namespace</a> contains the new value of a changing attribute, <em>if</em> the value is known at plan time.</p> <blockquote class="alert alert-info" role="alert"> <p><code>new</code> will be an empty string if the attribute's value is currently unknown. For more details on detecting unknown values, see <a href="#value-computed"><code>computed</code></a>.</p> </blockquote> <p>Note that this value is <em>always</em> a string, regardless of the actual type of the value changing. <a href="https://docs.hashicorp.com/sentinel/language/values#type-conversion">Type conversion</a> within policy may be necessary to achieve the comparison needed.</p> <p>As an example, given the following resource:</p> <pre data-language="ruby">resource "null_resource" "foo" {
+  triggers = {
+    foo = "bar"
+  }
+}
+</pre>
+<p>The following policy would evaluate to <code>true</code>, if the resource was in the diff and each of the concerned keys were changing to new values:</p> <pre>import "tfplan"
+
+main = rule { tfplan.resources.null_resource.foo[0].diff["triggers.foo"].new is "bar" }
+</pre>
+<h3 id="value-old">  Value: <code>old</code> </h3> <ul> <li>
+<strong>Value Type:</strong> String. </li> </ul> <p>The <code>old</code> value within the <a href="#namespace-resource-diff">diff namespace</a> contains the old value of a changing attribute.</p> <p>Note that this value is <em>always</em> a string, regardless of the actual type of the value changing. <a href="https://docs.hashicorp.com/sentinel/language/values#type-conversion">Type conversion</a> within policy may be necessary to achieve the comparison needed.</p> <p>If the value did not exist in the previous state, <code>old</code> will always be an empty string.</p> <p>As an example, given the following resource:</p> <pre data-language="ruby">resource "null_resource" "foo" {
+  triggers = {
+    foo = "baz"
+  }
+}
+</pre>
+<p>If that resource was previously in config as:</p> <pre data-language="ruby">resource "null_resource" "foo" {
+  triggers = {
+    foo = "bar"
+  }
+}
+</pre>
+<p>The following policy would evaluate to <code>true</code>:</p> <pre>import "tfplan"
+
+main = rule { tfplan.resources.null_resource.foo[0].diff["triggers.foo"].old is "bar" }
+</pre><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/cloud/sentinel/import/tfplan.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/cloud/sentinel/import/tfplan.html</a>
+  </p>
+</div>

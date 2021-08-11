@@ -1,0 +1,41 @@
+<div class="innertube"> <h1>8 Included Applications</h1>  <h2 id="included%20appl"><span onmouseover="document.getElementById('ghlink-introduction-idm2530').style.visibility = 'visible';" onmouseout="document.getElementById('ghlink-introduction-idm2530').style.visibility = 'hidden';">8.1 Introduction</span></h2> <p>An application can <strong>include</strong> other applications. An <strong>included application</strong> has its own application directory and <code class="code">.app</code> file, but it is started as part of the supervisor tree of another application.</p> <p>An application can only be included by one other application.</p> <p>An included application can include other applications.</p> <p>An application that is not included by any other application is called a <strong>primary application</strong>.</p>  <div class="doc-image-wrapper" id="inclappls">  <p class="doc-image-caption">Figure 8.1: Primary Application and Included Applications</p> </div> <p>The application controller automatically loads any included applications when loading a primary application, but does not start them. Instead, the top supervisor of the included application must be started by a supervisor in the including application.</p> <p>This means that when running, an included application is in fact part of the primary application, and a process in an included application considers itself belonging to the primary application.</p> <h2><span onmouseover="document.getElementById('ghlink-specifying-included-applications-idm2545').style.visibility = 'visible';" onmouseout="document.getElementById('ghlink-specifying-included-applications-idm2545').style.visibility = 'hidden';">8.2 Specifying Included Applications</span></h2> <p>Which applications to include is defined by the <code class="code">included_applications</code> key in the <code class="code">.app</code> file:</p> <pre data-language="erlang">
+{application, prim_app,
+ [{description, "Tree application"},
+  {vsn, "1"},
+  {modules, [prim_app_cb, prim_app_sup, prim_app_server]},
+  {registered, [prim_app_server]},
+  {included_applications, [incl_app]},
+  {applications, [kernel, stdlib, sasl]},
+  {mod, {prim_app_cb,[]}},
+  {env, [{file, "/usr/local/log"}]}
+ ]}.</pre> <h2><span onmouseover="document.getElementById('ghlink-synchronizing-processes-during-startup-idm2551').style.visibility = 'visible';" onmouseout="document.getElementById('ghlink-synchronizing-processes-during-startup-idm2551').style.visibility = 'hidden';">8.3 Synchronizing Processes during Startup</span></h2> <p>The supervisor tree of an included application is started as part of the supervisor tree of the including application. If there is a need for synchronization between processes in the including and included applications, this can be achieved by using <strong>start phases</strong>.</p> <p>Start phases are defined by the <code class="code">start_phases</code> key in the <code class="code">.app</code> file as a list of tuples <code class="code">{Phase,PhaseArgs}</code>, where <code class="code">Phase</code> is an atom and <code class="code">PhaseArgs</code> is a term.</p> <p>The value of the <code class="code">mod</code> key of the including application must be set to <code class="code">{application_starter,[Module,StartArgs]}</code>, where <code class="code">Module</code> as usual is the application callback module. <code class="code">StartArgs</code> is a term provided as argument to the callback function <code class="code">Module:start/2</code>:</p> <pre data-language="erlang">{application, prim_app,
+ [{description, "Tree application"},
+  {vsn, "1"},
+  {modules, [prim_app_cb, prim_app_sup, prim_app_server]},
+  {registered, [prim_app_server]},
+  {included_applications, [incl_app]},
+  {start_phases, [{init,[]}, {go,[]}]},
+  {applications, [kernel, stdlib, sasl]},
+  {mod, {application_starter,[prim_app_cb,[]]}},
+  {env, [{file, "/usr/local/log"}]}
+ ]}.
+
+{application, incl_app,
+ [{description, "Included application"},
+  {vsn, "1"},
+  {modules, [incl_app_cb, incl_app_sup, incl_app_server]},
+  {registered, []},
+  {start_phases, [{go,[]}]},
+  {applications, [kernel, stdlib, sasl]},
+  {mod, {incl_app_cb,[]}}
+ ]}.</pre> <p>When starting a primary application with included applications, the primary application is started the normal way, that is:</p> <ul> <li>The application controller creates an application master for the application</li> <li>The application master calls <code class="code">Module:start(normal, StartArgs)</code> to start the top supervisor.</li> </ul> <p>Then, for the primary application and each included application in top-down, left-to-right order, the application master calls <code class="code">Module:start_phase(Phase, Type, PhaseArgs)</code> for each phase defined for the primary application, in that order. If a phase is not defined for an included application, the function is not called for this phase and application.</p> <p>The following requirements apply to the <code class="code">.app</code> file for an included application:</p> <ul> <li>The <code class="code">{mod, {Module,StartArgs}}</code> option must be included. This option is used to find the callback module <code class="code">Module</code> of the application. <code class="code">StartArgs</code> is ignored, as <code class="code">Module:start/2</code> is called only for the primary application.</li> <li>If the included application itself contains included applications, instead the <code class="code">{mod, {application_starter, [Module,StartArgs]}}</code> option must be included.</li> <li>The <code class="code">{start_phases, [{Phase,PhaseArgs}]}</code> option must be included, and the set of specified phases must be a subset of the set of phases specified for the primary application.</li> </ul> <p>When starting <code class="code">prim_app</code> as defined above, the application controller calls the following callback functions before <code class="code">application:start(prim_app)</code> returns a value:</p> <pre data-language="erlang">application:start(prim_app)
+ =&gt; prim_app_cb:start(normal, [])
+ =&gt; prim_app_cb:start_phase(init, normal, [])
+ =&gt; prim_app_cb:start_phase(go, normal, [])
+ =&gt; incl_app_cb:start_phase(go, normal, [])
+ok</pre> </div> <div class="footer"> <hr> <p>Copyright © 1997-2021 Ericsson AB. All Rights Reserved.</p> </div><div class="_attribution">
+  <p class="_attribution-p">
+    &copy; 2010&ndash;2021 Ericsson AB<br>Licensed under the Apache License, Version 2.0.<br>
+    
+  </p>
+</div>

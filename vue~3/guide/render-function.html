@@ -1,0 +1,438 @@
+ <div class="theme-default-content content__default">
+<h1 id="render-functions"> Render Functions</h1> <p>Vue recommends using templates to build applications in the vast majority of cases. However, there are situations where we need the full programmatic power of JavaScript. That's where we can use the <strong>render function</strong>.</p> <p>Let's dive into an example where a <code>render()</code> function would be practical. Say we want to generate anchored headings:</p> <div class="language-html line-numbers-mode">
+<pre class="language-html" data-language="javascript">&lt;h1&gt;
+  &lt;a name="hello-world" href="#hello-world"&gt;
+    Hello world!
+  &lt;/a&gt;
+&lt;/h1&gt;</pre> </div>
+<p>Anchored headings are used very frequently, we should create a component:</p> <div class="language-vue-html line-numbers-mode">
+<pre class="language-vue-html" data-language="javascript">&lt;anchored-heading :level="1"&gt;Hello world!&lt;/anchored-heading&gt;</pre> </div>
+<p>The component must generate a heading based on the <code>level</code> prop, and we quickly arrive at this:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">const { createApp } = Vue
+
+const app = createApp({})
+
+app.component('anchored-heading', {
+  template: `
+    &lt;h1 v-if="level === 1"&gt;
+      &lt;slot&gt;&lt;/slot&gt;
+    &lt;/h1&gt;
+    &lt;h2 v-else-if="level === 2"&gt;
+      &lt;slot&gt;&lt;/slot&gt;
+    &lt;/h2&gt;
+    &lt;h3 v-else-if="level === 3"&gt;
+      &lt;slot&gt;&lt;/slot&gt;
+    &lt;/h3&gt;
+    &lt;h4 v-else-if="level === 4"&gt;
+      &lt;slot&gt;&lt;/slot&gt;
+    &lt;/h4&gt;
+    &lt;h5 v-else-if="level === 5"&gt;
+      &lt;slot&gt;&lt;/slot&gt;
+    &lt;/h5&gt;
+    &lt;h6 v-else-if="level === 6"&gt;
+      &lt;slot&gt;&lt;/slot&gt;
+    &lt;/h6&gt;
+  `,
+  props: {
+    level: {
+      type: Number,
+      required: true
+    }
+  }
+})</pre> </div>
+<p>This template doesn't feel great. It's not only verbose, but we're duplicating <code>&lt;slot&gt;&lt;/slot&gt;</code> for every heading level. And when we add the anchor element, we have to again duplicate it in every <code>v-if/v-else-if</code> branch.</p> <p>While templates work great for most components, it's clear that this isn't one of them. So let's try rewriting it with a <code>render()</code> function:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">const { createApp, h } = Vue
+
+const app = createApp({})
+
+app.component('anchored-heading', {
+  render() {
+    return h(
+      'h' + this.level, // tag name
+      {}, // props/attributes
+      this.$slots.default() // array of children
+    )
+  },
+  props: {
+    level: {
+      type: Number,
+      required: true
+    }
+  }
+})</pre> </div>
+<p>The <code>render()</code> function implementation is much simpler, but also requires greater familiarity with component instance properties. In this case, you have to know that when you pass children without a <code>v-slot</code> directive into a component, like the <code>Hello world!</code> inside of <code>anchored-heading</code>, those children are stored on the component instance at <code>$slots.default()</code>. If you haven't already, <strong>it's recommended to read through the <a href="../api/instance-properties">instance properties API</a> before diving into render functions.</strong></p> <h2 id="the-dom-tree"> The DOM tree</h2> <p>Before we dive into render functions, it’s important to know a little about how browsers work. Take this HTML for example:</p> <div class="language-html line-numbers-mode">
+<pre class="language-html" data-language="javascript">&lt;div&gt;
+  &lt;h1&gt;My title&lt;/h1&gt;
+  Some text content
+  &lt;!-- TODO: Add tagline --&gt;
+&lt;/div&gt;</pre> </div>
+<p>When a browser reads this code, it builds a <a href="https://javascript.info/dom-nodes" target="_blank" rel="noopener noreferrer">tree of "DOM nodes"<span> <span class="sr-only">(opens new window)</span></span></a> to help it keep track of everything.</p> <p>The tree of DOM nodes for the HTML above looks like this:</p> <p><img src="data:image/png;base64,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" alt="DOM Tree Visualization"></p> <p>Every element is a node. Every piece of text is a node. Even comments are nodes! Each node can have children (i.e. each node can contain other nodes).</p> <p>Updating all these nodes efficiently can be difficult, but thankfully, we never have to do it manually. Instead, we tell Vue what HTML we want on the page, in a template:</p> <div class="language-html line-numbers-mode">
+<pre class="language-html" data-language="javascript">&lt;h1&gt;{{ blogTitle }}&lt;/h1&gt;</pre> </div>
+<p>Or in a render function:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">render() {
+  return h('h1', {}, this.blogTitle)
+}</pre> </div>
+<p>And in both cases, Vue automatically keeps the page updated, even when <code>blogTitle</code> changes.</p> <h2 id="the-virtual-dom-tree"> The Virtual DOM tree</h2> <p>Vue keeps the page updated by building a <strong>virtual DOM</strong> to keep track of the changes it needs to make to the real DOM. Taking a closer look at this line:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">return h('h1', {}, this.blogTitle)</pre> </div>
+<p>What is the <code>h()</code> function returning? It's not <em>exactly</em> a real DOM element. It returns a plain object which contains information describing to Vue what kind of node it should render on the page, including descriptions of any child nodes. We call this node description a "virtual node", usually abbreviated to <strong>VNode</strong>. "Virtual DOM" is what we call the entire tree of VNodes, built by a tree of Vue components.</p> <h2 id="h-arguments"> <code>h()</code> Arguments</h2> <p>The <code>h()</code> function is a utility to create VNodes. It could perhaps more accurately be named <code>createVNode()</code>, but it's called <code>h()</code> due to frequent use and for brevity. It accepts three arguments:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">// @returns {VNode}
+h(
+  // {String | Object | Function} tag
+  // An HTML tag name, a component, an async component, or a
+  // functional component.
+  //
+  // Required.
+  'div',
+
+  // {Object} props
+  // An object corresponding to the attributes, props and events
+  // we would use in a template.
+  //
+  // Optional.
+  {},
+
+  // {String | Array | Object} children
+  // Children VNodes, built using `h()`,
+  // or using strings to get 'text VNodes' or
+  // an object with slots.
+  //
+  // Optional.
+  [
+    'Some text comes first.',
+    h('h1', 'A headline'),
+    h(MyComponent, {
+      someProp: 'foobar'
+    })
+  ]
+)</pre> </div>
+<p>If there are no props then the children can usually be passed as the second argument. In cases where that would be ambiguous, <code>null</code> can be passed as the second argument to keep the children as the third argument.</p> <h2 id="complete-example"> Complete Example</h2> <p>With this knowledge, we can now finish the component we started:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">const { createApp, h } = Vue
+
+const app = createApp({})
+
+/** Recursively get text from children nodes */
+function getChildrenTextContent(children) {
+  return children
+    .map(node =&gt; {
+      return typeof node.children === 'string'
+        ? node.children
+        : Array.isArray(node.children)
+        ? getChildrenTextContent(node.children)
+        : ''
+    })
+    .join('')
+}
+
+app.component('anchored-heading', {
+  render() {
+    // create kebab-case id from the text contents of the children
+    const headingId = getChildrenTextContent(this.$slots.default())
+      .toLowerCase()
+      .replace(/\W+/g, '-') // replace non-word characters with dash
+      .replace(/(^-|-$)/g, '') // remove leading and trailing dashes
+
+    return h('h' + this.level, [
+      h(
+        'a',
+        {
+          name: headingId,
+          href: '#' + headingId
+        },
+        this.$slots.default()
+      )
+    ])
+  },
+  props: {
+    level: {
+      type: Number,
+      required: true
+    }
+  }
+})</pre> </div>
+<h2 id="constraints"> Constraints</h2> <h3 id="vnodes-must-be-unique"> VNodes Must Be Unique</h3> <p>All VNodes in the component tree must be unique. That means the following render function is invalid:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">render() {
+  const myParagraphVNode = h('p', 'hi')
+  return h('div', [
+    // Yikes - duplicate VNodes!
+    myParagraphVNode, myParagraphVNode
+  ])
+}</pre> </div>
+<p>If you really want to duplicate the same element/component many times, you can do so with a factory function. For example, the following render function is a perfectly valid way of rendering 20 identical paragraphs:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">render() {
+  return h('div',
+    Array.from({ length: 20 }).map(() =&gt; {
+      return h('p', 'hi')
+    })
+  )
+}</pre> </div>
+<h2 id="creating-component-vnodes"> Creating Component VNodes</h2> <p>To create a VNode for a component, the first argument passed to <code>h</code> should be the component itself:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">render() {
+  return h(ButtonCounter)
+}</pre> </div>
+<p>If we need to resolve a component by name then we can call <code>resolveComponent</code>:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">const { h, resolveComponent } = Vue
+
+// ...
+
+render() {
+  const ButtonCounter = resolveComponent('ButtonCounter')
+  return h(ButtonCounter)
+}</pre> </div>
+<p><code>resolveComponent</code> is the same function that templates use internally to resolve components by name.</p> <p>A <code>render</code> function will normally only need to use <code>resolveComponent</code> for components that are <a href="component-registration#global-registration">registered globally</a>. <a href="component-registration#local-registration">Local component registration</a> can usually be skipped altogether. Consider the following example:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">// We can simplify this
+components: {
+  ButtonCounter
+},
+render() {
+  return h(resolveComponent('ButtonCounter'))
+}</pre> </div>
+<p>Rather than registering a component by name and then looking it up we can use it directly instead:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">render() {
+  return h(ButtonCounter)
+}</pre> </div>
+<h2 id="replacing-template-features-with-plain-javascript"> Replacing Template Features with Plain JavaScript</h2> <h3 id="v-if-and-v-for"> <code>v-if</code> and <code>v-for</code>
+</h3> <p>Wherever something can be easily accomplished in plain JavaScript, Vue render functions do not provide a proprietary alternative. For example, in a template using <code>v-if</code> and <code>v-for</code>:</p> <div class="language-html line-numbers-mode">
+<pre class="language-html" data-language="javascript">&lt;ul v-if="items.length"&gt;
+  &lt;li v-for="item in items"&gt;{{ item.name }}&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p v-else&gt;No items found.&lt;/p&gt;</pre> </div>
+<p>This could be rewritten with JavaScript's <code>if</code>/<code>else</code> and <code>map()</code> in a render function:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">props: ['items'],
+render() {
+  if (this.items.length) {
+    return h('ul', this.items.map((item) =&gt; {
+      return h('li', item.name)
+    }))
+  } else {
+    return h('p', 'No items found.')
+  }
+}</pre> </div>
+<p>In a template it can be useful to use a <code>&lt;template&gt;</code> tag to hold a <code>v-if</code> or <code>v-for</code> directive. When migrating to a <code>render</code> function, the <code>&lt;template&gt;</code> tag is no longer required and can be discarded.</p> <h3 id="v-model"> <code>v-model</code>
+</h3> <p>The <code>v-model</code> directive is expanded to <code>modelValue</code> and <code>onUpdate:modelValue</code> props during template compilation—we will have to provide these props ourselves:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">props: ['modelValue'],
+emits: ['update:modelValue'],
+render() {
+  return h(SomeComponent, {
+    modelValue: this.modelValue,
+    'onUpdate:modelValue': value =&gt; this.$emit('update:modelValue', value)
+  })
+}</pre> </div>
+<h3 id="v-on"> <code>v-on</code>
+</h3> <p>We have to provide a proper prop name for the event handler, e.g., to handle <code>click</code> events, the prop name would be <code>onClick</code>.</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">render() {
+  return h('div', {
+    onClick: $event =&gt; console.log('clicked', $event.target)
+  })
+}</pre> </div>
+<h4 id="event-modifiers"> Event Modifiers</h4> <p>For the <code>.passive</code>, <code>.capture</code>, and <code>.once</code> event modifiers, they can be concatenated after the event name using camel case.</p> <p>For example:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">render() {
+  return h('input', {
+    onClickCapture: this.doThisInCapturingMode,
+    onKeyupOnce: this.doThisOnce,
+    onMouseoverOnceCapture: this.doThisOnceInCapturingMode
+  })
+}</pre> </div>
+<p>For all other event and key modifiers, no special API is necessary, because we can use event methods in the handler:</p> <table>
+<thead><tr>
+<th>Modifier(s)</th> <th>Equivalent in Handler</th>
+</tr></thead> <tbody>
+<tr>
+<td><code>.stop</code></td> <td><code>event.stopPropagation()</code></td>
+</tr> <tr>
+<td><code>.prevent</code></td> <td><code>event.preventDefault()</code></td>
+</tr> <tr>
+<td><code>.self</code></td> <td><code>if (event.target !== event.currentTarget) return</code></td>
+</tr> <tr>
+<td>Keys:<br>e.g. <code>.enter</code>
+</td> <td>
+<code>if (event.key !== 'Enter') return</code><br><br>Change <code>'Enter'</code> to the appropriate <a href="http://keycode.info/" target="_blank" rel="noopener noreferrer">key<span> <span class="sr-only">(opens new window)</span></span></a>
+</td>
+</tr> <tr>
+<td>Modifier Keys:<br><code>.ctrl</code>, <code>.alt</code>, <code>.shift</code>, <code>.meta</code>
+</td> <td>
+<code>if (!event.ctrlKey) return</code><br><br>Likewise for <code>altKey</code>, <code>shiftKey</code>, and <code>metaKey</code>
+</td>
+</tr>
+</tbody>
+</table> <p>Here's an example with all of these modifiers used together:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">render() {
+  return h('input', {
+    onKeyUp: event =&gt; {
+      // Abort if the element emitting the event is not
+      // the element the event is bound to
+      if (event.target !== event.currentTarget) return
+      // Abort if the key that went up is not the enter
+      // key and the shift key was not held down at the
+      // same time
+      if (!event.shiftKey || event.key !== 'Enter') return
+      // Stop event propagation
+      event.stopPropagation()
+      // Prevent the default keyup handler for this element
+      event.preventDefault()
+      // ...
+    }
+  })
+}</pre> </div>
+<h3 id="slots"> Slots</h3> <p>We can access slot contents as arrays of VNodes from <a href="../api/instance-properties#slots"><code>this.$slots</code></a>:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">render() {
+  // `&lt;div&gt;&lt;slot&gt;&lt;/slot&gt;&lt;/div&gt;`
+  return h('div', this.$slots.default())
+}</pre> </div>
+<div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">props: ['message'],
+render() {
+  // `&lt;div&gt;&lt;slot :text="message"&gt;&lt;/slot&gt;&lt;/div&gt;`
+  return h('div', this.$slots.default({
+    text: this.message
+  }))
+}</pre> </div>
+<p>For component VNodes, we need to pass the children to <code>h</code> as an object rather than an array. Each property is used to populate the slot of the same name:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">render() {
+  // `&lt;div&gt;&lt;child v-slot="props"&gt;&lt;span&gt;{{ props.text }}&lt;/span&gt;&lt;/child&gt;&lt;/div&gt;`
+  return h('div', [
+    h(
+      resolveComponent('child'),
+      null,
+      // pass `slots` as the children object
+      // in the form of { name: props =&gt; VNode | Array&lt;VNode&gt; }
+      {
+        default: (props) =&gt; h('span', props.text)
+      }
+    )
+  ])
+}</pre> </div>
+<p>The slots are passed as functions, allowing the child component to control the creation of each slot's contents. Any reactive data should be accessed within the slot function to ensure that it's registered as a dependency of the child component and not the parent. Conversely, calls to <code>resolveComponent</code> should be made outside the slot function, otherwise they'll resolve relative to the wrong component:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">// `&lt;MyButton&gt;&lt;MyIcon :name="icon" /&gt;{{ text }}&lt;/MyButton&gt;`
+render() {
+  // Calls to resolveComponent should be outside the slot function
+  const Button = resolveComponent('MyButton')
+  const Icon = resolveComponent('MyIcon')
+
+  return h(
+    Button,
+    null,
+    {
+      // Use an arrow function to preserve the `this` value
+      default: (props) =&gt; {
+        // Reactive properties should be read inside the slot function
+        // so that they become dependencies of the child's rendering
+        return [
+          h(Icon, { name: this.icon }),
+          this.text
+        ]
+      }
+    }
+  )
+}</pre> </div>
+<p>If a component receives slots from its parent, they can be passed on directly to a child component:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">render() {
+  return h(Panel, null, this.$slots)
+}</pre> </div>
+<p>They can also be passed individually or wrapped as appropriate:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">render() {
+  return h(
+    Panel,
+    null,
+    {
+      // If we want to pass on a slot function we can
+      header: this.$slots.header,
+
+      // If we need to manipulate the slot in some way
+      // then we need to wrap it in a new function
+      default: (props) =&gt; {
+        const children = this.$slots.default ? this.$slots.default(props) : []
+
+        return children.concat(h('div', 'Extra child'))
+      }
+    }
+  )
+}</pre> </div>
+<h3 id="component-and-is"> <code>&lt;component&gt;</code> and <code>is</code>
+</h3> <p>Behind the scenes, templates use <code>resolveDynamicComponent</code> to implement the <code>is</code> attribute. We can use the same function if we need all the flexibility provided by <code>is</code> in our <code>render</code> function:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">const { h, resolveDynamicComponent } = Vue
+
+// ...
+
+// `&lt;component :is="name"&gt;&lt;/component&gt;`
+render() {
+  const Component = resolveDynamicComponent(this.name)
+  return h(Component)
+}</pre> </div>
+<p>Just like <code>is</code>, <code>resolveDynamicComponent</code> supports passing a component name, an HTML element name, or a component options object.</p> <p>However, that level of flexibility is usually not required. It's often possible to replace <code>resolveDynamicComponent</code> with a more direct alternative.</p> <p>For example, if we only need to support component names then <code>resolveComponent</code> can be used instead.</p> <p>If the VNode is always an HTML element then we can pass its name directly to <code>h</code>:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">// `&lt;component :is="bold ? 'strong' : 'em'"&gt;&lt;/component&gt;`
+render() {
+  return h(this.bold ? 'strong' : 'em')
+}</pre> </div>
+<p>Similarly, if the value passed to <code>is</code> is a component options object then there's no need to resolve anything, it can be passed directly as the first argument of <code>h</code>.</p> <p>Much like a <code>&lt;template&gt;</code> tag, a <code>&lt;component&gt;</code> tag is only required in templates as a syntactical placeholder and should be discarded when migrating to a <code>render</code> function.</p> <h3 id="custom-directives"> Custom Directives</h3> <p>Custom directives can be applied to a VNode using <a href="../api/global-api#withdirectives"><code>withDirectives</code></a>:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">const { h, resolveDirective, withDirectives } = Vue
+
+// ...
+
+// &lt;div v-pin:top.animate="200"&gt;&lt;/div&gt;
+render () {
+  const pin = resolveDirective('pin')
+
+  return withDirectives(h('div'), [
+    [pin, 200, 'top', { animate: true }]
+  ])
+}</pre> </div>
+<p><a href="../api/global-api#resolvedirective"><code>resolveDirective</code></a> is the same function that templates use internally to resolve directives by name. That is only necessary if you don't already have direct access to the directive's definition object.</p> <h3 id="built-in-components"> Built-in Components</h3> <p><a href="../api/built-in-components">Built-in components</a> such as <code>&lt;keep-alive&gt;</code>, <code>&lt;transition&gt;</code>, <code>&lt;transition-group&gt;</code>, and <code>&lt;teleport&gt;</code> are not registered globally by default. This allows bundlers to perform tree-shaking, so that the components are only included in the build if they are used. However, that also means we can't access them using <code>resolveComponent</code> or <code>resolveDynamicComponent</code>.</p> <p>Templates have special handling for those components, automatically importing them when they are used. When we're writing our own <code>render</code> functions, we need to import them ourselves:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">const { h, KeepAlive, Teleport, Transition, TransitionGroup } = Vue
+
+// ...
+
+render () {
+  return h(Transition, { mode: 'out-in' }, /* ... */)
+}</pre> </div>
+<h2 id="return-values-for-render-functions"> Return Values for Render Functions</h2> <p>In all of the examples we've seen so far, the <code>render</code> function has returned a single root VNode. However, there are alternatives.</p> <p>Returning a string will create a text VNode, without any wrapping element:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">render() {
+  return 'Hello world!'
+}</pre> </div>
+<p>We can also return an array of children, without wrapping them in a root node. This creates a fragment:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">// Equivalent to a template of `Hello&lt;br&gt;world!`
+render() {
+  return [
+    'Hello',
+    h('br'),
+    'world!'
+  ]
+}</pre> </div>
+<p>If a component needs to render nothing, perhaps because data is still loading, it can just return <code>null</code>. This will be rendered as a comment node in the DOM.</p> <h2 id="jsx"> JSX</h2> <p>If we're writing a lot of <code>render</code> functions, it might feel painful to write something like this:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">h(
+  resolveComponent('anchored-heading'),
+  {
+    level: 1
+  },
+  {
+    default: () =&gt; [h('span', 'Hello'), ' world!']
+  }
+)</pre> </div>
+<p>Especially when the template version is so concise in comparison:</p> <div class="language-vue-html line-numbers-mode">
+<pre class="language-vue-html" data-language="javascript">&lt;anchored-heading :level="1"&gt; &lt;span&gt;Hello&lt;/span&gt; world! &lt;/anchored-heading&gt;</pre> </div>
+<p>That's why there's a <a href="https://github.com/vuejs/jsx-next" target="_blank" rel="noopener noreferrer">Babel plugin<span> <span class="sr-only">(opens new window)</span></span></a> to use JSX with Vue, getting us back to a syntax that's closer to templates:</p> <div class="language-jsx line-numbers-mode">
+<pre class="language-jsx" data-language="javascript">import AnchoredHeading from './AnchoredHeading.vue'
+
+const app = createApp({
+  render() {
+    return (
+      &lt;AnchoredHeading level={1}&gt;
+        &lt;span&gt;Hello&lt;/span&gt; world!
+      &lt;/AnchoredHeading&gt;
+    )
+  }
+})
+
+app.mount('#demo')</pre> </div>
+<p>For more on how JSX maps to JavaScript, see the <a href="https://github.com/vuejs/jsx-next#installation" target="_blank" rel="noopener noreferrer">usage docs<span> <span class="sr-only">(opens new window)</span></span></a>.</p> <h2 id="functional-components"> Functional Components</h2> <p>Functional components are an alternative form of component that don't have any state of their own. They are rendered without creating a component instance, bypassing the usual component lifecycle.</p> <p>To create a functional component we use a plain function, rather than an options object. The function is effectively the <code>render</code> function for the component. As there is no <code>this</code> reference for a functional component, Vue will pass in the <code>props</code> as the first argument:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">const FunctionalComponent = (props, context) =&gt; {
+  // ...
+}</pre> </div>
+<p>The second argument, <code>context</code>, contains three properties: <code>attrs</code>, <code>emit</code>, and <code>slots</code>. These are equivalent to the instance properties <a href="../api/instance-properties#attrs"><code>$attrs</code></a>, <a href="../api/instance-methods#emit"><code>$emit</code></a>, and <a href="../api/instance-properties#slots"><code>$slots</code></a> respectively.</p> <p>Most of the usual configuration options for components are not available for functional components. However, it is possible to define <a href="../api/options-data#props"><code>props</code></a> and <a href="../api/options-data#emits"><code>emits</code></a> by adding them as properties:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">FunctionalComponent.props = ['value']
+FunctionalComponent.emits = ['click']</pre> </div>
+<p>If the <code>props</code> option is not specified, then the <code>props</code> object passed to the function will contain all attributes, the same as <code>attrs</code>. The prop names will not be normalized to camelCase unless the <code>props</code> option is specified.</p> <p>Functional components can be registered and consumed just like normal components. If you pass a function as the first argument to <code>h</code>, it will be treated as a functional component.</p> <h2 id="template-compilation"> Template Compilation</h2> <p>You may be interested to know that Vue's templates actually compile to render functions. This is an implementation detail you usually don't need to know about, but if you'd like to see how specific template features are compiled, you may find it interesting. Below is a little demo using <code>Vue.compile</code> to live-compile a template string:</p> <iframe src="https://vue-next-template-explorer.netlify.app/" width="100%" height="420" sandbox="allow-forms allow-scripts allow-same-origin"></iframe>
+</div>   <div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://v3.vuejs.org/guide/render-function" class="_attribution-link" target="_blank">https://v3.vuejs.org/guide/render-function</a>
+  </p>
+</div>

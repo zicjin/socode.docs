@@ -1,0 +1,193 @@
+<div class="navPusher"><div class="docMainWrapper wrapper">
+
+<div class="container mainContainer docsContainer"><div class="wrapper"><div class="post">
+<header class="postHeader"><h1 id="__docusaurus" class="postHeaderTitle">@babel/helper-compilation-targets</h1></header><article><div><span><p><code>@babel/helper-compilation-targets</code> is a helper package that works with compilation targets (browsers or other environments like node) and compat tables (knowing what version supports a specific syntax). It is used by <code>@babel/preset-env</code> to determine which plugin should be enabled based on the <a href="../options/index#targets"><code>targets</code></a> option.</p> <pre><code class="hljs css language-javascript"><span class="hljs-keyword">import</span> {
+  filterItems,
+  <span class="hljs-keyword">default</span> <span class="hljs-keyword">as</span> getTargets,
+  isRequired,
+} <span class="hljs-keyword">from</span> <span class="hljs-string">"@babel/helper-compilation-targets"</span>;
+</code></pre> <h2>
+filterItems</h2> <pre><code class="hljs css language-typescript"><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">filterItems</span>(<span class="hljs-params">
+  list: { [feature: <span class="hljs-built_in">string</span>]: Targets },
+
+  <span class="hljs-comment">// A set of plugins that should always be included</span>
+  includes: Set&lt;<span class="hljs-built_in">string</span>&gt;,
+
+  <span class="hljs-comment">// A set of plugins that should always be excluded</span>
+  excludes: Set&lt;<span class="hljs-built_in">string</span>&gt;,
+  targets: Targets,
+
+  <span class="hljs-comment">// A set of plugins that should always be included if `includes` is empty</span>
+  defaultIncludes: <span class="hljs-built_in">Array</span>&lt;<span class="hljs-built_in">string</span>&gt; | <span class="hljs-literal">null</span>,
+
+  <span class="hljs-comment">// A set of plugins that should always be excluded if `excludes` is empty</span>
+  defaultExcludes?: <span class="hljs-built_in">Array</span>&lt;<span class="hljs-built_in">string</span>&gt; | <span class="hljs-literal">null</span>,
+
+  <span class="hljs-comment">// A map from transform plugin to syntax plugin for backward compatibility with older `@babel/parser` versions</span>
+  pluginSyntaxMap?: Map&lt;<span class="hljs-built_in">string</span>, <span class="hljs-built_in">string</span> | <span class="hljs-literal">null</span>&gt;
+</span>): <span class="hljs-title">Set</span>&lt;<span class="hljs-title">string</span>&gt;</span>; <span class="hljs-comment">// A set of enabled plugins</span>
+</code></pre> <p>Given a compat data table <code>list</code> (i.e. <code>@babel/compat-data</code>) and <a href="../babel-preset-env/index#targets">browser targets</a> <code>targets</code>, return a set of required plugins.</p> <p><strong>Example</strong></p> <pre><code class="hljs css language-javascript"><span class="hljs-keyword">const</span> compatData = {
+  <span class="hljs-string">"transform-feature-1"</span>: {
+    <span class="hljs-attr">chrome</span>: <span class="hljs-string">"1"</span>,
+    <span class="hljs-attr">firefox</span>: <span class="hljs-string">"1"</span>,
+  },
+  <span class="hljs-string">"transform-feature-2"</span>: {
+    <span class="hljs-attr">chrome</span>: <span class="hljs-string">"2"</span>,
+    <span class="hljs-attr">firefox</span>: <span class="hljs-string">"2"</span>,
+  },
+  <span class="hljs-string">"transform-feature-3"</span>: {
+    <span class="hljs-attr">chrome</span>: <span class="hljs-string">"3"</span>,
+    <span class="hljs-attr">firefox</span>: <span class="hljs-string">"3"</span>,
+  },
+  <span class="hljs-string">"transform-feature-4"</span>: {
+    <span class="hljs-attr">chrome</span>: <span class="hljs-string">"4"</span>,
+    <span class="hljs-attr">firefox</span>: <span class="hljs-string">"4"</span>,
+  },
+};
+
+<span class="hljs-comment">// filter a set of plugins required when compiled to chrome 2</span>
+<span class="hljs-comment">// returns new Set(["transform-feature-3", "transform-feature-4"])</span>
+filterItems(compatData, <span class="hljs-keyword">new</span> <span class="hljs-built_in">Set</span>(), <span class="hljs-keyword">new</span> <span class="hljs-built_in">Set</span>(), {
+  <span class="hljs-attr">chrome</span>: <span class="hljs-number">2</span>,
+});
+
+<span class="hljs-comment">// filter a set of plugins required when compiled to chrome 2 and firefox 1</span>
+<span class="hljs-comment">// returns new Set(["transform-feature-2", "transform-feature-3", "transform-feature-4"])</span>
+filterItems(compatData, <span class="hljs-keyword">new</span> <span class="hljs-built_in">Set</span>(), <span class="hljs-keyword">new</span> <span class="hljs-built_in">Set</span>(), {
+  <span class="hljs-attr">chrome</span>: <span class="hljs-number">2</span>,
+  <span class="hljs-attr">firefox</span>: <span class="hljs-number">1</span>,
+});
+
+<span class="hljs-comment">// always include "transform-feature-2" and exclude "transform-feature-4"</span>
+<span class="hljs-comment">// returns new Set(["transform-feature-2", "transform-feature-3"])</span>
+filterItems(
+  compatData,
+  <span class="hljs-keyword">new</span> <span class="hljs-built_in">Set</span>([<span class="hljs-string">"transform-feature-2"</span>]),
+  <span class="hljs-keyword">new</span> <span class="hljs-built_in">Set</span>([<span class="hljs-string">"transform-feature-4"</span>]),
+  {
+    <span class="hljs-attr">chrome</span>: <span class="hljs-number">2</span>,
+  }
+);
+
+<span class="hljs-comment">// syntax-feature-2 is required to allow older @babel/parser to parse</span>
+<span class="hljs-comment">// the feature-2 syntax supported in chrome 2</span>
+
+<span class="hljs-comment">// returns new Set(["syntax-feature-2", "transform-feature-3", "transform-feature-4"])</span>
+filterItems(
+  compatData,
+  <span class="hljs-keyword">new</span> <span class="hljs-built_in">Set</span>(),
+  <span class="hljs-keyword">new</span> <span class="hljs-built_in">Set</span>(),
+  {
+    <span class="hljs-attr">chrome</span>: <span class="hljs-number">2</span>,
+  },
+  <span class="hljs-literal">null</span>,
+  <span class="hljs-literal">null</span>,
+  <span class="hljs-keyword">new</span> <span class="hljs-built_in">Map</span>([[<span class="hljs-string">"transform-feature-2"</span>, <span class="hljs-string">"syntax-feature-2"</span>]])
+);
+</code></pre> <blockquote> <p>When a new ES feature reaches stage-4, it will be matured in <code>@babel/parser</code>, which means it will always be parsed regardless of the plugin. However we need the syntax plugin for older <code>@babel/parser</code>.</p> </blockquote> <h2>
+getTargets</h2> <pre><code class="hljs css language-typescript"><span class="hljs-keyword">type</span> GetTargetsOption = {
+  <span class="hljs-comment">// This is not the path of the config file, but the path where start searching it from</span>
+  configPath?: <span class="hljs-built_in">string</span>;
+
+  <span class="hljs-comment">// The path of the config file</span>
+  configFile?: <span class="hljs-built_in">string</span>;
+
+  <span class="hljs-comment">// The env to pass to browserslist</span>
+  browserslistEnv?: <span class="hljs-built_in">string</span>;
+
+  <span class="hljs-comment">// true to disable config loading</span>
+  ignoreBrowserslistConfig?: <span class="hljs-built_in">boolean</span>;
+};
+
+<span class="hljs-keyword">type</span> InputTargets = {
+  ...Targets,
+
+  browsers?: Browsers,
+
+  <span class="hljs-comment">// When `true`, this completely replaces the `browsers` option.</span>
+  <span class="hljs-comment">// When `intersect`, this is intersected with the `browsers`</span>
+  <span class="hljs-comment">// option (giving the higher browsers as the result).</span>
+  esmodules?: <span class="hljs-built_in">boolean</span> | <span class="hljs-string">"intersect"</span>,
+};
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">getTargets</span>(<span class="hljs-params">
+  inputTargets: InputTargets = {},
+  options: GetTargetsOption = {}
+</span>): <span class="hljs-title">Targets</span></span>;
+</code></pre> <p>Normalize user specified <code>targets</code> to a list of supported targets. See also (<code>@babel/preset-env</code>)[preset-env.md#options] for <code>GetTargetsOption</code></p> <p><strong>Example</strong></p> <pre><code class="hljs css language-javascript"><span class="hljs-comment">// Return the default compilation targets</span>
+<span class="hljs-comment">// returns {}</span>
+getTargets();
+</code></pre> <p>An empty compilation target is equivalent to <a href="../babel-preset-env/index#forceAllTransforms">force all transforms</a>. The default compilation targets will be changed to browserlists query <a href="https://runkit.com/jlhwung/605cd58b2c44c6001a463717"><code>defaults, not IE 11</code></a> in Babel 8.</p> <p>One can also query the compilation targets with ES Module support, like <a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/babel-preset-app"><code>@vue/babel-preset-app</code></a> did in order to provide a set of modern targets.</p> <pre><code class="hljs css language-javascript"><span class="hljs-comment">/* returns {
+  "android": "61.0.0",
+  "chrome": "61.0.0",
+  "edge": "16.0.0",
+  "firefox": "60.0.0",
+  "ios": "10.3.0",
+  "node": "13.2.0",
+  "opera": "48.0.0",
+  "safari": "10.1.0",
+  "samsung": "8.2.0",
+} */</span>
+getTargets({
+  <span class="hljs-attr">esmodules</span>: <span class="hljs-literal">true</span>,
+});
+</code></pre> <p>Note: The ES Module compat data is generated from <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export#browser_compatibility">MDN</a>.</p> <h2>
+isRequired</h2> <pre><code class="hljs css language-typescript"><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">isRequired</span>(<span class="hljs-params">
+  name: <span class="hljs-built_in">string</span>,
+  targets: Targets,
+  {
+    compatData = pluginsCompatData,
+    includes,
+    excludes,
+  }: {
+    compatData?: { [feature: <span class="hljs-built_in">string</span>]: Targets };
+    includes?: Set&lt;<span class="hljs-built_in">string</span>&gt;;
+    excludes?: Set&lt;<span class="hljs-built_in">string</span>&gt;;
+  } = {}
+</span>): <span class="hljs-title">boolean</span></span>;
+</code></pre> <p>Given browser targets <code>targets</code>, query the <code>compatData</code> whether plugin <code>name</code> is required for compilation. When <code>compatData</code> is not specified, the default data source is <code>@babel/compat-data</code></p> <p><strong>Example</strong></p> <pre><code class="hljs css language-javascript"><span class="hljs-comment">// babel.config.js</span>
+<span class="hljs-built_in">module</span>.exports = <span class="hljs-function"><span class="hljs-params">api</span> =&gt;</span> {
+  <span class="hljs-keyword">const</span> targets = api.targets();
+  <span class="hljs-comment">// The targets have native optional chaining support</span>
+  <span class="hljs-comment">// if `proposal-optional-chaining` is _not_ required</span>
+  <span class="hljs-keyword">const</span> optionalChainingSupported = !isRequired(
+    <span class="hljs-string">"proposal-optional-chaining"</span>,
+    targets
+  );
+};
+</code></pre> <p>Plugin authors can use <code>isRequired</code> to optimize plugin output given different <code>targets</code>:</p> <pre><code class="hljs css language-javascript"><span class="hljs-comment">// a naive plugin replace `a.b` to `a != null &amp;&amp; a.b`</span>
+<span class="hljs-built_in">module</span>.exports = <span class="hljs-function"><span class="hljs-params">api</span> =&gt;</span> {
+  <span class="hljs-keyword">const</span> targets = api.targets();
+  <span class="hljs-comment">// The targets have native optional chaining support</span>
+  <span class="hljs-comment">// if `proposal-optional-chaining` is _not_ required</span>
+  <span class="hljs-keyword">const</span> optionalChainingSupported = !isRequired(
+    <span class="hljs-string">"proposal-optional-chaining"</span>,
+    targets
+  );
+  <span class="hljs-keyword">const</span> visited = <span class="hljs-keyword">new</span> <span class="hljs-built_in">WeakSet</span>();
+  <span class="hljs-keyword">return</span> {
+    <span class="hljs-attr">visitor</span>: {
+      MemberExpression(path) {
+        <span class="hljs-keyword">if</span> (path.matchesPattern(<span class="hljs-string">"a.b"</span>)) {
+          <span class="hljs-keyword">if</span> (visited.has(path.node)) <span class="hljs-keyword">return</span>;
+          visited.add(path.node);
+          <span class="hljs-keyword">if</span> (optionalChainingSupported) {
+            <span class="hljs-comment">// When optional chaining is supported,</span>
+            <span class="hljs-comment">// output `a?.b` instead of `a != null &amp;&amp; a.b`</span>
+            path.replaceWith(api.templates<span class="hljs-string">`a?.b`</span>);
+          } <span class="hljs-keyword">else</span> {
+            path.replaceWith(api.templates<span class="hljs-string">`a != null &amp;&amp; <span class="hljs-subst">${path.node}</span>`</span>);
+          }
+        }
+      },
+    },
+  };
+};
+</code></pre> <p><a href="https://github.com/babel/babel/blob/962d81483ef6a57a4a3eca8230ae40795b695147/packages/babel-plugin-proposal-object-rest-spread/src/index.js#L23"><code>@babel/plugin-proposal-object-rest-spread</code></a> uses <code>isRequired</code> to determine whether targets already have native <code>Object.assign</code> support.</p> </span></div></article>
+</div></div></div>
+
+</div></div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://babeljs.io/docs/en/babel-helper-compilation-targets/" class="_attribution-link" target="_blank">https://babeljs.io/docs/en/babel-helper-compilation-targets/</a>
+  </p>
+</div>

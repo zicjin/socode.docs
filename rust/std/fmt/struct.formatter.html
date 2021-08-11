@@ -1,0 +1,521 @@
+<h1 class="fqn">Struct std::fmt::Formatter</h1>
+<pre class="rust struct" data-language="rust">pub struct Formatter&lt;'a&gt; { /* fields omitted */ }</pre>
+<details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock">
+<p>Configuration for formatting.</p> <p>A <code>Formatter</code> represents various options related to formatting. Users do not construct <code>Formatter</code>s directly; a mutable reference to one is passed to the <code>fmt</code> method of all formatting traits, like <a href="trait.debug" title="Debug"><code>Debug</code></a> and <a href="trait.display" title="Display"><code>Display</code></a>.</p> <p>To interact with a <code>Formatter</code>, you’ll call various methods to change the various options related to formatting. For examples, please see the documentation of the methods defined on <code>Formatter</code> below.</p> </div></details><h2 id="implementations" class="small-section-header">Implementations</h2>
+<details class="rustdoc-toggle implementors-toggle" open><summary><div id="impl" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;'a&gt; Formatter&lt;'a&gt;</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#1192-2000" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle method-toggle" open><summary><div id="method.pad_integral" class="method has-srclink">
+<h4 class="code-header">pub fn pad_integral(<br> &amp;mut self, <br> is_nonnegative: bool, <br> prefix: &amp;str, <br> buf: &amp;str<br>) -&gt; Result&lt;(), Error&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#1259" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Performs the correct padding for an integer which has already been emitted into a str. The str should <em>not</em> contain the sign for the integer, that will be added by this method.</p> <h2 id="arguments" class="section-header">Arguments</h2> <ul> <li>is_nonnegative - whether the original integer was either positive or zero.</li> <li>prefix - if the ‘#’ character (Alternate) is provided, this is the prefix to put in front of the number.</li> <li>buf - the byte array that the number has been formatted into</li> </ul> <p>This function will correctly account for the flags provided as well as the minimum width. It will not take precision into account.</p> <h2 id="examples" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::fmt;
+
+struct Foo { nb: i32 }
+
+impl Foo {
+    fn new(nb: i32) -&gt; Foo {
+        Foo {
+            nb,
+        }
+    }
+}
+
+impl fmt::Display for Foo {
+    fn fmt(&amp;self, formatter: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        // We need to remove "-" from the number output.
+        let tmp = self.nb.abs().to_string();
+
+        formatter.pad_integral(self.nb &gt;= 0, "Foo ", &amp;tmp)
+    }
+}
+
+assert_eq!(&amp;format!("{}", Foo::new(2)), "2");
+assert_eq!(&amp;format!("{}", Foo::new(-1)), "-1");
+assert_eq!(&amp;format!("{}", Foo::new(0)), "0");
+assert_eq!(&amp;format!("{:#}", Foo::new(-1)), "-Foo 1");
+assert_eq!(&amp;format!("{:0&gt;#8}", Foo::new(-1)), "00-Foo 1");</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.pad" class="method has-srclink">
+<h4 class="code-header">pub fn pad(&amp;mut self, s: &amp;str) -&gt; Result&lt;(), Error&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#1353" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This function takes a string slice and emits it to the internal buffer after applying the relevant formatting flags specified. The flags recognized for generic strings are:</p> <ul> <li>width - the minimum width of what to emit</li> <li>fill/align - what to emit and where to emit it if the string provided needs to be padded</li> <li>precision - the maximum length to emit, the string is truncated if it is longer than this length</li> </ul> <p>Notably this function ignores the <code>flag</code> parameters.</p> <h2 id="examples-1" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::fmt;
+
+struct Foo;
+
+impl fmt::Display for Foo {
+    fn fmt(&amp;self, formatter: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        formatter.pad("Foo")
+    }
+}
+
+assert_eq!(&amp;format!("{:&lt;4}", Foo), "Foo ");
+assert_eq!(&amp;format!("{:0&gt;4}", Foo), "0Foo");</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.write_str" class="method has-srclink">
+<h4 class="code-header">pub fn write_str(&amp;mut self, data: &amp;str) -&gt; Result&lt;(), Error&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#1532" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Writes some data to the underlying buffer contained within this formatter.</p> <h2 id="examples-2" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::fmt;
+
+struct Foo;
+
+impl fmt::Display for Foo {
+    fn fmt(&amp;self, formatter: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        formatter.write_str("Foo")
+        // This is equivalent to:
+        // write!(formatter, "Foo")
+    }
+}
+
+assert_eq!(&amp;format!("{}", Foo), "Foo");
+assert_eq!(&amp;format!("{:0&gt;8}", Foo), "Foo");</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.write_fmt" class="method has-srclink">
+<h4 class="code-header">pub fn write_fmt(&amp;mut self, fmt: Arguments&lt;'_&gt;) -&gt; Result&lt;(), Error&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#1555" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Writes some formatted information into this instance.</p> <h2 id="examples-3" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::fmt;
+
+struct Foo(i32);
+
+impl fmt::Display for Foo {
+    fn fmt(&amp;self, formatter: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        formatter.write_fmt(format_args!("Foo {}", self.0))
+    }
+}
+
+assert_eq!(&amp;format!("{}", Foo(-1)), "Foo -1");
+assert_eq!(&amp;format!("{:0&gt;8}", Foo(2)), "Foo 2");</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.flags" class="method has-srclink">
+<h4 class="code-header">pub fn flags(&amp;self) -&gt; u32</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#1566" title="goto source code">[src]</a>
+</div>
+<div class="item-info"><div class="stab deprecated">
+<span class="emoji">👎</span> Deprecated since 1.24.0: <p>use the <code>sign_plus</code>, <code>sign_minus</code>, <code>alternate</code>, or <code>sign_aware_zero_pad</code> methods instead</p> </div></div></summary><div class="docblock">
+<p>Flags for formatting</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.fill" class="method has-srclink">
+<h4 class="code-header">pub fn fill(&amp;self) -&gt; char</h4>
+<span class="since" title="Stable since Rust version 1.5.0">1.5.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#1598" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Character used as ‘fill’ whenever there is alignment.</p> <h2 id="examples-4" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::fmt;
+
+struct Foo;
+
+impl fmt::Display for Foo {
+    fn fmt(&amp;self, formatter: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        let c = formatter.fill();
+        if let Some(width) = formatter.width() {
+            for _ in 0..width {
+                write!(formatter, "{}", c)?;
+            }
+            Ok(())
+        } else {
+            write!(formatter, "{}", c)
+        }
+    }
+}
+
+// We set alignment to the right with "&gt;".
+assert_eq!(&amp;format!("{:G&gt;3}", Foo), "GGG");
+assert_eq!(&amp;format!("{:t&gt;6}", Foo), "tttttt");</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.align" class="method has-srclink">
+<h4 class="code-header">pub fn align(&amp;self) -&gt; Option&lt;Alignment&gt;</h4>
+<span class="since" title="Stable since Rust version 1.28.0">1.28.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#1634" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Flag indicating what form of alignment was requested.</p> <h2 id="examples-5" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+extern crate core;
+
+use std::fmt::{self, Alignment};
+
+struct Foo;
+
+impl fmt::Display for Foo {
+    fn fmt(&amp;self, formatter: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        let s = if let Some(s) = formatter.align() {
+            match s {
+                Alignment::Left    =&gt; "left",
+                Alignment::Right   =&gt; "right",
+                Alignment::Center  =&gt; "center",
+            }
+        } else {
+            "into the void"
+        };
+        write!(formatter, "{}", s)
+    }
+}
+
+assert_eq!(&amp;format!("{:&lt;}", Foo), "left");
+assert_eq!(&amp;format!("{:&gt;}", Foo), "right");
+assert_eq!(&amp;format!("{:^}", Foo), "center");
+assert_eq!(&amp;format!("{}", Foo), "into the void");</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.width" class="method has-srclink">
+<h4 class="code-header">pub fn width(&amp;self) -&gt; Option&lt;usize&gt;</h4>
+<span class="since" title="Stable since Rust version 1.5.0">1.5.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#1668" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Optionally specified integer width that the output should be.</p> <h2 id="examples-6" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::fmt;
+
+struct Foo(i32);
+
+impl fmt::Display for Foo {
+    fn fmt(&amp;self, formatter: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        if let Some(width) = formatter.width() {
+            // If we received a width, we use it
+            write!(formatter, "{:width$}", &amp;format!("Foo({})", self.0), width = width)
+        } else {
+            // Otherwise we do nothing special
+            write!(formatter, "Foo({})", self.0)
+        }
+    }
+}
+
+assert_eq!(&amp;format!("{:10}", Foo(23)), "Foo(23)   ");
+assert_eq!(&amp;format!("{}", Foo(23)), "Foo(23)");</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.precision" class="method has-srclink">
+<h4 class="code-header">pub fn precision(&amp;self) -&gt; Option&lt;usize&gt;</h4>
+<span class="since" title="Stable since Rust version 1.5.0">1.5.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#1698" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Optionally specified precision for numeric types. Alternatively, the maximum width for string types.</p> <h2 id="examples-7" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::fmt;
+
+struct Foo(f32);
+
+impl fmt::Display for Foo {
+    fn fmt(&amp;self, formatter: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        if let Some(precision) = formatter.precision() {
+            // If we received a precision, we use it.
+            write!(formatter, "Foo({1:.*})", precision, self.0)
+        } else {
+            // Otherwise we default to 2.
+            write!(formatter, "Foo({:.2})", self.0)
+        }
+    }
+}
+
+assert_eq!(&amp;format!("{:.4}", Foo(23.2)), "Foo(23.2000)");
+assert_eq!(&amp;format!("{}", Foo(23.2)), "Foo(23.20)");</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.sign_plus" class="method has-srclink">
+<h4 class="code-header">pub fn sign_plus(&amp;self) -&gt; bool</h4>
+<span class="since" title="Stable since Rust version 1.5.0">1.5.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#1728" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Determines if the <code>+</code> flag was specified.</p> <h2 id="examples-8" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::fmt;
+
+struct Foo(i32);
+
+impl fmt::Display for Foo {
+    fn fmt(&amp;self, formatter: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        if formatter.sign_plus() {
+            write!(formatter,
+                   "Foo({}{})",
+                   if self.0 &lt; 0 { '-' } else { '+' },
+                   self.0)
+        } else {
+            write!(formatter, "Foo({})", self.0)
+        }
+    }
+}
+
+assert_eq!(&amp;format!("{:+}", Foo(23)), "Foo(+23)");
+assert_eq!(&amp;format!("{}", Foo(23)), "Foo(23)");</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.sign_minus" class="method has-srclink">
+<h4 class="code-header">pub fn sign_minus(&amp;self) -&gt; bool</h4>
+<span class="since" title="Stable since Rust version 1.5.0">1.5.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#1756" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Determines if the <code>-</code> flag was specified.</p> <h2 id="examples-9" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::fmt;
+
+struct Foo(i32);
+
+impl fmt::Display for Foo {
+    fn fmt(&amp;self, formatter: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        if formatter.sign_minus() {
+            // You want a minus sign? Have one!
+            write!(formatter, "-Foo({})", self.0)
+        } else {
+            write!(formatter, "Foo({})", self.0)
+        }
+    }
+}
+
+assert_eq!(&amp;format!("{:-}", Foo(23)), "-Foo(23)");
+assert_eq!(&amp;format!("{}", Foo(23)), "Foo(23)");</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.alternate" class="method has-srclink">
+<h4 class="code-header">pub fn alternate(&amp;self) -&gt; bool</h4>
+<span class="since" title="Stable since Rust version 1.5.0">1.5.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#1783" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Determines if the <code>#</code> flag was specified.</p> <h2 id="examples-10" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::fmt;
+
+struct Foo(i32);
+
+impl fmt::Display for Foo {
+    fn fmt(&amp;self, formatter: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        if formatter.alternate() {
+            write!(formatter, "Foo({})", self.0)
+        } else {
+            write!(formatter, "{}", self.0)
+        }
+    }
+}
+
+assert_eq!(&amp;format!("{:#}", Foo(23)), "Foo(23)");
+assert_eq!(&amp;format!("{}", Foo(23)), "23");</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.sign_aware_zero_pad" class="method has-srclink">
+<h4 class="code-header">pub fn sign_aware_zero_pad(&amp;self) -&gt; bool</h4>
+<span class="since" title="Stable since Rust version 1.5.0">1.5.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#1808" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Determines if the <code>0</code> flag was specified.</p> <h2 id="examples-11" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::fmt;
+
+struct Foo(i32);
+
+impl fmt::Display for Foo {
+    fn fmt(&amp;self, formatter: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        assert!(formatter.sign_aware_zero_pad());
+        assert_eq!(formatter.width(), Some(4));
+        // We ignore the formatter's options.
+        write!(formatter, "{}", self.0)
+    }
+}
+
+assert_eq!(&amp;format!("{:04}", Foo(23)), "23");</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.debug_struct" class="method has-srclink">
+<h4 class="code-header">pub fn debug_struct(&amp;'b mut self, name: &amp;str) -&gt; DebugStruct&lt;'b, 'a&gt;</h4>
+<span class="since" title="Stable since Rust version 1.2.0">1.2.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#1859" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Creates a <a href="struct.debugstruct" title="DebugStruct"><code>DebugStruct</code></a> builder designed to assist with creation of <a href="trait.debug"><code>fmt::Debug</code></a> implementations for structs.</p> <h2 id="examples-12" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::fmt;
+use std::net::Ipv4Addr;
+
+struct Foo {
+    bar: i32,
+    baz: String,
+    addr: Ipv4Addr,
+}
+
+impl fmt::Debug for Foo {
+    fn fmt(&amp;self, fmt: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        fmt.debug_struct("Foo")
+            .field("bar", &amp;self.bar)
+            .field("baz", &amp;self.baz)
+            .field("addr", &amp;format_args!("{}", self.addr))
+            .finish()
+    }
+}
+
+assert_eq!(
+    "Foo { bar: 10, baz: \"Hello World\", addr: 127.0.0.1 }",
+    format!("{:?}", Foo {
+        bar: 10,
+        baz: "Hello World".to_string(),
+        addr: Ipv4Addr::new(127, 0, 0, 1),
+    })
+);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.debug_tuple" class="method has-srclink">
+<h4 class="code-header">pub fn debug_tuple(&amp;'b mut self, name: &amp;str) -&gt; DebugTuple&lt;'b, 'a&gt;</h4>
+<span class="since" title="Stable since Rust version 1.2.0">1.2.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#1890" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Creates a <code>DebugTuple</code> builder designed to assist with creation of <code>fmt::Debug</code> implementations for tuple structs.</p> <h2 id="examples-13" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::fmt;
+use std::marker::PhantomData;
+
+struct Foo&lt;T&gt;(i32, String, PhantomData&lt;T&gt;);
+
+impl&lt;T&gt; fmt::Debug for Foo&lt;T&gt; {
+    fn fmt(&amp;self, fmt: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        fmt.debug_tuple("Foo")
+            .field(&amp;self.0)
+            .field(&amp;self.1)
+            .field(&amp;format_args!("_"))
+            .finish()
+    }
+}
+
+assert_eq!(
+    "Foo(10, \"Hello\", _)",
+    format!("{:?}", Foo(10, "Hello".to_string(), PhantomData::&lt;u8&gt;))
+);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.debug_list" class="method has-srclink">
+<h4 class="code-header">pub fn debug_list(&amp;'b mut self) -&gt; DebugList&lt;'b, 'a&gt;</h4>
+<span class="since" title="Stable since Rust version 1.2.0">1.2.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#1913" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Creates a <code>DebugList</code> builder designed to assist with creation of <code>fmt::Debug</code> implementations for list-like structures.</p> <h2 id="examples-14" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::fmt;
+
+struct Foo(Vec&lt;i32&gt;);
+
+impl fmt::Debug for Foo {
+    fn fmt(&amp;self, fmt: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        fmt.debug_list().entries(self.0.iter()).finish()
+    }
+}
+
+assert_eq!(format!("{:?}", Foo(vec![10, 11])), "[10, 11]");</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.debug_set" class="method has-srclink">
+<h4 class="code-header">pub fn debug_set(&amp;'b mut self) -&gt; DebugSet&lt;'b, 'a&gt;</h4>
+<span class="since" title="Stable since Rust version 1.2.0">1.2.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#1971" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Creates a <code>DebugSet</code> builder designed to assist with creation of <code>fmt::Debug</code> implementations for set-like structures.</p> <h2 id="examples-15" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::fmt;
+
+struct Foo(Vec&lt;i32&gt;);
+
+impl fmt::Debug for Foo {
+    fn fmt(&amp;self, fmt: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        fmt.debug_set().entries(self.0.iter()).finish()
+    }
+}
+
+assert_eq!(format!("{:?}", Foo(vec![10, 11])), "{10, 11}");</pre></div> <p>In this more complex example, we use <a href="../macro.format_args"><code>format_args!</code></a> and <code>.debug_set()</code> to build a list of match arms:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::fmt;
+
+struct Arm&lt;'a, L: 'a, R: 'a&gt;(&amp;'a (L, R));
+struct Table&lt;'a, K: 'a, V: 'a&gt;(&amp;'a [(K, V)], V);
+
+impl&lt;'a, L, R&gt; fmt::Debug for Arm&lt;'a, L, R&gt;
+where
+    L: 'a + fmt::Debug, R: 'a + fmt::Debug
+{
+    fn fmt(&amp;self, fmt: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        L::fmt(&amp;(self.0).0, fmt)?;
+        fmt.write_str(" =&gt; ")?;
+        R::fmt(&amp;(self.0).1, fmt)
+    }
+}
+
+impl&lt;'a, K, V&gt; fmt::Debug for Table&lt;'a, K, V&gt;
+where
+    K: 'a + fmt::Debug, V: 'a + fmt::Debug
+{
+    fn fmt(&amp;self, fmt: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        fmt.debug_set()
+        .entries(self.0.iter().map(Arm))
+        .entry(&amp;Arm(&amp;(format_args!("_"), &amp;self.1)))
+        .finish()
+    }
+}</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.debug_map" class="method has-srclink">
+<h4 class="code-header">pub fn debug_map(&amp;'b mut self) -&gt; DebugMap&lt;'b, 'a&gt;</h4>
+<span class="since" title="Stable since Rust version 1.2.0">1.2.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#1997" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Creates a <code>DebugMap</code> builder designed to assist with creation of <code>fmt::Debug</code> implementations for map-like structures.</p> <h2 id="examples-16" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::fmt;
+
+struct Foo(Vec&lt;(String, i32)&gt;);
+
+impl fmt::Debug for Foo {
+    fn fmt(&amp;self, fmt: &amp;mut fmt::Formatter) -&gt; fmt::Result {
+        fmt.debug_map().entries(self.0.iter().map(|&amp;(ref k, ref v)| (k, v))).finish()
+    }
+}
+
+assert_eq!(
+    format!("{:?}",  Foo(vec![("A".to_string(), 10), ("B".to_string(), 11)])),
+    r#"{"A": 10, "B": 11}"#
+ );</pre></div> </div></details>
+</div></details><h2 id="trait-implementations" class="small-section-header">Trait Implementations</h2>
+<div id="trait-implementations-list"><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Write" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;'_&gt; Write for Formatter&lt;'_&gt;</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#2003-2015" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.2.0">1.2.0</span>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle method-toggle" open><summary><div id="method.write_str-1" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn write_str(&amp;mut self, s: &amp;str) -&gt; Result&lt;(), Error&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#2004" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Writes a string slice into this writer, returning whether the write succeeded. <a href="trait.write#tymethod.write_str">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.write_char" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn write_char(&amp;mut self, c: char) -&gt; Result&lt;(), Error&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#2008" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Writes a <a href="../primitive.char" title="char"><code>char</code></a> into this writer, returning whether the write succeeded. <a href="trait.write#method.write_char">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.write_fmt-1" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn write_fmt(&amp;mut self, args: Arguments&lt;'_&gt;) -&gt; Result&lt;(), Error&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#2012" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Glue for usage of the <a href="../macro.write" title="write!"><code>write!</code></a> macro with implementors of this trait. <a href="trait.write#method.write_fmt">Read more</a></p> </div></details>
+</div></details></div>
+<h2 id="synthetic-implementations" class="small-section-header">Auto Trait Implementations</h2>
+<div id="synthetic-implementations-list">
+<div id="impl-RefUnwindSafe" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;'a&gt; !RefUnwindSafe for Formatter&lt;'a&gt;</h3>
+
+</div>
+<div id="impl-Send" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;'a&gt; !Send for Formatter&lt;'a&gt;</h3>
+
+</div>
+<div id="impl-Sync" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;'a&gt; !Sync for Formatter&lt;'a&gt;</h3>
+
+</div>
+<div id="impl-Unpin" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;'a&gt; Unpin for Formatter&lt;'a&gt;</h3>
+
+</div>
+<div id="impl-UnwindSafe" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;'a&gt; !UnwindSafe for Formatter&lt;'a&gt;</h3>
+
+</div>
+</div>
+<h2 id="blanket-implementations" class="small-section-header">Blanket Implementations</h2>
+<div id="blanket-implementations-list">
+<details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Any" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T&gt; Any for T <span class="where fmt-newline">where<br> T: 'static + ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#131-135" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.type_id" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn type_id(&amp;self) -&gt; TypeId</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#132" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Gets the <code>TypeId</code> of <code>self</code>. <a href="../any/trait.any#tymethod.type_id">Read more</a></p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Borrow%3CT%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T&gt; Borrow&lt;T&gt; for T <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#208-213" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.borrow" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn borrow(&amp;self) -&gt; &amp;T</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#210" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Immutably borrows from an owned value. <a href="../borrow/trait.borrow#tymethod.borrow">Read more</a></p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-BorrowMut%3CT%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T&gt; BorrowMut&lt;T&gt; for T <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#216-220" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.borrow_mut" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn borrow_mut(&amp;mut self) -&gt; &amp;mut T</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#217" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Mutably borrows from an owned value. <a href="../borrow/trait.borrowmut#tymethod.borrow_mut">Read more</a></p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-From%3CT%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T&gt; From&lt;T&gt; for T</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#544-548" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.from" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn from(t: T) -&gt; T</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#545" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Performs the conversion.</p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Into%3CU%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T, U&gt; Into&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.from" title="trait std::convert::From">From</a>&lt;T&gt;, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#533-540" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.into" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn into(self) -&gt; U</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#537" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Performs the conversion.</p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-TryFrom%3CU%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T, U&gt; TryFrom&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.into" title="trait std::convert::Into">Into</a>&lt;T&gt;, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#581-590" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle" open><summary><div id="associatedtype.Error" class="type trait-impl has-srclink">
+<h4 class="code-header">type Error = Infallible</h4>
+
+</div></summary><div class="docblock">
+<p>The type returned in the event of a conversion error.</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.try_from" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn try_from(value: U) -&gt; Result&lt;T, &lt;T as TryFrom&lt;U&gt;&gt;::Error&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#587" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Performs the conversion.</p> </div></details>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-TryInto%3CU%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T, U&gt; TryInto&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.tryfrom" title="trait std::convert::TryFrom">TryFrom</a>&lt;T&gt;, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#567-576" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle" open><summary><div id="associatedtype.Error-1" class="type trait-impl has-srclink">
+<h4 class="code-header">type Error = &lt;U as TryFrom&lt;T&gt;&gt;::Error</h4>
+
+</div></summary><div class="docblock">
+<p>The type returned in the event of a conversion error.</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.try_into" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn try_into(self) -&gt; Result&lt;U, &lt;U as TryFrom&lt;T&gt;&gt;::Error&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#573" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Performs the conversion.</p> </div></details>
+</div></details>
+</div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://doc.rust-lang.org/std/fmt/struct.Formatter.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/std/fmt/struct.Formatter.html</a>
+  </p>
+</div>

@@ -1,0 +1,47 @@
+<p class="_links"><a href="../../dart-async/dart-async-library" class="_links-link">dart:async</a></p> <h1>singleWhere method  </h1> <section class="multi-line-signature"> <a href="../future-class">Future</a>&lt;<wbr>T&gt;</wbr> singleWhere (<wbr><ol class="parameter-list">
+<li>
+<a href="../../dart-core/bool-class">bool</a> test(<ol class="parameter-list">
+<li>T element</li> </ol> ), </li> <li>{T orElse( )}</li> </ol>) </wbr></section>  <p>Finds the single element in this stream matching <code>test</code>.</p> <p>Like <a href="lastwhere">lastWhere</a>, except that it is an error if more than one matching element occurs in this stream.</p>   <h2 id="source">Implementation</h2> <pre class="language-dart" data-language="dart">Future&lt;T&gt; singleWhere(bool test(T element), {T orElse()?}) {
+  _Future&lt;T&gt; future = new _Future&lt;T&gt;();
+  late T result;
+  bool foundResult = false;
+  StreamSubscription&lt;T&gt; subscription =
+      this.listen(null, onError: future._completeError, onDone: () {
+    if (foundResult) {
+      future._complete(result);
+      return;
+    }
+    if (orElse != null) {
+      _runUserCode(orElse, future._complete, future._completeError);
+      return;
+    }
+    try {
+      throw IterableElementError.noElement();
+    } catch (e, s) {
+      _completeWithErrorCallback(future, e, s);
+    }
+  }, cancelOnError: true);
+
+  subscription.onData((T value) {
+    _runUserCode(() =&gt; test(value), (bool isMatch) {
+      if (isMatch) {
+        if (foundResult) {
+          try {
+            throw IterableElementError.tooMany();
+          } catch (e, s) {
+            _cancelAndErrorWithReplacement(subscription, future, e, s);
+          }
+          return;
+        }
+        foundResult = true;
+        result = value;
+      }
+    }, _cancelAndErrorClosure(subscription, future));
+  });
+  return future;
+}</pre><div class="_attribution">
+  <p class="_attribution-p">
+    &copy; 2012 the Dart project authors<br>Licensed under the Creative Commons Attribution-ShareAlike License v4.0.<br>
+    <a href="https://api.dart.dev/stable/2.13.0/dart-async/Stream/singleWhere.html" class="_attribution-link">https://api.dart.dev/stable/2.13.0/dart-async/Stream/singleWhere.html</a>
+  </p>
+</div>

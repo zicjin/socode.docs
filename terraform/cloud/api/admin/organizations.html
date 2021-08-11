@@ -1,0 +1,337 @@
+ <h1 id="admin-organizations-api">  Admin Organizations API </h1> <blockquote class="alert alert-info" role="alert"> <p><strong>Terraform Enterprise feature:</strong> The admin API is exclusive to Terraform Enterprise, and can only be used by the admins and operators who install and maintain their organization's Terraform Enterprise instance.</p> </blockquote> <blockquote class="alert alert-info" role="alert"> <p>These API endpoints are available in Terraform Enterprise as of version 201807-1.</p> </blockquote> <p>The Organizations Admin API contains endpoints to help site administrators manage organizations.</p> <h2 id="list-all-organizations">  List all Organizations </h2> <p><code>GET /api/v2/admin/organizations</code></p> <p>This endpoint lists all organizations in the Terraform Enterprise installation.</p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="../index#json-api-documents">JSON API document</a> (<code>type: "organizations"</code>)</td> <td>Successfully listed organizations</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Client is not an administrator.</td> </tr> </tbody>
+</table> <h3 id="query-parameters">  Query Parameters </h3> <p><a href="../index#query-parameters">These are standard URL query parameters</a>; remember to percent-encode <code>[</code> as <code>%5B</code> and <code>]</code> as <code>%5D</code> if your tooling doesn't automatically encode URLs.</p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>q</code></td> <td>
+<strong>Optional.</strong> A search query string. Organizations are searchable by name and notification email. This takes precedence over the attribute specific searches <code>q[email]</code> or <code>q[name]</code>.</td> </tr> <tr> <td><code>q[email]</code></td> <td>
+<strong>Optional.</strong> A search query string. This will search organizations by notification email. If used with <code>q[name]</code>, it will return organizations that match both queries. This option is available in Terraform Enterprise v202103-1 or later.</td> </tr> <tr> <td><code>q[name]</code></td> <td>
+<strong>Optional.</strong> A search query string. This will search organizations by name. If used with <code>q[email]</code>, it will return organizations that match both queries. This option is available in Terraform Enterprise v202103-1 or later.</td> </tr> <tr> <td><code>filter[module_producer]</code></td> <td>
+<strong>Optional.</strong> Allows filtering organizations based on their module sharing configuration. Accepts a boolean true/false value. A <code>true</code> value returns organizations that are configured to share their modules, and a <code>false</code> value returns organizations that are not configured to share their modules. This option is available in Terraform Enterprise v202103-1 or later.</td> </tr> <tr> <td><code>page[number]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return the first page.</td> </tr> <tr> <td><code>page[size]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return 20 organizations per page.</td> </tr> </tbody>
+</table> <h3 id="available-related-resources">  Available Related Resources </h3> <p>This GET endpoint can optionally return related resources, if requested with <a href="../index#inclusion-of-related-resources">the <code>include</code> query parameter</a>. The following resource types are available:</p> <table>
+<thead> <tr> <th>Resource Name</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>owners</code></td> <td>A list of owners for each organization.</td> </tr> </tbody>
+</table> <h3 id="sample-request">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  "https://tfe.example.com/api/v2/admin/organizations"
+</pre>
+<h3 id="sample-response">  Sample Response </h3> <pre data-language="json">{
+  "data": [
+    {
+      "id": "my-organization",
+      "type": "organizations",
+      "attributes": {
+        "access-beta-tools": false,
+        "external-id": "org-XBiRp755dav5p3P2",
+        "is-disabled": false,
+        "name": "my-organization",
+        "terraform-build-worker-apply-timeout": null,
+        "terraform-build-worker-plan-timeout": null,
+        "terraform-worker-sudo-enabled": false,
+        "notification-email": "my-organization@example.com",
+        "global-module-sharing": false,
+        "sso-enabled": false
+      },
+      "relationships": {
+        "owners": {
+          "data": [
+            {
+              "id": "user-hxTQDETqnJsi5VYP",
+              "type": "users"
+            }
+          ]
+        },
+        "subscription": {
+          "data": null
+        },
+        "feature-set": {
+          "data": null
+        },
+        "module-consumers": {
+          "links": {
+            "related": "/api/v2/admin/organizations/my-organization/relationships/module-consumers"
+          }
+        }
+      },
+      "links": {
+        "self": "/api/v2/admin/organizations/my-organization"
+      }
+    }
+  ],
+  "links": {
+    "self": "https://tfe.example.com/api/v2/admin/organizations?page%5Bnumber%5D=1\u0026page%5Bsize%5D=20",
+    "first": "https://tfe.example.com/api/v2/admin/organizations?page%5Bnumber%5D=1\u0026page%5Bsize%5D=20",
+    "prev": null,
+    "next": null,
+    "last": "https://tfe.example.com/api/v2/admin/organizations?page%5Bnumber%5D=1\u0026page%5Bsize%5D=20"
+  },
+  "meta": {
+    "status-counts": {
+      "total": 1,
+      "active": 1,
+      "disabled": 0
+    },
+    "pagination": {
+      "current-page": 1,
+      "prev-page": null,
+      "next-page": null,
+      "total-pages": 1,
+      "total-count": 1
+    }
+  }
+}
+</pre>
+<h2 id="show-an-organization">  Show an Organization </h2> <p><code>GET /api/v2/admin/organizations/:name</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:name</code></td> <td>The name of the organization to show</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="../index#json-api-documents">JSON API document</a> (<code>type: "organizations"</code>)</td> <td>The request was successful</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Organization not found, or client is not an administrator</td> </tr> </tbody>
+</table> <h3 id="available-related-resources-1">  Available Related Resources </h3> <p>This GET endpoint can optionally return related resources, if requested with <a href="../index#inclusion-of-related-resources">the <code>include</code> query parameter</a>. The following resource types are available:</p> <table>
+<thead> <tr> <th>Resource Name</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>owners</code></td> <td>A list of owners for the organization.</td> </tr> </tbody>
+</table> <h3 id="sample-request-1">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  https://tfe.example.com/api/v2/admin/organizations/my-organization
+</pre>
+<h3 id="sample-response-1">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id": "my-organization",
+    "type": "organizations",
+    "attributes": {
+      "access-beta-tools": false,
+      "external-id": "org-XBiRp755dav5p3P2",
+      "is-disabled": false,
+      "name": "my-organization",
+      "terraform-build-worker-apply-timeout": null,
+      "terraform-build-worker-plan-timeout": null,
+      "terraform-worker-sudo-enabled": false,
+      "notification-email": "my-organization@example.com",
+      "global-module-sharing": false,
+      "sso-enabled": false
+    },
+    "relationships": {
+      "owners": {
+        "data": [
+          {
+            "id": "user-hxTQDETqnJsi5VYP",
+            "type": "users"
+          }
+        ]
+      },
+      "subscription": {
+        "data": null
+      },
+      "feature-set": {
+        "data": null
+      },
+      "module-consumers": {
+        "links": {
+          "related": "/api/v2/admin/organizations/my-organization/relationships/module-consumers"
+        }
+      }
+    },
+    "links": {
+      "self": "/api/v2/admin/organizations/my-organization"
+    }
+  }
+}
+</pre>
+<h2 id="update-an-organization">  Update an Organization </h2> <p><code>PATCH /admin/organizations/:name</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:name</code></td> <td>The name of the organization to update</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="../index#json-api-documents">JSON API document</a> (<code>type: "organizations"</code>)</td> <td>The organization was successfully updated</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Organization not found or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Malformed request body (missing attributes, wrong types, etc.)</td> </tr> </tbody>
+</table> <h3 id="request-body">  Request Body </h3> <p>This PATCH endpoint requires a JSON object with the following properties as a request payload. Note that the Admin Organizations API may offer a different set of attributes than the <a href="../organizations#request-body-1">Organizations API</a>.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"organizations"</code>
+</td> </tr> <tr> <td><code>data.attributes.access-beta-tools</code></td> <td>boolean</td> <td>false</td> <td>Whether or not workspaces in the organization can be configured to use beta versions of Terraform.</td> </tr> <tr> <td><code>data.attributes.global-module-sharing</code></td> <td>boolean</td> <td>false</td> <td>If true, modules in the organization's private module repository will be available to all other organizations in this TFE instance. Enabling this will disable any previously configured <a href="#list-module-consumers-for-an-organization">module consumers</a>.</td> </tr> <tr> <td><code>data.attributes.is-disabled</code></td> <td>boolean</td> <td>false</td> <td>Disabling the organization will remove all permissions and no longer be accessible to users.</td> </tr> <tr> <td><code>data.attributes.terraform-build-worker-apply-timeout</code></td> <td>string</td> <td>24h</td> <td>Maximum run time for Terraform applies for this organization. Will use the configured global defaults if left unset. Specify a duration with a decimal number and a unit suffix.</td> </tr> <tr> <td><code>data.attributes.terraform-build-worker-plan-timeout</code></td> <td>string</td> <td>2h</td> <td>Maximum run time for Terraform plans for this organization. Will use the configured global defaults if left unset. Specify a duration with a decimal number and a unit suffix.</td> </tr> </tbody>
+</table> <h3 id="sample-payload">  Sample Payload </h3> <pre data-language="json">{
+  "data": {
+    "type": "organizations",
+    "attributes": {
+      "global-module-sharing": true
+    }
+  }
+}
+</pre>
+<h3 id="sample-request-2">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request PATCH \
+  --data @payload.json \
+  https://tfe.example.com/api/v2/admin/organizations/my-organization
+</pre>
+<h3 id="sample-response-2">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id": "my-organization",
+    "type": "organizations",
+    "attributes": {
+      "access-beta-tools": false,
+      "external-id": "org-XBiRp755dav5p3P2",
+      "is-disabled": false,
+      "name": "my-organization",
+      "terraform-build-worker-apply-timeout": null,
+      "terraform-build-worker-plan-timeout": null,
+      "terraform-worker-sudo-enabled": false,
+      "notification-email": "my-organization@example.com",
+      "global-module-sharing": true,
+      "sso-enabled": false
+    },
+    "relationships": {
+      "owners": {
+        "data": [
+          {
+            "id": "user-hxTQDETqnJsi5VYP",
+            "type": "users"
+          }
+        ]
+      },
+      "subscription": {
+        "data": null
+      },
+      "feature-set": {
+        "data": null
+      },
+      "module-consumers": {
+        "links": {
+          "related": "/api/v2/admin/organizations/my-organization/relationships/module-consumers"
+        }
+      }
+    },
+    "links": {
+      "self": "/api/v2/admin/organizations/my-organization"
+    }
+  }
+}
+</pre>
+<h2 id="delete-an-organization">  Delete an Organization </h2> <p><code>DELETE /admin/organizations/:name</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:name</code></td> <td>The name of the organization to delete</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204">204</a></td> <td>Empty response</td> <td>The organization was successfully deleted</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Organization not found, or client is not an administrator</td> </tr> </tbody>
+</table> <h3 id="sample-request-3">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request DELETE \
+  https://tfe.example.com/api/v2/admin/organizations/my-organization
+</pre>
+<h2 id="list-module-consumers-for-an-organization">  List Module Consumers for an Organization </h2> <blockquote class="alert alert-info" role="alert"> <p>This API endpoint is available in Terraform Enterprise as of version 202103-1.</p> </blockquote> <p><code>GET /api/v2/admin/organizations/:name/relationships/module-consumers</code></p> <p>This endpoint lists specific organizations in the Terraform Enterprise installation that have permission to use an organization's modules. It will be empty if the organization is sharing modules using global module sharing, or if the organization has no module sharing configuration.</p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:name</code></td> <td>The name of the organization whose module consumers should be listed</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="../index#json-api-documents">JSON API document</a> (<code>type: "organizations"</code>)</td> <td>The request was successful</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Organization not found, or client is not an administrator</td> </tr> </tbody>
+</table> <h3 id="query-parameters-1">  Query Parameters </h3> <p><a href="../index#query-parameters">These are standard URL query parameters</a>; remember to percent-encode <code>[</code> as <code>%5B</code> and <code>]</code> as <code>%5D</code> if your tooling doesn't automatically encode URLs.</p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>page[number]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return the first page.</td> </tr> <tr> <td><code>page[size]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return 20 organizations per page.</td> </tr> </tbody>
+</table> <h3 id="sample-request-4">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  https://tfe.example.com/api/v2/admin/organizations/my-organization/relationships/module-consumers
+</pre>
+<h3 id="sample-response-3">  Sample Response </h3> <pre data-language="json">{
+  "data": [
+    {
+      "id": "my-organization",
+      "type": "organizations",
+      "attributes": {
+        "access-beta-tools": false,
+        "external-id": "org-XBiRp755dav5p3P2",
+        "is-disabled": false,
+        "name": "my-organization",
+        "terraform-build-worker-apply-timeout": null,
+        "terraform-build-worker-plan-timeout": null,
+        "terraform-worker-sudo-enabled": false,
+        "notification-email": "my-organization@example.com",
+        "global-module-sharing": false,
+        "sso-enabled": false
+      },
+      "relationships": {
+        "module-consumers": {
+          "links": {
+            "related": "/api/v2/admin/organizations/my-organization/relationships/module-consumers"
+          }
+        },
+        "owners": {
+          "data": [
+            {
+              "id": "user-hxTQDETqnJsi5VYP",
+              "type": "users"
+            }
+          ]
+        },
+        "subscription": {
+          "data": null
+        },
+        "feature-set": {
+          "data": null
+        }
+      },
+      "links": {
+        "self": "https://tfe.example.com/api/v2/admin/organizations/my-organization/relationships/module-consumers?page%5Bnumber%5D=1&amp;page%5Bsize%5D=20",
+        "first": "https://tfe.example.com/api/v2/admin/organizations/my-organization/relationships/module-consumers?page%5Bnumber%5D=1&amp;page%5Bsize%5D=20",
+        "prev": null,
+        "next": null,
+        "last": "https://tfe.example.com/api/v2/admin/organizations/my-organization/relationships/module-consumers?page%5Bnumber%5D=1&amp;page%5Bsize%5D=20"
+      },
+      "meta": {
+        "pagination": {
+          "current-page": 1,
+          "prev-page": null,
+          "next-page": null,
+          "total-pages": 1,
+          "total-count": 1
+        }
+      }
+    }
+  ]
+}
+</pre>
+<h2 id="update-an-organization-39-s-module-consumers">  Update an Organization's Module Consumers </h2> <blockquote class="alert alert-info" role="alert"> <p>This API endpoint is available in Terraform Enterprise as of version 202103-1.</p> </blockquote> <p><code>PATCH /admin/organizations/:name/relationships/module-consumers</code></p> <p>This endpoint is used to specify a list of organizations that can use modules from the sharing organization's private registry. Setting a list of module consumers will turn off global module sharing for an organization.</p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:name</code></td> <td>The name of the organization whose registry is being shared</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204">204</a></td> <td>No content</td> <td>The list of module consumers was successfully updated</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Organization not found or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Malformed request body (missing attributes, wrong types, module consumer not found, etc..)</td> </tr> </tbody>
+</table> <h3 id="request-body-1">  Request Body </h3> <p>This PATCH endpoint requires a JSON object with the following properties as a request payload.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data[]</code></td> <td>array[object]</td> <td></td> <td>A list of resource identifier objects that defines which organizations will consume modules. These objects must contain <code>id</code> and <code>type</code> properties, and the <code>type</code> property must be <code>organizations</code> (e.g. <code>{ "id": "an-org", "type": "organizations" }</code>).</td> </tr> </tbody>
+</table> <h3 id="sample-payload-1">  Sample Payload </h3> <pre data-language="json">{
+  "data": [
+    {
+      "id": "an-org",
+      "type": "organizations"
+
+    },
+    {
+      "id": "another-org",
+      "type": "organizations"
+    }
+  ]
+}
+</pre>
+<h3 id="sample-request-5">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request PATCH \
+  --data @payload.json \
+  https://tfe.example.com/api/v2/admin/organizations/my-organization/module-consumers
+</pre>
+<h3 id="sample-response-4">  Sample Response </h3> <p>The response body will be empty if successful.</p><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/cloud/api/admin/organizations.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/cloud/api/admin/organizations.html</a>
+  </p>
+</div>

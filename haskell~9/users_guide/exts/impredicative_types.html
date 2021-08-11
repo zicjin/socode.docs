@@ -1,0 +1,28 @@
+<h1 id="id1">6.4.16. Impredicative polymorphism</h1>
+<div class="_sphinx"> <div itemprop="articleBody">   <dl class="extension" id="impredicative-polymorphism"> <dt id="extension-ImpredicativeTypes">
+<code>ImpredicativeTypes</code> </dt> <dd>
+<table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
+<th class="field-name">Implies:</th>
+<td class="field-body"><a class="reference internal" href="rank_polymorphism#extension-RankNTypes"><code>RankNTypes</code></a></td> </tr> <tr>
+<th class="field-name">Since:</th>
+<td class="field-body">6.10.1</td> </tr>  </table> <p>Allow impredicative polymorphic types.</p> </dd>
+</dl> <p>In general, GHC will only instantiate a polymorphic function at a monomorphic type (one with no foralls). For example,</p> <pre data-language="haskell">runST :: (forall s. ST s a) -&gt; a
+id :: forall b. b -&gt; b
+
+foo = id runST   -- Rejected
+</pre> <p>The definition of <code>foo</code> is rejected because one would have to instantiate <code>id</code>‘s type with <code>b := (forall s. ST s a) -&gt; a</code>, and that is not allowed. Instantiating polymorphic type variables with polymorphic types is called <em>impredicative polymorphism</em>.</p> <p>GHC has extremely flaky support for <em>impredicative polymorphism</em>, enabled with <a class="reference internal" href="#extension-ImpredicativeTypes"><code>ImpredicativeTypes</code></a>. If it worked, this would mean that you <em>could</em> call a polymorphic function at a polymorphic type, and parameterise data structures over polymorphic types. For example:</p> <pre data-language="haskell">f :: Maybe (forall a. [a] -&gt; [a]) -&gt; Maybe ([Int], [Char])
+f (Just g) = Just (g [3], g "hello")
+f Nothing  = Nothing
+</pre> <p>Notice here that the <code>Maybe</code> type is parameterised by the <em>polymorphic</em> type <code>(forall a. [a] -&gt; [a])</code>. However <em>the extension should be considered highly experimental, and certainly un-supported</em>. You are welcome to try it, but please don’t rely on it working consistently, or working the same in subsequent releases. See <a class="reference external" href="https://gitlab.haskell.org/ghc/ghc/wikis/impredicative-polymorphism">this wiki page</a> for more details.</p> <p>If you want impredicative polymorphism, the main workaround is to use a newtype wrapper. The <code>id runST</code> example can be written using this workaround like this:</p> <pre data-language="haskell">runST :: (forall s. ST s a) -&gt; a
+id :: forall b. b -&gt; b
+
+newtype Wrap a = Wrap { unWrap :: (forall s. ST s a) -&gt; a }
+
+foo :: (forall s. ST s a) -&gt; a
+foo = unWrap (id (Wrap runST))
+      -- Here id is called at monomorphic type (Wrap a)
+</pre>  </div> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://downloads.haskell.org/~ghc/9.0.1/docs/html/users_guide/exts/impredicative_types.html" class="_attribution-link" target="_blank">https://downloads.haskell.org/~ghc/9.0.1/docs/html/users_guide/exts/impredicative_types.html</a>
+  </p>
+</div>

@@ -1,0 +1,106 @@
+<h1 class="devsite-page-title">tf.compat.v1.variable_scope</h1>     <div itemscope itemtype="http://developers.google.com/ReferenceObject"> <meta itemprop="name" content="tf.compat.v1.variable_scope"> <meta itemprop="path" content="Stable"> <meta itemprop="property" content="__enter__"> <meta itemprop="property" content="__exit__"> <meta itemprop="property" content="__init__"> </div>  <table class="tfo-notebook-buttons tfo-api" align="left"> <td> <a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/ops/variable_scope.py#L2050-L2454">  View source on GitHub </a> </td>
+</table>  <h2 id="class_variable_scope">Class <code translate="no" dir="ltr">variable_scope</code>
+</h2> <p>A context manager for defining ops that creates variables (layers).</p>  <p>This context manager validates that the (optional) <code translate="no" dir="ltr">values</code> are from the same graph, ensures that graph is the default graph, and pushes a name scope and a variable scope.</p> <p>If <code translate="no" dir="ltr">name_or_scope</code> is not None, it is used as is. If <code translate="no" dir="ltr">name_or_scope</code> is None, then <code translate="no" dir="ltr">default_name</code> is used. In that case, if the same name has been previously used in the same scope, it will be made unique by appending <code translate="no" dir="ltr">_N</code> to it.</p> <p>Variable scope allows you to create new variables and to share already created ones while providing checks to not create or share by accident. For details, see the <a href="https://tensorflow.org/guide/variables">Variable Scope How To</a>, here we present only a few basic examples.</p> <p>Simple example of how to create a new variable:</p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">with tf.compat.v1.variable_scope("foo"):
+    with tf.compat.v1.variable_scope("bar"):
+        v = tf.compat.v1.get_variable("v", [1])
+        assert v.name == "foo/bar/v:0"
+</pre> <p>Simple example of how to reenter a premade variable scope safely:</p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">with tf.compat.v1.variable_scope("foo") as vs:
+  pass
+
+# Re-enter the variable scope.
+with tf.compat.v1.variable_scope(vs,
+                       auxiliary_name_scope=False) as vs1:
+  # Restore the original name_scope.
+  with tf.name_scope(vs1.original_name_scope):
+      v = tf.compat.v1.get_variable("v", [1])
+      assert v.name == "foo/v:0"
+      c = tf.constant([1], name="c")
+      assert c.name == "foo/c:0"
+</pre> <p>Keep in mind that the counters for <code translate="no" dir="ltr">default_name</code> are discarded once the parent scope is exited. Therefore when the code re-enters the scope (for instance by saving it), all nested default_name counters will be restarted.</p> <h4 id="for_instance">For instance:</h4> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">with tf.compat.v1.variable_scope("foo") as vs:
+  with tf.compat.v1.variable_scope(None, default_name="bar"):
+    v = tf.compat.v1.get_variable("a", [1])
+    assert v.name == "foo/bar/a:0", v.name
+  with tf.compat.v1.variable_scope(None, default_name="bar"):
+    v = tf.compat.v1.get_variable("b", [1])
+    assert v.name == "foo/bar_1/b:0"
+
+with tf.compat.v1.variable_scope(vs):
+  with tf.compat.v1.variable_scope(None, default_name="bar"):
+    v = tf.compat.v1.get_variable("c", [1])
+    assert v.name == "foo/bar/c:0"   # Uses bar instead of bar_2!
+</pre> <p>Basic example of sharing a variable AUTO_REUSE:</p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">def foo():
+  with tf.compat.v1.variable_scope("foo", reuse=tf.compat.v1.AUTO_REUSE):
+    v = tf.compat.v1.get_variable("v", [1])
+  return v
+
+v1 = foo()  # Creates v.
+v2 = foo()  # Gets the same, existing v.
+assert v1 == v2
+</pre> <p>Basic example of sharing a variable with reuse=True:</p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">with tf.compat.v1.variable_scope("foo"):
+    v = tf.compat.v1.get_variable("v", [1])
+with tf.compat.v1.variable_scope("foo", reuse=True):
+    v1 = tf.compat.v1.get_variable("v", [1])
+assert v1 == v
+</pre> <p>Sharing a variable by capturing a scope and setting reuse:</p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">with tf.compat.v1.variable_scope("foo") as scope:
+    v = tf.compat.v1.get_variable("v", [1])
+    scope.reuse_variables()
+    v1 = tf.compat.v1.get_variable("v", [1])
+assert v1 == v
+</pre> <p>To prevent accidental sharing of variables, we raise an exception when getting an existing variable in a non-reusing scope.</p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">with tf.compat.v1.variable_scope("foo"):
+    v = tf.compat.v1.get_variable("v", [1])
+    v1 = tf.compat.v1.get_variable("v", [1])
+    #  Raises ValueError("... v already exists ...").
+</pre> <p>Similarly, we raise an exception when trying to get a variable that does not exist in reuse mode.</p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">with tf.compat.v1.variable_scope("foo", reuse=True):
+    v = tf.compat.v1.get_variable("v", [1])
+    #  Raises ValueError("... v does not exists ...").
+</pre> <p>Note that the <code translate="no" dir="ltr">reuse</code> flag is inherited: if we open a reusing scope, then all its sub-scopes become reusing as well.</p> <p>A note about name scoping: Setting <code translate="no" dir="ltr">reuse</code> does not impact the naming of other ops such as mult. See related discussion on <a href="https://github.com/tensorflow/tensorflow/issues/6189">github#6189</a></p> <p>Note that up to and including version 1.0, it was allowed (though explicitly discouraged) to pass False to the reuse argument, yielding undocumented behaviour slightly different from None. Starting at 1.1.0 passing None and False as reuse has exactly the same effect.</p> <p>A note about using variable scopes in multi-threaded environment: Variable scopes are thread local, so one thread will not see another thread's current scope. Also, when using <code translate="no" dir="ltr">default_name</code>, unique scopes names are also generated only on a per thread basis. If the same name was used within a different thread, that doesn't prevent a new thread from creating the same scope. However, the underlying variable store is shared across threads (within the same graph). As such, if another thread tries to create a new variable with the same name as a variable created by a previous thread, it will fail unless reuse is True.</p> <p>Further, each thread starts with an empty variable scope. So if you wish to preserve name prefixes from a scope from the main thread, you should capture the main thread's scope and re-enter it in each thread. For e.g.</p> <pre class="prettyprint" translate="no" dir="ltr" data-language="python">main_thread_scope = variable_scope.get_variable_scope()
+
+# Thread's target function:
+def thread_target_fn(captured_scope):
+  with variable_scope.variable_scope(captured_scope):
+    # .... regular code for this thread
+
+
+thread = threading.Thread(target=thread_target_fn, args=(main_thread_scope,))
+</pre> <h2 id="__init__"><code translate="no" dir="ltr">__init__</code></h2> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/ops/variable_scope.py#L2205-L2295">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">__init__(
+    name_or_scope,
+    default_name=None,
+    values=None,
+    initializer=None,
+    regularizer=None,
+    caching_device=None,
+    partitioner=None,
+    custom_getter=None,
+    reuse=None,
+    dtype=None,
+    use_resource=None,
+    constraint=None,
+    auxiliary_name_scope=True
+)
+</pre> <p>Initialize the context manager.</p> <h4 id="args">Args:</h4> <ul> <li>
+<b><code translate="no" dir="ltr">name_or_scope</code></b>: <code translate="no" dir="ltr">string</code> or <code translate="no" dir="ltr">VariableScope</code>: the scope to open.</li> <li>
+<b><code translate="no" dir="ltr">default_name</code></b>: The default name to use if the <code translate="no" dir="ltr">name_or_scope</code> argument is <code translate="no" dir="ltr">None</code>, this name will be uniquified. If name_or_scope is provided it won't be used and therefore it is not required and can be None.</li> <li>
+<b><code translate="no" dir="ltr">values</code></b>: The list of <code translate="no" dir="ltr">Tensor</code> arguments that are passed to the op function.</li> <li>
+<b><code translate="no" dir="ltr">initializer</code></b>: default initializer for variables within this scope.</li> <li>
+<b><code translate="no" dir="ltr">regularizer</code></b>: default regularizer for variables within this scope.</li> <li>
+<b><code translate="no" dir="ltr">caching_device</code></b>: default caching device for variables within this scope.</li> <li>
+<b><code translate="no" dir="ltr">partitioner</code></b>: default partitioner for variables within this scope.</li> <li>
+<b><code translate="no" dir="ltr">custom_getter</code></b>: default custom getter for variables within this scope.</li> <li>
+<b><code translate="no" dir="ltr">reuse</code></b>: <code translate="no" dir="ltr">True</code>, None, or tf.compat.v1.AUTO_REUSE; if <code translate="no" dir="ltr">True</code>, we go into reuse mode for this scope as well as all sub-scopes; if tf.compat.v1.AUTO_REUSE, we create variables if they do not exist, and return them otherwise; if None, we inherit the parent scope's reuse flag. When eager execution is enabled, new variables are always created unless an EagerVariableStore or template is currently active.</li> <li>
+<b><code translate="no" dir="ltr">dtype</code></b>: type of variables created in this scope (defaults to the type in the passed scope, or inherited from parent scope).</li> <li>
+<b><code translate="no" dir="ltr">use_resource</code></b>: If False, all variables will be regular Variables. If True, experimental ResourceVariables with well-defined semantics will be used instead. Defaults to False (will later change to True). When eager execution is enabled this argument is always forced to be True.</li> <li>
+<b><code translate="no" dir="ltr">constraint</code></b>: An optional projection function to be applied to the variable after being updated by an <code translate="no" dir="ltr">Optimizer</code> (e.g. used to implement norm constraints or value constraints for layer weights). The function must take as input the unprojected Tensor representing the value of the variable and return the Tensor for the projected value (which must have the same shape). Constraints are not safe to use when doing asynchronous distributed training.</li> <li>
+<b><code translate="no" dir="ltr">auxiliary_name_scope</code></b>: If <code translate="no" dir="ltr">True</code>, we create an auxiliary name scope with the scope. If <code translate="no" dir="ltr">False</code>, we don't create it. Note that the argument is not inherited, and it only takes effect for once when creating. You should only use it for re-entering a premade variable scope.</li> </ul> <h4 id="returns">Returns:</h4> <p>A scope that can be captured and reused.</p> <h4 id="raises">Raises:</h4> <ul> <li>
+<b><code translate="no" dir="ltr">ValueError</code></b>: when trying to reuse within a create scope, or create within a reuse scope.</li> <li>
+<b><code translate="no" dir="ltr">TypeError</code></b>: when the types of some arguments are not appropriate.</li> </ul> <h2 id="methods">Methods</h2> <h3 id="__enter__"><code translate="no" dir="ltr">__enter__</code></h3> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/ops/variable_scope.py#L2297-L2321">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">__enter__()
+</pre> <h3 id="__exit__"><code translate="no" dir="ltr">__exit__</code></h3> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/ops/variable_scope.py#L2442-L2454">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">__exit__(
+    type_arg,
+    value_arg,
+    traceback_arg
+)
+</pre>  <devsite-page-rating position="footer" selected-rating="0" hover-rating-star="0"> </devsite-page-rating><div class="_attribution">
+  <p class="_attribution-p">
+    &copy; 2019 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/api_docs/python/tf/compat/v1/variable_scope" class="_attribution-link">https://www.tensorflow.org/api_docs/python/tf/compat/v1/variable_scope</a>
+  </p>
+</div>

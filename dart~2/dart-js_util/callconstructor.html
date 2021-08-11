@@ -1,0 +1,68 @@
+<p class="_links"><a href="../dart-js_util/dart-js_util-library" class="_links-link">dart:js_util</a></p> <h1>callConstructor function  </h1> <section class="multi-line-signature"> dynamic callConstructor (<wbr><ol class="parameter-list">
+<li>
+<a href="../dart-core/object-class">Object</a> constr, </li> <li>
+<a href="../dart-core/list-class">List</a>&lt;<wbr><a href="../dart-core/object-class">Object</a>?&gt;</wbr>? arguments</li> </ol>) </wbr></section>  <h2 id="source">Implementation</h2> <pre class="language-dart" data-language="dart">dynamic callConstructor(Object constr, List&lt;Object?&gt;? arguments) {
+  if (arguments == null) {
+    return JS('Object', 'new #()', constr);
+  } else {
+    assertInteropArgs(arguments);
+  }
+
+  if (JS('bool', '# instanceof Array', arguments)) {
+    int argumentCount = JS('int', '#.length', arguments);
+    switch (argumentCount) {
+      case 0:
+        return JS('Object', 'new #()', constr);
+
+      case 1:
+        var arg0 = JS('', '#[0]', arguments);
+        return JS('Object', 'new #(#)', constr, arg0);
+
+      case 2:
+        var arg0 = JS('', '#[0]', arguments);
+        var arg1 = JS('', '#[1]', arguments);
+        return JS('Object', 'new #(#, #)', constr, arg0, arg1);
+
+      case 3:
+        var arg0 = JS('', '#[0]', arguments);
+        var arg1 = JS('', '#[1]', arguments);
+        var arg2 = JS('', '#[2]', arguments);
+        return JS('Object', 'new #(#, #, #)', constr, arg0, arg1, arg2);
+
+      case 4:
+        var arg0 = JS('', '#[0]', arguments);
+        var arg1 = JS('', '#[1]', arguments);
+        var arg2 = JS('', '#[2]', arguments);
+        var arg3 = JS('', '#[3]', arguments);
+        return JS(
+            'Object', 'new #(#, #, #, #)', constr, arg0, arg1, arg2, arg3);
+    }
+  }
+
+  // The following code solves the problem of invoking a JavaScript
+  // constructor with an unknown number arguments.
+  // First bind the constructor to the argument list using bind.apply().
+  // The first argument to bind() is the binding of 't', so add 'null' to
+  // the arguments list passed to apply().
+  // After that, use the JavaScript 'new' operator which overrides any binding
+  // of 'this' with the new instance.
+  var args = &lt;dynamic&gt;[null]..addAll(arguments);
+  var factoryFunction = JS('', '#.bind.apply(#, #)', constr, constr, args);
+  // Without this line, calling factoryFunction as a constructor throws
+  JS('String', 'String(#)', factoryFunction);
+  // This could return an UnknownJavaScriptObject, or a native
+  // object for which there is an interceptor
+  return JS('Object', 'new #()', factoryFunction);
+
+  // TODO(sra): Investigate:
+  //
+  //     var jsObj = JS('', 'Object.create(#.prototype)', constr);
+  //     JS('', '#.apply(#, #)', constr, jsObj,
+  //         []..addAll(arguments.map(_convertToJS)));
+  //     return _wrapToDart(jsObj);
+}</pre><div class="_attribution">
+  <p class="_attribution-p">
+    &copy; 2012 the Dart project authors<br>Licensed under the Creative Commons Attribution-ShareAlike License v4.0.<br>
+    <a href="https://api.dart.dev/stable/2.13.0/dart-js_util/callConstructor.html" class="_attribution-link">https://api.dart.dev/stable/2.13.0/dart-js_util/callConstructor.html</a>
+  </p>
+</div>

@@ -1,0 +1,81 @@
+<h1 class="devsite-page-title">tf.keras.metrics.Metric</h1>     <div itemscope itemtype="http://developers.google.com/ReferenceObject"> <meta itemprop="name" content="tf.keras.metrics.Metric"> <meta itemprop="path" content="Stable"> <meta itemprop="property" content="__init__"> <meta itemprop="property" content="__new__"> <meta itemprop="property" content="add_weight"> <meta itemprop="property" content="reset_states"> <meta itemprop="property" content="result"> <meta itemprop="property" content="update_state"> </div>   <table class="tfo-notebook-buttons tfo-api" align="left"> <td> <a target="_blank" href="https://www.tensorflow.org/versions/r1.15/api_docs/python/tf/keras/metrics/Metric">  TensorFlow 1 version</a> </td> <td> <a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/keras/metrics.py#L70-L276">  View source on GitHub </a> </td>
+</table>  <h2 id="class_metric_2">Class <code translate="no" dir="ltr">Metric</code>
+</h2> <p>Encapsulates metric logic and state.</p> <p>Inherits From: <a href="../layers/layer"><code translate="no" dir="ltr">Layer</code></a></p> <p><strong>Aliases</strong>: <a href="metric"><code translate="no" dir="ltr">tf.metrics.Metric</code></a></p>  <h4 id="usage_2">Usage:</h4> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">m = SomeMetric(...)
+for input in ...:
+  m.update_state(input)
+print('Final result: ', m.result().numpy())
+</pre> <p>Usage with tf.keras API:</p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">model = tf.keras.Sequential()
+model.add(tf.keras.layers.Dense(64, activation='relu'))
+model.add(tf.keras.layers.Dense(64, activation='relu'))
+model.add(tf.keras.layers.Dense(10, activation='softmax'))
+
+model.compile(optimizer=tf.compat.v1.train.RMSPropOptimizer(0.01),
+              loss=tf.keras.losses.categorical_crossentropy,
+              metrics=[tf.keras.metrics.CategoricalAccuracy()])
+
+data = np.random.random((1000, 32))
+labels = np.random.random((1000, 10))
+
+dataset = tf.data.Dataset.from_tensor_slices((data, labels))
+dataset = dataset.batch(32)
+dataset = dataset.repeat()
+
+model.fit(dataset, epochs=10, steps_per_epoch=30)
+</pre> <p>To be implemented by subclasses:</p> <ul> <li>
+<code translate="no" dir="ltr">__init__()</code>: All state variables should be created in this method by calling <code translate="no" dir="ltr">self.add_weight()</code> like: <code translate="no" dir="ltr">self.var = self.add_weight(...)</code>
+</li> <li>
+<code translate="no" dir="ltr">update_state()</code>: Has all updates to the state variables like: self.var.assign_add(...).</li> <li>
+<code translate="no" dir="ltr">result()</code>: Computes and returns a value for the metric from the state variables.</li> </ul> <p>Example subclass implementation:</p> <pre class="prettyprint" translate="no" dir="ltr" data-language="python">class BinaryTruePositives(tf.keras.metrics.Metric):
+
+  def __init__(self, name='binary_true_positives', **kwargs):
+    super(BinaryTruePositives, self).__init__(name=name, **kwargs)
+    self.true_positives = self.add_weight(name='tp', initializer='zeros')
+
+  def update_state(self, y_true, y_pred, sample_weight=None):
+    y_true = tf.cast(y_true, tf.bool)
+    y_pred = tf.cast(y_pred, tf.bool)
+
+    values = tf.logical_and(tf.equal(y_true, True), tf.equal(y_pred, True))
+    values = tf.cast(values, self.dtype)
+    if sample_weight is not None:
+      sample_weight = tf.cast(sample_weight, self.dtype)
+      sample_weight = tf.broadcast_weights(sample_weight, values)
+      values = tf.multiply(values, sample_weight)
+    self.true_positives.assign_add(tf.reduce_sum(values))
+
+  def result(self):
+    return self.true_positives
+</pre> <h2 id="__init__"><code translate="no" dir="ltr">__init__</code></h2> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/keras/metrics.py#L138-L145">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">__init__(
+    name=None,
+    dtype=None,
+    **kwargs
+)
+</pre> <h2 id="__new__"><code translate="no" dir="ltr">__new__</code></h2> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/keras/metrics.py#L147-L163">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">@staticmethod
+__new__(
+    cls,
+    *args,
+    **kwargs
+)
+</pre> <p>Create and return a new object. See help(type) for accurate signature.</p> <h2 id="methods_2">Methods</h2> <h3 id="add_weight"><code translate="no" dir="ltr">add_weight</code></h3> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/keras/metrics.py#L247-L276">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">add_weight(
+    name,
+    shape=(),
+    aggregation=tf.compat.v1.VariableAggregation.SUM,
+    synchronization=tf.VariableSynchronization.ON_READ,
+    initializer=None,
+    dtype=None
+)
+</pre> <p>Adds state variable. Only for use by subclasses.</p> <h3 id="reset_states"><code translate="no" dir="ltr">reset_states</code></h3> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/keras/metrics.py#L206-L212">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">reset_states()
+</pre> <p>Resets all of the metric state variables.</p> <p>This function is called between epochs/steps, when a metric is evaluated during training.</p> <h3 id="result"><code translate="no" dir="ltr">result</code></h3> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/keras/metrics.py#L237-L244">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">result()
+</pre> <p>Computes and returns the metric value tensor.</p> <p>Result computation is an idempotent operation that simply calculates the metric value using the state variables.</p> <h3 id="update_state"><code translate="no" dir="ltr">update_state</code></h3> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/keras/metrics.py#L214-L235">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">update_state(
+    *args,
+    **kwargs
+)
+</pre> <p>Accumulates statistics for the metric.</p> <blockquote class="note">
+<strong>Note:</strong><span> This function is executed as a graph function in graph mode. This means: a) Operations on the same resource are executed in textual order. This should make it easier to do things like add the updated value of a variable to another, for example. b) You don't need to worry about collecting the update ops to execute. All update ops added to the graph by this function will be executed. As a result, code should generally work the same way with graph or eager execution.</span>
+</blockquote> <p>Please use <a href="../../config/experimental_run_functions_eagerly"><code translate="no" dir="ltr">tf.config.experimental_run_functions_eagerly(True)</code></a> to execute this function eagerly for debugging or profiling.</p> <h4 id="args_2">Args:</h4> <ul> <li>
+<b><code translate="no" dir="ltr">*args</code></b>: * <b><code translate="no" dir="ltr">**kwargs</code></b>: A mini-batch of inputs to the Metric.</li> </ul> <h2 id="compat_aliases_2">Compat aliases</h2> <ul> <li><a href="metric"><code translate="no" dir="ltr">tf.compat.v1.keras.metrics.Metric</code></a></li> <li><a href="metric"><code translate="no" dir="ltr">tf.compat.v2.keras.metrics.Metric</code></a></li> <li><a href="metric"><code translate="no" dir="ltr">tf.compat.v2.metrics.Metric</code></a></li> </ul>  <devsite-page-rating position="footer" selected-rating="0" hover-rating-star="0"> </devsite-page-rating><div class="_attribution">
+  <p class="_attribution-p">
+    &copy; 2019 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/api_docs/python/tf/keras/metrics/Metric" class="_attribution-link">https://www.tensorflow.org/api_docs/python/tf/keras/metrics/Metric</a>
+  </p>
+</div>

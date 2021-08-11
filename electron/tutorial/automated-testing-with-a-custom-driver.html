@@ -1,0 +1,110 @@
+<h1 id="automated-testing-with-a-custom-driver">Automated Testing with a Custom Driver</h1> <p>To write automated tests for your Electron app, you will need a way to "drive" your application. <a href="https://electronjs.org/spectron">Spectron</a> is a commonly-used solution which lets you emulate user actions via <a href="https://webdriver.io/">WebDriver</a>. However, it's also possible to write your own custom driver using node's builtin IPC-over-STDIO. The benefit of a custom driver is that it tends to require less overhead than Spectron, and lets you expose custom methods to your test suite.</p> <p>To create a custom driver, we'll use Node.js' <a href="https://nodejs.org/api/child_process.html">child_process</a> API. The test suite will spawn the Electron process, then establish a simple messaging protocol:</p> <pre data-language="js">const childProcess = require('child_process')
+const electronPath = require('electron')
+
+// spawn the process
+const env = { /* ... */ }
+const stdio = ['inherit', 'inherit', 'inherit', 'ipc']
+const appProcess = childProcess.spawn(electronPath, ['./app'], { stdio, env })
+
+// listen for IPC messages from the app
+appProcess.on('message', (msg) =&gt; {
+  // ...
+})
+
+// send an IPC message to the app
+appProcess.send({ my: 'message' })
+</pre> <p>From within the Electron app, you can listen for messages and send replies using the Node.js <a href="https://nodejs.org/api/process.html">process</a> API:</p> <pre data-language="js">// listen for IPC messages from the test suite
+process.on('message', (msg) =&gt; {
+  // ...
+})
+
+// send an IPC message to the test suite
+process.send({ my: 'message' })
+</pre> <p>We can now communicate from the test suite to the Electron app using the <code>appProcess</code> object.</p> <p>For convenience, you may want to wrap <code>appProcess</code> in a driver object that provides more high-level functions. Here is an example of how you can do this:</p> <pre data-language="js">class TestDriver {
+  constructor ({ path, args, env }) {
+    this.rpcCalls = []
+
+    // start child process
+    env.APP_TEST_DRIVER = 1 // let the app know it should listen for messages
+    this.process = childProcess.spawn(path, args, { stdio: ['inherit', 'inherit', 'inherit', 'ipc'], env })
+
+    // handle rpc responses
+    this.process.on('message', (message) =&gt; {
+      // pop the handler
+      const rpcCall = this.rpcCalls[message.msgId]
+      if (!rpcCall) return
+      this.rpcCalls[message.msgId] = null
+      // reject/resolve
+      if (message.reject) rpcCall.reject(message.reject)
+      else rpcCall.resolve(message.resolve)
+    })
+
+    // wait for ready
+    this.isReady = this.rpc('isReady').catch((err) =&gt; {
+      console.error('Application failed to start', err)
+      this.stop()
+      process.exit(1)
+    })
+  }
+
+  // simple RPC call
+  // to use: driver.rpc('method', 1, 2, 3).then(...)
+  async rpc (cmd, ...args) {
+    // send rpc request
+    const msgId = this.rpcCalls.length
+    this.process.send({ msgId, cmd, args })
+    return new Promise((resolve, reject) =&gt; this.rpcCalls.push({ resolve, reject }))
+  }
+
+  stop () {
+    this.process.kill()
+  }
+}
+</pre> <p>In the app, you'd need to write a simple handler for the RPC calls:</p> <pre data-language="js">if (process.env.APP_TEST_DRIVER) {
+  process.on('message', onMessage)
+}
+
+async function onMessage ({ msgId, cmd, args }) {
+  let method = METHODS[cmd]
+  if (!method) method = () =&gt; new Error('Invalid method: ' + cmd)
+  try {
+    const resolve = await method(...args)
+    process.send({ msgId, resolve })
+  } catch (err) {
+    const reject = {
+      message: err.message,
+      stack: err.stack,
+      name: err.name
+    }
+    process.send({ msgId, reject })
+  }
+}
+
+const METHODS = {
+  isReady () {
+    // do any setup needed
+    return true
+  }
+  // define your RPC-able methods here
+}
+</pre> <p>Then, in your test suite, you can use your test-driver as follows:</p> <pre data-language="js">const test = require('ava')
+const electronPath = require('electron')
+
+const app = new TestDriver({
+  path: electronPath,
+  args: ['./app'],
+  env: {
+    NODE_ENV: 'test'
+  }
+})
+test.before(async t =&gt; {
+  await app.isReady
+})
+test.after.always('cleanup', async t =&gt; {
+  await app.stop()
+})
+</pre><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.electronjs.org/docs/tutorial/automated-testing-with-a-custom-driver" class="_attribution-link" target="_blank">https://www.electronjs.org/docs/tutorial/automated-testing-with-a-custom-driver</a>
+  </p>
+</div>

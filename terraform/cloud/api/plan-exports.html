@@ -1,0 +1,119 @@
+ <h1 id="plan-exports-api">  Plan Exports API </h1> <p>Plan exports allow users to download data exported from the plan of a Run in a Terraform workspace. Currently, the only supported format for exporting plan data is to generate mock data for Sentinel.</p> <h2 id="create-a-plan-export">  Create a plan export </h2> <p><code>POST /plan-exports</code></p> <p>This endpoint exports data from a plan in the specified format. The export process is asynchronous, and the resulting data becomes downloadable when its status is <code>"finished"</code>. The data is then available for one hour before expiring. After the hour is up, a new export can be created.</p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/201">201</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "plan-exports"</code>)</td> <td>Successfully created a plan export</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Plan not found, or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Malformed request body (missing attributes, wrong types, etc.), or a plan export of the provided <code>data-type</code> is already pending or downloadable for this plan</td> </tr> </tbody>
+</table> <h3 id="request-body">  Request Body </h3> <p>This POST endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"plan-exports"</code>.</td> </tr> <tr> <td><code>data.attributes.data-type</code></td> <td>string</td> <td></td> <td>The format for the export. Currently, the only supported format is <code>"sentinel-mock-bundle-v0"</code>.</td> </tr> <tr> <td><code>data.relationships.plan.data</code></td> <td>object</td> <td></td> <td>A JSON API relationship object that represents the plan being exported. This object must have a <code>type</code> of <code>plans</code>, and the <code>id</code> of a finished Terraform plan that does not already have a downloadable export of the specified <code>data-type</code> (e.g: <code>{"type": "plans", "id": "plan-8F5JFydVYAmtTjET"}</code>)</td> </tr> </tbody>
+</table> <h3 id="sample-payload">  Sample Payload </h3> <pre data-language="json">{
+  "data": {
+    "type": "plan-exports",
+    "attributes": {
+      "data-type": "sentinel-mock-bundle-v0"
+    },
+    "relationships": {
+      "plan": {
+        "data": {
+          "id": "plan-8F5JFydVYAmtTjET",
+          "type": "plans"
+        }
+      }
+    }
+  }
+}
+</pre>
+<h3 id="sample-request">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/plan-exports
+</pre>
+<h3 id="sample-response">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id": "pe-3yVQZvHzf5j3WRJ1",
+    "type": "plan-exports",
+    "attributes": {
+      "data-type": "sentinel-mock-bundle-v0",
+      "status": "queued",
+      "status-timestamps": {
+        "queued-at": "2019-03-04T22:29:53+00:00",
+      },
+    },
+    "relationships": {
+      "plan": {
+        "data": {
+          "id": "plan-8F5JFydVYAmtTjET",
+          "type": "plans"
+        }
+      }
+    },
+    "links": {
+      "self": "/api/v2/plan-exports/pe-3yVQZvHzf5j3WRJ1",
+    }
+  }
+}
+</pre>
+<h2 id="show-a-plan-export">  Show a plan export </h2> <p><code>GET /plan-exports/:id</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>id</code></td> <td>The ID of the plan export to show.</td> </tr> </tbody>
+</table> <p>There is no endpoint to list plan exports. You can find IDs for plan exports in the <code>relationships.exports</code> property of a plan object.</p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "plan-exports"</code>)</td> <td>The request was successful</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Plan export not found, or user unauthorized to perform action</td> </tr> </tbody>
+</table> <h3 id="sample-request-1">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  https://app.terraform.io/api/v2/plan-exports/pe-3yVQZvHzf5j3WRJ1
+</pre>
+<h3 id="sample-response-1">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id": "pe-3yVQZvHzf5j3WRJ1",
+    "type": "plan-exports",
+    "attributes": {
+      "data-type": "sentinel-mock-bundle-v0",
+      "status": "finished",
+      "status-timestamps": {
+        "queued-at": "2019-03-04T22:29:53+00:00",
+        "finished-at": "2019-03-04T22:29:58+00:00",
+        "expired-at": "2019-03-04T23:29:58+00:00"
+      },
+    },
+    "relationships": {
+      "plan": {
+        "data": {
+          "id": "plan-8F5JFydVYAmtTjET",
+          "type": "plans"
+        }
+      }
+    },
+    "links": {
+      "self": "/api/v2/plan-exports/pe-3yVQZvHzf5j3WRJ1",
+      "download": "/api/v2/plan-exports/pe-3yVQZvHzf5j3WRJ1/download"
+    }
+  }
+}
+</pre>
+<h2 id="download-exported-plan-data">  Download exported plan data </h2> <p><code>GET /plan-exports/:id/download</code></p> <p>This endpoint generates a temporary URL to the location of the exported plan data in a <code>.tar.gz</code> archive, and then redirects to that link. If using a client that can follow redirects, you can use this endpoint to save the <code>.tar.gz</code> archive locally without needing to save the temporary URL.</p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/302">302</a></td> <td>HTTP Redirect</td> <td>Plan export found and temporary download URL generated</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Plan export not found, or user unauthorized to perform action</td> </tr> </tbody>
+</table> <h3 id="sample-request-2">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --location \
+  https://app.terraform.io/api/v2/plan-exports/pe-3yVQZvHzf5j3WRJ1/download \
+  &gt; export.tar.gz
+</pre>
+<h2 id="delete-exported-plan-data">  Delete exported plan data </h2> <p><code>DELETE /plan-exports/:id</code></p> <p>Plan exports expire after being available for one hour, but they can be deleted manually as well.</p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204">204</a></td> <td>No content</td> <td>Plan export deleted successfully</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Plan export not found, or user unauthorized to perform action</td> </tr> </tbody>
+</table> <h3 id="sample-request-3">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  -X DELETE \
+  https://app.terraform.io/api/v2/plan-exports/pe-3yVQZvHzf5j3WRJ1
+</pre><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/cloud/api/plan-exports.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/cloud/api/plan-exports.html</a>
+  </p>
+</div>

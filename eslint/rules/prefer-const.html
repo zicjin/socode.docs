@@ -1,0 +1,172 @@
+
+<h1 id="suggest-using-const-prefer-const">Suggest using <code>const</code> (prefer-const)</h1>
+<p>The <code>--fix</code> option on the <a href="../user-guide/command-line-interface#fixing-problems">command line</a> can automatically fix some of the problems reported by this rule.</p>
+<p>If a variable is never reassigned, using the <code>const</code> declaration is better.</p>
+<p><code>const</code> declaration tells readers, "this variable is never reassigned," reducing cognitive load and improving maintainability.</p>
+<h2 id="rule-details">Rule Details</h2>
+<p>This rule is aimed at flagging variables that are declared using <code>let</code> keyword, but never reassigned after the initial assignment.</p>
+<p>Examples of <strong>incorrect</strong> code for this rule:</p>
+<pre data-language="js">/*eslint prefer-const: "error"*/
+/*eslint-env es6*/
+
+// it's initialized and never reassigned.
+let a = 3;
+console.log(a);
+
+let a;
+a = 0;
+console.log(a);
+
+// `i` is redefined (not reassigned) on each loop step.
+for (let i in [1, 2, 3]) {
+    console.log(i);
+}
+
+// `a` is redefined (not reassigned) on each loop step.
+for (let a of [1, 2, 3]) {
+    console.log(a);
+}</pre>
+<p>Examples of <strong>correct</strong> code for this rule:</p>
+<pre data-language="js">/*eslint prefer-const: "error"*/
+/*eslint-env es6*/
+
+// using const.
+const a = 0;
+
+// it's never initialized.
+let a;
+console.log(a);
+
+// it's reassigned after initialized.
+let a;
+a = 0;
+a = 1;
+console.log(a);
+
+// it's initialized in a different block from the declaration.
+let a;
+if (true) {
+    a = 0;
+}
+console.log(a);
+
+// it's initialized at a place that we cannot write a variable declaration.
+let a;
+if (true) a = 0;
+console.log(a);
+
+// `i` gets a new binding each iteration
+for (const i in [1, 2, 3]) {
+  console.log(i);
+}
+
+// `a` gets a new binding each iteration
+for (const a of [1, 2, 3]) {
+  console.log(a);
+}
+
+// `end` is never reassigned, but we cannot separate the declarations without modifying the scope.
+for (let i = 0, end = 10; i &lt; end; ++i) {
+    console.log(a);
+}
+
+// `predicate` is only assigned once but cannot be separately declared as `const`
+let predicate;
+[object.type, predicate] = foo();
+
+// `a` is only assigned once but cannot be separately declared as `const`
+let a;
+const b = {};
+({ a, c: b.c } = func());
+
+// suggest to use `no-var` rule.
+var b = 3;
+console.log(b);</pre>
+<h2 id="options">Options</h2>
+<pre data-language="json">{
+    "prefer-const": ["error", {
+        "destructuring": "any",
+        "ignoreReadBeforeAssign": false
+    }]
+}</pre>
+<h3 id="destructuring">destructuring</h3>
+<p>The kind of the way to address variables in destructuring. There are 2 values:</p>
+<ul>
+<li>
+<code>"any"</code> (default) - If any variables in destructuring should be <code>const</code>, this rule warns for those variables.</li>
+<li>
+<code>"all"</code> - If all variables in destructuring should be <code>const</code>, this rule warns the variables. Otherwise, ignores them.</li>
+</ul>
+<p>Examples of <strong>incorrect</strong> code for the default <code>{"destructuring": "any"}</code> option:</p>
+<pre data-language="js">/*eslint prefer-const: "error"*/
+/*eslint-env es6*/
+
+let {a, b} = obj;    /*error 'b' is never reassigned, use 'const' instead.*/
+a = a + 1;</pre>
+<p>Examples of <strong>correct</strong> code for the default <code>{"destructuring": "any"}</code> option:</p>
+<pre data-language="js">/*eslint prefer-const: "error"*/
+/*eslint-env es6*/
+
+// using const.
+const {a: a0, b} = obj;
+const a = a0 + 1;
+
+// all variables are reassigned.
+let {a, b} = obj;
+a = a + 1;
+b = b + 1;</pre>
+<p>Examples of <strong>incorrect</strong> code for the <code>{"destructuring": "all"}</code> option:</p>
+<pre data-language="js">/*eslint prefer-const: ["error", {"destructuring": "all"}]*/
+/*eslint-env es6*/
+
+// all of `a` and `b` should be const, so those are warned.
+let {a, b} = obj;    /*error 'a' is never reassigned, use 'const' instead.
+                             'b' is never reassigned, use 'const' instead.*/</pre>
+<p>Examples of <strong>correct</strong> code for the <code>{"destructuring": "all"}</code> option:</p>
+<pre data-language="js">/*eslint prefer-const: ["error", {"destructuring": "all"}]*/
+/*eslint-env es6*/
+
+// 'b' is never reassigned, but all of `a` and `b` should not be const, so those are ignored.
+let {a, b} = obj;
+a = a + 1;</pre>
+<h3 id="ignorereadbeforeassign">ignoreReadBeforeAssign</h3>
+<p>This is an option to avoid conflicting with <code>no-use-before-define</code> rule (without <code>"nofunc"</code> option). If <code>true</code> is specified, this rule will ignore variables that are read between the declaration and the first assignment. Default is <code>false</code>.</p>
+<p>Examples of <strong>correct</strong> code for the <code>{"ignoreReadBeforeAssign": true}</code> option:</p>
+<pre data-language="js">/*eslint prefer-const: ["error", {"ignoreReadBeforeAssign": true}]*/
+/*eslint-env es6*/
+
+let timer;
+function initialize() {
+    if (foo()) {
+        clearInterval(timer);
+    }
+}
+timer = setInterval(initialize, 100);</pre>
+<p>Examples of <strong>correct</strong> code for the default <code>{"ignoreReadBeforeAssign": false}</code> option:</p>
+<pre data-language="js">/*eslint prefer-const: ["error", {"ignoreReadBeforeAssign": false}]*/
+/*eslint-env es6*/
+
+const timer = setInterval(initialize, 100);
+function initialize() {
+    if (foo()) {
+        clearInterval(timer);
+    }
+}</pre>
+<h2 id="when-not-to-use-it">When Not To Use It</h2>
+<p>If you don't want to be notified about variables that are never reassigned after initial assignment, you can safely disable this rule.</p>
+<h2 id="related-rules">Related Rules</h2>
+<ul>
+<li><a href="no-var">no-var</a></li>
+<li><a href="no-use-before-define">no-use-before-define</a></li>
+</ul>
+<h2 id="version">Version</h2>
+<p>This rule was introduced in ESLint 0.23.0.</p>
+<h2 id="resources">Resources</h2>
+<ul>
+<li><a href="https://github.com/eslint/eslint/tree/master/lib/rules/prefer-const.js">Rule source</a></li>
+<li><a href="https://github.com/eslint/eslint/tree/master/docs/rules/prefer-const.md">Documentation source</a></li>
+</ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://eslint.org/docs/rules/prefer-const" class="_attribution-link" target="_blank">https://eslint.org/docs/rules/prefer-const</a>
+  </p>
+</div>

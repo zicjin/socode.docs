@@ -1,0 +1,41 @@
+<h1 id="type-synonyms">6.4.5. Liberalised type synonyms</h1>
+<div class="_sphinx"> <div itemprop="articleBody">   <dl class="extension" id="liberalised-type-synonyms"> <dt id="extension-LiberalTypeSynonyms">
+<code>LiberalTypeSynonyms</code> </dt> <dd>
+<table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
+<th class="field-name">Implies:</th>
+<td class="field-body"><a class="reference internal" href="explicit_forall#extension-ExplicitForAll"><code>ExplicitForAll</code></a></td> </tr> <tr>
+<th class="field-name">Since:</th>
+<td class="field-body">6.8.1</td> </tr>  </table> <p>Relax many of the Haskell 98 rules on type synonym definitions.</p> </dd>
+</dl> <p>Type synonyms are like macros at the type level, but Haskell 98 imposes many rules on individual synonym declarations. With the <a class="reference internal" href="#extension-LiberalTypeSynonyms"><code>LiberalTypeSynonyms</code></a> extension, GHC does validity checking on types <em>only after expanding type synonyms</em>. That means that GHC can be very much more liberal about type synonyms than Haskell 98.</p> <ul> <li>
+<p class="first">You can write a <code>forall</code> (including overloading) in a type synonym, thus:</p> <pre data-language="haskell">type Discard a = forall b. Show b =&gt; a -&gt; b -&gt; (a, String)
+
+f :: Discard a
+f x y = (x, show y)
+
+g :: Discard Int -&gt; (Int,String)    -- A rank-2 type
+g f = f 3 True
+</pre> </li> <li>
+<p class="first">If you also use <a class="reference internal" href="primitives#extension-UnboxedTuples"><code>UnboxedTuples</code></a>, you can write an unboxed tuple in a type synonym:</p> <pre data-language="haskell">type Pr = (# Int, Int #)
+
+h :: Int -&gt; Pr
+h x = (# x, x #)
+</pre> </li> <li>
+<p class="first">You can apply a type synonym to a forall type:</p> <pre data-language="haskell">type Foo a = a -&gt; a -&gt; Bool
+
+f :: Foo (forall b. b-&gt;b)
+</pre> <p>After expanding the synonym, <code>f</code> has the legal (in GHC) type:</p> <pre data-language="haskell">f :: (forall b. b-&gt;b) -&gt; (forall b. b-&gt;b) -&gt; Bool
+</pre> </li> <li>
+<p class="first">You can apply a type synonym to a partially applied type synonym:</p> <pre data-language="haskell">type Generic i o = forall x. i x -&gt; o x
+type Id x = x
+
+foo :: Generic Id []
+</pre> <p>After expanding the synonym, <code>foo</code> has the legal (in GHC) type:</p> <pre data-language="haskell">foo :: forall x. x -&gt; [x]
+</pre> </li> </ul> <p>GHC currently does kind checking before expanding synonyms (though even that could be changed).</p> <p>After expanding type synonyms, GHC does validity checking on types, looking for the following malformedness which isn’t detected simply by kind checking:</p> <ul class="simple"> <li>Type constructor applied to a type involving for-alls (if <a class="reference internal" href="impredicative_types#extension-ImpredicativeTypes"><code>ImpredicativeTypes</code></a> is off)</li> <li>Partially-applied type synonym.</li> </ul> <p>So, for example, this will be rejected:</p> <pre data-language="haskell">type Pr = forall a. a
+
+h :: [Pr]
+h = ...
+</pre> <p>because GHC does not allow type constructors applied to for-all types.</p>  </div> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://downloads.haskell.org/~ghc/9.0.1/docs/html/users_guide/exts/liberal_type_synonyms.html" class="_attribution-link" target="_blank">https://downloads.haskell.org/~ghc/9.0.1/docs/html/users_guide/exts/liberal_type_synonyms.html</a>
+  </p>
+</div>

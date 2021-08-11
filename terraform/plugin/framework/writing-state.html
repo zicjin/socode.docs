@@ -1,0 +1,81 @@
+ <h1 id="writing-state">  Writing State </h1> <p>One of the primary jobs of a Terraform provider is to manage the provider's resources and data sources in the <a href="../../language/state/index">Terraform statefile</a>. Writing values to state is something that provider developers will do frequently.</p> <p>The state that a provider developer wants to update is usually stored in a response object:</p> <pre>func (m myResource) Create(ctx context.Context,
+    req tfsdk.CreateResourceRequest, resp *tfsdk.CreateResourceResponse)
+</pre>
+<p>In this example, <code>resp</code> holds the state that the provider developer should update.</p> <h2 id="replace-the-entire-state">  Replace the Entire State </h2> <p>One way to set the state is to replace all the state values for a resource or data source all at once. You need to define a type to contain the values. The benefit is that this allows the compiler to check all code that sets values on state, and only the final call to persist state can return an error.</p> <pre>type resourceData struct {
+    Name types.Strings `tfsdk:"name"`
+    Age types.Number `tfsdk:"age"`
+    Registered types.Bool `tfsdk:"registered"`
+    Pets types.List `tfsdk:"pets"`
+    Tags types.Map `tfsdk:"tags"`
+    Address types.Object `tfsdk:"address"`
+}
+
+func (m myResource) Create(ctx context.Context,
+    req tfsdk.CreateResourceRequest, resp *tfsdk.CreateResourceResponse) {
+    var newState resourceData
+    // update newState by modifying each property as usual for Go values
+    newState.Name.Value = "J. Doe"
+
+    // persist the values to state
+    err := resp.State.Set(ctx, &amp;newState)
+    if err != nil {
+        // TODO: handle error
+    }
+}
+</pre>
+<p>The state information is represented as an object, and gets persisted like an object. See the <a href="#conversion-rules">conversion rules</a> for an explanation on how objects get persisted and what Go types are valid for persisting as an object.</p> <p>Using the <a href="types"><code>attr.Value</code> implementations</a> can surface complexity that is unnecessary, however. For example, you can never set an unknown value in state, so there's no need to be able to express unknown values when setting state.</p> <p>To make things a little easier, and to ensure that any type that <a href="accessing-values#get-the-entire-configuration-plan-or-state"><code>Get</code></a> can convert into can also be used as a value for <code>Set</code>, the framework can do some conversion on values passed to <code>Set</code>:</p> <pre>type resourceData struct {
+  Name string `tfsdk:"name"`
+  Age int64 `tfsdk:"age"`
+  Registered bool `tfsdk:"registered"`
+  Pets []string `tfsdk:"pets"`
+  Tags map[string]string `tfsdk:"tags"`
+  Address struct{
+    Street string `tfsdk:"street"`
+    City string `tfsdk:"city"`
+    State string `tfsdk:"state"`
+    Zip int64 `tfsdk:"zip"`
+  } `tfsdk:"address"`
+}
+</pre>
+<p>See <a href="#conversion-rules">below</a> for the rules about conversion.</p> <h2 id="set-a-single-attribute-39-s-value">  Set a Single Attribute's Value </h2> <p>Another way to set values in the state is to write each new value separately. This doesn't require defining a type (except for objects), but means each value update steps outside of what the compiler can check, and may return an error at runtime.</p> <pre>func (m myResource) Create(ctx context.Context,
+    req tfsdk.CreateResourceRequest, resp *tfsdk.CreateResourceResponse) {
+    age := types.Number{Value: big.NewFloat(7)}
+    err := resp.State.SetAttribute(ctx, tftypes.NewAttributePath().WithAttributeName("age"), &amp;age)
+    if err != nil {
+        // TODO: handle error
+    }
+}
+</pre>
+<p>Like <code>Set</code>, <code>SetAttribute</code> can also do some conversion to standard Go types:</p> <pre>func (m myResource) Create(ctx context.Context,
+    req tfsdk.CreateResourceRequest, resp *tfsdk.CreateResourceResponse) {
+    var age int64
+    age = 7
+    err := resp.State.SetAttribute(ctx, tftypes.NewAttributePath().WithAttributeName("age"), &amp;age)
+    if err != nil {
+        // TODO: handle error
+    }
+}
+</pre>
+<p>See <a href="#conversion-rules">below</a> for the rules about conversion.</p> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> The call to <code>tftypes.NewAttributePath</code> is creating an <a href="https://pkg.go.dev/github.com/hashicorp/terraform-plugin-go/tftypes#AttributePath">attribute path</a> pointing to the specific attribute being updated. A less-verbose way to specify attribute paths is coming soon.</p> </blockquote> <h2 id="conversion-rules">  Conversion Rules </h2> <p>The following is a list of schema types and the Go types they know how to accept in <code>Set</code> and <code>SetAttribute</code>.</p> <h3 id="string">  String </h3> <p>Strings can be automatically created from Go's <code>string</code> type (or any aliases of it, like <code>type MyString string</code>).</p> <h3 id="number">  Number </h3> <p>Numbers can be automatically created from the following numeric types (or any aliases of them, like <code>type MyNumber int</code>):</p> <ul> <li>
+<a href="#int"><code>int</code></a>, <code>int8</code>, <code>int16</code>, <code>int32</code>, <code>int64</code> </li> <li>
+<a href="#uint"><code>uint</code></a>, <code>uint8</code>, <code>uint16</code>, <code>uint32</code>, <code>uint64</code> </li> <li>
+<a href="#float32"><code>float32</code></a>, <code>float64</code> </li> <li>
+<a href="https://pkg.go.dev/math/big#Int"><code>*big.Int</code></a>, <a href="https://pkg.go.dev/math/big#Float"><code>*big.Float</code></a> </li> </ul> <h3 id="boolean">  Boolean </h3> <p>Booleans can be automatically created from Go's <code>bool</code> type (or any aliases of it, like <code>type MyBoolean bool</code>).</p> <h3 id="list">  List </h3> <p>Lists can be automatically created from any Go slice type (or alias of a Go slice type, like <code>type MyList []string</code>), with the elements either being <code>attr.Value</code> implementations or being converted according to these rules.</p> <h3 id="map">  Map </h3> <p>Maps can be automatically created from any Go map type with string keys (or any alias of a Go map type with string keys, like <code>type MyMap map[string]int</code>), with the elements either being <code>attr.Value</code> implementations or being converted according to these rules.</p> <h3 id="object">  Object </h3> <p>Objects can be automatically created from any Go struct type with that follows these constraints:</p> <ul> <li>Every property on the struct must have a <code>tfsdk</code> struct tag. </li> <li>The <code>tfsdk</code> struct tag must name an attribute in the object that it is being mapped to or be set to <code>-</code> to explicitly declare it does not map to an attribute in the object. </li> <li>Every attribute in the object must have a corresponding struct tag. </li> </ul> <p>These rules help prevent typos and human error from unwittingly discarding information by failing as early, consistently, and loudly as possible.</p> <p>Properties can either be <code>attr.Value</code> implementations or will be converted according to these rules.</p> <h3 id="pointers">  Pointers </h3> <p>A nil pointer will be treated as a null value. Otherwise, the rules for the type the pointer is referencing apply.</p> <h3 id="detected-interfaces">  Detected Interfaces </h3> <p><code>Set</code> detects and utilizes the following interfaces, if the target implements them.</p> <h4 id="valuecreator">  ValueCreator </h4> <p>If a value is set on a Go type that implements the <a href="https://pkg.go.dev/github.com/hashicorp/terraform-plugin-go/tftypes#ValueCreator"><code>tftypes.ValueCreator</code> interface</a>, that interface will be delegated to to handle the conversion.</p> <h4 id="unknownable">  Unknownable </h4> <p>If a value is set on a Go type that fills the <code>Unknownable</code> interface:</p> <pre>type Unknownable interface {
+    SetUnknown(context.Context, bool) error
+    SetValue(context.Context, interface{}) error
+    GetUnknown(context.Context) bool
+    GetValue(context.Context) interface{}
+}
+</pre>
+<p>It will be used to convert the value. The <code>interface{}</code> being passed and retrieved will be of a type that can be passed to <a href="https://pkg.go.dev/github.com/hashicorp/terraform-plugin-go/tftypes#NewValue"><code>tftypes.NewValue</code></a>.</p> <h4 id="nullable">  Nullable </h4> <p>If a value is set on a Go type that fills the <code>Nullable</code> interface:</p> <pre>type Nullable interface {
+    SetNull(context.Context, bool) error
+    SetValue(context.Context, interface{}) error
+    GetNull(context.Context) bool
+    GetValue(context.Context) interface{}
+}
+</pre>
+<p>It will be used to convert the value. The <code>interface{}</code> being passed and retrieved will be of a type that can be passed to <a href="https://pkg.go.dev/github.com/hashicorp/terraform-plugin-go/tftypes#NewValue"><code>tftypes.NewValue</code></a>.</p><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/plugin/framework/writing-state.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/plugin/framework/writing-state.html</a>
+  </p>
+</div>

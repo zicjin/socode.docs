@@ -1,0 +1,1528 @@
+<h1 class="fqn">Primitive Type str</h1>
+<details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock">
+<p>String slices.</p> <p><em><a href="str/index">See also the <code>std::str</code> module</a>.</em></p> <p>The <code>str</code> type, also called a ‘string slice’, is the most primitive string type. It is usually seen in its borrowed form, <code>&amp;str</code>. It is also the type of string literals, <code>&amp;'static str</code>.</p> <p>String slices are always valid UTF-8.</p> <h2 id="examples" class="section-header">Examples</h2> <p>String literals are string slices:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let hello = "Hello, world!";
+
+// with an explicit type annotation
+let hello: &amp;'static str = "Hello, world!";</pre></div> <p>They are <code>'static</code> because they’re stored directly in the final binary, and so will be valid for the <code>'static</code> duration.</p> <h2 id="representation" class="section-header">Representation</h2> <p>A <code>&amp;str</code> is made up of two components: a pointer to some bytes, and a length. You can look at these with the <a href="https://doc.rust-lang.org/1.54.0/std/primitive.str.html#method.as_ptr"><code>as_ptr</code></a> and <a href="https://doc.rust-lang.org/1.54.0/std/primitive.str.html#method.len"><code>len</code></a> methods:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+use std::slice;
+use std::str;
+
+let story = "Once upon a time...";
+
+let ptr = story.as_ptr();
+let len = story.len();
+
+// story has nineteen bytes
+assert_eq!(19, len);
+
+// We can re-build a str out of ptr and len. This is all unsafe because
+// we are responsible for making sure the two components are valid:
+let s = unsafe {
+    // First, we build a &amp;[u8]...
+    let slice = slice::from_raw_parts(ptr, len);
+
+    // ... and then convert that slice into a string slice
+    str::from_utf8(slice)
+};
+
+assert_eq!(s, Ok(story));</pre></div> <p>Note: This example shows the internals of <code>&amp;str</code>. <code>unsafe</code> should not be used to get a string slice under normal circumstances. Use <code>as_str</code> instead.</p> </div></details><h2 id="implementations" class="small-section-header">Implementations</h2>
+<details class="rustdoc-toggle implementors-toggle" open><summary><div id="impl" class="impl has-srclink">
+<h3 class="code-header in-band">impl str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#122-2435" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle method-toggle" open><summary><div id="method.len" class="method has-srclink">
+<h4 class="code-header">pub const fn len(&amp;self) -&gt; usize</h4>
+<span class="since" title="Stable since Rust version 1.0.0, const since 1.39.0">1.0.0 (const: 1.39.0)</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#145" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns the length of <code>self</code>.</p> <p>This length is in bytes, not <a href="primitive.char"><code>char</code></a>s or graphemes. In other words, it may not be what a human considers the length of the string.</p> <h2 id="examples-1" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let len = "foo".len();
+assert_eq!(3, len);
+
+assert_eq!("ƒoo".len(), 4); // fancy f!
+assert_eq!("ƒoo".chars().count(), 3);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.is_empty" class="method has-srclink">
+<h4 class="code-header">pub const fn is_empty(&amp;self) -&gt; bool</h4>
+<span class="since" title="Stable since Rust version 1.0.0, const since 1.39.0">1.0.0 (const: 1.39.0)</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#165" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns <code>true</code> if <code>self</code> has a length of zero bytes.</p> <h2 id="examples-2" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "";
+assert!(s.is_empty());
+
+let s = "not empty";
+assert!(!s.is_empty());</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.is_char_boundary" class="method has-srclink">
+<h4 class="code-header">pub fn is_char_boundary(&amp;self, index: usize) -&gt; bool</h4>
+<span class="since" title="Stable since Rust version 1.9.0">1.9.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#194" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Checks that <code>index</code>-th byte is the first byte in a UTF-8 code point sequence or the end of the string.</p> <p>The start and end of the string (when <code>index == self.len()</code>) are considered to be boundaries.</p> <p>Returns <code>false</code> if <code>index</code> is greater than <code>self.len()</code>.</p> <h2 id="examples-3" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "Löwe 老虎 Léopard";
+assert!(s.is_char_boundary(0));
+// start of `老`
+assert!(s.is_char_boundary(6));
+assert!(s.is_char_boundary(s.len()));
+
+// second byte of `ö`
+assert!(!s.is_char_boundary(2));
+
+// third byte of `老`
+assert!(!s.is_char_boundary(8));</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.as_bytes" class="method has-srclink">
+<h4 class="code-header">pub const fn as_bytes(&amp;self) -&gt; &amp;[u8]</h4>
+<span class="since" title="Stable since Rust version 1.0.0, const since 1.39.0">1.0.0 (const: 1.39.0)</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#236" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="primitive" href="primitive.slice">&amp;[</a><a class="primitive" href="primitive.u8">u8</a><a class="primitive" href="primitive.slice">]</a>
+</div>
+<pre class="content">impl Read for &amp;[u8]
+impl Write for &amp;mut [u8]
+</pre></span></div></span></summary><div class="docblock">
+<p>Converts a string slice to a byte slice. To convert the byte slice back into a string slice, use the <a href="str/fn.from_utf8" title="from_utf8"><code>from_utf8</code></a> function.</p> <h2 id="examples-4" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let bytes = "bors".as_bytes();
+assert_eq!(b"bors", bytes);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.as_bytes_mut" class="method has-srclink">
+<h4 class="code-header">pub unsafe fn as_bytes_mut(&amp;mut self) -&gt; &amp;mut [u8]</h4>
+<span class="since" title="Stable since Rust version 1.20.0">1.20.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#279" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="primitive" href="primitive.slice">&amp;[</a><a class="primitive" href="primitive.u8">u8</a><a class="primitive" href="primitive.slice">]</a>
+</div>
+<pre class="content">impl Read for &amp;[u8]
+impl Write for &amp;mut [u8]
+</pre></span></div></span></summary><div class="docblock">
+<p>Converts a mutable string slice to a mutable byte slice.</p> <h2 id="safety" class="section-header">Safety</h2> <p>The caller must ensure that the content of the slice is valid UTF-8 before the borrow ends and the underlying <code>str</code> is used.</p> <p>Use of a <code>str</code> whose contents are not valid UTF-8 is undefined behavior.</p> <h2 id="examples-5" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let mut s = String::from("Hello");
+let bytes = unsafe { s.as_bytes_mut() };
+
+assert_eq!(b"Hello", bytes);</pre></div> <p>Mutability:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let mut s = String::from("🗻∈🌏");
+
+unsafe {
+    let bytes = s.as_bytes_mut();
+
+    bytes[0] = 0xF0;
+    bytes[1] = 0x9F;
+    bytes[2] = 0x8D;
+    bytes[3] = 0x94;
+}
+
+assert_eq!("🍔∈🌏", s);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.as_ptr" class="method has-srclink">
+<h4 class="code-header">pub const fn as_ptr(&amp;self) -&gt; *const u8</h4>
+<span class="since" title="Stable since Rust version 1.0.0, const since 1.32.0">1.0.0 (const: 1.32.0)</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#309" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Converts a string slice to a raw pointer.</p> <p>As string slices are a slice of bytes, the raw pointer points to a <a href="primitive.u8" title="u8"><code>u8</code></a>. This pointer will be pointing to the first byte of the string slice.</p> <p>The caller must ensure that the returned pointer is never written to. If you need to mutate the contents of the string slice, use <a href="primitive.str#method.as_mut_ptr"><code>as_mut_ptr</code></a>.</p> <h2 id="examples-6" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "Hello";
+let ptr = s.as_ptr();</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.as_mut_ptr" class="method has-srclink">
+<h4 class="code-header">pub fn as_mut_ptr(&amp;mut self) -&gt; *mut u8</h4>
+<span class="since" title="Stable since Rust version 1.36.0">1.36.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#323" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Converts a mutable string slice to a raw pointer.</p> <p>As string slices are a slice of bytes, the raw pointer points to a <a href="primitive.u8" title="u8"><code>u8</code></a>. This pointer will be pointing to the first byte of the string slice.</p> <p>It is your responsibility to make sure that the string slice only gets modified in a way that it remains valid UTF-8.</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.get" class="method has-srclink">
+<h4 class="code-header">pub fn get&lt;I&gt;(&amp;self, i: I) -&gt; Option&lt;&amp;&lt;I as SliceIndex&lt;str&gt;&gt;::Output&gt; <span class="where fmt-newline">where<br> I: <a class="trait" href="slice/trait.sliceindex" title="trait std::slice::SliceIndex">SliceIndex</a>&lt;<a class="primitive" href="primitive.str">str</a>&gt;, </span>
+</h4>
+<span class="since" title="Stable since Rust version 1.20.0">1.20.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#348" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns a subslice of <code>str</code>.</p> <p>This is the non-panicking alternative to indexing the <code>str</code>. Returns <a href="option/enum.option#variant.None" title="None"><code>None</code></a> whenever equivalent indexing operation would panic.</p> <h2 id="examples-7" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let v = String::from("🗻∈🌏");
+
+assert_eq!(Some("🗻"), v.get(0..4));
+
+// indices not on UTF-8 sequence boundaries
+assert!(v.get(1..).is_none());
+assert!(v.get(..8).is_none());
+
+// out of bounds
+assert!(v.get(..42).is_none());</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.get_mut" class="method has-srclink">
+<h4 class="code-header">pub fn get_mut&lt;I&gt;(<br> &amp;mut self, <br> i: I<br>) -&gt; Option&lt;&amp;mut &lt;I as SliceIndex&lt;str&gt;&gt;::Output&gt; <span class="where fmt-newline">where<br> I: <a class="trait" href="slice/trait.sliceindex" title="trait std::slice::SliceIndex">SliceIndex</a>&lt;<a class="primitive" href="primitive.str">str</a>&gt;, </span>
+</h4>
+<span class="since" title="Stable since Rust version 1.20.0">1.20.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#380" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns a mutable subslice of <code>str</code>.</p> <p>This is the non-panicking alternative to indexing the <code>str</code>. Returns <a href="option/enum.option#variant.None" title="None"><code>None</code></a> whenever equivalent indexing operation would panic.</p> <h2 id="examples-8" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let mut v = String::from("hello");
+// correct length
+assert!(v.get_mut(0..5).is_some());
+// out of bounds
+assert!(v.get_mut(..42).is_none());
+assert_eq!(Some("he"), v.get_mut(0..2).map(|v| &amp;*v));
+
+assert_eq!("hello", v);
+{
+    let s = v.get_mut(0..2);
+    let s = s.map(|s| {
+        s.make_ascii_uppercase();
+        &amp;*s
+    });
+    assert_eq!(Some("HE"), s);
+}
+assert_eq!("HEllo", v);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.get_unchecked" class="method has-srclink">
+<h4 class="code-header">pub unsafe fn get_unchecked&lt;I&gt;(&amp;self, i: I) -&gt; &amp;&lt;I as SliceIndex&lt;str&gt;&gt;::Output <span class="where fmt-newline">where<br> I: <a class="trait" href="slice/trait.sliceindex" title="trait std::slice::SliceIndex">SliceIndex</a>&lt;<a class="primitive" href="primitive.str">str</a>&gt;, </span>
+</h4>
+<span class="since" title="Stable since Rust version 1.20.0">1.20.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#412" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns an unchecked subslice of <code>str</code>.</p> <p>This is the unchecked alternative to indexing the <code>str</code>.</p> <h2 id="safety-1" class="section-header">Safety</h2> <p>Callers of this function are responsible that these preconditions are satisfied:</p> <ul> <li>The starting index must not exceed the ending index;</li> <li>Indexes must be within bounds of the original slice;</li> <li>Indexes must lie on UTF-8 sequence boundaries.</li> </ul> <p>Failing that, the returned string slice may reference invalid memory or violate the invariants communicated by the <code>str</code> type.</p> <h2 id="examples-9" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let v = "🗻∈🌏";
+unsafe {
+    assert_eq!("🗻", v.get_unchecked(0..4));
+    assert_eq!("∈", v.get_unchecked(4..7));
+    assert_eq!("🌏", v.get_unchecked(7..11));
+}</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.get_unchecked_mut" class="method has-srclink">
+<h4 class="code-header">pub unsafe fn get_unchecked_mut&lt;I&gt;(<br> &amp;mut self, <br> i: I<br>) -&gt; &amp;mut &lt;I as SliceIndex&lt;str&gt;&gt;::Output <span class="where fmt-newline">where<br> I: <a class="trait" href="slice/trait.sliceindex" title="trait std::slice::SliceIndex">SliceIndex</a>&lt;<a class="primitive" href="primitive.str">str</a>&gt;, </span>
+</h4>
+<span class="since" title="Stable since Rust version 1.20.0">1.20.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#447" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns a mutable, unchecked subslice of <code>str</code>.</p> <p>This is the unchecked alternative to indexing the <code>str</code>.</p> <h2 id="safety-2" class="section-header">Safety</h2> <p>Callers of this function are responsible that these preconditions are satisfied:</p> <ul> <li>The starting index must not exceed the ending index;</li> <li>Indexes must be within bounds of the original slice;</li> <li>Indexes must lie on UTF-8 sequence boundaries.</li> </ul> <p>Failing that, the returned string slice may reference invalid memory or violate the invariants communicated by the <code>str</code> type.</p> <h2 id="examples-10" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let mut v = String::from("🗻∈🌏");
+unsafe {
+    assert_eq!("🗻", v.get_unchecked_mut(0..4));
+    assert_eq!("∈", v.get_unchecked_mut(4..7));
+    assert_eq!("🌏", v.get_unchecked_mut(7..11));
+}</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.slice_unchecked" class="method has-srclink">
+<h4 class="code-header">pub unsafe fn slice_unchecked(&amp;self, begin: usize, end: usize) -&gt; &amp;str</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#499" title="goto source code">[src]</a>
+</div>
+<div class="item-info"><div class="stab deprecated">
+<span class="emoji">👎</span> Deprecated since 1.29.0: <p>use <code>get_unchecked(begin..end)</code> instead</p> </div></div></summary><div class="docblock">
+<p>Creates a string slice from another string slice, bypassing safety checks.</p> <p>This is generally not recommended, use with caution! For a safe alternative see <a href="primitive.str" title="str"><code>str</code></a> and <a href="ops/trait.index"><code>Index</code></a>.</p> <p>This new slice goes from <code>begin</code> to <code>end</code>, including <code>begin</code> but excluding <code>end</code>.</p> <p>To get a mutable string slice instead, see the <a href="primitive.str#method.slice_mut_unchecked"><code>slice_mut_unchecked</code></a> method.</p> <h2 id="safety-3" class="section-header">Safety</h2> <p>Callers of this function are responsible that three preconditions are satisfied:</p> <ul> <li>
+<code>begin</code> must not exceed <code>end</code>.</li> <li>
+<code>begin</code> and <code>end</code> must be byte positions within the string slice.</li> <li>
+<code>begin</code> and <code>end</code> must lie on UTF-8 sequence boundaries.</li> </ul> <h2 id="examples-11" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "Löwe 老虎 Léopard";
+
+unsafe {
+    assert_eq!("Löwe 老虎 Léopard", s.slice_unchecked(0, 21));
+}
+
+let s = "Hello, world!";
+
+unsafe {
+    assert_eq!("world", s.slice_unchecked(7, 12));
+}</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.slice_mut_unchecked" class="method has-srclink">
+<h4 class="code-header">pub unsafe fn slice_mut_unchecked(<br> &amp;mut self, <br> begin: usize, <br> end: usize<br>) -&gt; &amp;mut str</h4>
+<span class="since" title="Stable since Rust version 1.5.0">1.5.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#532" title="goto source code">[src]</a>
+</div>
+<div class="item-info"><div class="stab deprecated">
+<span class="emoji">👎</span> Deprecated since 1.29.0: <p>use <code>get_unchecked_mut(begin..end)</code> instead</p> </div></div></summary><div class="docblock">
+<p>Creates a string slice from another string slice, bypassing safety checks. This is generally not recommended, use with caution! For a safe alternative see <a href="primitive.str" title="str"><code>str</code></a> and <a href="ops/trait.indexmut"><code>IndexMut</code></a>.</p> <p>This new slice goes from <code>begin</code> to <code>end</code>, including <code>begin</code> but excluding <code>end</code>.</p> <p>To get an immutable string slice instead, see the <a href="primitive.str#method.slice_unchecked"><code>slice_unchecked</code></a> method.</p> <h2 id="safety-4" class="section-header">Safety</h2> <p>Callers of this function are responsible that three preconditions are satisfied:</p> <ul> <li>
+<code>begin</code> must not exceed <code>end</code>.</li> <li>
+<code>begin</code> and <code>end</code> must be byte positions within the string slice.</li> <li>
+<code>begin</code> and <code>end</code> must lie on UTF-8 sequence boundaries.</li> </ul> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.split_at" class="method has-srclink">
+<h4 class="code-header">pub fn split_at(&amp;self, mid: usize) -&gt; (&amp;str, &amp;str)</h4>
+<span class="since" title="Stable since Rust version 1.4.0">1.4.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#571" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Divide one string slice into two at an index.</p> <p>The argument, <code>mid</code>, should be a byte offset from the start of the string. It must also be on the boundary of a UTF-8 code point.</p> <p>The two slices returned go from the start of the string slice to <code>mid</code>, and from <code>mid</code> to the end of the string slice.</p> <p>To get mutable string slices instead, see the <a href="primitive.str#method.split_at_mut"><code>split_at_mut</code></a> method.</p> <h2 id="panics" class="section-header">Panics</h2> <p>Panics if <code>mid</code> is not on a UTF-8 code point boundary, or if it is past the end of the last code point of the string slice.</p> <h2 id="examples-12" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "Per Martin-Löf";
+
+let (first, last) = s.split_at(3);
+
+assert_eq!("Per", first);
+assert_eq!(" Martin-Löf", last);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.split_at_mut" class="method has-srclink">
+<h4 class="code-header">pub fn split_at_mut(&amp;mut self, mid: usize) -&gt; (&amp;mut str, &amp;mut str)</h4>
+<span class="since" title="Stable since Rust version 1.4.0">1.4.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#614" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Divide one mutable string slice into two at an index.</p> <p>The argument, <code>mid</code>, should be a byte offset from the start of the string. It must also be on the boundary of a UTF-8 code point.</p> <p>The two slices returned go from the start of the string slice to <code>mid</code>, and from <code>mid</code> to the end of the string slice.</p> <p>To get immutable string slices instead, see the <a href="primitive.str#method.split_at"><code>split_at</code></a> method.</p> <h2 id="panics-1" class="section-header">Panics</h2> <p>Panics if <code>mid</code> is not on a UTF-8 code point boundary, or if it is past the end of the last code point of the string slice.</p> <h2 id="examples-13" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let mut s = "Per Martin-Löf".to_string();
+{
+    let (first, last) = s.split_at_mut(3);
+    first.make_ascii_uppercase();
+    assert_eq!("PER", first);
+    assert_eq!(" Martin-Löf", last);
+}
+assert_eq!("PER Martin-Löf", s);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.chars" class="method has-srclink">
+<h4 class="code-header">pub fn chars(&amp;self) -&gt; Chars&lt;'_&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#680" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.chars" title="struct std::str::Chars">Chars</a>&lt;'a&gt;</div>
+<pre class="content">impl&lt;'a&gt; Iterator for Chars&lt;'a&gt;
+    type Item = char;
+</pre></span></div></span></summary><div class="docblock">
+<p>Returns an iterator over the <a href="primitive.char"><code>char</code></a>s of a string slice.</p> <p>As a string slice consists of valid UTF-8, we can iterate through a string slice by <a href="primitive.char"><code>char</code></a>. This method returns such an iterator.</p> <p>It’s important to remember that <a href="primitive.char"><code>char</code></a> represents a Unicode Scalar Value, and may not match your idea of what a ‘character’ is. Iteration over grapheme clusters may be what you actually want. This functionality is not provided by Rust’s standard library, check crates.io instead.</p> <h2 id="examples-14" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let word = "goodbye";
+
+let count = word.chars().count();
+assert_eq!(7, count);
+
+let mut chars = word.chars();
+
+assert_eq!(Some('g'), chars.next());
+assert_eq!(Some('o'), chars.next());
+assert_eq!(Some('o'), chars.next());
+assert_eq!(Some('d'), chars.next());
+assert_eq!(Some('b'), chars.next());
+assert_eq!(Some('y'), chars.next());
+assert_eq!(Some('e'), chars.next());
+
+assert_eq!(None, chars.next());</pre></div> <p>Remember, <a href="primitive.char"><code>char</code></a>s may not match your intuition about characters:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let y = "y̆";
+
+let mut chars = y.chars();
+
+assert_eq!(Some('y'), chars.next()); // not 'y̆'
+assert_eq!(Some('\u{0306}'), chars.next());
+
+assert_eq!(None, chars.next());</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.char_indices" class="method has-srclink">
+<h4 class="code-header">pub fn char_indices(&amp;self) -&gt; CharIndices&lt;'_&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#737" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.charindices" title="struct std::str::CharIndices">CharIndices</a>&lt;'a&gt;</div>
+<pre class="content">impl&lt;'a&gt; Iterator for CharIndices&lt;'a&gt;
+    type Item = (usize, char);
+</pre></span></div></span></summary><div class="docblock">
+<p>Returns an iterator over the <a href="primitive.char"><code>char</code></a>s of a string slice, and their positions.</p> <p>As a string slice consists of valid UTF-8, we can iterate through a string slice by <a href="primitive.char"><code>char</code></a>. This method returns an iterator of both these <a href="primitive.char"><code>char</code></a>s, as well as their byte positions.</p> <p>The iterator yields tuples. The position is first, the <a href="primitive.char"><code>char</code></a> is second.</p> <h2 id="examples-15" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let word = "goodbye";
+
+let count = word.char_indices().count();
+assert_eq!(7, count);
+
+let mut char_indices = word.char_indices();
+
+assert_eq!(Some((0, 'g')), char_indices.next());
+assert_eq!(Some((1, 'o')), char_indices.next());
+assert_eq!(Some((2, 'o')), char_indices.next());
+assert_eq!(Some((3, 'd')), char_indices.next());
+assert_eq!(Some((4, 'b')), char_indices.next());
+assert_eq!(Some((5, 'y')), char_indices.next());
+assert_eq!(Some((6, 'e')), char_indices.next());
+
+assert_eq!(None, char_indices.next());</pre></div> <p>Remember, <a href="primitive.char"><code>char</code></a>s may not match your intuition about characters:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let yes = "y̆es";
+
+let mut char_indices = yes.char_indices();
+
+assert_eq!(Some((0, 'y')), char_indices.next()); // not (0, 'y̆')
+assert_eq!(Some((1, '\u{0306}')), char_indices.next());
+
+// note the 3 here - the last character took up two bytes
+assert_eq!(Some((3, 'e')), char_indices.next());
+assert_eq!(Some((4, 's')), char_indices.next());
+
+assert_eq!(None, char_indices.next());</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.bytes" class="method has-srclink">
+<h4 class="code-header">pub fn bytes(&amp;self) -&gt; Bytes&lt;'_&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#762" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.bytes" title="struct std::str::Bytes">Bytes</a>&lt;'_&gt;</div>
+<pre class="content">impl&lt;'_&gt; Iterator for Bytes&lt;'_&gt;
+    type Item = u8;
+</pre></span></div></span></summary><div class="docblock">
+<p>An iterator over the bytes of a string slice.</p> <p>As a string slice consists of a sequence of bytes, we can iterate through a string slice by byte. This method returns such an iterator.</p> <h2 id="examples-16" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let mut bytes = "bors".bytes();
+
+assert_eq!(Some(b'b'), bytes.next());
+assert_eq!(Some(b'o'), bytes.next());
+assert_eq!(Some(b'r'), bytes.next());
+assert_eq!(Some(b's'), bytes.next());
+
+assert_eq!(None, bytes.next());</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.split_whitespace" class="method has-srclink">
+<h4 class="code-header">pub fn split_whitespace(&amp;self) -&gt; SplitWhitespace&lt;'_&gt;</h4>
+<span class="since" title="Stable since Rust version 1.1.0">1.1.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#805" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.splitwhitespace" title="struct std::str::SplitWhitespace">SplitWhitespace</a>&lt;'a&gt;</div>
+<pre class="content">impl&lt;'a&gt; Iterator for SplitWhitespace&lt;'a&gt;
+    type Item = &amp;'a str;
+</pre></span></div></span></summary><div class="docblock">
+<p>Splits a string slice by whitespace.</p> <p>The iterator returned will return string slices that are sub-slices of the original string slice, separated by any amount of whitespace.</p> <p>‘Whitespace’ is defined according to the terms of the Unicode Derived Core Property <code>White_Space</code>. If you only want to split on ASCII whitespace instead, use <a href="primitive.str#method.split_ascii_whitespace"><code>split_ascii_whitespace</code></a>.</p> <h2 id="examples-17" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let mut iter = "A few words".split_whitespace();
+
+assert_eq!(Some("A"), iter.next());
+assert_eq!(Some("few"), iter.next());
+assert_eq!(Some("words"), iter.next());
+
+assert_eq!(None, iter.next());</pre></div> <p>All kinds of whitespace are considered:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let mut iter = " Mary   had\ta\u{2009}little  \n\t lamb".split_whitespace();
+assert_eq!(Some("Mary"), iter.next());
+assert_eq!(Some("had"), iter.next());
+assert_eq!(Some("a"), iter.next());
+assert_eq!(Some("little"), iter.next());
+assert_eq!(Some("lamb"), iter.next());
+
+assert_eq!(None, iter.next());</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.split_ascii_whitespace" class="method has-srclink">
+<h4 class="code-header">pub fn split_ascii_whitespace(&amp;self) -&gt; SplitAsciiWhitespace&lt;'_&gt;</h4>
+<span class="since" title="Stable since Rust version 1.34.0">1.34.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#846" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.splitasciiwhitespace" title="struct std::str::SplitAsciiWhitespace">SplitAsciiWhitespace</a>&lt;'a&gt;</div>
+<pre class="content">impl&lt;'a&gt; Iterator for SplitAsciiWhitespace&lt;'a&gt;
+    type Item = &amp;'a str;
+</pre></span></div></span></summary><div class="docblock">
+<p>Splits a string slice by ASCII whitespace.</p> <p>The iterator returned will return string slices that are sub-slices of the original string slice, separated by any amount of ASCII whitespace.</p> <p>To split by Unicode <code>Whitespace</code> instead, use <a href="primitive.str#method.split_whitespace"><code>split_whitespace</code></a>.</p> <h2 id="examples-18" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let mut iter = "A few words".split_ascii_whitespace();
+
+assert_eq!(Some("A"), iter.next());
+assert_eq!(Some("few"), iter.next());
+assert_eq!(Some("words"), iter.next());
+
+assert_eq!(None, iter.next());</pre></div> <p>All kinds of ASCII whitespace are considered:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let mut iter = " Mary   had\ta little  \n\t lamb".split_ascii_whitespace();
+assert_eq!(Some("Mary"), iter.next());
+assert_eq!(Some("had"), iter.next());
+assert_eq!(Some("a"), iter.next());
+assert_eq!(Some("little"), iter.next());
+assert_eq!(Some("lamb"), iter.next());
+
+assert_eq!(None, iter.next());</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.lines" class="method has-srclink">
+<h4 class="code-header">pub fn lines(&amp;self) -&gt; Lines&lt;'_&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#892" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.lines" title="struct std::str::Lines">Lines</a>&lt;'a&gt;</div>
+<pre class="content">impl&lt;'a&gt; Iterator for Lines&lt;'a&gt;
+    type Item = &amp;'a str;
+</pre></span></div></span></summary><div class="docblock">
+<p>An iterator over the lines of a string, as string slices.</p> <p>Lines are ended with either a newline (<code>\n</code>) or a carriage return with a line feed (<code>\r\n</code>).</p> <p>The final line ending is optional. A string that ends with a final line ending will return the same lines as an otherwise identical string without a final line ending.</p> <h2 id="examples-19" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let text = "foo\r\nbar\n\nbaz\n";
+let mut lines = text.lines();
+
+assert_eq!(Some("foo"), lines.next());
+assert_eq!(Some("bar"), lines.next());
+assert_eq!(Some(""), lines.next());
+assert_eq!(Some("baz"), lines.next());
+
+assert_eq!(None, lines.next());</pre></div> <p>The final line ending isn’t required:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let text = "foo\nbar\n\r\nbaz";
+let mut lines = text.lines();
+
+assert_eq!(Some("foo"), lines.next());
+assert_eq!(Some("bar"), lines.next());
+assert_eq!(Some(""), lines.next());
+assert_eq!(Some("baz"), lines.next());
+
+assert_eq!(None, lines.next());</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.lines_any" class="method has-srclink">
+<h4 class="code-header">pub fn lines_any(&amp;self) -&gt; LinesAny&lt;'_&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#901" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.linesany" title="struct std::str::LinesAny">LinesAny</a>&lt;'a&gt;</div>
+<pre class="content">impl&lt;'a&gt; Iterator for LinesAny&lt;'a&gt;
+    type Item = &amp;'a str;
+</pre></span></div></span><div class="item-info"><div class="stab deprecated">
+<span class="emoji">👎</span> Deprecated since 1.4.0: <p>use lines() instead now</p> </div></div></summary><div class="docblock">
+<p>An iterator over the lines of a string.</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.encode_utf16" class="method has-srclink">
+<h4 class="code-header">pub fn encode_utf16(&amp;self) -&gt; EncodeUtf16&lt;'_&gt;</h4>
+<span class="since" title="Stable since Rust version 1.8.0">1.8.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#920" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.encodeutf16" title="struct std::str::EncodeUtf16">EncodeUtf16</a>&lt;'a&gt;</div>
+<pre class="content">impl&lt;'a&gt; Iterator for EncodeUtf16&lt;'a&gt;
+    type Item = u16;
+</pre></span></div></span></summary><div class="docblock">
+<p>Returns an iterator of <code>u16</code> over the string encoded as UTF-16.</p> <h2 id="examples-20" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let text = "Zażółć gęślą jaźń";
+
+let utf8_len = text.len();
+let utf16_len = text.encode_utf16().count();
+
+assert!(utf16_len &lt;= utf8_len);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.contains" class="method has-srclink">
+<h4 class="code-header">pub fn contains&lt;'a, P&gt;(&amp;'a self, pat: P) -&gt; bool <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;, </span>
+</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#947" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns <code>true</code> if the given pattern matches a sub-slice of this string slice.</p> <p>Returns <code>false</code> if it does not.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <h2 id="examples-21" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let bananas = "bananas";
+
+assert!(bananas.contains("nana"));
+assert!(!bananas.contains("apples"));</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.starts_with" class="method has-srclink">
+<h4 class="code-header">pub fn starts_with&lt;'a, P&gt;(&amp;'a self, pat: P) -&gt; bool <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;, </span>
+</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#973" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns <code>true</code> if the given pattern matches a prefix of this string slice.</p> <p>Returns <code>false</code> if it does not.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <h2 id="examples-22" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let bananas = "bananas";
+
+assert!(bananas.starts_with("bana"));
+assert!(!bananas.starts_with("nana"));</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.ends_with" class="method has-srclink">
+<h4 class="code-header">pub fn ends_with&lt;'a, P&gt;(&amp;'a self, pat: P) -&gt; bool <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;,<br> &lt;P as <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;&gt;::<a class="type" href="str/pattern/trait.pattern#associatedtype.Searcher" title="type std::str::pattern::Pattern::Searcher">Searcher</a>: <a class="trait" href="str/pattern/trait.reversesearcher" title="trait std::str::pattern::ReverseSearcher">ReverseSearcher</a>&lt;'a&gt;, </span>
+</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#999-1001" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns <code>true</code> if the given pattern matches a suffix of this string slice.</p> <p>Returns <code>false</code> if it does not.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <h2 id="examples-23" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let bananas = "bananas";
+
+assert!(bananas.ends_with("anas"));
+assert!(!bananas.ends_with("nana"));</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.find" class="method has-srclink">
+<h4 class="code-header">pub fn find&lt;'a, P&gt;(&amp;'a self, pat: P) -&gt; Option&lt;usize&gt; <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;, </span>
+</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1050" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns the byte index of the first character of this string slice that matches the pattern.</p> <p>Returns <a href="option/enum.option#variant.None" title="None"><code>None</code></a> if the pattern doesn’t match.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <h2 id="examples-24" class="section-header">Examples</h2> <p>Simple patterns:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "Löwe 老虎 Léopard Gepardi";
+
+assert_eq!(s.find('L'), Some(0));
+assert_eq!(s.find('é'), Some(14));
+assert_eq!(s.find("pard"), Some(17));</pre></div> <p>More complex patterns using point-free style and closures:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "Löwe 老虎 Léopard";
+
+assert_eq!(s.find(char::is_whitespace), Some(5));
+assert_eq!(s.find(char::is_lowercase), Some(1));
+assert_eq!(s.find(|c: char| c.is_whitespace() || c.is_lowercase()), Some(1));
+assert_eq!(s.find(|c: char| (c &lt; 'o') &amp;&amp; (c &gt; 'a')), Some(4));</pre></div> <p>Not finding the pattern:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "Löwe 老虎 Léopard";
+let x: &amp;[_] = &amp;['1', '2'];
+
+assert_eq!(s.find(x), None);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.rfind" class="method has-srclink">
+<h4 class="code-header">pub fn rfind&lt;'a, P&gt;(&amp;'a self, pat: P) -&gt; Option&lt;usize&gt; <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;,<br> &lt;P as <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;&gt;::<a class="type" href="str/pattern/trait.pattern#associatedtype.Searcher" title="type std::str::pattern::Pattern::Searcher">Searcher</a>: <a class="trait" href="str/pattern/trait.reversesearcher" title="trait std::str::pattern::ReverseSearcher">ReverseSearcher</a>&lt;'a&gt;, </span>
+</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1096-1098" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns the byte index for the first character of the rightmost match of the pattern in this string slice.</p> <p>Returns <a href="option/enum.option#variant.None" title="None"><code>None</code></a> if the pattern doesn’t match.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <h2 id="examples-25" class="section-header">Examples</h2> <p>Simple patterns:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "Löwe 老虎 Léopard Gepardi";
+
+assert_eq!(s.rfind('L'), Some(13));
+assert_eq!(s.rfind('é'), Some(14));
+assert_eq!(s.rfind("pard"), Some(24));</pre></div> <p>More complex patterns with closures:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "Löwe 老虎 Léopard";
+
+assert_eq!(s.rfind(char::is_whitespace), Some(12));
+assert_eq!(s.rfind(char::is_lowercase), Some(20));</pre></div> <p>Not finding the pattern:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "Löwe 老虎 Léopard";
+let x: &amp;[_] = &amp;['1', '2'];
+
+assert_eq!(s.rfind(x), None);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.split" class="method has-srclink">
+<h4 class="code-header">pub fn split&lt;'a, P&gt;(&amp;'a self, pat: P) -&gt; Split&lt;'a, P&gt; <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;, </span>
+</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1218" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.split" title="struct std::str::Split">Split</a>&lt;'a, P&gt;</div>
+<pre class="content">impl&lt;'a, P&gt; Iterator for Split&lt;'a, P&gt; where
+    P: Pattern&lt;'a&gt;, 
+    type Item = &amp;'a str;
+</pre></span></div></span></summary><div class="docblock">
+<p>An iterator over substrings of this string slice, separated by characters matched by a pattern.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <h2 id="iterator-behavior" class="section-header">Iterator behavior</h2> <p>The returned iterator will be a <a href="iter/trait.doubleendediterator" title="DoubleEndedIterator"><code>DoubleEndedIterator</code></a> if the pattern allows a reverse search and forward/reverse search yields the same elements. This is true for, e.g., <a href="primitive.char"><code>char</code></a>, but not for <code>&amp;str</code>.</p> <p>If the pattern allows a reverse search but its results might differ from a forward search, the <a href="primitive.str#method.rsplit"><code>rsplit</code></a> method can be used.</p> <h2 id="examples-26" class="section-header">Examples</h2> <p>Simple patterns:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let v: Vec&lt;&amp;str&gt; = "Mary had a little lamb".split(' ').collect();
+assert_eq!(v, ["Mary", "had", "a", "little", "lamb"]);
+
+let v: Vec&lt;&amp;str&gt; = "".split('X').collect();
+assert_eq!(v, [""]);
+
+let v: Vec&lt;&amp;str&gt; = "lionXXtigerXleopard".split('X').collect();
+assert_eq!(v, ["lion", "", "tiger", "leopard"]);
+
+let v: Vec&lt;&amp;str&gt; = "lion::tiger::leopard".split("::").collect();
+assert_eq!(v, ["lion", "tiger", "leopard"]);
+
+let v: Vec&lt;&amp;str&gt; = "abc1def2ghi".split(char::is_numeric).collect();
+assert_eq!(v, ["abc", "def", "ghi"]);
+
+let v: Vec&lt;&amp;str&gt; = "lionXtigerXleopard".split(char::is_uppercase).collect();
+assert_eq!(v, ["lion", "tiger", "leopard"]);</pre></div> <p>If the pattern is a slice of chars, split on each occurrence of any of the characters:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let v: Vec&lt;&amp;str&gt; = "2020-11-03 23:59".split(&amp;['-', ' ', ':', '@'][..]).collect();
+assert_eq!(v, ["2020", "11", "03", "23", "59"]);</pre></div> <p>A more complex pattern, using a closure:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let v: Vec&lt;&amp;str&gt; = "abc1defXghi".split(|c| c == '1' || c == 'X').collect();
+assert_eq!(v, ["abc", "def", "ghi"]);</pre></div> <p>If a string contains multiple contiguous separators, you will end up with empty strings in the output:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let x = "||||a||b|c".to_string();
+let d: Vec&lt;_&gt; = x.split('|').collect();
+
+assert_eq!(d, &amp;["", "", "", "", "a", "", "b", "c"]);</pre></div> <p>Contiguous separators are separated by the empty string.</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let x = "(///)".to_string();
+let d: Vec&lt;_&gt; = x.split('/').collect();
+
+assert_eq!(d, &amp;["(", "", "", ")"]);</pre></div> <p>Separators at the start or end of a string are neighbored by empty strings.</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let d: Vec&lt;_&gt; = "010".split("0").collect();
+assert_eq!(d, &amp;["", "1", ""]);</pre></div> <p>When the empty string is used as a separator, it separates every character in the string, along with the beginning and end of the string.</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let f: Vec&lt;_&gt; = "rust".split("").collect();
+assert_eq!(f, &amp;["", "r", "u", "s", "t", ""]);</pre></div> <p>Contiguous separators can lead to possibly surprising behavior when whitespace is used as the separator. This code is correct:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let x = "    a  b c".to_string();
+let d: Vec&lt;_&gt; = x.split(' ').collect();
+
+assert_eq!(d, &amp;["", "", "", "", "a", "", "b", "c"]);</pre></div> <p>It does <em>not</em> give you:</p> <div class="information">ⓘ This example is not tested</div>
+<div class="example-wrap"><pre class="rust rust-example-rendered ignore" data-language="rust">
+assert_eq!(d, &amp;["a", "b", "c"]);</pre></div> <p>Use <a href="primitive.str#method.split_whitespace"><code>split_whitespace</code></a> for this behavior.</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.split_inclusive" class="method has-srclink">
+<h4 class="code-header">pub fn split_inclusive&lt;'a, P&gt;(&amp;'a self, pat: P) -&gt; SplitInclusive&lt;'a, P&gt; <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;, </span>
+</h4>
+<span class="since" title="Stable since Rust version 1.51.0">1.51.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1258" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.splitinclusive" title="struct std::str::SplitInclusive">SplitInclusive</a>&lt;'a, P&gt;</div>
+<pre class="content">impl&lt;'a, P&gt; Iterator for SplitInclusive&lt;'a, P&gt; where
+    P: Pattern&lt;'a&gt;, 
+    type Item = &amp;'a str;
+</pre></span></div></span></summary><div class="docblock">
+<p>An iterator over substrings of this string slice, separated by characters matched by a pattern. Differs from the iterator produced by <code>split</code> in that <code>split_inclusive</code> leaves the matched part as the terminator of the substring.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <h2 id="examples-27" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let v: Vec&lt;&amp;str&gt; = "Mary had a little lamb\nlittle lamb\nlittle lamb."
+    .split_inclusive('\n').collect();
+assert_eq!(v, ["Mary had a little lamb\n", "little lamb\n", "little lamb."]);</pre></div> <p>If the last element of the string is matched, that element will be considered the terminator of the preceding substring. That substring will be the last item returned by the iterator.</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let v: Vec&lt;&amp;str&gt; = "Mary had a little lamb\nlittle lamb\nlittle lamb.\n"
+    .split_inclusive('\n').collect();
+assert_eq!(v, ["Mary had a little lamb\n", "little lamb\n", "little lamb.\n"]);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.rsplit" class="method has-srclink">
+<h4 class="code-header">pub fn rsplit&lt;'a, P&gt;(&amp;'a self, pat: P) -&gt; RSplit&lt;'a, P&gt; <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;,<br> &lt;P as <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;&gt;::<a class="type" href="str/pattern/trait.pattern#associatedtype.Searcher" title="type std::str::pattern::Pattern::Searcher">Searcher</a>: <a class="trait" href="str/pattern/trait.reversesearcher" title="trait std::str::pattern::ReverseSearcher">ReverseSearcher</a>&lt;'a&gt;, </span>
+</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1313-1315" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.rsplit" title="struct std::str::RSplit">RSplit</a>&lt;'a, P&gt;</div>
+<pre class="content">impl&lt;'a, P&gt; Iterator for RSplit&lt;'a, P&gt; where
+    P: Pattern&lt;'a&gt;,
+    &lt;P as Pattern&lt;'a&gt;&gt;::Searcher: ReverseSearcher&lt;'a&gt;, 
+    type Item = &amp;'a str;
+</pre></span></div></span></summary><div class="docblock">
+<p>An iterator over substrings of the given string slice, separated by characters matched by a pattern and yielded in reverse order.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <h2 id="iterator-behavior-1" class="section-header">Iterator behavior</h2> <p>The returned iterator requires that the pattern supports a reverse search, and it will be a <a href="iter/trait.doubleendediterator" title="DoubleEndedIterator"><code>DoubleEndedIterator</code></a> if a forward/reverse search yields the same elements.</p> <p>For iterating from the front, the <a href="primitive.str#method.split"><code>split</code></a> method can be used.</p> <h2 id="examples-28" class="section-header">Examples</h2> <p>Simple patterns:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let v: Vec&lt;&amp;str&gt; = "Mary had a little lamb".rsplit(' ').collect();
+assert_eq!(v, ["lamb", "little", "a", "had", "Mary"]);
+
+let v: Vec&lt;&amp;str&gt; = "".rsplit('X').collect();
+assert_eq!(v, [""]);
+
+let v: Vec&lt;&amp;str&gt; = "lionXXtigerXleopard".rsplit('X').collect();
+assert_eq!(v, ["leopard", "tiger", "", "lion"]);
+
+let v: Vec&lt;&amp;str&gt; = "lion::tiger::leopard".rsplit("::").collect();
+assert_eq!(v, ["leopard", "tiger", "lion"]);</pre></div> <p>A more complex pattern, using a closure:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let v: Vec&lt;&amp;str&gt; = "abc1defXghi".rsplit(|c| c == '1' || c == 'X').collect();
+assert_eq!(v, ["ghi", "def", "abc"]);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.split_terminator" class="method has-srclink">
+<h4 class="code-header">pub fn split_terminator&lt;'a, P&gt;(&amp;'a self, pat: P) -&gt; SplitTerminator&lt;'a, P&gt; <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;, </span>
+</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1361" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.splitterminator" title="struct std::str::SplitTerminator">SplitTerminator</a>&lt;'a, P&gt;</div>
+<pre class="content">impl&lt;'a, P&gt; Iterator for SplitTerminator&lt;'a, P&gt; where
+    P: Pattern&lt;'a&gt;, 
+    type Item = &amp;'a str;
+</pre></span></div></span></summary><div class="docblock">
+<p>An iterator over substrings of the given string slice, separated by characters matched by a pattern.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <p>Equivalent to <a href="primitive.str#method.split"><code>split</code></a>, except that the trailing substring is skipped if empty.</p> <p>This method can be used for string data that is <em>terminated</em>, rather than <em>separated</em> by a pattern.</p> <h2 id="iterator-behavior-2" class="section-header">Iterator behavior</h2> <p>The returned iterator will be a <a href="iter/trait.doubleendediterator" title="DoubleEndedIterator"><code>DoubleEndedIterator</code></a> if the pattern allows a reverse search and forward/reverse search yields the same elements. This is true for, e.g., <a href="primitive.char"><code>char</code></a>, but not for <code>&amp;str</code>.</p> <p>If the pattern allows a reverse search but its results might differ from a forward search, the <a href="primitive.str#method.rsplit_terminator"><code>rsplit_terminator</code></a> method can be used.</p> <h2 id="examples-29" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let v: Vec&lt;&amp;str&gt; = "A.B.".split_terminator('.').collect();
+assert_eq!(v, ["A", "B"]);
+
+let v: Vec&lt;&amp;str&gt; = "A..B..".split_terminator(".").collect();
+assert_eq!(v, ["A", "", "B", ""]);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.rsplit_terminator" class="method has-srclink">
+<h4 class="code-header">pub fn rsplit_terminator&lt;'a, P&gt;(&amp;'a self, pat: P) -&gt; RSplitTerminator&lt;'a, P&gt; <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;,<br> &lt;P as <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;&gt;::<a class="type" href="str/pattern/trait.pattern#associatedtype.Searcher" title="type std::str::pattern::Pattern::Searcher">Searcher</a>: <a class="trait" href="str/pattern/trait.reversesearcher" title="trait std::str::pattern::ReverseSearcher">ReverseSearcher</a>&lt;'a&gt;, </span>
+</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1404-1406" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.rsplitterminator" title="struct std::str::RSplitTerminator">RSplitTerminator</a>&lt;'a, P&gt;</div>
+<pre class="content">impl&lt;'a, P&gt; Iterator for RSplitTerminator&lt;'a, P&gt; where
+    P: Pattern&lt;'a&gt;,
+    &lt;P as Pattern&lt;'a&gt;&gt;::Searcher: ReverseSearcher&lt;'a&gt;, 
+    type Item = &amp;'a str;
+</pre></span></div></span></summary><div class="docblock">
+<p>An iterator over substrings of <code>self</code>, separated by characters matched by a pattern and yielded in reverse order.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <p>Equivalent to <a href="primitive.str#method.split"><code>split</code></a>, except that the trailing substring is skipped if empty.</p> <p>This method can be used for string data that is <em>terminated</em>, rather than <em>separated</em> by a pattern.</p> <h2 id="iterator-behavior-3" class="section-header">Iterator behavior</h2> <p>The returned iterator requires that the pattern supports a reverse search, and it will be double ended if a forward/reverse search yields the same elements.</p> <p>For iterating from the front, the <a href="primitive.str#method.split_terminator"><code>split_terminator</code></a> method can be used.</p> <h2 id="examples-30" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let v: Vec&lt;&amp;str&gt; = "A.B.".rsplit_terminator('.').collect();
+assert_eq!(v, ["B", "A"]);
+
+let v: Vec&lt;&amp;str&gt; = "A..B..".rsplit_terminator(".").collect();
+assert_eq!(v, ["", "B", "", "A"]);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.splitn" class="method has-srclink">
+<h4 class="code-header">pub fn splitn&lt;'a, P&gt;(&amp;'a self, n: usize, pat: P) -&gt; SplitN&lt;'a, P&gt; <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;, </span>
+</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1459" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.splitn" title="struct std::str::SplitN">SplitN</a>&lt;'a, P&gt;</div>
+<pre class="content">impl&lt;'a, P&gt; Iterator for SplitN&lt;'a, P&gt; where
+    P: Pattern&lt;'a&gt;, 
+    type Item = &amp;'a str;
+</pre></span></div></span></summary><div class="docblock">
+<p>An iterator over substrings of the given string slice, separated by a pattern, restricted to returning at most <code>n</code> items.</p> <p>If <code>n</code> substrings are returned, the last substring (the <code>n</code>th substring) will contain the remainder of the string.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <h2 id="iterator-behavior-4" class="section-header">Iterator behavior</h2> <p>The returned iterator will not be double ended, because it is not efficient to support.</p> <p>If the pattern allows a reverse search, the <a href="primitive.str#method.rsplitn"><code>rsplitn</code></a> method can be used.</p> <h2 id="examples-31" class="section-header">Examples</h2> <p>Simple patterns:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let v: Vec&lt;&amp;str&gt; = "Mary had a little lambda".splitn(3, ' ').collect();
+assert_eq!(v, ["Mary", "had", "a little lambda"]);
+
+let v: Vec&lt;&amp;str&gt; = "lionXXtigerXleopard".splitn(3, "X").collect();
+assert_eq!(v, ["lion", "", "tigerXleopard"]);
+
+let v: Vec&lt;&amp;str&gt; = "abcXdef".splitn(1, 'X').collect();
+assert_eq!(v, ["abcXdef"]);
+
+let v: Vec&lt;&amp;str&gt; = "".splitn(1, 'X').collect();
+assert_eq!(v, [""]);</pre></div> <p>A more complex pattern, using a closure:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let v: Vec&lt;&amp;str&gt; = "abc1defXghi".splitn(2, |c| c == '1' || c == 'X').collect();
+assert_eq!(v, ["abc", "defXghi"]);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.rsplitn" class="method has-srclink">
+<h4 class="code-header">pub fn rsplitn&lt;'a, P&gt;(&amp;'a self, n: usize, pat: P) -&gt; RSplitN&lt;'a, P&gt; <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;,<br> &lt;P as <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;&gt;::<a class="type" href="str/pattern/trait.pattern#associatedtype.Searcher" title="type std::str::pattern::Pattern::Searcher">Searcher</a>: <a class="trait" href="str/pattern/trait.reversesearcher" title="trait std::str::pattern::ReverseSearcher">ReverseSearcher</a>&lt;'a&gt;, </span>
+</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1508-1510" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.rsplitn" title="struct std::str::RSplitN">RSplitN</a>&lt;'a, P&gt;</div>
+<pre class="content">impl&lt;'a, P&gt; Iterator for RSplitN&lt;'a, P&gt; where
+    P: Pattern&lt;'a&gt;,
+    &lt;P as Pattern&lt;'a&gt;&gt;::Searcher: ReverseSearcher&lt;'a&gt;, 
+    type Item = &amp;'a str;
+</pre></span></div></span></summary><div class="docblock">
+<p>An iterator over substrings of this string slice, separated by a pattern, starting from the end of the string, restricted to returning at most <code>n</code> items.</p> <p>If <code>n</code> substrings are returned, the last substring (the <code>n</code>th substring) will contain the remainder of the string.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <h2 id="iterator-behavior-5" class="section-header">Iterator behavior</h2> <p>The returned iterator will not be double ended, because it is not efficient to support.</p> <p>For splitting from the front, the <a href="primitive.str#method.splitn"><code>splitn</code></a> method can be used.</p> <h2 id="examples-32" class="section-header">Examples</h2> <p>Simple patterns:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let v: Vec&lt;&amp;str&gt; = "Mary had a little lamb".rsplitn(3, ' ').collect();
+assert_eq!(v, ["lamb", "little", "Mary had a"]);
+
+let v: Vec&lt;&amp;str&gt; = "lionXXtigerXleopard".rsplitn(3, 'X').collect();
+assert_eq!(v, ["leopard", "tiger", "lionX"]);
+
+let v: Vec&lt;&amp;str&gt; = "lion::tiger::leopard".rsplitn(2, "::").collect();
+assert_eq!(v, ["leopard", "lion::tiger"]);</pre></div> <p>A more complex pattern, using a closure:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let v: Vec&lt;&amp;str&gt; = "abc1defXghi".rsplitn(2, |c| c == '1' || c == 'X').collect();
+assert_eq!(v, ["ghi", "abc1def"]);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.split_once" class="method has-srclink">
+<h4 class="code-header">pub fn split_once&lt;'a, P&gt;(&amp;'a self, delimiter: P) -&gt; Option&lt;(&amp;'a str, &amp;'a str)&gt; <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;, </span>
+</h4>
+<span class="since" title="Stable since Rust version 1.52.0">1.52.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1527" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Splits the string on the first occurrence of the specified delimiter and returns prefix before delimiter and suffix after delimiter.</p> <h2 id="examples-33" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+assert_eq!("cfg".split_once('='), None);
+assert_eq!("cfg=foo".split_once('='), Some(("cfg", "foo")));
+assert_eq!("cfg=foo=bar".split_once('='), Some(("cfg", "foo=bar")));</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.rsplit_once" class="method has-srclink">
+<h4 class="code-header">pub fn rsplit_once&lt;'a, P&gt;(&amp;'a self, delimiter: P) -&gt; Option&lt;(&amp;'a str, &amp;'a str)&gt; <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;,<br> &lt;P as <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;&gt;::<a class="type" href="str/pattern/trait.pattern#associatedtype.Searcher" title="type std::str::pattern::Pattern::Searcher">Searcher</a>: <a class="trait" href="str/pattern/trait.reversesearcher" title="trait std::str::pattern::ReverseSearcher">ReverseSearcher</a>&lt;'a&gt;, </span>
+</h4>
+<span class="since" title="Stable since Rust version 1.52.0">1.52.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1544-1546" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Splits the string on the last occurrence of the specified delimiter and returns prefix before delimiter and suffix after delimiter.</p> <h2 id="examples-34" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+assert_eq!("cfg".rsplit_once('='), None);
+assert_eq!("cfg=foo".rsplit_once('='), Some(("cfg", "foo")));
+assert_eq!("cfg=foo=bar".rsplit_once('='), Some(("cfg=foo", "bar")));</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.matches" class="method has-srclink">
+<h4 class="code-header">pub fn matches&lt;'a, P&gt;(&amp;'a self, pat: P) -&gt; Matches&lt;'a, P&gt; <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;, </span>
+</h4>
+<span class="since" title="Stable since Rust version 1.2.0">1.2.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1585" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.matches" title="struct std::str::Matches">Matches</a>&lt;'a, P&gt;</div>
+<pre class="content">impl&lt;'a, P&gt; Iterator for Matches&lt;'a, P&gt; where
+    P: Pattern&lt;'a&gt;, 
+    type Item = &amp;'a str;
+</pre></span></div></span></summary><div class="docblock">
+<p>An iterator over the disjoint matches of a pattern within the given string slice.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <h2 id="iterator-behavior-6" class="section-header">Iterator behavior</h2> <p>The returned iterator will be a <a href="iter/trait.doubleendediterator" title="DoubleEndedIterator"><code>DoubleEndedIterator</code></a> if the pattern allows a reverse search and forward/reverse search yields the same elements. This is true for, e.g., <a href="primitive.char"><code>char</code></a>, but not for <code>&amp;str</code>.</p> <p>If the pattern allows a reverse search but its results might differ from a forward search, the <a href="primitive.str#method.matches"><code>rmatches</code></a> method can be used.</p> <h2 id="examples-35" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let v: Vec&lt;&amp;str&gt; = "abcXXXabcYYYabc".matches("abc").collect();
+assert_eq!(v, ["abc", "abc", "abc"]);
+
+let v: Vec&lt;&amp;str&gt; = "1abc2abc3".matches(char::is_numeric).collect();
+assert_eq!(v, ["1", "2", "3"]);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.rmatches" class="method has-srclink">
+<h4 class="code-header">pub fn rmatches&lt;'a, P&gt;(&amp;'a self, pat: P) -&gt; RMatches&lt;'a, P&gt; <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;,<br> &lt;P as <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;&gt;::<a class="type" href="str/pattern/trait.pattern#associatedtype.Searcher" title="type std::str::pattern::Pattern::Searcher">Searcher</a>: <a class="trait" href="str/pattern/trait.reversesearcher" title="trait std::str::pattern::ReverseSearcher">ReverseSearcher</a>&lt;'a&gt;, </span>
+</h4>
+<span class="since" title="Stable since Rust version 1.2.0">1.2.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1621-1623" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.rmatches" title="struct std::str::RMatches">RMatches</a>&lt;'a, P&gt;</div>
+<pre class="content">impl&lt;'a, P&gt; Iterator for RMatches&lt;'a, P&gt; where
+    P: Pattern&lt;'a&gt;,
+    &lt;P as Pattern&lt;'a&gt;&gt;::Searcher: ReverseSearcher&lt;'a&gt;, 
+    type Item = &amp;'a str;
+</pre></span></div></span></summary><div class="docblock">
+<p>An iterator over the disjoint matches of a pattern within this string slice, yielded in reverse order.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <h2 id="iterator-behavior-7" class="section-header">Iterator behavior</h2> <p>The returned iterator requires that the pattern supports a reverse search, and it will be a <a href="iter/trait.doubleendediterator" title="DoubleEndedIterator"><code>DoubleEndedIterator</code></a> if a forward/reverse search yields the same elements.</p> <p>For iterating from the front, the <a href="primitive.str#method.matches"><code>matches</code></a> method can be used.</p> <h2 id="examples-36" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let v: Vec&lt;&amp;str&gt; = "abcXXXabcYYYabc".rmatches("abc").collect();
+assert_eq!(v, ["abc", "abc", "abc"]);
+
+let v: Vec&lt;&amp;str&gt; = "1abc2abc3".rmatches(char::is_numeric).collect();
+assert_eq!(v, ["3", "2", "1"]);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.match_indices" class="method has-srclink">
+<h4 class="code-header">pub fn match_indices&lt;'a, P&gt;(&amp;'a self, pat: P) -&gt; MatchIndices&lt;'a, P&gt; <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;, </span>
+</h4>
+<span class="since" title="Stable since Rust version 1.5.0">1.5.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1667" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.matchindices" title="struct std::str::MatchIndices">MatchIndices</a>&lt;'a, P&gt;</div>
+<pre class="content">impl&lt;'a, P&gt; Iterator for MatchIndices&lt;'a, P&gt; where
+    P: Pattern&lt;'a&gt;, 
+    type Item = (usize, &amp;'a str);
+</pre></span></div></span></summary><div class="docblock">
+<p>An iterator over the disjoint matches of a pattern within this string slice as well as the index that the match starts at.</p> <p>For matches of <code>pat</code> within <code>self</code> that overlap, only the indices corresponding to the first match are returned.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <h2 id="iterator-behavior-8" class="section-header">Iterator behavior</h2> <p>The returned iterator will be a <a href="iter/trait.doubleendediterator" title="DoubleEndedIterator"><code>DoubleEndedIterator</code></a> if the pattern allows a reverse search and forward/reverse search yields the same elements. This is true for, e.g., <a href="primitive.char"><code>char</code></a>, but not for <code>&amp;str</code>.</p> <p>If the pattern allows a reverse search but its results might differ from a forward search, the <a href="primitive.str#method.match_indices"><code>rmatch_indices</code></a> method can be used.</p> <h2 id="examples-37" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let v: Vec&lt;_&gt; = "abcXXXabcYYYabc".match_indices("abc").collect();
+assert_eq!(v, [(0, "abc"), (6, "abc"), (12, "abc")]);
+
+let v: Vec&lt;_&gt; = "1abcabc2".match_indices("abc").collect();
+assert_eq!(v, [(1, "abc"), (4, "abc")]);
+
+let v: Vec&lt;_&gt; = "ababa".match_indices("aba").collect();
+assert_eq!(v, [(0, "aba")]); // only the first `aba`</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.rmatch_indices" class="method has-srclink">
+<h4 class="code-header">pub fn rmatch_indices&lt;'a, P&gt;(&amp;'a self, pat: P) -&gt; RMatchIndices&lt;'a, P&gt; <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;,<br> &lt;P as <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;&gt;::<a class="type" href="str/pattern/trait.pattern#associatedtype.Searcher" title="type std::str::pattern::Pattern::Searcher">Searcher</a>: <a class="trait" href="str/pattern/trait.reversesearcher" title="trait std::str::pattern::ReverseSearcher">ReverseSearcher</a>&lt;'a&gt;, </span>
+</h4>
+<span class="since" title="Stable since Rust version 1.5.0">1.5.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1709-1711" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.rmatchindices" title="struct std::str::RMatchIndices">RMatchIndices</a>&lt;'a, P&gt;</div>
+<pre class="content">impl&lt;'a, P&gt; Iterator for RMatchIndices&lt;'a, P&gt; where
+    P: Pattern&lt;'a&gt;,
+    &lt;P as Pattern&lt;'a&gt;&gt;::Searcher: ReverseSearcher&lt;'a&gt;, 
+    type Item = (usize, &amp;'a str);
+</pre></span></div></span></summary><div class="docblock">
+<p>An iterator over the disjoint matches of a pattern within <code>self</code>, yielded in reverse order along with the index of the match.</p> <p>For matches of <code>pat</code> within <code>self</code> that overlap, only the indices corresponding to the last match are returned.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <h2 id="iterator-behavior-9" class="section-header">Iterator behavior</h2> <p>The returned iterator requires that the pattern supports a reverse search, and it will be a <a href="iter/trait.doubleendediterator" title="DoubleEndedIterator"><code>DoubleEndedIterator</code></a> if a forward/reverse search yields the same elements.</p> <p>For iterating from the front, the <a href="primitive.str#method.match_indices"><code>match_indices</code></a> method can be used.</p> <h2 id="examples-38" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let v: Vec&lt;_&gt; = "abcXXXabcYYYabc".rmatch_indices("abc").collect();
+assert_eq!(v, [(12, "abc"), (6, "abc"), (0, "abc")]);
+
+let v: Vec&lt;_&gt; = "1abcabc2".rmatch_indices("abc").collect();
+assert_eq!(v, [(4, "abc"), (1, "abc")]);
+
+let v: Vec&lt;_&gt; = "ababa".rmatch_indices("aba").collect();
+assert_eq!(v, [(2, "aba")]); // only the last `aba`</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.trim" class="method has-srclink">
+<h4 class="code-header">
+<div class="code-attribute">#[must_use = "this returns the trimmed string as a slice, \ without modifying the original"]</div>pub fn trim(&amp;self) -&gt; &amp;str</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1734" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns a string slice with leading and trailing whitespace removed.</p> <p>‘Whitespace’ is defined according to the terms of the Unicode Derived Core Property <code>White_Space</code>.</p> <h2 id="examples-39" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = " Hello\tworld\t";
+
+assert_eq!("Hello\tworld", s.trim());</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.trim_start" class="method has-srclink">
+<h4 class="code-header">
+<div class="code-attribute">#[must_use = "this returns the trimmed string as a new slice, \ without modifying the original"]</div>pub fn trim_start(&amp;self) -&gt; &amp;str</h4>
+<span class="since" title="Stable since Rust version 1.30.0">1.30.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1772" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns a string slice with leading whitespace removed.</p> <p>‘Whitespace’ is defined according to the terms of the Unicode Derived Core Property <code>White_Space</code>.</p> <h2 id="text-directionality" class="section-header">Text directionality</h2> <p>A string is a sequence of bytes. <code>start</code> in this context means the first position of that byte string; for a left-to-right language like English or Russian, this will be left side, and for right-to-left languages like Arabic or Hebrew, this will be the right side.</p> <h2 id="examples-40" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = " Hello\tworld\t";
+assert_eq!("Hello\tworld\t", s.trim_start());</pre></div> <p>Directionality:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "  English  ";
+assert!(Some('E') == s.trim_start().chars().next());
+
+let s = "  עברית  ";
+assert!(Some('ע') == s.trim_start().chars().next());</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.trim_end" class="method has-srclink">
+<h4 class="code-header">
+<div class="code-attribute">#[must_use = "this returns the trimmed string as a new slice, \ without modifying the original"]</div>pub fn trim_end(&amp;self) -&gt; &amp;str</h4>
+<span class="since" title="Stable since Rust version 1.30.0">1.30.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1810" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns a string slice with trailing whitespace removed.</p> <p>‘Whitespace’ is defined according to the terms of the Unicode Derived Core Property <code>White_Space</code>.</p> <h2 id="text-directionality-1" class="section-header">Text directionality</h2> <p>A string is a sequence of bytes. <code>end</code> in this context means the last position of that byte string; for a left-to-right language like English or Russian, this will be right side, and for right-to-left languages like Arabic or Hebrew, this will be the left side.</p> <h2 id="examples-41" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = " Hello\tworld\t";
+assert_eq!(" Hello\tworld", s.trim_end());</pre></div> <p>Directionality:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "  English  ";
+assert!(Some('h') == s.trim_end().chars().rev().next());
+
+let s = "  עברית  ";
+assert!(Some('ת') == s.trim_end().chars().rev().next());</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.trim_left" class="method has-srclink">
+<h4 class="code-header">pub fn trim_left(&amp;self) -&gt; &amp;str</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1852" title="goto source code">[src]</a>
+</div>
+<div class="item-info"><div class="stab deprecated">
+<span class="emoji">👎</span> Deprecated since 1.33.0: <p>superseded by <code>trim_start</code></p> </div></div></summary><div class="docblock">
+<p>Returns a string slice with leading whitespace removed.</p> <p>‘Whitespace’ is defined according to the terms of the Unicode Derived Core Property <code>White_Space</code>.</p> <h2 id="text-directionality-2" class="section-header">Text directionality</h2> <p>A string is a sequence of bytes. ‘Left’ in this context means the first position of that byte string; for a language like Arabic or Hebrew which are ‘right to left’ rather than ‘left to right’, this will be the <em>right</em> side, not the left.</p> <h2 id="examples-42" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = " Hello\tworld\t";
+
+assert_eq!("Hello\tworld\t", s.trim_left());</pre></div> <p>Directionality:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "  English";
+assert!(Some('E') == s.trim_left().chars().next());
+
+let s = "  עברית";
+assert!(Some('ע') == s.trim_left().chars().next());</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.trim_right" class="method has-srclink">
+<h4 class="code-header">pub fn trim_right(&amp;self) -&gt; &amp;str</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1894" title="goto source code">[src]</a>
+</div>
+<div class="item-info"><div class="stab deprecated">
+<span class="emoji">👎</span> Deprecated since 1.33.0: <p>superseded by <code>trim_end</code></p> </div></div></summary><div class="docblock">
+<p>Returns a string slice with trailing whitespace removed.</p> <p>‘Whitespace’ is defined according to the terms of the Unicode Derived Core Property <code>White_Space</code>.</p> <h2 id="text-directionality-3" class="section-header">Text directionality</h2> <p>A string is a sequence of bytes. ‘Right’ in this context means the last position of that byte string; for a language like Arabic or Hebrew which are ‘right to left’ rather than ‘left to right’, this will be the <em>left</em> side, not the right.</p> <h2 id="examples-43" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = " Hello\tworld\t";
+
+assert_eq!(" Hello\tworld", s.trim_right());</pre></div> <p>Directionality:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "English  ";
+assert!(Some('h') == s.trim_right().chars().rev().next());
+
+let s = "עברית  ";
+assert!(Some('ת') == s.trim_right().chars().rev().next());</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.trim_matches" class="method has-srclink">
+<h4 class="code-header">
+<div class="code-attribute">#[must_use = "this returns the trimmed string as a new slice, \ without modifying the original"]</div>pub fn trim_matches&lt;'a, P&gt;(&amp;'a self, pat: P) -&gt; &amp;'a str <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;,<br> &lt;P as <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;&gt;::<a class="type" href="str/pattern/trait.pattern#associatedtype.Searcher" title="type std::str::pattern::Pattern::Searcher">Searcher</a>: <a class="trait" href="str/pattern/trait.doubleendedsearcher" title="trait std::str::pattern::DoubleEndedSearcher">DoubleEndedSearcher</a>&lt;'a&gt;, </span>
+</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1927-1929" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns a string slice with all prefixes and suffixes that match a pattern repeatedly removed.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <h2 id="examples-44" class="section-header">Examples</h2> <p>Simple patterns:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+assert_eq!("11foo1bar11".trim_matches('1'), "foo1bar");
+assert_eq!("123foo1bar123".trim_matches(char::is_numeric), "foo1bar");
+
+let x: &amp;[_] = &amp;['1', '2'];
+assert_eq!("12foo1bar12".trim_matches(x), "foo1bar");</pre></div> <p>A more complex pattern, using a closure:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+assert_eq!("1foo1barXX".trim_matches(|c| c == '1' || c == 'X'), "foo1bar");</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.trim_start_matches" class="method has-srclink">
+<h4 class="code-header">
+<div class="code-attribute">#[must_use = "this returns the trimmed string as a new slice, \ without modifying the original"]</div>pub fn trim_start_matches&lt;'a, P&gt;(&amp;'a self, pat: P) -&gt; &amp;'a str <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;, </span>
+</h4>
+<span class="since" title="Stable since Rust version 1.30.0">1.30.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#1976" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns a string slice with all prefixes that match a pattern repeatedly removed.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <h2 id="text-directionality-4" class="section-header">Text directionality</h2> <p>A string is a sequence of bytes. <code>start</code> in this context means the first position of that byte string; for a left-to-right language like English or Russian, this will be left side, and for right-to-left languages like Arabic or Hebrew, this will be the right side.</p> <h2 id="examples-45" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+assert_eq!("11foo1bar11".trim_start_matches('1'), "foo1bar11");
+assert_eq!("123foo1bar123".trim_start_matches(char::is_numeric), "foo1bar123");
+
+let x: &amp;[_] = &amp;['1', '2'];
+assert_eq!("12foo1bar12".trim_start_matches(x), "foo1bar12");</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.strip_prefix" class="method has-srclink">
+<h4 class="code-header">
+<div class="code-attribute">#[must_use = "this returns the remaining substring as a new slice, \ without modifying the original"]</div>pub fn strip_prefix&lt;'a, P&gt;(&amp;'a self, prefix: P) -&gt; Option&lt;&amp;'a str&gt; <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;, </span>
+</h4>
+<span class="since" title="Stable since Rust version 1.45.0">1.45.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#2009" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns a string slice with the prefix removed.</p> <p>If the string starts with the pattern <code>prefix</code>, returns substring after the prefix, wrapped in <code>Some</code>. Unlike <code>trim_start_matches</code>, this method removes the prefix exactly once.</p> <p>If the string does not start with <code>prefix</code>, returns <code>None</code>.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <h2 id="examples-46" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+assert_eq!("foo:bar".strip_prefix("foo:"), Some("bar"));
+assert_eq!("foo:bar".strip_prefix("bar"), None);
+assert_eq!("foofoo".strip_prefix("foo"), Some("foo"));</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.strip_suffix" class="method has-srclink">
+<h4 class="code-header">
+<div class="code-attribute">#[must_use = "this returns the remaining substring as a new slice, \ without modifying the original"]</div>pub fn strip_suffix&lt;'a, P&gt;(&amp;'a self, suffix: P) -&gt; Option&lt;&amp;'a str&gt; <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;,<br> &lt;P as <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;&gt;::<a class="type" href="str/pattern/trait.pattern#associatedtype.Searcher" title="type std::str::pattern::Pattern::Searcher">Searcher</a>: <a class="trait" href="str/pattern/trait.reversesearcher" title="trait std::str::pattern::ReverseSearcher">ReverseSearcher</a>&lt;'a&gt;, </span>
+</h4>
+<span class="since" title="Stable since Rust version 1.45.0">1.45.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#2036-2039" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns a string slice with the suffix removed.</p> <p>If the string ends with the pattern <code>suffix</code>, returns the substring before the suffix, wrapped in <code>Some</code>. Unlike <code>trim_end_matches</code>, this method removes the suffix exactly once.</p> <p>If the string does not end with <code>suffix</code>, returns <code>None</code>.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <h2 id="examples-47" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+assert_eq!("bar:foo".strip_suffix(":foo"), Some("bar"));
+assert_eq!("bar:foo".strip_suffix("bar"), None);
+assert_eq!("foofoo".strip_suffix("foo"), Some("foo"));</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.trim_end_matches" class="method has-srclink">
+<h4 class="code-header">
+<div class="code-attribute">#[must_use = "this returns the trimmed string as a new slice, \ without modifying the original"]</div>pub fn trim_end_matches&lt;'a, P&gt;(&amp;'a self, pat: P) -&gt; &amp;'a str <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;,<br> &lt;P as <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;&gt;::<a class="type" href="str/pattern/trait.pattern#associatedtype.Searcher" title="type std::str::pattern::Pattern::Searcher">Searcher</a>: <a class="trait" href="str/pattern/trait.reversesearcher" title="trait std::str::pattern::ReverseSearcher">ReverseSearcher</a>&lt;'a&gt;, </span>
+</h4>
+<span class="since" title="Stable since Rust version 1.30.0">1.30.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#2080-2082" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns a string slice with all suffixes that match a pattern repeatedly removed.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <h2 id="text-directionality-5" class="section-header">Text directionality</h2> <p>A string is a sequence of bytes. <code>end</code> in this context means the last position of that byte string; for a left-to-right language like English or Russian, this will be right side, and for right-to-left languages like Arabic or Hebrew, this will be the left side.</p> <h2 id="examples-48" class="section-header">Examples</h2> <p>Simple patterns:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+assert_eq!("11foo1bar11".trim_end_matches('1'), "11foo1bar");
+assert_eq!("123foo1bar123".trim_end_matches(char::is_numeric), "123foo1bar");
+
+let x: &amp;[_] = &amp;['1', '2'];
+assert_eq!("12foo1bar12".trim_end_matches(x), "12foo1bar");</pre></div> <p>A more complex pattern, using a closure:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+assert_eq!("1fooX".trim_end_matches(|c| c == '1' || c == 'X'), "1foo");</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.trim_left_matches" class="method has-srclink">
+<h4 class="code-header">pub fn trim_left_matches&lt;'a, P&gt;(&amp;'a self, pat: P) -&gt; &amp;'a str <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;, </span>
+</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#2126" title="goto source code">[src]</a>
+</div>
+<div class="item-info"><div class="stab deprecated">
+<span class="emoji">👎</span> Deprecated since 1.33.0: <p>superseded by <code>trim_start_matches</code></p> </div></div></summary><div class="docblock">
+<p>Returns a string slice with all prefixes that match a pattern repeatedly removed.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <h2 id="text-directionality-6" class="section-header">Text directionality</h2> <p>A string is a sequence of bytes. ‘Left’ in this context means the first position of that byte string; for a language like Arabic or Hebrew which are ‘right to left’ rather than ‘left to right’, this will be the <em>right</em> side, not the left.</p> <h2 id="examples-49" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+assert_eq!("11foo1bar11".trim_left_matches('1'), "foo1bar11");
+assert_eq!("123foo1bar123".trim_left_matches(char::is_numeric), "foo1bar123");
+
+let x: &amp;[_] = &amp;['1', '2'];
+assert_eq!("12foo1bar12".trim_left_matches(x), "foo1bar12");</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.trim_right_matches" class="method has-srclink">
+<h4 class="code-header">pub fn trim_right_matches&lt;'a, P&gt;(&amp;'a self, pat: P) -&gt; &amp;'a str <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;,<br> &lt;P as <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;&gt;::<a class="type" href="str/pattern/trait.pattern#associatedtype.Searcher" title="type std::str::pattern::Pattern::Searcher">Searcher</a>: <a class="trait" href="str/pattern/trait.reversesearcher" title="trait std::str::pattern::ReverseSearcher">ReverseSearcher</a>&lt;'a&gt;, </span>
+</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#2169-2171" title="goto source code">[src]</a>
+</div>
+<div class="item-info"><div class="stab deprecated">
+<span class="emoji">👎</span> Deprecated since 1.33.0: <p>superseded by <code>trim_end_matches</code></p> </div></div></summary><div class="docblock">
+<p>Returns a string slice with all suffixes that match a pattern repeatedly removed.</p> <p>The <a href="str/pattern/index">pattern</a> can be a <code>&amp;str</code>, <a href="primitive.char"><code>char</code></a>, a slice of <a href="primitive.char"><code>char</code></a>s, or a function or closure that determines if a character matches.</p> <h2 id="text-directionality-7" class="section-header">Text directionality</h2> <p>A string is a sequence of bytes. ‘Right’ in this context means the last position of that byte string; for a language like Arabic or Hebrew which are ‘right to left’ rather than ‘left to right’, this will be the <em>left</em> side, not the right.</p> <h2 id="examples-50" class="section-header">Examples</h2> <p>Simple patterns:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+assert_eq!("11foo1bar11".trim_right_matches('1'), "11foo1bar");
+assert_eq!("123foo1bar123".trim_right_matches(char::is_numeric), "123foo1bar");
+
+let x: &amp;[_] = &amp;['1', '2'];
+assert_eq!("12foo1bar12".trim_right_matches(x), "12foo1bar");</pre></div> <p>A more complex pattern, using a closure:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+assert_eq!("1fooX".trim_right_matches(|c| c == '1' || c == 'X'), "1foo");</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.parse" class="method has-srclink">
+<h4 class="code-header">pub fn parse&lt;F&gt;(&amp;self) -&gt; Result&lt;F, &lt;F as FromStr&gt;::Err&gt; <span class="where fmt-newline">where<br> F: <a class="trait" href="str/trait.fromstr" title="trait std::str::FromStr">FromStr</a>, </span>
+</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#2221" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Parses this string slice into another type.</p> <p>Because <code>parse</code> is so general, it can cause problems with type inference. As such, <code>parse</code> is one of the few times you’ll see the syntax affectionately known as the ‘turbofish’: <code>::&lt;&gt;</code>. This helps the inference algorithm understand specifically which type you’re trying to parse into.</p> <p><code>parse</code> can parse into any type that implements the <a href="str/trait.fromstr" title="FromStr"><code>FromStr</code></a> trait.</p> <h2 id="errors" class="section-header">Errors</h2> <p>Will return <a href="str/trait.fromstr#associatedtype.Err"><code>Err</code></a> if it’s not possible to parse this string slice into the desired type.</p> <h2 id="examples-51" class="section-header">Examples</h2> <p>Basic usage</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let four: u32 = "4".parse().unwrap();
+
+assert_eq!(4, four);</pre></div> <p>Using the ‘turbofish’ instead of annotating <code>four</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let four = "4".parse::&lt;u32&gt;();
+
+assert_eq!(Ok(4), four);</pre></div> <p>Failing to parse:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let nope = "j".parse::&lt;u32&gt;();
+
+assert!(nope.is_err());</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.is_ascii" class="method has-srclink">
+<h4 class="code-header">pub fn is_ascii(&amp;self) -&gt; bool</h4>
+<span class="since" title="Stable since Rust version 1.23.0">1.23.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#2238" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Checks if all characters in this string are within the ASCII range.</p> <h2 id="examples-52" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let ascii = "hello!\n";
+let non_ascii = "Grüße, Jürgen ❤";
+
+assert!(ascii.is_ascii());
+assert!(!non_ascii.is_ascii());</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.eq_ignore_ascii_case" class="method has-srclink">
+<h4 class="code-header">pub fn eq_ignore_ascii_case(&amp;self, other: &amp;str) -&gt; bool</h4>
+<span class="since" title="Stable since Rust version 1.23.0">1.23.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#2259" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Checks that two strings are an ASCII case-insensitive match.</p> <p>Same as <code>to_ascii_lowercase(a) == to_ascii_lowercase(b)</code>, but without allocating and copying temporaries.</p> <h2 id="examples-53" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+assert!("Ferris".eq_ignore_ascii_case("FERRIS"));
+assert!("Ferrös".eq_ignore_ascii_case("FERRöS"));
+assert!(!"Ferrös".eq_ignore_ascii_case("FERRÖS"));</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.make_ascii_uppercase" class="method has-srclink">
+<h4 class="code-header">pub fn make_ascii_uppercase(&amp;mut self)</h4>
+<span class="since" title="Stable since Rust version 1.23.0">1.23.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#2284" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Converts this string to its ASCII upper case equivalent in-place.</p> <p>ASCII letters ‘a’ to ‘z’ are mapped to ‘A’ to ‘Z’, but non-ASCII letters are unchanged.</p> <p>To return a new uppercased value without modifying the existing one, use <a href="#method.to_ascii_uppercase"><code>to_ascii_uppercase()</code></a>.</p> <h2 id="examples-54" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let mut s = String::from("Grüße, Jürgen ❤");
+
+s.make_ascii_uppercase();
+
+assert_eq!("GRüßE, JüRGEN ❤", s);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.make_ascii_lowercase" class="method has-srclink">
+<h4 class="code-header">pub fn make_ascii_lowercase(&amp;mut self)</h4>
+<span class="since" title="Stable since Rust version 1.23.0">1.23.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#2311" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Converts this string to its ASCII lower case equivalent in-place.</p> <p>ASCII letters ‘A’ to ‘Z’ are mapped to ‘a’ to ‘z’, but non-ASCII letters are unchanged.</p> <p>To return a new lowercased value without modifying the existing one, use <a href="#method.to_ascii_lowercase"><code>to_ascii_lowercase()</code></a>.</p> <h2 id="examples-55" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let mut s = String::from("GRÜßE, JÜRGEN ❤");
+
+s.make_ascii_lowercase();
+
+assert_eq!("grÜße, jÜrgen ❤", s);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.escape_debug" class="method has-srclink">
+<h4 class="code-header">pub fn escape_debug(&amp;self) -&gt; EscapeDebug&lt;'_&gt;</h4>
+<span class="since" title="Stable since Rust version 1.34.0">1.34.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#2352" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.escapedebug" title="struct std::str::EscapeDebug">EscapeDebug</a>&lt;'a&gt;</div>
+<pre class="content">impl&lt;'a&gt; Iterator for EscapeDebug&lt;'a&gt;
+    type Item = char;
+</pre></span></div></span></summary><div class="docblock">
+<p>Return an iterator that escapes each char in <code>self</code> with <a href="primitive.char#method.escape_debug" title="char::escape_debug"><code>char::escape_debug</code></a>.</p> <p>Note: only extended grapheme codepoints that begin the string will be escaped.</p> <h2 id="examples-56" class="section-header">Examples</h2> <p>As an iterator:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+for c in "❤\n!".escape_debug() {
+    print!("{}", c);
+}
+println!();</pre></div> <p>Using <code>println!</code> directly:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+println!("{}", "❤\n!".escape_debug());</pre></div> <p>Both are equivalent to:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+println!("❤\\n!");</pre></div> <p>Using <code>to_string</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+assert_eq!("❤\n!".escape_debug().to_string(), "❤\\n!");</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.escape_default" class="method has-srclink">
+<h4 class="code-header">pub fn escape_default(&amp;self) -&gt; EscapeDefault&lt;'_&gt;</h4>
+<span class="since" title="Stable since Rust version 1.34.0">1.34.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#2396" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.escapedefault" title="struct std::str::EscapeDefault">EscapeDefault</a>&lt;'a&gt;</div>
+<pre class="content">impl&lt;'a&gt; Iterator for EscapeDefault&lt;'a&gt;
+    type Item = char;
+</pre></span></div></span></summary><div class="docblock">
+<p>Return an iterator that escapes each char in <code>self</code> with <a href="primitive.char#method.escape_default" title="char::escape_default"><code>char::escape_default</code></a>.</p> <h2 id="examples-57" class="section-header">Examples</h2> <p>As an iterator:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+for c in "❤\n!".escape_default() {
+    print!("{}", c);
+}
+println!();</pre></div> <p>Using <code>println!</code> directly:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+println!("{}", "❤\n!".escape_default());</pre></div> <p>Both are equivalent to:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+println!("\\u{{2764}}\\n!");</pre></div> <p>Using <code>to_string</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+assert_eq!("❤\n!".escape_default().to_string(), "\\u{2764}\\n!");</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.escape_unicode" class="method has-srclink">
+<h4 class="code-header">pub fn escape_unicode(&amp;self) -&gt; EscapeUnicode&lt;'_&gt;</h4>
+<span class="since" title="Stable since Rust version 1.34.0">1.34.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#2432" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="str/struct.escapeunicode" title="struct std::str::EscapeUnicode">EscapeUnicode</a>&lt;'a&gt;</div>
+<pre class="content">impl&lt;'a&gt; Iterator for EscapeUnicode&lt;'a&gt;
+    type Item = char;
+</pre></span></div></span></summary><div class="docblock">
+<p>Return an iterator that escapes each char in <code>self</code> with <a href="primitive.char#method.escape_unicode" title="char::escape_unicode"><code>char::escape_unicode</code></a>.</p> <h2 id="examples-58" class="section-header">Examples</h2> <p>As an iterator:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+for c in "❤\n!".escape_unicode() {
+    print!("{}", c);
+}
+println!();</pre></div> <p>Using <code>println!</code> directly:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+println!("{}", "❤\n!".escape_unicode());</pre></div> <p>Both are equivalent to:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+println!("\\u{{2764}}\\u{{a}}\\u{{21}}");</pre></div> <p>Using <code>to_string</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+assert_eq!("❤\n!".escape_unicode().to_string(), "\\u{2764}\\u{a}\\u{21}");</pre></div> </div></details>
+</div></details><details class="rustdoc-toggle implementors-toggle" open><summary><div id="impl-1" class="impl has-srclink">
+<h3 class="code-header in-band">impl str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/str.rs.html#232-576" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Methods for string slices.</p> </div>
+<div class="impl-items">
+<details class="rustdoc-toggle method-toggle" open><summary><div id="method.into_boxed_bytes" class="method has-srclink">
+<h4 class="code-header">pub fn into_boxed_bytes(self: Box&lt;str, Global&gt;) -&gt; Box&lt;[u8], Global&gt;</h4>
+<span class="since" title="Stable since Rust version 1.20.0">1.20.0</span><a class="srclink" href="https://doc.rust-lang.org/src/alloc/str.rs.html#247" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="boxed/struct.box" title="struct std::boxed::Box">Box</a>&lt;F, A&gt;</div>
+<pre class="content">impl&lt;F, A&gt; Future for Box&lt;F, A&gt; where
+    F: Future + Unpin + ?Sized,
+    A: Allocator + 'static, 
+    type Output = &lt;F as Future&gt;::Output;
+impl&lt;I, A&gt; Iterator for Box&lt;I, A&gt; where
+    I: Iterator + ?Sized,
+    A: Allocator, 
+    type Item = &lt;I as Iterator&gt;::Item;
+impl&lt;R: Read + ?Sized&gt; Read for Box&lt;R&gt;
+impl&lt;W: Write + ?Sized&gt; Write for Box&lt;W&gt;
+</pre></span></div></span></summary><div class="docblock">
+<p>Converts a <code>Box&lt;str&gt;</code> into a <code>Box&lt;[u8]&gt;</code> without copying or allocating.</p> <h2 id="examples-59" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "this is a string";
+let boxed_str = s.to_owned().into_boxed_str();
+let boxed_bytes = boxed_str.into_boxed_bytes();
+assert_eq!(*boxed_bytes, *s.as_bytes());</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.replace" class="method has-srclink">
+<h4 class="code-header">
+<div class="code-attribute">#[must_use = "this returns the replaced string as a new allocation, \ without modifying the original"]</div>pub fn replace&lt;'a, P&gt;(&amp;'a self, from: P, to: &amp;str) -&gt; String <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;, </span>
+</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/str.rs.html#278" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Replaces all matches of a pattern with another string.</p> <p><code>replace</code> creates a new <a href="string/struct.string" title="String"><code>String</code></a>, and copies the data from this string slice into it. While doing so, it attempts to find matches of a pattern. If it finds any, it replaces them with the replacement string slice.</p> <h2 id="examples-60" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "this is old";
+
+assert_eq!("this is new", s.replace("old", "new"));</pre></div> <p>When the pattern doesn’t match:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "this is old";
+assert_eq!(s, s.replace("cookie monster", "little lamb"));</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.replacen" class="method has-srclink">
+<h4 class="code-header">
+<div class="code-attribute">#[must_use = "this returns the replaced string as a new allocation, \ without modifying the original"]</div>pub fn replacen&lt;'a, P&gt;(&amp;'a self, pat: P, to: &amp;str, count: usize) -&gt; String <span class="where fmt-newline">where<br> P: <a class="trait" href="str/pattern/trait.pattern" title="trait std::str::pattern::Pattern">Pattern</a>&lt;'a&gt;, </span>
+</h4>
+<span class="since" title="Stable since Rust version 1.16.0">1.16.0</span><a class="srclink" href="https://doc.rust-lang.org/src/alloc/str.rs.html#317" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Replaces first N matches of a pattern with another string.</p> <p><code>replacen</code> creates a new <a href="string/struct.string" title="String"><code>String</code></a>, and copies the data from this string slice into it. While doing so, it attempts to find matches of a pattern. If it finds any, it replaces them with the replacement string slice at most <code>count</code> times.</p> <h2 id="examples-61" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "foo foo 123 foo";
+assert_eq!("new new 123 foo", s.replacen("foo", "new", 2));
+assert_eq!("faa fao 123 foo", s.replacen('o', "a", 3));
+assert_eq!("foo foo new23 foo", s.replacen(char::is_numeric, "new", 1));</pre></div> <p>When the pattern doesn’t match:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "this is old";
+assert_eq!(s, s.replacen("cookie monster", "little lamb", 10));</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.to_lowercase" class="method has-srclink">
+<h4 class="code-header">pub fn to_lowercase(&amp;self) -&gt; String</h4>
+<span class="since" title="Stable since Rust version 1.2.0">1.2.0</span><a class="srclink" href="https://doc.rust-lang.org/src/alloc/str.rs.html#371" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns the lowercase equivalent of this string slice, as a new <a href="string/struct.string" title="String"><code>String</code></a>.</p> <p>‘Lowercase’ is defined according to the terms of the Unicode Derived Core Property <code>Lowercase</code>.</p> <p>Since some characters can expand into multiple characters when changing the case, this function returns a <a href="string/struct.string" title="String"><code>String</code></a> instead of modifying the parameter in-place.</p> <h2 id="examples-62" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "HELLO";
+
+assert_eq!("hello", s.to_lowercase());</pre></div> <p>A tricky example, with sigma:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let sigma = "Σ";
+
+assert_eq!("σ", sigma.to_lowercase());
+
+// but at the end of a word, it's ς, not σ:
+let odysseus = "ὈΔΥΣΣΕΎΣ";
+
+assert_eq!("ὀδυσσεύς", odysseus.to_lowercase());</pre></div> <p>Languages without case are not changed:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let new_year = "农历新年";
+
+assert_eq!(new_year, new_year.to_lowercase());</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.to_uppercase" class="method has-srclink">
+<h4 class="code-header">pub fn to_uppercase(&amp;self) -&gt; String</h4>
+<span class="since" title="Stable since Rust version 1.2.0">1.2.0</span><a class="srclink" href="https://doc.rust-lang.org/src/alloc/str.rs.html#451" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns the uppercase equivalent of this string slice, as a new <a href="string/struct.string" title="String"><code>String</code></a>.</p> <p>‘Uppercase’ is defined according to the terms of the Unicode Derived Core Property <code>Uppercase</code>.</p> <p>Since some characters can expand into multiple characters when changing the case, this function returns a <a href="string/struct.string" title="String"><code>String</code></a> instead of modifying the parameter in-place.</p> <h2 id="examples-63" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "hello";
+
+assert_eq!("HELLO", s.to_uppercase());</pre></div> <p>Scripts without case are not changed:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let new_year = "农历新年";
+
+assert_eq!(new_year, new_year.to_uppercase());</pre></div> <p>One character can become multiple:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "tschüß";
+
+assert_eq!("TSCHÜSS", s.to_uppercase());</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.into_string" class="method has-srclink">
+<h4 class="code-header">pub fn into_string(self: Box&lt;str, Global&gt;) -&gt; String</h4>
+<span class="since" title="Stable since Rust version 1.4.0">1.4.0</span><a class="srclink" href="https://doc.rust-lang.org/src/alloc/str.rs.html#484" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Converts a <a href="boxed/struct.box" title="Box&lt;str&gt;"><code>Box&lt;str&gt;</code></a> into a <a href="string/struct.string" title="String"><code>String</code></a> without copying or allocating.</p> <h2 id="examples-64" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let string = String::from("birthday gift");
+let boxed_str = string.clone().into_boxed_str();
+
+assert_eq!(boxed_str.into_string(), string);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.repeat" class="method has-srclink">
+<h4 class="code-header">pub fn repeat(&amp;self, n: usize) -&gt; String</h4>
+<span class="since" title="Stable since Rust version 1.16.0">1.16.0</span><a class="srclink" href="https://doc.rust-lang.org/src/alloc/str.rs.html#511" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Creates a new <a href="string/struct.string" title="String"><code>String</code></a> by repeating a string <code>n</code> times.</p> <h2 id="panics-2" class="section-header">Panics</h2> <p>This function will panic if the capacity would overflow.</p> <h2 id="examples-65" class="section-header">Examples</h2> <p>Basic usage:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+assert_eq!("abc".repeat(4), String::from("abcabcabcabc"));</pre></div> <p>A panic upon overflow:</p> <div class="information">ⓘ This example panics</div>
+<div class="example-wrap"><pre class="rust rust-example-rendered should_panic" data-language="rust">
+// this will panic at runtime
+"0123456789abcdef".repeat(usize::MAX);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.to_ascii_uppercase" class="method has-srclink">
+<h4 class="code-header">pub fn to_ascii_uppercase(&amp;self) -&gt; String</h4>
+<span class="since" title="Stable since Rust version 1.23.0">1.23.0</span><a class="srclink" href="https://doc.rust-lang.org/src/alloc/str.rs.html#539" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns a copy of this string where each character is mapped to its ASCII upper case equivalent.</p> <p>ASCII letters ‘a’ to ‘z’ are mapped to ‘A’ to ‘Z’, but non-ASCII letters are unchanged.</p> <p>To uppercase the value in-place, use <a href="primitive.str#method.make_ascii_uppercase"><code>make_ascii_uppercase</code></a>.</p> <p>To uppercase ASCII characters in addition to non-ASCII characters, use <a href="#method.to_uppercase"><code>to_uppercase</code></a>.</p> <h2 id="examples-66" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "Grüße, Jürgen ❤";
+
+assert_eq!("GRüßE, JüRGEN ❤", s.to_ascii_uppercase());</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.to_ascii_lowercase" class="method has-srclink">
+<h4 class="code-header">pub fn to_ascii_lowercase(&amp;self) -&gt; String</h4>
+<span class="since" title="Stable since Rust version 1.23.0">1.23.0</span><a class="srclink" href="https://doc.rust-lang.org/src/alloc/str.rs.html#570" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Returns a copy of this string where each character is mapped to its ASCII lower case equivalent.</p> <p>ASCII letters ‘A’ to ‘Z’ are mapped to ‘a’ to ‘z’, but non-ASCII letters are unchanged.</p> <p>To lowercase the value in-place, use <a href="primitive.str#method.make_ascii_lowercase"><code>make_ascii_lowercase</code></a>.</p> <p>To lowercase ASCII characters in addition to non-ASCII characters, use <a href="#method.to_lowercase"><code>to_lowercase</code></a>.</p> <h2 id="examples-67" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+let s = "Grüße, Jürgen ❤";
+
+assert_eq!("grüße, jürgen ❤", s.to_ascii_lowercase());</pre></div> </div></details>
+</div></details><h2 id="trait-implementations" class="small-section-header">Trait Implementations</h2>
+<div id="trait-implementations-list">
+<details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-AsMut%3Cstr%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl AsMut&lt;str&gt; for str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#619-624" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.51.0">1.51.0</span>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.as_mut" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn as_mut(&amp;mut self) -&gt; &amp;mut str</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#621" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Performs the conversion.</p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-AsRef%3C%5Bu8%5D%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl AsRef&lt;[u8]&gt; for str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#2438-2443" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.as_ref-1" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn as_ref(&amp;self) -&gt; &amp;[u8]</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#2440" title="goto source code">[src]</a>
+</div>
+<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="primitive" href="primitive.slice">&amp;[</a><a class="primitive" href="primitive.u8">u8</a><a class="primitive" href="primitive.slice">]</a>
+</div>
+<pre class="content">impl Read for &amp;[u8]
+impl Write for &amp;mut [u8]
+</pre></span></div></span></summary><div class="docblock">
+<p>Performs the conversion.</p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-AsRef%3COsStr%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl AsRef&lt;OsStr&gt; for str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/ffi/os_str.rs.html#1157-1162" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.as_ref-2" class="method trait-impl has-srclink">
+<h4 class="code-header">fn as_ref(&amp;self) -&gt; &amp;OsStr</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/ffi/os_str.rs.html#1159-1161" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Performs the conversion.</p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-AsRef%3CPath%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl AsRef&lt;Path&gt; for str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/path.rs.html#2728-2733" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.as_ref-3" class="method trait-impl has-srclink">
+<h4 class="code-header">fn as_ref(&amp;self) -&gt; &amp;Path</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/path.rs.html#2730-2732" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Performs the conversion.</p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-AsRef%3Cstr%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl AsRef&lt;str&gt; for str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#611-616" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.as_ref" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn as_ref(&amp;self) -&gt; &amp;str</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#613" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Performs the conversion.</p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-AsciiExt" class="impl has-srclink">
+<h3 class="code-header in-band">impl AsciiExt for str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/ascii.rs.html#204-208" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle" open><summary><div id="associatedtype.Owned-1" class="type trait-impl has-srclink">
+<h4 class="code-header">type Owned = String</h4>
+
+</div></summary><div class="item-info"><div class="stab deprecated">
+<span class="emoji">👎</span> Deprecated since 1.26.0: <p>use inherent methods instead</p> </div></div>
+<div class="docblock">
+<p>Container type for copied ASCII characters.</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.is_ascii-1" class="method trait-impl has-srclink">
+<h4 class="code-header">fn is_ascii(&amp;self) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/ascii.rs.html#207" title="goto source code">[src]</a>
+</div></summary><div class="item-info"><div class="stab deprecated">
+<span class="emoji">👎</span> Deprecated since 1.26.0: <p>use inherent methods instead</p> </div></div>
+<div class="docblock">
+<p>Checks if the value is within the ASCII range. <a href="ascii/trait.asciiext#tymethod.is_ascii">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.to_ascii_uppercase-1" class="method trait-impl has-srclink">
+<h4 class="code-header">fn to_ascii_uppercase(&amp;self) -&gt; Self::Owned</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/ascii.rs.html#207" title="goto source code">[src]</a>
+</div></summary><div class="item-info"><div class="stab deprecated">
+<span class="emoji">👎</span> Deprecated since 1.26.0: <p>use inherent methods instead</p> </div></div>
+<div class="docblock">
+<p>Makes a copy of the value in its ASCII upper case equivalent. <a href="ascii/trait.asciiext#tymethod.to_ascii_uppercase">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.to_ascii_lowercase-1" class="method trait-impl has-srclink">
+<h4 class="code-header">fn to_ascii_lowercase(&amp;self) -&gt; Self::Owned</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/ascii.rs.html#207" title="goto source code">[src]</a>
+</div></summary><div class="item-info"><div class="stab deprecated">
+<span class="emoji">👎</span> Deprecated since 1.26.0: <p>use inherent methods instead</p> </div></div>
+<div class="docblock">
+<p>Makes a copy of the value in its ASCII lower case equivalent. <a href="ascii/trait.asciiext#tymethod.to_ascii_lowercase">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.eq_ignore_ascii_case-1" class="method trait-impl has-srclink">
+<h4 class="code-header">fn eq_ignore_ascii_case(&amp;self, o: &amp;Self) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/ascii.rs.html#207" title="goto source code">[src]</a>
+</div></summary><div class="item-info"><div class="stab deprecated">
+<span class="emoji">👎</span> Deprecated since 1.26.0: <p>use inherent methods instead</p> </div></div>
+<div class="docblock">
+<p>Checks that two values are an ASCII case-insensitive match. <a href="ascii/trait.asciiext#tymethod.eq_ignore_ascii_case">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.make_ascii_uppercase-1" class="method trait-impl has-srclink">
+<h4 class="code-header">fn make_ascii_uppercase(&amp;mut self)</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/ascii.rs.html#207" title="goto source code">[src]</a>
+</div></summary><div class="item-info"><div class="stab deprecated">
+<span class="emoji">👎</span> Deprecated since 1.26.0: <p>use inherent methods instead</p> </div></div>
+<div class="docblock">
+<p>Converts this type to its ASCII upper case equivalent in-place. <a href="ascii/trait.asciiext#tymethod.make_ascii_uppercase">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.make_ascii_lowercase-1" class="method trait-impl has-srclink">
+<h4 class="code-header">fn make_ascii_lowercase(&amp;mut self)</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/ascii.rs.html#207" title="goto source code">[src]</a>
+</div></summary><div class="item-info"><div class="stab deprecated">
+<span class="emoji">👎</span> Deprecated since 1.26.0: <p>use inherent methods instead</p> </div></div>
+<div class="docblock">
+<p>Converts this type to its ASCII lower case equivalent in-place. <a href="ascii/trait.asciiext#tymethod.make_ascii_lowercase">Read more</a></p> </div></details>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Debug" class="impl has-srclink">
+<h3 class="code-header in-band">impl Debug for str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#2073-2095" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.fmt" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn fmt(&amp;self, f: &amp;mut Formatter&lt;'_&gt;) -&gt; Result&lt;(), Error&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#2074" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Formats the value using the given formatter. <a href="fmt/trait.debug#tymethod.fmt">Read more</a></p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Default" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;'_&gt; Default for &amp;'_ mut str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#2455-2462" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.28.0">1.28.0</span>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.default" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn default() -&gt; &amp;'_ mut str</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#2458" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Creates an empty mutable str</p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Default-1" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;'_&gt; Default for &amp;'_ str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#2446-2452" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.default-1" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn default() -&gt; &amp;'_ str</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/mod.rs.html#2449" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Creates an empty str</p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Display" class="impl has-srclink">
+<h3 class="code-header in-band">impl Display for str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#2098-2102" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.fmt-1" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn fmt(&amp;self, f: &amp;mut Formatter&lt;'_&gt;) -&gt; Result&lt;(), Error&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/fmt/mod.rs.html#2099" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Formats the value using the given formatter. <a href="fmt/trait.display#tymethod.fmt">Read more</a></p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Hash" class="impl has-srclink">
+<h3 class="code-header in-band">impl Hash for str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/hash/mod.rs.html#635-641" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle method-toggle" open><summary><div id="method.hash" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn hash&lt;H&gt;(&amp;self, state: &amp;mut H) <span class="where fmt-newline">where<br> H: <a class="trait" href="hash/trait.hasher" title="trait std::hash::Hasher">Hasher</a>, </span>
+</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/hash/mod.rs.html#637" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Feeds this value into the given <a href="hash/trait.hasher" title="Hasher"><code>Hasher</code></a>. <a href="hash/trait.hash#tymethod.hash">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.hash_slice" class="method trait-impl has-srclink">
+<h4 class="code-header">fn hash_slice&lt;H&gt;(data: &amp;[Self], state: &amp;mut H) <span class="where fmt-newline">where<br> H: <a class="trait" href="hash/trait.hasher" title="trait std::hash::Hasher">Hasher</a>, </span>
+</h4>
+<span class="since" title="Stable since Rust version 1.3.0">1.3.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/hash/mod.rs.html#211-213" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Feeds a slice of this type into the given <a href="hash/trait.hasher" title="Hasher"><code>Hasher</code></a>. <a href="hash/trait.hash#method.hash_slice">Read more</a></p> </div></details>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Index%3CI%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;I&gt; Index&lt;I&gt; for str <span class="where fmt-newline">where<br> I: <a class="trait" href="slice/trait.sliceindex" title="trait std::slice::SliceIndex">SliceIndex</a>&lt;<a class="primitive" href="primitive.str">str</a>&gt;, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/traits.rs.html#56-66" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle" open><summary><div id="associatedtype.Output" class="type trait-impl has-srclink">
+<h4 class="code-header">type Output = &lt;I as SliceIndex&lt;str&gt;&gt;::Output</h4>
+
+</div></summary><div class="docblock">
+<p>The returned type after indexing.</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.index" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn index(&amp;self, index: I) -&gt; &amp;&lt;I as SliceIndex&lt;str&gt;&gt;::Output</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/traits.rs.html#63" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Performs the indexing (<code>container[index]</code>) operation. <a href="ops/trait.index#tymethod.index">Read more</a></p> </div></details>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-IndexMut%3CI%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;I&gt; IndexMut&lt;I&gt; for str <span class="where fmt-newline">where<br> I: <a class="trait" href="slice/trait.sliceindex" title="trait std::slice::SliceIndex">SliceIndex</a>&lt;<a class="primitive" href="primitive.str">str</a>&gt;, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/traits.rs.html#69-77" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.index_mut" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn index_mut(&amp;mut self, index: I) -&gt; &amp;mut &lt;I as SliceIndex&lt;str&gt;&gt;::Output</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/traits.rs.html#74" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Performs the mutable indexing (<code>container[index]</code>) operation. <a href="ops/trait.indexmut#tymethod.index_mut">Read more</a></p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Ord" class="impl has-srclink">
+<h3 class="code-header in-band">impl Ord for str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/traits.rs.html#18-23" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Implements ordering of strings.</p> <p>Strings are ordered <a href="cmp/trait.ord#lexicographical-comparison">lexicographically</a> by their byte values. This orders Unicode code points based on their positions in the code charts. This is not necessarily the same as “alphabetical” order, which varies by language and locale. Sorting strings according to culturally-accepted standards requires locale-specific data that is outside the scope of the <code>str</code> type.</p> </div>
+<div class="impl-items">
+<details class="rustdoc-toggle method-toggle" open><summary><div id="method.cmp" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn cmp(&amp;self, other: &amp;str) -&gt; Ordering</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/traits.rs.html#20" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method returns an <a href="cmp/enum.ordering" title="Ordering"><code>Ordering</code></a> between <code>self</code> and <code>other</code>. <a href="cmp/trait.ord#tymethod.cmp">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.max" class="method trait-impl has-srclink">
+<h4 class="code-header">
+<div class="code-attribute">#[must_use]</div>fn max(self, other: Self) -&gt; Self</h4>
+<span class="since" title="Stable since Rust version 1.21.0">1.21.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/cmp.rs.html#738-740" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Compares and returns the maximum of two values. <a href="cmp/trait.ord#method.max">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.min" class="method trait-impl has-srclink">
+<h4 class="code-header">
+<div class="code-attribute">#[must_use]</div>fn min(self, other: Self) -&gt; Self</h4>
+<span class="since" title="Stable since Rust version 1.21.0">1.21.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/cmp.rs.html#758-760" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Compares and returns the minimum of two values. <a href="cmp/trait.ord#method.min">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.clamp" class="method trait-impl has-srclink">
+<h4 class="code-header">
+<div class="code-attribute">#[must_use]</div>fn clamp(self, min: Self, max: Self) -&gt; Self</h4>
+<span class="since" title="Stable since Rust version 1.50.0">1.50.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/cmp.rs.html#783-785" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Restrict a value to a certain interval. <a href="cmp/trait.ord#method.clamp">Read more</a></p> </div></details>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-PartialEq%3CCow%3C%27a%2C%20str%3E%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;'a, 'b&gt; PartialEq&lt;Cow&lt;'a, str&gt;&gt; for &amp;'b str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/string.rs.html#2104" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle method-toggle" open><summary><div id="method.eq-1" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn eq(&amp;self, other: &amp;Cow&lt;'a, str&gt;) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/string.rs.html#2104" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method tests for <code>self</code> and <code>other</code> values to be equal, and is used by <code>==</code>. <a href="cmp/trait.partialeq#tymethod.eq">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.ne-1" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn ne(&amp;self, other: &amp;Cow&lt;'a, str&gt;) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/string.rs.html#2104" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method tests for <code>!=</code>.</p> </div></details>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-PartialEq%3CCow%3C%27a%2C%20str%3E%3E-1" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;'a, 'b&gt; PartialEq&lt;Cow&lt;'a, str&gt;&gt; for str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/string.rs.html#2102" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle method-toggle" open><summary><div id="method.eq-2" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn eq(&amp;self, other: &amp;Cow&lt;'a, str&gt;) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/string.rs.html#2102" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method tests for <code>self</code> and <code>other</code> values to be equal, and is used by <code>==</code>. <a href="cmp/trait.partialeq#tymethod.eq">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.ne-2" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn ne(&amp;self, other: &amp;Cow&lt;'a, str&gt;) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/string.rs.html#2102" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method tests for <code>!=</code>.</p> </div></details>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-PartialEq%3COsStr%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl PartialEq&lt;OsStr&gt; for str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/ffi/os_str.rs.html#1003-1008" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle method-toggle" open><summary><div id="method.eq-7" class="method trait-impl has-srclink">
+<h4 class="code-header">fn eq(&amp;self, other: &amp;OsStr) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/ffi/os_str.rs.html#1005-1007" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method tests for <code>self</code> and <code>other</code> values to be equal, and is used by <code>==</code>. <a href="cmp/trait.partialeq#tymethod.eq">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.ne-7" class="method trait-impl has-srclink">
+<h4 class="code-header">
+<div class="code-attribute">#[must_use]</div>fn ne(&amp;self, other: &amp;Rhs) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/cmp.rs.html#213" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method tests for <code>!=</code>.</p> </div></details>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-PartialEq%3COsString%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl PartialEq&lt;OsString&gt; for str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/ffi/os_str.rs.html#459-464" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle method-toggle" open><summary><div id="method.eq-5" class="method trait-impl has-srclink">
+<h4 class="code-header">fn eq(&amp;self, other: &amp;OsString) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/ffi/os_str.rs.html#461-463" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method tests for <code>self</code> and <code>other</code> values to be equal, and is used by <code>==</code>. <a href="cmp/trait.partialeq#tymethod.eq">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.ne-5" class="method trait-impl has-srclink">
+<h4 class="code-header">
+<div class="code-attribute">#[must_use]</div>fn ne(&amp;self, other: &amp;Rhs) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/cmp.rs.html#213" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method tests for <code>!=</code>.</p> </div></details>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-PartialEq%3COsString%3E-1" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;'a&gt; PartialEq&lt;OsString&gt; for &amp;'a str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/ffi/os_str.rs.html#475-480" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.29.0">1.29.0</span>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle method-toggle" open><summary><div id="method.eq-6" class="method trait-impl has-srclink">
+<h4 class="code-header">fn eq(&amp;self, other: &amp;OsString) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/ffi/os_str.rs.html#477-479" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method tests for <code>self</code> and <code>other</code> values to be equal, and is used by <code>==</code>. <a href="cmp/trait.partialeq#tymethod.eq">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.ne-6" class="method trait-impl has-srclink">
+<h4 class="code-header">
+<div class="code-attribute">#[must_use]</div>fn ne(&amp;self, other: &amp;Rhs) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/cmp.rs.html#213" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method tests for <code>!=</code>.</p> </div></details>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-PartialEq%3CString%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;'a, 'b&gt; PartialEq&lt;String&gt; for str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/string.rs.html#2099" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle method-toggle" open><summary><div id="method.eq-3" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn eq(&amp;self, other: &amp;String) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/string.rs.html#2099" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method tests for <code>self</code> and <code>other</code> values to be equal, and is used by <code>==</code>. <a href="cmp/trait.partialeq#tymethod.eq">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.ne-3" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn ne(&amp;self, other: &amp;String) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/string.rs.html#2099" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method tests for <code>!=</code>.</p> </div></details>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-PartialEq%3CString%3E-1" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;'a, 'b&gt; PartialEq&lt;String&gt; for &amp;'a str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/string.rs.html#2100" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle method-toggle" open><summary><div id="method.eq-4" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn eq(&amp;self, other: &amp;String) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/string.rs.html#2100" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method tests for <code>self</code> and <code>other</code> values to be equal, and is used by <code>==</code>. <a href="cmp/trait.partialeq#tymethod.eq">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.ne-4" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn ne(&amp;self, other: &amp;String) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/string.rs.html#2100" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method tests for <code>!=</code>.</p> </div></details>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-PartialEq%3Cstr%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl PartialEq&lt;str&gt; for str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/traits.rs.html#26-35" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle method-toggle" open><summary><div id="method.eq" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn eq(&amp;self, other: &amp;str) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/traits.rs.html#28" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method tests for <code>self</code> and <code>other</code> values to be equal, and is used by <code>==</code>. <a href="cmp/trait.partialeq#tymethod.eq">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.ne" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn ne(&amp;self, other: &amp;str) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/traits.rs.html#32" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method tests for <code>!=</code>.</p> </div></details>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-PartialOrd%3Cstr%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl PartialOrd&lt;str&gt; for str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/traits.rs.html#48-53" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Implements comparison operations on strings.</p> <p>Strings are compared <a href="cmp/trait.ord#lexicographical-comparison">lexicographically</a> by their byte values. This compares Unicode code points based on their positions in the code charts. This is not necessarily the same as “alphabetical” order, which varies by language and locale. Comparing strings according to culturally-accepted standards requires locale-specific data that is outside the scope of the <code>str</code> type.</p> </div>
+<div class="impl-items">
+<details class="rustdoc-toggle method-toggle" open><summary><div id="method.partial_cmp" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn partial_cmp(&amp;self, other: &amp;str) -&gt; Option&lt;Ordering&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/traits.rs.html#50" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method returns an ordering between <code>self</code> and <code>other</code> values if one exists. <a href="cmp/trait.partialord#tymethod.partial_cmp">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.lt" class="method trait-impl has-srclink">
+<h4 class="code-header">
+<div class="code-attribute">#[must_use]</div>fn lt(&amp;self, other: &amp;Rhs) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/cmp.rs.html#978" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method tests less than (for <code>self</code> and <code>other</code>) and is used by the <code>&lt;</code> operator. <a href="cmp/trait.partialord#method.lt">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.le" class="method trait-impl has-srclink">
+<h4 class="code-header">
+<div class="code-attribute">#[must_use]</div>fn le(&amp;self, other: &amp;Rhs) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/cmp.rs.html#997" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method tests less than or equal to (for <code>self</code> and <code>other</code>) and is used by the <code>&lt;=</code> operator. <a href="cmp/trait.partialord#method.le">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.gt" class="method trait-impl has-srclink">
+<h4 class="code-header">
+<div class="code-attribute">#[must_use]</div>fn gt(&amp;self, other: &amp;Rhs) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/cmp.rs.html#1019" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method tests greater than (for <code>self</code> and <code>other</code>) and is used by the <code>&gt;</code> operator. <a href="cmp/trait.partialord#method.gt">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.ge" class="method trait-impl has-srclink">
+<h4 class="code-header">
+<div class="code-attribute">#[must_use]</div>fn ge(&amp;self, other: &amp;Rhs) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/cmp.rs.html#1038" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>This method tests greater than or equal to (for <code>self</code> and <code>other</code>) and is used by the <code>&gt;=</code> operator. <a href="cmp/trait.partialord#method.ge">Read more</a></p> </div></details>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Pattern%3C%27a%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;'a, 'b&gt; Pattern&lt;'a&gt; for &amp;'b str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/pattern.rs.html#862-904" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Non-allocating substring search.</p> <p>Will handle the pattern <code>""</code> as returning empty matches at each character boundary.</p> <h2 id="examples-68" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
+assert_eq!("Hello world".find("world"), Some(6));</pre></div> </div>
+<div class="impl-items">
+<details class="rustdoc-toggle method-toggle" open><summary><div id="method.is_prefix_of" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn is_prefix_of(self, haystack: &amp;'a str) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/pattern.rs.html#872" title="goto source code">[src]</a>
+</div>
+<div class="item-info"><div class="stab unstable"><details><summary><span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>pattern</code> <a href="https://github.com/rust-lang/rust/issues/27721">#27721</a>)</summary><p>API not fully fleshed out and ready to be stabilized</p> </details></div></div></summary><div class="docblock">
+<p>Checks whether the pattern matches at the front of the haystack.</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.strip_prefix_of" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn strip_prefix_of(self, haystack: &amp;'a str) -&gt; Option&lt;&amp;'a str&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/pattern.rs.html#878" title="goto source code">[src]</a>
+</div>
+<div class="item-info"><div class="stab unstable"><details><summary><span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>pattern</code> <a href="https://github.com/rust-lang/rust/issues/27721">#27721</a>)</summary><p>API not fully fleshed out and ready to be stabilized</p> </details></div></div></summary><div class="docblock">
+<p>Removes the pattern from the front of haystack, if it matches.</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.is_suffix_of" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn is_suffix_of(self, haystack: &amp;'a str) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/pattern.rs.html#889" title="goto source code">[src]</a>
+</div>
+<div class="item-info"><div class="stab unstable"><details><summary><span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>pattern</code> <a href="https://github.com/rust-lang/rust/issues/27721">#27721</a>)</summary><p>API not fully fleshed out and ready to be stabilized</p> </details></div></div></summary><div class="docblock">
+<p>Checks whether the pattern matches at the back of the haystack.</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.strip_suffix_of" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn strip_suffix_of(self, haystack: &amp;'a str) -&gt; Option&lt;&amp;'a str&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/pattern.rs.html#895" title="goto source code">[src]</a>
+</div>
+<div class="item-info"><div class="stab unstable"><details><summary><span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>pattern</code> <a href="https://github.com/rust-lang/rust/issues/27721">#27721</a>)</summary><p>API not fully fleshed out and ready to be stabilized</p> </details></div></div></summary><div class="docblock">
+<p>Removes the pattern from the back of haystack, if it matches.</p> </div></details><details class="rustdoc-toggle" open><summary><div id="associatedtype.Searcher" class="type trait-impl has-srclink">
+<h4 class="code-header">type Searcher = StrSearcher&lt;'a, 'b&gt;</h4>
+
+</div></summary><div class="item-info"><div class="stab unstable"><details><summary><span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>pattern</code> <a href="https://github.com/rust-lang/rust/issues/27721">#27721</a>)</summary><p>API not fully fleshed out and ready to be stabilized</p> </details></div></div>
+<div class="docblock">
+<p>Associated searcher for this pattern</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.into_searcher" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn into_searcher(self, haystack: &amp;'a str) -&gt; StrSearcher&lt;'a, 'b&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/pattern.rs.html#866" title="goto source code">[src]</a>
+</div></summary><div class="item-info"><div class="stab unstable"><details><summary><span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>pattern</code> <a href="https://github.com/rust-lang/rust/issues/27721">#27721</a>)</summary><p>API not fully fleshed out and ready to be stabilized</p> </details></div></div>
+<div class="docblock">
+<p>Constructs the associated searcher from <code>self</code> and the <code>haystack</code> to search in. <a href="str/pattern/trait.pattern#tymethod.into_searcher">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.is_contained_in" class="method trait-impl has-srclink">
+<h4 class="code-header">fn is_contained_in(self, haystack: &amp;'a str) -&gt; bool</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/pattern.rs.html#101" title="goto source code">[src]</a>
+</div></summary><div class="item-info"><div class="stab unstable"><details><summary><span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>pattern</code> <a href="https://github.com/rust-lang/rust/issues/27721">#27721</a>)</summary><p>API not fully fleshed out and ready to be stabilized</p> </details></div></div>
+<div class="docblock">
+<p>Checks whether the pattern matches anywhere in the haystack</p> </div></details>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-ToOwned" class="impl has-srclink">
+<h3 class="code-header in-band">impl ToOwned for str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/str.rs.html#215-227" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle" open><summary><div id="associatedtype.Owned" class="type trait-impl has-srclink">
+<h4 class="code-header">type Owned = String</h4>
+
+</div></summary><div class="docblock">
+<p>The resulting type after obtaining ownership.</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.to_owned" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn to_owned(&amp;self) -&gt; String</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/str.rs.html#218" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Creates owned data from borrowed data, usually by cloning. <a href="borrow/trait.toowned#tymethod.to_owned">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.clone_into" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn clone_into(&amp;self, target: &amp;mut String)</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/str.rs.html#222" title="goto source code">[src]</a>
+</div></summary><div class="item-info"><div class="stab unstable"><details><summary><span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>toowned_clone_into</code> <a href="https://github.com/rust-lang/rust/issues/41263">#41263</a>)</summary><p>recently added</p> </details></div></div>
+<div class="docblock">
+<p>Uses borrowed data to replace owned data, usually by cloning. <a href="borrow/trait.toowned#method.clone_into">Read more</a></p> </div></details>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-ToSocketAddrs" class="impl has-srclink">
+<h3 class="code-header in-band">impl ToSocketAddrs for str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/net/addr.rs.html#981-991" title="goto source code">[src]</a>
+</div></summary><div class="impl-items">
+<details class="rustdoc-toggle" open><summary><div id="associatedtype.Iter" class="type trait-impl has-srclink">
+<h4 class="code-header">type Iter = IntoIter&lt;SocketAddr&gt;</h4>
+
+</div></summary><div class="docblock">
+<p>Returned iterator over socket addresses which this type may correspond to. <a href="net/trait.tosocketaddrs#associatedtype.Iter">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.to_socket_addrs" class="method trait-impl has-srclink">
+<h4 class="code-header">fn to_socket_addrs(&amp;self) -&gt; Result&lt;IntoIter&lt;SocketAddr&gt;&gt;</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/net/addr.rs.html#983-990" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Converts this object to an iterator of resolved <code>SocketAddr</code>s. <a href="net/trait.tosocketaddrs#tymethod.to_socket_addrs">Read more</a></p> </div></details>
+</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-ToString" class="impl has-srclink">
+<h3 class="code-header in-band">impl ToString for str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/string.rs.html#2442-2447" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.9.0">1.9.0</span>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.to_string" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn to_string(&amp;self) -&gt; String</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/string.rs.html#2444" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Converts the given value to a <code>String</code>. <a href="string/trait.tostring#tymethod.to_string">Read more</a></p> </div></details></div></details><div id="impl-Eq" class="impl has-srclink">
+<h3 class="code-header in-band">impl Eq for str</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/str/traits.rs.html#38" title="goto source code">[src]</a>
+</div>
+</div>
+<h2 id="synthetic-implementations" class="small-section-header">Auto Trait Implementations</h2>
+<div id="synthetic-implementations-list">
+<div id="impl-RefUnwindSafe" class="impl has-srclink">
+<h3 class="code-header in-band">impl RefUnwindSafe for str</h3>
+
+</div>
+<div id="impl-Send" class="impl has-srclink">
+<h3 class="code-header in-band">impl Send for str</h3>
+
+</div>
+<div id="impl-Sized" class="impl has-srclink">
+<h3 class="code-header in-band">impl !Sized for str</h3>
+
+</div>
+<div id="impl-Sync" class="impl has-srclink">
+<h3 class="code-header in-band">impl Sync for str</h3>
+
+</div>
+<div id="impl-Unpin" class="impl has-srclink">
+<h3 class="code-header in-band">impl Unpin for str</h3>
+
+</div>
+<div id="impl-UnwindSafe" class="impl has-srclink">
+<h3 class="code-header in-band">impl UnwindSafe for str</h3>
+
+</div>
+</div>
+<h2 id="blanket-implementations" class="small-section-header">Blanket Implementations</h2>
+<div id="blanket-implementations-list">
+<details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Any" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T&gt; Any for T <span class="where fmt-newline">where<br> T: 'static + ?<a class="trait" href="marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#131-135" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.type_id" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn type_id(&amp;self) -&gt; TypeId</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#132" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Gets the <code>TypeId</code> of <code>self</code>. <a href="any/trait.any#tymethod.type_id">Read more</a></p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Borrow%3CT%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T&gt; Borrow&lt;T&gt; for T <span class="where fmt-newline">where<br> T: ?<a class="trait" href="marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#208-213" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.borrow" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn borrow(&amp;self) -&gt; &amp;T</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#210" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Immutably borrows from an owned value. <a href="borrow/trait.borrow#tymethod.borrow">Read more</a></p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-BorrowMut%3CT%3E" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T&gt; BorrowMut&lt;T&gt; for T <span class="where fmt-newline">where<br> T: ?<a class="trait" href="marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#216-220" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.borrow_mut" class="method trait-impl has-srclink">
+<h4 class="code-header">pub fn borrow_mut(&amp;mut self) -&gt; &amp;mut T</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#217" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Mutably borrows from an owned value. <a href="borrow/trait.borrowmut#tymethod.borrow_mut">Read more</a></p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-ToString-1" class="impl has-srclink">
+<h3 class="code-header in-band">impl&lt;T&gt; ToString for T <span class="where fmt-newline">where<br> T: <a class="trait" href="fmt/trait.display" title="trait std::fmt::Display">Display</a> + ?<a class="trait" href="marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h3>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/string.rs.html#2372-2386" title="goto source code">[src]</a>
+</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.to_string-1" class="method trait-impl has-srclink">
+<h4 class="code-header">pub default fn to_string(&amp;self) -&gt; String</h4>
+<a class="srclink" href="https://doc.rust-lang.org/src/alloc/string.rs.html#2378" title="goto source code">[src]</a>
+</div></summary><div class="docblock">
+<p>Converts the given value to a <code>String</code>. <a href="string/trait.tostring#tymethod.to_string">Read more</a></p> </div></details></div></details>
+</div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://doc.rust-lang.org/std/primitive.str.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/std/primitive.str.html</a>
+  </p>
+</div>

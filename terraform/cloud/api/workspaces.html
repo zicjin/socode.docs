@@ -1,0 +1,1071 @@
+ <h1 id="workspaces-api">  Workspaces API </h1> <p>Workspaces represent running infrastructure managed by Terraform.</p> <p>Viewing a workspace (individually or in a list) requires permission to read runs. Changing settings and force-unlocking require admin access to the workspace. Locking and unlocking a workspace requires permission to lock and unlock the workspace. (<a href="../users-teams-organizations/permissions">More about permissions.</a>)</p> <h2 id="create-a-workspace">  Create a Workspace </h2> <p><code>POST /organizations/:organization_name/workspaces</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:organization_name</code></td> <td>The name of the organization to create the workspace in. The organization must already exist in the system, and the user must have permissions to create new workspaces.</td> </tr> </tbody>
+</table> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> Workspace creation is restricted to the owners team, teams with the "Manage Workspaces" permission, and the <a href="../users-teams-organizations/api-tokens#organization-api-tokens">organization API token</a>.</p> </blockquote> <h3 id="request-body">  Request Body </h3> <p>This POST endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <p>By supplying the necessary attributes under a <code>vcs-repository</code> object, you can create a workspace that is configured against a VCS Repository.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"workspaces"</code>.</td> </tr> <tr> <td><code>data.attributes.name</code></td> <td>string</td> <td></td> <td>The name of the workspace, which can only include letters, numbers, <code>-</code>, and <code>_</code>. This will be used as an identifier and must be unique in the organization.</td> </tr> <tr> <td><code>data.attributes.agent-pool-id</code></td> <td>string</td> <td>(nothing)</td> <td>Required when <code>execution-mode</code> is set to <code>agent</code>. The ID of the agent pool belonging to the workspace's organization. This value must not be specified if <code>execution-mode</code> is set to <code>remote</code> or <code>local</code> or if <code>operations</code> is set to <code>true</code>.</td> </tr> <tr> <td><code>data.attributes.allow-destroy-plan</code></td> <td>boolean</td> <td><code>true</code></td> <td>Whether destroy plans can be queued on the workspace.</td> </tr> <tr> <td><code>data.attributes.auto-apply</code></td> <td>boolean</td> <td><code>false</code></td> <td>Whether to automatically apply changes when a Terraform plan is successful, <a href="../workspaces/settings#auto-apply-and-manual-apply">with some exceptions</a>.</td> </tr> <tr> <td><code>data.attributes.description</code></td> <td>string</td> <td>(nothing)</td> <td>A description for the workspace.</td> </tr> <tr> <td><code>data.attributes.execution-mode</code></td> <td>string</td> <td><code>remote</code></td> <td>Which <a href="../workspaces/settings#execution-mode">execution mode</a> to use. Valid values are <code>remote</code>, <code>local</code>, and <code>agent</code>. When set to <code>local</code>, the workspace will be used for state storage only. This value must not be specified if <code>operations</code> is specified.</td> </tr> <tr> <td><code>data.attributes.file-triggers-enabled</code></td> <td>boolean</td> <td><code>true</code></td> <td>Whether to filter runs based on the changed files in a VCS push. If enabled, the <code>working-directory</code> and <code>trigger-prefixes</code> describe a set of paths which must contain changes for a VCS push to trigger a run. If disabled, any push will trigger a run.</td> </tr> <tr> <td><code>data.attributes.global-remote-state</code></td> <td>boolean</td> <td><code>false</code></td> <td>Whether the workspace should allow all workspaces in the organization to <a href="../workspaces/state">access its state data</a> during runs. If <code>false</code>, then only specifically approved workspaces can access its state. Manage allowed workspaces using the <a href="workspaces#get-remote-state-consumers">Remote State Consumers</a> endpoints, documented later on this page. <strong>Note:</strong> Terraform Enterprise admins can choose the default value for new workspaces if this attribute is omitted.</td> </tr> <tr> <td><code>data.attributes.operations</code></td> <td>boolean</td> <td><code>true</code></td> <td>
+<strong>DEPRECATED</strong> Use <code>execution-mode</code> instead. Whether to use remote execution mode. When set to <code>false</code>, the workspace will be used for state storage only. This value must not be specified if <code>execution-mode</code> is specified.</td> </tr> <tr> <td><code>data.attributes.queue-all-runs</code></td> <td>boolean</td> <td><code>false</code></td> <td>Whether runs should be queued immediately after workspace creation. When set to false, runs triggered by a VCS change will not be queued until at least one run is manually queued.</td> </tr> <tr> <td>
+<code>data.attributes.source-name</code> <strong>(beta)</strong>
+</td> <td>string</td> <td>(nothing)</td> <td>A friendly name for the application or client creating this workspace. If set, this will be displayed on the workspace as "Created via <code>&lt;SOURCE NAME&gt;</code>".</td> </tr> <tr> <td>
+<code>data.attributes.source-url</code> <strong>(beta)</strong>
+</td> <td>string</td> <td>(nothing)</td> <td>A URL for the application or client creating this workspace. This can be the URL of a related resource in another app, or a link to documentation or other info about the client.</td> </tr> <tr> <td><code>data.attributes.speculative-enabled</code></td> <td>boolean</td> <td>true</td> <td>Whether this workspace allows automatic <a href="../run/index#speculative-plans">speculative plans</a>. Setting this to <code>false</code> prevents Terraform Cloud from running plans on pull requests, which can improve security if the VCS repository is public or includes untrusted contributors. It doesn't prevent manual speculative plans via the remote backend or the runs API.</td> </tr> <tr> <td><code>data.attributes.terraform-version</code></td> <td>string</td> <td>(nothing)</td> <td>The version of Terraform to use for this workspace. Upon creating a workspace, the latest version is selected unless otherwise specified (e.g. <code>"0.11.1"</code>).</td> </tr> <tr> <td><code>data.attributes.trigger-prefixes</code></td> <td>array</td> <td><code>[]</code></td> <td>List of repository-root-relative paths which should be tracked for changes, in addition to the working directory.</td> </tr> <tr> <td><code>data.attributes.vcs-repo</code></td> <td>object</td> <td>(nothing)</td> <td>Settings for the workspace's VCS repository. If omitted, the workspace is created without a VCS repo. If included, you must specify at least the <code>oauth-token-id</code> and <code>identifier</code> keys below.</td> </tr> <tr> <td><code>data.attributes.vcs-repo.oauth-token-id</code></td> <td>string</td> <td></td> <td>The VCS Connection (OAuth Connection + Token) to use. This ID can be obtained from the <a href="oauth-tokens">oauth-tokens</a> endpoint.</td> </tr> <tr> <td><code>data.attributes.vcs-repo.branch</code></td> <td>string</td> <td>(nothing)</td> <td>The repository branch that Terraform will execute from. If omitted or submitted as an empty string, this defaults to the repository's default branch (e.g. <code>master</code>) .</td> </tr> <tr> <td><code>data.attributes.vcs-repo.ingress-submodules</code></td> <td>boolean</td> <td><code>false</code></td> <td>Whether submodules should be fetched when cloning the VCS repository.</td> </tr> <tr> <td><code>data.attributes.vcs-repo.identifier</code></td> <td>string</td> <td></td> <td>A reference to your VCS repository in the format :org/:repo where :org and :repo refer to the organization and repository in your VCS provider. The format for Azure DevOps is <code>:org/:project/_git/:repo</code>.</td> </tr> <tr> <td><code>data.attributes.working-directory</code></td> <td>string</td> <td>(nothing)</td> <td>A relative path that Terraform will execute within. This defaults to the root of your repository and is typically set to a subdirectory matching the environment when multiple environments exist within the same repository.</td> </tr> </tbody>
+</table> <h3 id="sample-payload">  Sample Payload </h3> <p><em>Without a VCS repository</em></p> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "name": "workspace-1",
+      "resource-count": 0,
+      "updated-at": "2017-11-29T19:18:09.976Z"
+    },
+    "type": "workspaces"
+  }
+}
+</pre>
+<p><em>With a VCS repository</em></p> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "name": "workspace-2",
+      "resource-count": 0,
+      "terraform_version": "0.11.1",
+      "working-directory": "",
+      "vcs-repo": {
+        "identifier": "skierkowski/terraform-test-proj",
+        "oauth-token-id": "ot-hmAyP66qk2AMVdbJ",
+        "branch": ""
+      },
+      "updated-at": "2017-11-29T19:18:09.976Z"
+    },
+    "type": "workspaces"
+  }
+}
+</pre>
+<p><em>For a monorepo</em></p> <p>A run will be triggered in this workspace when changes are detected in any of the specified directories: <code>/networking</code>, <code>/modules</code>, or <code>/vendor</code>.</p> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "name": "workspace-3",
+      "resource-count": 0,
+      "terraform_version": "0.12.1",
+      "trigger-prefixes": ["/modules", "/vendor"],
+      "working-directory": "/networking",
+      "vcs-repo": {
+        "identifier": "skierkowski/terraform-test-proj-monorepo",
+        "oauth-token-id": "ot-hmAyP66qk2AMVdbJ",
+        "branch": ""
+      },
+      "updated-at": "2017-11-29T19:18:09.976Z"
+    },
+    "type": "workspaces"
+  }
+}
+</pre>
+<p><em>Using Terraform Cloud Agents</em></p> <p><a href="agents">Terraform Cloud Agents</a> are a solution to allow Terraform Cloud to communicate with isolated, private, or on-premises infrastructure.</p> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "name":"workspace-1",
+      "execution-mode": "agent",
+      "agent-pool-id": "apool-ZjT6A7mVFm5WHT5a",
+      "resource-count": 0,
+      "updated-at": "2017-11-29T19:18:09.976Z"
+    }
+  },
+  "type": "workspaces"
+}
+</pre>
+<h3 id="sample-request">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/organizations/my-organization/workspaces
+</pre>
+<h3 id="sample-response">  Sample Response </h3> <p><em>Without a VCS repository</em></p> <pre data-language="json">{
+  "data": {
+    "id": "ws-YnyXLq9fy38afEeb",
+    "type": "workspaces",
+    "attributes": {
+      "auto-apply": false,
+      "allow-destroy-plan": false,
+      "can-queue-destroy-plan": false,
+      "created-at": "2017-11-18T00:43:59.384Z",
+      "environment": "default",
+      "file-triggers-enabled": true,
+      "locked": false,
+      "name": "workspace-1",
+      "permissions": {
+        "can-update": true,
+        "can-destroy": false,
+        "can-queue-destroy": false,
+        "can-queue-run": false,
+        "can-update-variable": false,
+        "can-lock": false,
+        "can-read-settings": true
+      },
+      "queue-all-runs": false,
+      "resource-count": 0,
+      "terraform-version": "0.11.0",
+      "trigger-prefixes": [],
+      "vcs-repo": null,
+      "working-directory": "",
+      "global-remote-state": true,
+      "execution-mode": "agent",
+      "updated-at": "2017-11-29T19:18:09.976Z"
+    },
+    "relationships": {
+      "organization": {
+        "data": {
+          "id": "my-organization",
+          "type": "organizations"
+        }
+      },
+      "ssh-key": {
+        "data": null
+      },
+      "latest-run": {
+        "data": null
+      },
+      "agent-pool": {
+        "data": {
+          "id": "apool-ZjT6A7mVFm5WHT5a",
+          "type": "agent-pools"
+        }
+      }
+    },
+    "links": {
+      "self": "/api/v2/organizations/my-organization/workspaces/workspace-1"
+    }
+  }
+}
+</pre>
+<p><em>With a VCS repository</em></p> <pre data-language="json">{
+  "data": {
+    "id": "ws-SihZTyXKfNXUWuUa",
+    "type": "workspaces",
+    "attributes": {
+      "auto-apply": false,
+      "allow-destroy-plan": false,
+      "can-queue-destroy-plan": true,
+      "created-at": "2017-11-02T23:55:16.142Z",
+      "description": null,
+      "environment": "default",
+      "file-triggers-enabled": true,
+      "locked": false,
+      "name": "workspace-2",
+      "permissions": {
+        "can-update": true,
+        "can-destroy": false,
+        "can-queue-destroy": false,
+        "can-queue-run": false,
+        "can-update-variable": false,
+        "can-lock": false,
+        "can-read-settings": true
+      },
+      "queue-all-runs": false,
+      "resource-count": 0,
+      "source": "tfe-ui",
+      "source-name": null,
+      "source-url": null,
+      "terraform-version": "0.10.8",
+      "trigger-prefixes": [],
+      "vcs-repo": {
+        "identifier": "skierkowski/terraform-test-proj",
+        "branch": "",
+        "oauth-token-id": "ot-hmAyP66qk2AMVdbJ",
+        "ingress-submodules": false
+      },
+      "working-directory": null,
+      "global-remote-state": true,
+      "execution-mode": "agent",
+      "updated-at": "2017-11-29T19:18:09.976Z"
+    },
+    "relationships": {
+      "organization": {
+        "data": {
+          "id": "my-organization",
+          "type": "organizations"
+        }
+      },
+      "ssh-key": {
+        "data": null
+      },
+      "latest-run": {
+        "data": null
+      },
+      "agent-pool": {
+        "data": {
+          "id": "apool-ZjT6A7mVFm5WHT5a",
+          "type": "agent-pools"
+        }
+      }
+    },
+    "links": {
+      "self": "/api/v2/organizations/my-organization/workspaces/workspace-2"
+    }
+  }
+}
+</pre>
+<h2 id="update-a-workspace">  Update a Workspace </h2> <p>A workspace can be updated via two endpoints, which behave identically. One refers to a workspace by its ID, and the other by its name and organization.</p> <p><code>PATCH /workspaces/:workspace_id</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:workspace_id</code></td> <td>The ID of the workspace to update</td> </tr> </tbody>
+</table> <p><code>PATCH /organizations/:organization_name/workspaces/:name</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:organization_name</code></td> <td>The name of the organization the workspace belongs to.</td> </tr> <tr> <td><code>:name</code></td> <td>The name of the workspace to update, which can only include letters, numbers, <code>-</code>, and <code>_</code>. This will be used as an identifier and must be unique in the organization.</td> </tr> </tbody>
+</table> <h3 id="request-body-1">  Request Body </h3> <p>These PATCH endpoints require a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <p>Note that workspaces without an associated VCS repository only use the <code>auto-apply</code>, <code>terraform-version</code>, and <code>working-directory</code>.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"workspaces"</code>.</td> </tr> <tr> <td><code>data.attributes.name</code></td> <td>string</td> <td>(previous value)</td> <td>A new name for the workspace, which can only include letters, numbers, <code>-</code>, and <code>_</code>. This will be used as an identifier and must be unique in the organization. <strong>Warning:</strong> Changing a workspace's name changes its URL in the API and UI.</td> </tr> <tr> <td><code>data.attributes.agent-pool-id</code></td> <td>string</td> <td>(previous value)</td> <td>Required when <code>execution-mode</code> is set to <code>agent</code>. The ID of the agent pool belonging to the workspace's organization. This value must not be specified if <code>execution-mode</code> is set to <code>remote</code> or <code>local</code> or if <code>operations</code> is set to <code>true</code>.</td> </tr> <tr> <td><code>data.attributes.allow-destroy-plan</code></td> <td>boolean</td> <td>(previous value)</td> <td>Whether destroy plans can be queued on the workspace.</td> </tr> <tr> <td><code>data.attributes.auto-apply</code></td> <td>boolean</td> <td>(previous value)</td> <td>Whether to automatically apply changes when a Terraform plan is successful, <a href="../workspaces/settings#auto-apply-and-manual-apply">with some exceptions</a>.</td> </tr> <tr> <td><code>data.attributes.description</code></td> <td>string</td> <td>(previous value)</td> <td>A description for the workspace.</td> </tr> <tr> <td><code>data.attributes.execution-mode</code></td> <td>string</td> <td>(previous value)</td> <td>Which <a href="../workspaces/settings#execution-mode">execution mode</a> to use. Valid values are <code>remote</code>, <code>local</code>, and <code>agent</code>. When set to <code>local</code>, the workspace will be used for state storage only. This value must not be specified if <code>operations</code> is specified.</td> </tr> <tr> <td><code>data.attributes.file-triggers-enabled</code></td> <td>boolean</td> <td>(previous value)</td> <td>Whether to filter runs based on the changed files in a VCS push. If enabled, the <code>working-directory</code> and <code>trigger-prefixes</code> describe a set of paths which must contain changes for a VCS push to trigger a run. If disabled, any push will trigger a run.</td> </tr> <tr> <td><code>data.attributes.global-remote-state</code></td> <td>boolean</td> <td>(previous value)</td> <td>Whether the workspace should allow all workspaces in the organization to <a href="../workspaces/state">access its state data</a> during runs. If <code>false</code>, then only specifically approved workspaces can access its state. Manage allowed workspaces using the <a href="workspaces#get-remote-state-consumers">Remote State Consumers</a> endpoints, documented later on this page.</td> </tr> <tr> <td><code>data.attributes.operations</code></td> <td>boolean</td> <td>(previous value)</td> <td>
+<strong>DEPRECATED</strong> Use <code>execution-mode</code> instead. Whether to use remote execution mode. When set to <code>false</code>, the workspace will be used for state storage only. This value must not be specified if <code>execution-mode</code> is specified.</td> </tr> <tr> <td><code>data.attributes.queue-all-runs</code></td> <td>boolean</td> <td>(previous value)</td> <td>Whether runs should be queued immediately after workspace creation. When set to false, runs triggered by a VCS change will not be queued until at least one run is manually queued.</td> </tr> <tr> <td><code>data.attributes.speculative-enabled</code></td> <td>boolean</td> <td>(previous value)</td> <td>Whether this workspace allows automatic <a href="../run/index#speculative-plans">speculative plans</a>. Setting this to <code>false</code> prevents Terraform Cloud from running plans on pull requests, which can improve security if the VCS repository is public or includes untrusted contributors. It doesn't prevent manual speculative plans via the remote backend or the runs API.</td> </tr> <tr> <td><code>data.attributes.terraform-version</code></td> <td>string</td> <td>(previous value)</td> <td>The version of Terraform to use for this workspace.</td> </tr> <tr> <td><code>data.attributes.trigger-prefixes</code></td> <td>array</td> <td>(previous value)</td> <td>List of repository-root-relative paths which should be tracked for changes, in addition to the working directory.</td> </tr> <tr> <td><code>data.attributes.vcs-repo</code></td> <td>object or null</td> <td>(previous value)</td> <td>To delete a workspace's existing VCS repo, specify <code>null</code> instead of an object. To modify a workspace's existing VCS repo, include whichever of the keys below you wish to modify. To add a new VCS repo to a workspace that didn't previously have one, include at least the <code>oauth-token-id</code> and <code>identifier</code> keys.</td> </tr> <tr> <td><code>data.attributes.vcs-repo.oauth-token-id</code></td> <td>string</td> <td>(previous value)</td> <td>The VCS Connection (OAuth Connection + Token) to use. This ID can be obtained from the <a href="oauth-tokens">oauth-tokens</a> endpoint.</td> </tr> <tr> <td><code>data.attributes.vcs-repo.branch</code></td> <td>string</td> <td>(previous value)</td> <td>The repository branch that Terraform will execute from.</td> </tr> <tr> <td><code>data.attributes.vcs-repo.ingress-submodules</code></td> <td>boolean</td> <td>(previous value)</td> <td>Whether submodules should be fetched when cloning the VCS repository.</td> </tr> <tr> <td><code>data.attributes.vcs-repo.identifier</code></td> <td>string</td> <td>(previous value)</td> <td>A reference to your VCS repository in the format :org/:repo where :org and :repo refer to the organization and repository in your VCS provider. The format for Azure DevOps is <code>:org/:project/_git/:repo</code>.</td> </tr> <tr> <td><code>data.attributes.working-directory</code></td> <td>string</td> <td>(previous value)</td> <td>A relative path that Terraform will execute within. This defaults to the root of your repository and is typically set to a subdirectory matching the environment when multiple environments exist within the same repository.</td> </tr> </tbody>
+</table> <h3 id="sample-payload-1">  Sample Payload </h3> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "name": "workspace-2",
+      "resource-count": 0,
+      "terraform_version": "0.11.1",
+      "working-directory": "",
+      "vcs-repo": {
+        "identifier": "skierkowski/terraform-test-proj",
+        "branch": "",
+        "ingress-submodules": false,
+        "oauth-token-id": "ot-hmAyP66qk2AMVdbJ"
+      },
+      "updated-at": "2017-11-29T19:18:09.976Z"
+    },
+    "type": "workspaces"
+  }
+}
+</pre>
+<h3 id="sample-request-1">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request PATCH \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/organizations/my-organization/workspaces/workspace-2
+</pre>
+<h3 id="sample-response-1">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id": "ws-SihZTyXKfNXUWuUa",
+    "type": "workspaces",
+    "attributes": {
+      "auto-apply": false,
+      "allow-destroy-plan": false,
+      "can-queue-destroy-plan": false,
+      "created-at": "2017-11-02T23:24:05.997Z",
+      "description": null,
+      "environment": "default",
+      "file-triggers-enabled": true,
+      "locked": false,
+      "name": "workspace-2",
+      "queue-all-runs": false,
+      "resource-count": 0,
+      "source": "tfe-ui",
+      "source-name": null,
+      "source-url": null,
+      "terraform-version": "0.10.8",
+      "trigger-prefixes": [],
+      "vcs-repo": {
+        "identifier": "skierkowski/terraform-test-proj",
+        "branch": "",
+        "ingress-submodules": false,
+        "oauth-token-id": "ot-hmAyP66qk2AMVdbJ"
+      },
+      "working-directory": "",
+      "global-remote-state": true,
+      "updated-at": "2017-11-29T19:18:09.976Z"
+    },
+    "relationships": {
+      "organization": {
+        "data": {
+          "id": "my-organization",
+          "type": "organizations"
+        }
+      },
+      "ssh-key": {
+        "data": null
+      },
+      "latest-run": {
+        "data": null
+      }
+    },
+    "links": {
+      "self": "/api/v2/organizations/my-organization/workspaces/workspace-2"
+    }
+  }
+}
+</pre>
+<h2 id="list-workspaces">  List workspaces </h2> <p>This endpoint lists workspaces in the organization.</p> <p><code>GET /organizations/:organization_name/workspaces</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:organization_name</code></td> <td>The name of the organization to list the workspaces of.</td> </tr> </tbody>
+</table> <h3 id="query-parameters">  Query Parameters </h3> <p>This endpoint supports pagination <a href="index#query-parameters">with standard URL query parameters</a>; remember to percent-encode <code>[</code> as <code>%5B</code> and <code>]</code> as <code>%5D</code> if your tooling doesn't automatically encode URLs.</p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>page[number]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return the first page.</td> </tr> <tr> <td><code>page[size]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return 20 workspaces per page.</td> </tr> <tr> <td><code>search[name]</code></td> <td>
+<strong>Optional.</strong> Allows searching the organization's workspaces by name.</td> </tr> </tbody>
+</table> <h3 id="sample-request-2">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  https://app.terraform.io/api/v2/organizations/my-organization/workspaces
+</pre>
+<h3 id="sample-response-2">  Sample Response </h3> <pre data-language="json">{
+  "data": [
+    {
+      "id": "ws-SihZTyXKfNXUWuUa",
+      "type": "workspaces",
+      "attributes": {
+        "auto-apply": false,
+        "allow-destroy-plan": false,
+        "can-queue-destroy-plan": false,
+        "created-at": "2017-11-02T23:24:05.997Z",
+        "description": null,
+        "environment": "default",
+        "file-triggers-enabled": true,
+        "locked": false,
+        "name": "workspace-2",
+        "queue-all-runs": false,
+        "resource-count": 5,
+        "source": "tfe-ui",
+        "source-name": null,
+        "source-url": null,
+        "terraform-version": "0.10.8",
+        "trigger-prefixes": [],
+        "vcs-repo": {
+          "branch": "",
+          "ingress-submodules": false
+        },
+        "working-directory": "",
+        "global-remote-state": true,
+        "updated-at": "2017-11-29T19:18:09.976Z"
+      },
+      "relationships": {
+        "organization": {
+          "data": {
+            "id": "my-organization",
+            "type": "organizations"
+          }
+        },
+        "ssh-key": {
+          "data": null
+        },
+        "latest-run": {
+          "data": null
+        }
+      },
+      "links": {
+        "self": "/api/v2/organizations/my-organization/workspaces/workspace-2"
+      }
+    },
+    {
+      "id": "ws-YnyXLq9fy38afEeb",
+      "type": "workspaces",
+      "attributes": {
+        "auto-apply": false,
+        "allow-destroy-plan":false,
+        "can-queue-destroy-plan": false,
+        "created-at": "2017-11-02T23:23:53.765Z",
+        "description": null,
+        "environment": "default",
+        "file-triggers-enabled": true,
+        "locked": false,
+        "name": "workspace-1",
+        "queue-all-runs": false,
+        "resource-count": 5,
+        "source": "tfe-ui",
+        "source-name": null,
+        "source-url": null,
+        "terraform-version": "0.10.8",
+        "trigger-prefixes": [],
+        "vcs-repo": {
+          "branch": "",
+          "ingress-submodules": false
+        },
+        "working-directory": "",
+        "global-remote-state": true,
+        "updated-at": "2017-11-29T19:18:09.976Z"
+      },
+      "relationships": {
+        "organization": {
+          "data": {
+            "id": "my-organization",
+            "type": "organizations"
+          }
+        },
+        "ssh-key": {
+          "data": null
+        },
+        "latest-run": {
+          "data": null
+        }
+      },
+      "links": {
+        "self": "/api/v2/organizations/my-organization/workspaces/workspace-1"
+      }
+    }
+  ]
+}
+</pre>
+<h2 id="show-workspace">  Show workspace </h2> <p>Details on a workspace can be retrieved from two endpoints, which behave identically.</p> <p>One refers to a workspace by its ID:</p> <p><code>GET /workspaces/:workspace_id</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:workspace_id</code></td> <td>The workspace ID</td> </tr> </tbody>
+</table> <p>The other refers to a workspace by its name and organization:</p> <p><code>GET /organizations/:organization_name/workspaces/:name</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:organization_name</code></td> <td>The name of the organization the workspace belongs to.</td> </tr> <tr> <td><code>:name</code></td> <td>The name of the workspace to show details for, which can only include letters, numbers, <code>-</code>, and <code>_</code>.</td> </tr> </tbody>
+</table> <h3 id="workspace-performance-attributes">  Workspace performance attributes </h3> <p>The following attributes are helpful in determining the overall health and performance of your workspace configuration. These metrics refer to the <strong>past 30 runs that have either resulted in an error or successfully applied</strong>.</p> <table>
+<thead> <tr> <th>Parameter</th> <th>Type</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.attributes.apply-duration-average</code></td> <td>number</td> <td>This is the average time runs spend in the <strong>apply</strong> phase, represented in milliseconds</td> </tr> <tr> <td><code>data.attributes.plan-duration-average</code></td> <td>number</td> <td>This is the average time runs spend in the <strong>plan</strong> phase, represented in milliseconds</td> </tr> <tr> <td><code>data.attributes.policy-check-failures</code></td> <td>number</td> <td>Reports the number of run failures resulting from a policy check failure</td> </tr> <tr> <td><code>data.attributes.run-failures</code></td> <td>number</td> <td>Reports the number of failed runs</td> </tr> <tr> <td><code>data.attributes.workspace-kpis-run-count</code></td> <td>number</td> <td>Total number of runs taken into account by these metrics</td> </tr> </tbody>
+</table> <h3 id="sample-request-3">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  https://app.terraform.io/api/v2/organizations/my-organization/workspaces/workspace-1
+</pre>
+<h3 id="sample-response-3">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id": "ws-mD5bmJ8ry3uTzuHi",
+    "type": "workspaces",
+    "attributes": {
+      "actions": {
+        "is-destroyable": true
+      },
+      "apply-duration-average": 600000,
+      "auto-apply": false,
+      "allow-destroy-plan": true,
+      "created-at": "2018-03-08T22:30:00.404Z",
+      "description": null,
+      "environment": "default",
+      "file-triggers-enabled": true,
+      "locked": false,
+      "name": "workspace-1",
+      "permissions": {
+        "can-update": true,
+        "can-destroy": true,
+        "can-queue-destroy": true,
+        "can-queue-run": true,
+        "can-update-variable": true,
+        "can-lock": true,
+        "can-read-settings": true
+      },
+      "plan-duration-average": 600000,
+      "policy-check-failures": 5,
+      "queue-all-runs": false,
+      "resource-count": 5,
+      "run-failures": 2,
+      "workspace-kpis-run-count": 10,
+      "source": "tfe-ui",
+      "source-name": null,
+      "source-url": null,
+      "terraform-version": "0.11.3",
+      "trigger-prefixes": [],
+      "working-directory": null,
+      "global-remote-state": true,
+      "updated-at": "2017-11-29T19:18:09.976Z"
+    },
+    "relationships": {
+      "organization": {
+        "data": {
+          "id": "org-MxtxBC6ihhU6u8AG",
+          "type": "organizations"
+        }
+      },
+      "current-run": {
+        "data": {
+          "id": "run-ZbX5Lb4n8Kdu4roV",
+          "type": "runs"
+        },
+        "links": {
+          "related": "/api/v2/runs/run-ZbX5Lb4n8Kdu4roV"
+        }
+      },
+      "latest-run": {
+        "data": {
+          "id": "run-ZbX5Lb4n8Kdu4roV",
+          "type": "runs"
+        },
+        "links": {
+          "related": "/api/v2/runs/run-ZbX5Lb4n8Kdu4roV"
+        }
+      },
+      "outputs": {
+        "data": [{
+          "id": "wsout-tZ2bJSSeECSBkCiS",
+          "type": "workspace-outputs"
+        }]
+      },
+    },
+    "included": [{
+      "id": "wsout-tZ2bJSSeECSBkCiS",
+      "type": "workspace-outputs",
+      "attributes": {
+        "name": "random",
+        "sensitive": false,
+        "output-type": "string",
+        "workspace-attributes": {
+          "id": "ws-sKRZA6LNRdViecHa",
+          "name": "terraform-testing"
+        },
+        "organization-attributes": {
+          "id": "org-MsM3mTFU49nX3Qbo",
+          "name": "jondavidjohn"
+        },
+        "value": "evenly-rapidly-noticeably-model-horse"
+      }
+    }],
+    "links": {
+      "self": "/api/v2/organizations/my-organization/workspaces/workspace-1"
+    }
+  }
+}
+</pre>
+<h2 id="delete-a-workspace">  Delete a workspace </h2> <p>A workspace can be deleted via two endpoints, which behave identically. One refers to a workspace by its ID, and the other by its name and organization.</p> <p><code>DELETE /workspaces/:workspace_id</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:workspace_id</code></td> <td>The ID of the workspace to delete</td> </tr> </tbody>
+</table> <p><code>DELETE /organizations/:organization_name/workspaces/:name</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:organization_name</code></td> <td>The name of the organization the workspace belongs to.</td> </tr> <tr> <td><code>:name</code></td> <td>The name of the workspace to delete, which can only include letters, numbers, <code>-</code>, and <code>_</code>.</td> </tr> </tbody>
+</table> <h3 id="sample-request-4">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request DELETE \
+  https://app.terraform.io/api/v2/organizations/my-organization/workspaces/workspace-1
+</pre>
+<h2 id="lock-a-workspace">  Lock a workspace </h2> <p>This endpoint locks a workspace.</p> <p><code>POST /workspaces/:workspace_id/actions/lock</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:workspace_id</code></td> <td>The workspace ID to lock. Obtain this from the <a href="../workspaces/settings">workspace settings</a> or the <a href="#show-workspace">Show Workspace</a> endpoint.</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason(s)</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "workspaces"</code>)</td> <td>Successfully locked the workspace</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Workspace not found, or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/409">409</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Workspace already locked</td> </tr> </tbody>
+</table> <h3 id="request-body-2">  Request Body </h3> <p>This POST endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>reason</code></td> <td>string</td> <td><code>""</code></td> <td>The reason for locking the workspace.</td> </tr> </tbody>
+</table> <h3 id="sample-payload-2">  Sample Payload </h3> <pre data-language="json">{
+  "reason": "Locking workspace-1"
+}
+</pre>
+<h3 id="sample-request-5">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/workspaces/ws-SihZTyXKfNXUWuUa/actions/lock
+</pre>
+<h3 id="sample-response-4">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "auto-apply": false,
+      "allow-destroy-plan": false,
+      "can-queue-destroy-plan": false,
+      "created-at": "2017-11-02T23:23:53.765Z",
+      "description": null,
+      "environment": "default",
+      "file-triggers-enabled": true,
+      "locked": true,
+      "name": "workspace-2",
+      "permissions": {
+        "can-destroy": true,
+        "can-lock": true,
+        "can-queue-destroy": true,
+        "can-queue-run": true,
+        "can-read-settings": true,
+        "can-update": true,
+        "can-update-variable": true
+      },
+      "queue-all-runs": false,
+      "resource-count": 5,
+      "source": "tfe-ui",
+      "source-name": null,
+      "source-url": null,
+      "terraform-version": "0.10.8",
+      "trigger-prefixes": [],
+      "vcs-repo": {
+        "branch": "",
+        "identifier": "my-organization/my-repository",
+        "ingress-submodules": false,
+        "oauth-token-id": "ot-hmAyP66qk2AMVdbJ"
+      },
+      "working-directory": null,
+      "global-remote-state": true,
+      "updated-at": "2017-11-29T19:18:09.976Z"
+    },
+    "id": "ws-SihZTyXKfNXUWuUa",
+    "relationships": {
+      "locked-by": {
+        "data": {
+          "id": "my-user",
+          "type": "users"
+        },
+        "links": {
+          "related": "/api/v2/users/my-user"
+        }
+      }
+    },
+    "type": "workspaces"
+  }
+}
+</pre>
+<h2 id="unlock-a-workspace">  Unlock a workspace </h2> <p>This endpoint unlocks a workspace.</p> <p><code>POST /workspaces/:workspace_id/actions/unlock</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:workspace_id</code></td> <td>The workspace ID to unlock. Obtain this from the <a href="../workspaces/settings">workspace settings</a> or the <a href="#show-workspace">Show Workspace</a> endpoint.</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason(s)</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "workspaces"</code>)</td> <td>Successfully unlocked the workspace</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Workspace not found, or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/409">409</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Workspace already unlocked, or locked by a different user</td> </tr> </tbody>
+</table> <h3 id="sample-request-6">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  https://app.terraform.io/api/v2/workspaces/ws-SihZTyXKfNXUWuUa/actions/unlock
+</pre>
+<h3 id="sample-response-5">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "auto-apply": false,
+      "allow-destroy-plan": false,
+      "can-queue-destroy-plan": false,
+      "created-at": "2017-11-02T23:23:53.765Z",
+      "description": null,
+      "environment": "default",
+      "file-triggers-enabled": true,
+      "locked": false,
+      "name": "workspace-2",
+      "permissions": {
+        "can-destroy": true,
+        "can-lock": true,
+        "can-queue-destroy": true,
+        "can-queue-run": true,
+        "can-read-settings": true,
+        "can-update": true,
+        "can-update-variable": true
+      },
+      "queue-all-runs": false,
+      "resource-count": 5,
+      "source": "tfe-ui",
+      "source-name": null,
+      "source-url": null,
+      "terraform-version": "0.10.8",
+      "trigger-prefixes": [],
+      "vcs-repo": {
+        "branch": "",
+        "identifier": "my-organization/my-repository",
+        "ingress-submodules": false,
+        "oauth-token-id": "ot-hmAyP66qk2AMVdbJ"
+      },
+      "working-directory": null,
+      "global-remote-state": true,
+      "updated-at": "2017-11-29T19:18:09.976Z"
+    },
+    "id": "ws-SihZTyXKfNXUWuUa",
+    "type": "workspaces"
+  }
+}
+</pre>
+<h2 id="force-unlock-a-workspace">  Force Unlock a workspace </h2> <p>This endpoint force unlocks a workspace. Only users with admin access are authorized to force unlock a workspace.</p> <p><code>POST /workspaces/:workspace_id/actions/force-unlock</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:workspace_id</code></td> <td>The workspace ID to force unlock. Obtain this from the <a href="../workspaces/settings">workspace settings</a> or the <a href="#show-workspace">Show Workspace</a> endpoint.</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason(s)</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "workspaces"</code>)</td> <td>Successfully force unlocked the workspace</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Workspace not found, or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/409">409</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Workspace already unlocked</td> </tr> </tbody>
+</table> <h3 id="sample-request-7">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  https://app.terraform.io/api/v2/workspaces/ws-SihZTyXKfNXUWuUa/actions/force-unlock
+</pre>
+<h3 id="sample-response-6">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "auto-apply": false,
+      "allow-destroy-plan": false,
+      "can-queue-destroy-plan": false,
+      "created-at": "2017-11-02T23:23:53.765Z",
+      "description": null,
+      "environment": "default",
+      "file-triggers-enabled": true,
+      "locked": false,
+      "name": "workspace-2",
+      "permissions": {
+        "can-destroy": true,
+        "can-lock": true,
+        "can-queue-destroy": true,
+        "can-queue-run": true,
+        "can-read-settings": true,
+        "can-update": true,
+        "can-update-variable": true
+      },
+      "queue-all-runs": false,
+      "resource-count": 5,
+      "source": "tfe-ui",
+      "source-name": null,
+      "source-url": null,
+      "terraform-version": "0.10.8",
+      "trigger-prefixes": [],
+      "vcs-repo": {
+        "branch": "",
+        "identifier": "my-organization/my-repository",
+        "ingress-submodules": false,
+        "oauth-token-id": "ot-hmAyP66qk2AMVdbJ"
+      },
+      "working-directory": null,
+      "global-remote-state": true,
+      "updated-at": "2017-11-29T19:18:09.976Z"
+    },
+    "id": "ws-SihZTyXKfNXUWuUa",
+    "type": "workspaces"
+  }
+}
+</pre>
+<h2 id="assign-an-ssh-key-to-a-workspace">  Assign an SSH key to a workspace </h2> <p>This endpoint assigns an SSH key to a workspace.</p> <p><code>PATCH /workspaces/:workspace_id/relationships/ssh-key</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:workspace_id</code></td> <td>The workspace ID to assign the SSH key to. Obtain this from the <a href="../workspaces/settings">workspace settings</a> or the <a href="#show-workspace">Show Workspace</a> endpoint.</td> </tr> </tbody>
+</table> <h3 id="request-body-3">  Request Body </h3> <p>This POST endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"workspaces"</code>.</td> </tr> <tr> <td><code>data.attributes.id</code></td> <td>string</td> <td></td> <td>The SSH key ID to assign. Obtain this from the <a href="ssh-keys">ssh-keys</a> endpoint.</td> </tr> </tbody>
+</table> <h4 id="sample-payload-3">  Sample Payload </h4> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "id": "sshkey-GxrePWre1Ezug7aM"
+    },
+    "type": "workspaces"
+  }
+}
+</pre>
+<h3 id="sample-request-8">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request PATCH \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/workspaces/ws-SihZTyXKfNXUWuUa/relationships/ssh-key
+</pre>
+<h3 id="sample-response-7">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "auto-apply": false,
+      "allow-destroy-plan": false,
+      "can-queue-destroy-plan": false,
+      "created-at": "2017-11-02T23:24:05.997Z",
+      "description": null,
+      "environment": "default",
+      "file-triggers-enabled": true,
+      "locked": false,
+      "name": "workspace-2",
+      "queue-all-runs": false,
+      "resource-count": 5,
+      "source": "tfe-ui",
+      "source-name": null,
+      "source-url": null,
+      "terraform-version": "0.10.8",
+      "trigger-prefixes": [],
+      "vcs-repo": {
+        "branch": "",
+        "ingress-submodules": false
+      },
+      "working-directory": "",
+      "global-remote-state": true,
+      "updated-at": "2017-11-29T19:18:09.976Z"
+    },
+    "id": "ws-SihZTyXKfNXUWuUa",
+    "links": {
+      "self": "/api/v2/organizations/my-organization/workspaces/workspace-2"
+    },
+    "relationships": {
+      "latest-run": {
+        "data": null
+      },
+      "organization": {
+        "data": {
+          "id": "my-organization",
+          "type": "organizations"
+        }
+      },
+      "ssh-key": {
+        "data": {
+          "id": "sshkey-GxrePWre1Ezug7aM",
+          "type": "ssh-keys"
+        },
+        "links": {
+          "related": "/api/v2/ssh-keys/sshkey-GxrePWre1Ezug7aM"
+        }
+      }
+    },
+    "type": "workspaces"
+  }
+}
+</pre>
+<h2 id="unassign-an-ssh-key-from-a-workspace">  Unassign an SSH key from a workspace </h2> <p>This endpoint unassigns the currently assigned SSH key from a workspace.</p> <p><code>PATCH /workspaces/:workspace_id/relationships/ssh-key</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:workspace_id</code></td> <td>The workspace ID to assign the SSH key to. Obtain this from the <a href="../workspaces/settings">workspace settings</a> or the <a href="#show-workspace">Show Workspace</a> endpoint.</td> </tr> </tbody>
+</table> <h3 id="request-body-4">  Request Body </h3> <p>This POST endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"workspaces"</code>.</td> </tr> <tr> <td><code>data.attributes.id</code></td> <td>string</td> <td></td> <td>Must be <code>null</code>.</td> </tr> </tbody>
+</table> <h3 id="sample-payload-4">  Sample Payload </h3> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "id": null
+    },
+    "type": "workspaces"
+  }
+}
+</pre>
+<h3 id="sample-request-9">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request PATCH \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/workspaces/ws-SihZTyXKfNXUWuUa/relationships/ssh-key
+</pre>
+<h3 id="sample-response-8">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "auto-apply": false,
+      "allow-destroy-plan": false,
+      "can-queue-destroy-plan": false,
+      "created-at": "2017-11-02T23:24:05.997Z",
+      "description": null,
+      "environment": "default",
+      "file-triggers-enabled": true,
+      "locked": false,
+      "name": "workspace-2",
+      "queue-all-runs": false,
+      "resource-count": 5,
+      "source": "tfe-ui",
+      "source-name": null,
+      "source-url": null,
+      "terraform-version": "0.10.8",
+      "trigger-prefixes": [],
+      "vcs-repo": {
+        "branch": "",
+        "ingress-submodules": false
+      },
+      "working-directory": "",
+      "global-remote-state": true,
+      "updated-at": "2017-11-29T19:18:09.976Z"
+    },
+    "id": "ws-erEAnPmgtm5mJr77",
+    "links": {
+      "self": "/api/v2/organizations/my-organization/workspaces/workspace-2"
+    },
+    "relationships": {
+      "latest-run": {
+        "data": null
+      },
+      "organization": {
+        "data": {
+          "id": "my-organization",
+          "type": "organizations"
+        }
+      },
+      "ssh-key": {
+        "data": null
+      }
+    },
+    "type": "workspaces"
+  }
+}
+</pre>
+<h2 id="get-remote-state-consumers">  Get Remote State Consumers </h2> <p><code>GET /workspaces/:workspace_id/relationships/remote_state_consumers</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:workspace_id</code></td> <td>The workspace ID to get remote state consumers for. Obtain this from the <a href="../workspaces/settings">workspace settings</a> or the <a href="#show-workspace">Show Workspace</a> endpoint.</td> </tr> </tbody>
+</table> <p>This endpoint retrieves the list of other workspaces that are allowed to access the given workspace's state during runs.</p> <ul> <li>If <code>global-remote-state</code> is set to false for the workspace, this will return the list of other workspaces that are specifically authorized to access the workspace's state. </li> <li>If <code>global-remote-state</code> is set to true, this will return a list of every workspace in the organization except for the subject workspace. </li> </ul> <p>The list returned by this endpoint is subject to the caller's normal workspace permissions; it will not include workspaces that the provided API token is unable to read.</p> <h3 id="query-parameters-1">  Query Parameters </h3> <p>This endpoint supports pagination <a href="index#query-parameters">with standard URL query parameters</a>; remember to percent-encode <code>[</code> as <code>%5B</code> and <code>]</code> as <code>%5D</code> if your tooling doesn't automatically encode URLs.</p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>page[number]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return the first page.</td> </tr> <tr> <td><code>page[size]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return 20 workspaces per page.</td> </tr> </tbody>
+</table> <h3 id="sample-request-10">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  https://app.terraform.io/api/v2/workspaces/ws-SihZTyXKfNXUWuUa/relationships/remote-state-consumers
+</pre>
+<h3 id="sample-response-9">  Sample Response </h3> <pre data-language="json">{
+  "data": [
+    {
+      "id": "ws-kGUhmUEb5ep55auL",
+      "type": "workspaces",
+      "attributes": {
+        "allow-destroy-plan": true,
+        "auto-apply": false,
+        "auto-destroy-at": null,
+        "created-at": "2021-04-16T14:02:30.116Z",
+        "environment": "default",
+        "locked": false,
+        "name": "SlothSpace-a6959312-555c-4b98-83ba-a5bb4eb5ea58",
+        "queue-all-runs": false,
+        "speculative-enabled": true,
+        "terraform-version": "0.13.4",
+        "working-directory": "",
+        "global-remote-state": false,
+        "latest-change-at": "2021-04-16T14:02:30.116Z",
+        "operations": true,
+        "execution-mode": "remote",
+        "vcs-repo": null,
+        "vcs-repo-identifier": null,
+        "permissions": {
+          "can-update": true,
+          "can-destroy": true,
+          "can-queue-destroy": true,
+          "can-queue-run": true,
+          "can-queue-apply": true,
+          "can-read-state-versions": true,
+          "can-create-state-versions": true,
+          "can-read-variable": true,
+          "can-update-variable": true,
+          "can-lock": true,
+          "can-unlock": true,
+          "can-force-unlock": true,
+          "can-read-settings": true
+        },
+        "actions": {
+          "is-destroyable": true
+        },
+        "description": "The workspace where we keep the sloths.",
+        "file-triggers-enabled": true,
+        "trigger-prefixes": [],
+        "source": null,
+        "source-name": null,
+        "source-url": null
+      },
+      "relationships": {
+        "organization": {
+          "data": {
+            "id": "organization_1",
+            "type": "organizations"
+          }
+        },
+        "ssh-key": {
+          "data": {
+            "id": "sshkey-dVK2FiBVcbeKfcPy",
+            "type": "ssh-keys"
+          },
+          "links": {
+            "related": "/api/v2/ssh-keys/sshkey-dVK2FiBVcbeKfcPy"
+          }
+        },
+        "current-run": {
+          "data": null
+        },
+        "latest-run": {
+          "data": null
+        },
+        "remote-state-consumers": {
+          "links": {
+            "related": "/api/v2/workspaces/ws-kGUhmUEb5ep55auL/relationships/remote-state-consumers"
+          }
+        },
+        "current-state-version": {
+          "data": null
+        },
+        "current-configuration-version": {
+          "data": null
+        },
+        "agent-pool": {
+          "data": null
+        }
+      },
+      "links": {
+        "self": "/api/v2/organizations/organization_1/workspaces/SlothSpace-a6959312-555c-4b98-83ba-a5bb4eb5ea58"
+      }
+    }
+  ],
+  "links": {
+    "self": "http://test.host/api/v2/workspaces/ws-Jp5DW3dPpCLmR3um/relationships/remote-state-consumers?page%5Bnumber%5D=1&amp;page%5Bsize%5D=20&amp;show_only_configured=true",
+    "first": "http://test.host/api/v2/workspaces/ws-Jp5DW3dPpCLmR3um/relationships/remote-state-consumers?page%5Bnumber%5D=1&amp;page%5Bsize%5D=20&amp;show_only_configured=true",
+    "prev": null,
+    "next": null,
+    "last": "http://test.host/api/v2/workspaces/ws-Jp5DW3dPpCLmR3um/relationships/remote-state-consumers?page%5Bnumber%5D=1&amp;page%5Bsize%5D=20&amp;show_only_configured=true"
+  },
+  "meta": {
+    "pagination": {
+      "current-page": 1,
+      "prev-page": null,
+      "next-page": null,
+      "total-pages": 1,
+      "total-count": 1
+    }
+  }
+}
+</pre>
+<h2 id="replace-remote-state-consumers">  Replace Remote State Consumers </h2> <p><code>PATCH /workspaces/:workspace_id/relationships/remote_state_consumers</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:workspace_id</code></td> <td>The workspace ID to replace remote state consumers for. Obtain this from the <a href="../workspaces/settings">workspace settings</a> or the <a href="#show-workspace">Show Workspace</a> endpoint.</td> </tr> </tbody>
+</table> <p>This endpoint updates the workspace's remote state consumers to be <em>exactly</em> the list of workspaces specified in the payload. It can only be used for workspaces where <code>global-remote-state</code> is false.</p> <p>This endpoint can only be used by teams with permission to manage workspaces for the entire organization — only those who can <em>view</em> the entire list of consumers can <em>replace</em> the entire list. (<a href="../users-teams-organizations/permissions">More about permissions.</a>) Teams with admin permissions on specific workspaces can still modify remote state consumers for those workspaces, but must use the add (POST) and remove (DELETE) endpoints listed below instead of this PATCH endpoint.</p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason(s)</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204">204</a></td> <td>Nothing</td> <td>Successfully updated remote state consumers</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Workspace not found, or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Problem with payload or request; details provided in the error object</td> </tr> </tbody>
+</table> <h3 id="request-body-5">  Request Body </h3> <p>This PATCH endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data[].type</code></td> <td>string</td> <td></td> <td>Must be <code>"workspaces"</code>.</td> </tr> <tr> <td><code>data[].id</code></td> <td>string</td> <td></td> <td>The ID of a workspace to be set as a remote state consumer.</td> </tr> </tbody>
+</table> <h3 id="sample-payload-5">  Sample Payload </h3> <pre data-language="json">{
+  "data": [
+    {
+      "id": "ws-7aiqKYf6ejMFdtWS",
+      "type": "workspaces"
+    }
+  ]
+}
+</pre>
+<h3 id="sample-request-11">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request PATCH \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/workspaces/ws-UYv6RYM8fVhzeGG5/relationships/remote-state-consumers
+</pre>
+<h3 id="response">  Response </h3> <p>No response body.</p> <p>Status code <code>204</code>.</p> <h2 id="add-remote-state-consumers">  Add Remote State Consumers </h2> <p><code>POST /workspaces/:workspace_id/relationships/remote_state_consumers</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:workspace_id</code></td> <td>The workspace ID to add remote state consumers for. Obtain this from the <a href="../workspaces/settings">workspace settings</a> or the <a href="#show-workspace">Show Workspace</a> endpoint.</td> </tr> </tbody>
+</table> <p>This endpoint adds one or more remote state consumers to the workspace. It can only be used for workspaces where <code>global-remote-state</code> is false.</p> <ul> <li>The workspaces specified as consumers must be readable to the API token that makes the request. </li> <li>A workspace cannot be added as a consumer of itself. (A workspace can always read its own state, regardless of access settings.) </li> <li>You can safely add a consumer workspace that is already present; it will be ignored, and the rest of the consumers in the request will be processed normally. </li> </ul> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason(s)</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204">204</a></td> <td>Nothing</td> <td>Successfully updated remote state consumers</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Workspace not found, or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Problem with payload or request; details provided in the error object</td> </tr> </tbody>
+</table> <h3 id="request-body-6">  Request Body </h3> <p>This POST endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data[].type</code></td> <td>string</td> <td></td> <td>Must be <code>"workspaces"</code>.</td> </tr> <tr> <td><code>data[].id</code></td> <td>string</td> <td></td> <td>The ID of a workspace to be set as a remote state consumer.</td> </tr> </tbody>
+</table> <h3 id="sample-payload-6">  Sample Payload </h3> <pre data-language="json">{
+  "data": [
+    {
+      "id": "ws-7aiqKYf6ejMFdtWS",
+      "type": "workspaces"
+    }
+  ]
+}
+</pre>
+<h3 id="sample-request-12">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/workspaces/ws-UYv6RYM8fVhzeGG5/relationships/remote-state-consumers
+</pre>
+<h3 id="response-1">  Response </h3> <p>No response body.</p> <p>Status code <code>204</code>.</p> <h2 id="delete-remote-state-consumers">  Delete Remote State Consumers </h2> <p><code>DELETE /workspaces/:workspace_id/relationships/remote_state_consumers</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:workspace_id</code></td> <td>The workspace ID to remove remote state consumers for. Obtain this from the <a href="../workspaces/settings">workspace settings</a> or the <a href="#show-workspace">Show Workspace</a> endpoint.</td> </tr> </tbody>
+</table> <p>This endpoint removes one or more remote state consumers from a workspace, according to the contents of the payload. It can only be used for workspaces where <code>global-remote-state</code> is false.</p> <ul> <li>The workspaces specified as consumers must be readable to the API token that makes the request. </li> <li>You can safely remove a consumer workspace that is already absent; it will be ignored, and the rest of the consumers in the request will be processed normally. </li> </ul> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason(s)</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204">204</a></td> <td>Nothing</td> <td>Successfully updated remote state consumers</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Workspace not found, or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Problem with payload or request; details provided in the error object</td> </tr> </tbody>
+</table> <h3 id="request-body-7">  Request Body </h3> <p>This POST endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data[].type</code></td> <td>string</td> <td></td> <td>Must be <code>"workspaces"</code>.</td> </tr> <tr> <td><code>data[].id</code></td> <td>string</td> <td></td> <td>The ID of a workspace to remove from the remote state consumers.</td> </tr> </tbody>
+</table> <h3 id="sample-payload-7">  Sample Payload </h3> <pre data-language="json">{
+  "data": [
+    {
+      "id": "ws-7aiqKYf6ejMFdtWS",
+      "type": "workspaces"
+    }
+  ]
+}
+</pre>
+<h3 id="sample-request-13">  Sample Request </h3> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request DELETE \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/workspaces/ws-UYv6RYM8fVhzeGG5/relationships/remote-state-consumers
+</pre>
+<h3 id="response-2">  Response </h3> <p>No response body.</p> <p>Status code <code>204</code>.</p> <h2 id="available-related-resources">  Available Related Resources </h2> <p>The GET endpoints above can optionally return related resources, if requested with <a href="index#inclusion-of-related-resources">the <code>include</code> query parameter</a>. The following resource types are available:</p> <ul> <li>
+<a href="#organization"><code>organization</code></a> - The full organization record. </li> <li>
+<a href="#current_configuration_version"><code>current_configuration_version</code></a> - The last configuration this workspace received, excluding plan-only configurations. Terraform uses this configuration for new runs, unless you provide a different one. </li> <li>
+<a href="#current_configuration_version-ingress_attributes"><code>current_configuration_version.ingress_attributes</code></a> - The commit information for the current configuration version. </li> <li>
+<a href="#current_run"><code>current_run</code></a> - Additional information about the current run. </li> <li>
+<a href="#current_run-plan"><code>current_run.plan</code></a> - The plan used in the current run. </li> <li>
+<a href="#current_run-configuration_version"><code>current_run.configuration_version</code></a> - The configuration used in the current run. </li> <li>
+<a href="#current_run-configuration_version-ingress_attributes"><code>current_run.configuration_version.ingress_attributes</code></a> - The commit information used in the current run. </li> <li>
+<a href="#locked_by"><code>locked_by</code></a> - The user, team, or run responsible for locking the workspace, if the workspace is currently locked. </li> <li>
+<a href="#readme"><code>readme</code></a> - The most recent workspace README.md </li> <li>
+<a href="#outputs"><code>outputs</code></a> - The outputs for the most recently applied run. </li> </ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/cloud/api/workspaces.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/cloud/api/workspaces.html</a>
+  </p>
+</div>

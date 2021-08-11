@@ -1,0 +1,206 @@
+<h1>LargestContentfulPaint</h1> <p>The <code>LargestContentfulPaint</code> interface of the <a href="largest_contentful_paint_api"><code>Largest Contentful Paint API</code></a> provides details about the largest image or text paint before user input on a web page. The timing of this paint is a good heuristic for when the main page content is available during load.</p>
+<h2 id="properties">Properties</h2>
+<p><em>This interface also inherits properties from <a href="performanceentry"><code>PerformanceEntry</code></a>.</em></p> <dl> <dt>
+<a href="largestcontentfulpaint/element"><code>LargestContentfulPaint.element</code></a><span class="badge inline readonly">Read only </span>
+</dt> <dd>The element that is the current largest contentful paint.</dd> <dt>
+<a href="largestcontentfulpaint/rendertime"><code>LargestContentfulPaint.renderTime</code></a><span class="badge inline readonly">Read only </span>
+</dt> <dd>The time the element was rendered to the screen. May not be available if the element is a cross-origin image loaded without the <code>Timing-Allow-Origin</code> header.</dd> <dt>
+<a href="largestcontentfulpaint/loadtime"><code>LargestContentfulPaint.loadTime</code></a><span class="badge inline readonly">Read only </span>
+</dt> <dd>The time the element was loaded.</dd> <dt>
+<a href="largestcontentfulpaint/size"><code>LargestContentfulPaint.size</code></a><span class="badge inline readonly">Read only </span>
+</dt> <dd>The intrinsic size of the element returned as the area (width * height).</dd> <dt>
+<a href="largestcontentfulpaint/id"><code>LargestContentfulPaint.id</code></a><span class="badge inline readonly">Read only </span>
+</dt> <dd>The id of the element. This property returns an empty string when there is no id.</dd> <dt>
+<a href="largestcontentfulpaint/url"><code>LargestContentfulPaint.url</code></a><span class="badge inline readonly">Read only </span>
+</dt> <dd>If the element is an image, the request url of the image.</dd> </dl>
+<h2 id="methods">Methods</h2>
+<p><em>This interface also inherits methods from <a href="performanceentry"><code>PerformanceEntry</code></a>.</em></p> <dl> <dt><a href="largestcontentfulpaint/tojson"><code>LargestContentfulPaint.toJSON()</code></a></dt> <dd>Returns the above properties as JSON.</dd> </dl>
+<h2 id="examples">Examples</h2>
+<p>The following example shows how to create a <a href="performanceobserver"><code>PerformanceObserver</code></a> that listens for <code>largest-contentful-paint</code> entries and logs the LCP value to the console.</p> <p>This example also demonstrates how to include buffered entries (those that ocurred before <code>observer()</code> was called), which is done by setting the <code>buffered</code> option to <code>true</code>.</p> <p>Note that in this example data is only sent to the server when the user leaves the tab.</p> <div class="code-example"><pre data-language="js"><span class="token comment">// Catch errors since some browsers throw when using the new `type` option.</span>
+<span class="token comment">// https://bugs.webkit.org/show_bug.cgi?id=209216</span>
+<span class="token keyword">try</span> <span class="token punctuation">{</span>
+  <span class="token keyword">let</span> lcp<span class="token punctuation">;</span>
+
+  <span class="token keyword">const</span> po <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">PerformanceObserver</span><span class="token punctuation">(</span><span class="token punctuation">(</span><span class="token parameter">entryList</span><span class="token punctuation">)</span> <span class="token operator">=&gt;</span> <span class="token punctuation">{</span>
+    <span class="token keyword">const</span> entries <span class="token operator">=</span> entryList<span class="token punctuation">.</span><span class="token function">getEntries</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token keyword">const</span> lastEntry <span class="token operator">=</span> entries<span class="token punctuation">[</span>entries<span class="token punctuation">.</span>length <span class="token operator">-</span> <span class="token number">1</span><span class="token punctuation">]</span><span class="token punctuation">;</span>
+
+    <span class="token comment">// Update `lcp` to the latest value, using `renderTime` if it's available,</span>
+    <span class="token comment">// otherwise using `loadTime`. (Note: `renderTime` may not be available on</span>
+    <span class="token comment">// image elements loaded cross-origin without the `Timing-Allow-Origin` header.)</span>
+    lcp <span class="token operator">=</span> lastEntry<span class="token punctuation">.</span>renderTime <span class="token operator">||</span> lastEntry<span class="token punctuation">.</span>loadTime<span class="token punctuation">;</span>
+  <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+  po<span class="token punctuation">.</span><span class="token function">observe</span><span class="token punctuation">(</span><span class="token punctuation">{</span>type<span class="token operator">:</span> <span class="token string">'largest-contentful-paint'</span><span class="token punctuation">,</span> buffered<span class="token operator">:</span> <span class="token boolean">true</span><span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+  <span class="token comment">// Send data to the server.</span>
+  <span class="token function">addEventListener</span><span class="token punctuation">(</span><span class="token string">'visibilitychange'</span><span class="token punctuation">,</span> <span class="token keyword">function</span> <span class="token function">fn</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+    <span class="token keyword">if</span> <span class="token punctuation">(</span>lcp <span class="token operator">&amp;&amp;</span> document<span class="token punctuation">.</span>visibilityState <span class="token operator">===</span> <span class="token string">'hidden'</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+      console<span class="token punctuation">.</span><span class="token function">log</span><span class="token punctuation">(</span><span class="token string">'LCP:'</span><span class="token punctuation">,</span> lcp<span class="token punctuation">)</span><span class="token punctuation">;</span>
+      <span class="token function">removeEventListener</span><span class="token punctuation">(</span><span class="token string">'visibilitychange'</span><span class="token punctuation">,</span> fn<span class="token punctuation">,</span> <span class="token boolean">true</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+  <span class="token punctuation">}</span><span class="token punctuation">,</span> <span class="token boolean">true</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span> <span class="token keyword">catch</span> <span class="token punctuation">(</span>e<span class="token punctuation">)</span> <span class="token punctuation">{</span>
+  <span class="token comment">// Do nothing if the browser doesn't support this API.</span>
+<span class="token punctuation">}</span>
+</pre></div>
+<h2 id="specifications">Specifications</h2>
+<div class="_table"><table class="standard-table">
+<thead><tr><th scope="col">Specification</th></tr></thead>
+<tbody><tr><td><a href="https://wicg.github.io/largest-contentful-paint/#sec-largest-contentful-paint-interface">Largest Contentful Paint <br><small># sec-largest-contentful-paint-interface</small></a></td></tr></tbody>
+</table></div>
+<h2 id="browser_compatibility">Browser compatibility</h2>
+<table>
+<thead>
+<tr id="bct-browser-type">
+<th></th>
+<th colspan="6">Desktop</th>
+<th colspan="6">Mobile</th>
+</tr>
+<tr id="bct-browsers">
+<th></th>
+<th>Chrome</th>
+<th>Edge</th>
+<th>Firefox</th>
+<th>Internet Explorer</th>
+<th>Opera</th>
+<th>Safari</th>
+<th>WebView Android</th>
+<th>Chrome Android</th>
+<th>Firefox for Android</th>
+<th>Opera Android</th>
+<th>Safari on IOS</th>
+<th>Samsung Internet</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<th><code>LargestContentfulPaint</code></th>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-yes"><div>79</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>12.0</div></td>
+</tr>
+<tr>
+<th><code>element</code></th>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-yes"><div>79</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>12.0</div></td>
+</tr>
+<tr>
+<th><code>id</code></th>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-yes"><div>79</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>12.0</div></td>
+</tr>
+<tr>
+<th><code>loadTime</code></th>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-yes"><div>79</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>12.0</div></td>
+</tr>
+<tr>
+<th><code>renderTime</code></th>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-yes"><div>79</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>12.0</div></td>
+</tr>
+<tr>
+<th><code>size</code></th>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-yes"><div>79</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>12.0</div></td>
+</tr>
+<tr>
+<th><code>toJSON</code></th>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-yes"><div>79</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>12.0</div></td>
+</tr>
+<tr>
+<th><code>url</code></th>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-yes"><div>79</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-yes"><div>77</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>Yes</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>12.0</div></td>
+</tr>
+</tbody>
+</table>
+
+
+<h2 id="see_also">See also</h2>
+<ul> <li><a href="https://web.dev/lcp/" rel=" noopener">Largest Contentful Paint (LCP)</a></li> <li><a href="https://web.dev/lighthouse-largest-contentful-paint/" rel=" noopener">LCP in Lighthouse</a></li> </ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.mozilla.org/en-US/docs/Web/API/LargestContentfulPaint" class="_attribution-link" target="_blank">https://developer.mozilla.org/en-US/docs/Web/API/LargestContentfulPaint</a>
+  </p>
+</div>

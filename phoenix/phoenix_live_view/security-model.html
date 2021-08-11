@@ -1,0 +1,79 @@
+<h1>Security considerations of the LiveView model</h1>
+<p>As we have seen, LiveView begins its life-cycle as a regular HTTP request. Then a stateful connection is established. Both the HTTP request and the stateful connection receives the client data via parameters and session. This means that any session validation must happen both in the HTTP request and the stateful connection.</p>
+<h2 id="mounting-considerations" class="section-heading">  Mounting considerations </h2> <p>For example, if you perform user authentication and confirmation on every HTTP request via Plugs, such as this:</p>
+<pre data-language="elixir">plug :ensure_user_authenticated
+plug :ensure_user_confirmed</pre>
+<p>Then the <a href="phoenix.liveview#c:mount/3"><code class="inline">mount/3</code></a> callback of your LiveView should execute those same verifications:</p>
+<pre data-language="elixir">def mount(params, %{"user_id" =&gt; user_id} = _session, socket) do
+  socket = assign(socket, current_user: Accounts.get_user!(user_id))
+
+  socket =
+    if socket.assigns.current_user.confirmed_at do
+      socket
+    else
+      redirect(socket, to: "/login")
+    end
+
+  {:ok, socket}
+end</pre>
+<p>Given almost all <a href="phoenix.liveview#c:mount/3"><code class="inline">mount/3</code></a> actions in your application will have to perform these exact steps, we recommend creating a function called <code class="inline">assign_defaults/2</code> or similar, putting it in a new module like <code class="inline">MyAppWeb.LiveHelpers</code>, and modifying <code class="inline">lib/my_app_web.ex</code> so all LiveViews automatically import it:</p>
+<pre data-language="elixir">def live_view do
+  quote do
+    # ...other stuff...
+    import MyAppWeb.LiveHelpers
+  end
+end</pre>
+<p>Then make sure to call it in every LiveView's <a href="phoenix.liveview#c:mount/3"><code class="inline">mount/3</code></a>:</p>
+<pre data-language="elixir">def mount(params, session, socket) do
+  {:ok, assign_defaults(session, socket)}
+end</pre>
+<p>Where <code class="inline">MyAppWeb.LiveHelpers</code> can be something like:</p>
+<pre data-language="elixir">defmodule MyAppWeb.LiveHelpers do
+  import Phoenix.LiveView
+
+  def assign_defaults(%{"user_id" =&gt; user_id}, socket) do
+    socket = assign(socket, current_user: Accounts.get_user!(user_id))
+
+    if socket.assigns.current_user.confirmed_at do
+      socket
+    else
+      redirect(socket, to: "/login")
+    end
+  end
+end</pre>
+<p>One possible concern in this approach is that in regular HTTP requests the current user will be fetched twice: once in the HTTP request and again on <a href="phoenix.liveview#c:mount/3"><code class="inline">mount/3</code></a>. You can address this by using the <a href="phoenix.liveview#assign_new/3"><code class="inline">assign_new/3</code></a> function, that will reuse any of the connection assigns from the HTTP request:</p>
+<pre data-language="elixir">def assign_defaults(%{"user_id" =&gt; user_id}, socket) do
+  socket = assign_new(socket, :current_user, fn -&gt; Accounts.get_user!(user_id) end)
+
+  if socket.assigns.current_user.confirmed_at do
+    socket
+  else
+    redirect(socket, to: "/login")
+  end
+end</pre>
+<h2 id="events-considerations" class="section-heading">  Events considerations </h2> <p>It is also important to keep in mind that LiveViews are stateful. Therefore, if you load any data on <a href="phoenix.liveview#c:mount/3"><code class="inline">mount/3</code></a> and the data itself changes, the data won't be automatically propagated to the LiveView, unless you broadcast those events with <a href="../phoenix_pubsub/2.0.0/phoenix.pubsub"><code class="inline">Phoenix.PubSub</code></a>.</p>
+<p>Generally speaking, the simplest and safest approach is to perform authorization whenever there is an action. For example, imagine that you have a LiveView for a "Blog", and only editors can edit posts. Therefore, it is best to validate the user is an editor on mount and on every event:</p>
+<pre data-language="elixir">def mount(%{"post_id" =&gt; post_id}, session, socket) do
+  socket = assign_defaults(session, socket)
+  post = Blog.get_post_for_user!(socket.assigns.current_user, post_id)
+  {:ok, assign(socket, post: post)}
+end
+
+def handle_event("update_post", params, socket) do
+  updated_post = Blog.update_post(socket.assigns.current_user, socket.assigns.post, params)
+  {:noreply, assign(socket, post: updated_post)}
+end</pre>
+<p>In the example above, the Blog context receives the user on both <code class="inline">get</code> and <code class="inline">update</code> operations, and always validates accordingly that the user has access, raising an error otherwise.</p>
+<h2 id="disconnecting-all-instances-of-a-given-live-user" class="section-heading">  Disconnecting all instances of a given live user </h2> <p>Another security consideration is how to disconnect all instances of a given live user. For example, imagine the user logs outs, its account is terminated, or any other reason.</p>
+<p>Luckily, it is possible to identify all LiveView sockets by setting a <code class="inline">live_socket_id</code> in the session. For example, when signing in a user, you could do:</p>
+<pre data-language="elixir">conn
+|&gt; put_session(:current_user_id, user.id)
+|&gt; put_session(:live_socket_id, "users_socket:#{user.id}")</pre>
+<p>Now all LiveView sockets will be identified and listening to the given <code class="inline">live_socket_id</code>. You can disconnect all live users identified by said ID by broadcasting on the topic:</p>
+<pre data-language="elixir">MyAppWeb.Endpoint.broadcast("users_socket:#{user.id}", "disconnect", %{})</pre>
+<p>Once a LiveView is disconnected, the client will attempt to reestablish the connection, re-executing the <a href="phoenix.liveview#c:mount/3"><code class="inline">mount/3</code></a> callback. In this case, if the user is no longer logged in or it no longer has access to its current resource, <a href="phoenix.liveview#c:mount/3"><code class="inline">mount/3</code></a> will fail and the user will be redirected to the proper page.</p>
+<p>This is the same mechanism provided by <a href="../phoenix/1.5.7/phoenix.channel"><code class="inline">Phoenix.Channel</code></a>s. Therefore, if your application uses both channels and LiveViews, you can use the same technique to disconnect any stateful connection.</p> <div class="bottom-actions"> <div class="bottom-actions-item"> <a href="live-navigation" class="bottom-actions-button" rel="prev"> <span class="subheader"> ← Previous Page </span> <span class="title"> Live navigation </span> </a> </div> <div class="bottom-actions-item"> <a href="telemetry" class="bottom-actions-button" rel="next"> <span class="subheader"> Next Page → </span> <span class="title"> Telemetry </span> </a> </div> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://hexdocs.pm/phoenix_live_view/security-model.html" class="_attribution-link" target="_blank">https://hexdocs.pm/phoenix_live_view/security-model.html</a>
+  </p>
+</div>

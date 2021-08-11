@@ -1,0 +1,353 @@
+<h1>worker-loader</h1>
+<div> <p>Web Worker loader for webpack 4.</p> <p>Note that this is specific to webpack 4. To use Web Workers in webpack 5, see <a href="../guides/web-workers">https://webpack.js.org/guides/web-workers/</a>.</p> <h2 id="getting-started">Getting Started
+</h2> <p>To begin, you'll need to install <code>worker-loader</code>:</p> <pre data-language="console">$ npm install worker-loader --save-dev
+</pre> <h3 id="inlined">Inlined
+</h3> <p><strong>App.js</strong></p> <pre data-language="js">import Worker from "worker-loader!./Worker.js";</pre> <h3 id="config">Config
+</h3> <p><strong>webpack.config.js</strong></p> <pre data-language="js">module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.worker\.js$/,
+        use: { loader: "worker-loader" },
+      },
+    ],
+  },
+};</pre> <p><strong>App.js</strong></p> <pre data-language="js">import Worker from "./file.worker.js";
+
+const worker = new Worker();
+
+worker.postMessage({ a: 1 });
+worker.onmessage = function (event) {};
+
+worker.addEventListener("message", function (event) {});</pre> <p>And run <code>webpack</code> via your preferred method.</p> <h2 id="options">Options
+</h2> <table> <thead> <tr> <th align="center">Name</th> <th align="center">Type</th> <th align="center">Default</th> <th align="left">Description</th> </tr> </thead> <tbody> <tr> <td align="center" data-th="Name"><span><strong><a href="#worker"><code>worker</code></a></strong></span></td> <td align="center" data-th="Type"><span><code>{String|Object}</code></span></td> <td align="center" data-th="Default"><span><code>Worker</code></span></td> <td align="left" data-th="Description"><span>Allows to set web worker constructor name and options</span></td> </tr> <tr> <td align="center" data-th="Name"><span><strong><a href="#publicpath"><code>publicPath</code></a></strong></span></td> <td align="center" data-th="Type"><span><code>{String|Function}</code></span></td> <td align="center" data-th="Default"><span>based on <code>output.publicPath</code></span></td> <td align="left" data-th="Description"><span>specifies the public URL address of the output files when referenced in a browser</span></td> </tr> <tr> <td align="center" data-th="Name"><span><strong><a href="#filename"><code>filename</code></a></strong></span></td> <td align="center" data-th="Type"><span><code>{String|Function}</code></span></td> <td align="center" data-th="Default"><span>based on <code>output.filename</code></span></td> <td align="left" data-th="Description"><span>The filename of entry chunks for web workers</span></td> </tr> <tr> <td align="center" data-th="Name"><span><strong><a href="#chunkfilename"><code>chunkFilename</code></a></strong></span></td> <td align="center" data-th="Type"><span><code>{String}</code></span></td> <td align="center" data-th="Default"><span>based on <code>output.chunkFilename</code></span></td> <td align="left" data-th="Description"><span>The filename of non-entry chunks for web workers</span></td> </tr> <tr> <td align="center" data-th="Name"><span><strong><a href="#inline"><code>inline</code></a></strong></span></td> <td align="center" data-th="Type"><span><code>'no-fallback'|'fallback'</code></span></td> <td align="center" data-th="Default"><span><code>undefined</code></span></td> <td align="left" data-th="Description"><span>Allow to inline the worker as a <code>BLOB</code></span></td> </tr> <tr> <td align="center" data-th="Name"><span><strong><a href="#esmodule"><code>esModule</code></a></strong></span></td> <td align="center" data-th="Type"><span><code>{Boolean}</code></span></td> <td align="center" data-th="Default"><span><code>true</code></span></td> <td align="left" data-th="Description"><span>Use ES modules syntax</span></td> </tr> </tbody> </table> <h3 id="worker">
+<code>worker</code>
+</h3> <p>Type: <code>String|Object</code> Default: <code>Worker</code></p> <p>Set the worker type.</p> <h4 id="string">
+<code>String</code>
+</h4> <p>Allows to set web worker constructor name.</p> <p><strong>webpack.config.js</strong></p> <pre data-language="js">module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.worker\.(c|m)?js$/i,
+        loader: "worker-loader",
+        options: {
+          worker: "SharedWorker",
+        },
+      },
+    ],
+  },
+};</pre> <h4 id="object">
+<code>Object</code>
+</h4> <p>Allow to set web worker constructor name and options.</p> <p><strong>webpack.config.js</strong></p> <pre data-language="js">module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.worker\.(c|m)?js$/i,
+        loader: "worker-loader",
+        options: {
+          worker: {
+            type: "SharedWorker",
+            options: {
+              type: "classic",
+              credentials: "omit",
+              name: "my-custom-worker-name",
+            },
+          },
+        },
+      },
+    ],
+  },
+};</pre> <h3 id="publicpath">
+<code>publicPath</code>
+</h3> <p>Type: <code>String|Function</code> Default: based on <code>output.publicPath</code></p> <p>The <code>publicPath</code> specifies the public URL address of the output files when referenced in a browser. If not specified, the same public path used for other webpack assets is used.</p> <h4 id="string-1">
+<code>String</code>
+</h4> <p><strong>webpack.config.js</strong></p> <pre data-language="js">module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.worker\.(c|m)?js$/i,
+        loader: "worker-loader",
+        options: {
+          publicPath: "/scripts/workers/",
+        },
+      },
+    ],
+  },
+};</pre> <h4 id="function">
+<code>Function</code>
+</h4> <p><strong>webpack.config.js</strong></p> <pre data-language="js">module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.worker\.(c|m)?js$/i,
+        loader: "worker-loader",
+        options: {
+          publicPath: (pathData, assetInfo) =&gt; {
+            return `/scripts/${pathData.hash}/workers/`;
+          },
+        },
+      },
+    ],
+  },
+};</pre> <h3 id="filename">
+<code>filename</code>
+</h3> <p>Type: <code>String|Function</code> Default: based on <code>output.filename</code>, adding <code>worker</code> suffix, for example - <code>output.filename: '[name].js'</code> value of this option will be <code>[name].worker.js</code></p> <p>The filename of entry chunks for web workers.</p> <h4 id="string-2">
+<code>String</code>
+</h4> <p><strong>webpack.config.js</strong></p> <pre data-language="js">module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.worker\.(c|m)?js$/i,
+        loader: "worker-loader",
+        options: {
+          filename: "[name].[contenthash].worker.js",
+        },
+      },
+    ],
+  },
+};</pre> <h4 id="function-1">
+<code>Function</code>
+</h4> <p><strong>webpack.config.js</strong></p> <pre data-language="js">module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.worker\.(c|m)?js$/i,
+        loader: "worker-loader",
+        options: {
+          filename: (pathData) =&gt; {
+            if (
+              /\.worker\.(c|m)?js$/i.test(pathData.chunk.entryModule.resource)
+            ) {
+              return "[name].custom.worker.js";
+            }
+
+            return "[name].js";
+          },
+        },
+      },
+    ],
+  },
+};</pre> <h3 id="chunkfilename">
+<code>chunkFilename</code>
+</h3> <p>Type: <code>String</code> Default: based on <code>output.chunkFilename</code>, adding <code>worker</code> suffix, for example - <code>output.chunkFilename: '[id].js'</code> value of this option will be <code>[id].worker.js</code></p> <p>The filename of non-entry chunks for web workers.</p> <p><strong>webpack.config.js</strong></p> <pre data-language="js">module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.worker\.(c|m)?js$/i,
+        loader: "worker-loader",
+        options: {
+          chunkFilename: "[id].[contenthash].worker.js",
+        },
+      },
+    ],
+  },
+};</pre> <h3 id="inline">
+<code>inline</code>
+</h3> <p>Type: <code>'fallback' | 'no-fallback'</code> Default: <code>undefined</code></p> <p>Allow to inline the worker as a <code>BLOB</code>.</p> <p>Inline mode with the <code>fallback</code> value will create file for browsers without support web workers, to disable this behavior just use <code>no-fallback</code> value.</p> <p><strong>webpack.config.js</strong></p> <pre data-language="js">module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.worker\.(c|m)?js$/i,
+        loader: "worker-loader",
+        options: {
+          inline: "fallback",
+        },
+      },
+    ],
+  },
+};</pre> <h3 id="esmodule">
+<code>esModule</code>
+</h3> <p>Type: <code>Boolean</code> Default: <code>true</code></p> <p>By default, <code>worker-loader</code> generates JS modules that use the ES modules syntax.</p> <p>You can enable a CommonJS modules syntax using:</p> <p><strong>webpack.config.js</strong></p> <pre data-language="js">module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.worker\.(c|m)?js$/i,
+        loader: "worker-loader",
+        options: {
+          esModule: false,
+        },
+      },
+    ],
+  },
+};</pre> <h2 id="examples">Examples
+</h2> <h3 id="basic">Basic
+</h3> <p>The worker file can import dependencies just like any other file:</p> <p><strong>index.js</strong></p> <pre data-language="js">import Worker from "./my.worker.js";
+
+var worker = new Worker();
+
+var result;
+
+worker.onmessage = function (event) {
+  if (!result) {
+    result = document.createElement("div");
+    result.setAttribute("id", "result");
+
+    document.body.append(result);
+  }
+
+  result.innerText = JSON.stringify(event.data);
+};
+
+const button = document.getElementById("button");
+
+button.addEventListener("click", function () {
+  worker.postMessage({ postMessage: true });
+});</pre> <p><strong>my.worker.js</strong></p> <pre data-language="js">onmessage = function (event) {
+  var workerResult = event.data;
+
+  workerResult.onmessage = true;
+
+  postMessage(workerResult);
+};</pre> <p><strong>webpack.config.js</strong></p> <pre data-language="js">module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.worker\.(c|m)?js$/i,
+        loader: "worker-loader",
+        options: {
+          esModule: false,
+        },
+      },
+    ],
+  },
+};</pre> <h3 id="integrating-with-es6-features">Integrating with ES6+ features
+</h3> <p>You can even use ES6+ features if you have the <a href="https://github.com/babel/babel-loader"><code>babel-loader</code></a> configured.</p> <p><strong>index.js</strong></p> <pre data-language="js">import Worker from "./my.worker.js";
+
+const worker = new Worker();
+
+let result;
+
+worker.onmessage = (event) =&gt; {
+  if (!result) {
+    result = document.createElement("div");
+    result.setAttribute("id", "result");
+
+    document.body.append(result);
+  }
+
+  result.innerText = JSON.stringify(event.data);
+};
+
+const button = document.getElementById("button");
+
+button.addEventListener("click", () =&gt; {
+  worker.postMessage({ postMessage: true });
+});</pre> <p><strong>my.worker.js</strong></p> <pre data-language="js">onmessage = function (event) {
+  const workerResult = event.data;
+
+  workerResult.onmessage = true;
+
+  postMessage(workerResult);
+};</pre> <p><strong>webpack.config.js</strong></p> <pre data-language="js">module.exports = {
+  module: {
+    rules: [
+      {
+        test: /\.worker\.(c|m)?js$/i,
+        use: [
+          {
+            loader: "worker-loader",
+          },
+          {
+            loader: "babel-loader",
+            options: {
+              presets: ["@babel/preset-env"],
+            },
+          },
+        ],
+      },
+    ],
+  },
+};</pre> <h3 id="integrating-with-typescript">Integrating with TypeScript
+</h3> <p>To integrate with TypeScript, you will need to define a custom module for the exports of your worker.</p> <h4 id="loading-with-worker-loader">Loading with <code>worker-loader!</code>
+</h4> <p><strong>typings/worker-loader.d.ts</strong></p> <pre data-language="typescript">declare module "worker-loader!*" {
+  // You need to change `Worker`, if you specified a different value for the `workerType` option
+  class WebpackWorker extends Worker {
+    constructor();
+  }
+
+  // Uncomment this if you set the `esModule` option to `false`
+  // export = WebpackWorker;
+  export default WebpackWorker;
+}</pre> <p><strong>my.worker.ts</strong></p> <pre data-language="typescript">const ctx: Worker = self as any;
+
+// Post data to parent thread
+ctx.postMessage({ foo: "foo" });
+
+// Respond to message from parent thread
+ctx.addEventListener("message", (event) =&gt; console.log(event));</pre> <p><strong>index.ts</strong></p> <pre data-language="typescript">import Worker from "worker-loader!./Worker";
+
+const worker = new Worker();
+
+worker.postMessage({ a: 1 });
+worker.onmessage = (event) =&gt; {};
+
+worker.addEventListener("message", (event) =&gt; {});</pre> <h4 id="loading-without-worker-loader">Loading without <code>worker-loader!</code>
+</h4> <p>Alternatively, you can ommit the <code>worker-loader!</code> prefix passed to <code>import</code> statement by using the following notation. This is useful for executing the code using a non-WebPack runtime environment (such as Jest with <a href="https://github.com/astagi/workerloader-jest-transformer"><code>workerloader-jest-transformer</code></a>).</p> <p><strong>typings/worker-loader.d.ts</strong></p> <pre data-language="typescript">declare module "*.worker.ts" {
+  // You need to change `Worker`, if you specified a different value for the `workerType` option
+  class WebpackWorker extends Worker {
+    constructor();
+  }
+
+  // Uncomment this if you set the `esModule` option to `false`
+  // export = WebpackWorker;
+  export default WebpackWorker;
+}</pre> <p><strong>my.worker.ts</strong></p> <pre data-language="typescript">const ctx: Worker = self as any;
+
+// Post data to parent thread
+ctx.postMessage({ foo: "foo" });
+
+// Respond to message from parent thread
+ctx.addEventListener("message", (event) =&gt; console.log(event));</pre> <p><strong>index.ts</strong></p> <pre data-language="typescript">import MyWorker from "./my.worker.ts";
+
+const worker = new MyWorker();
+
+worker.postMessage({ a: 1 });
+worker.onmessage = (event) =&gt; {};
+
+worker.addEventListener("message", (event) =&gt; {});</pre> <p><strong>webpack.config.js</strong></p> <pre data-language="js">module.exports = {
+  module: {
+    rules: [
+      // Place this *before* the `ts-loader`.
+      {
+        test: /\.worker\.ts$/,
+        loader: "worker-loader",
+      },
+      {
+        test: /\.ts$/,
+        loader: "ts-loader",
+      },
+    ],
+  },
+  resolve: {
+    extensions: [".ts", ".js"],
+  },
+};</pre> <h3 id="cross-origin-policy">Cross-Origin Policy
+</h3> <p><a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API"><code>WebWorkers</code></a> are restricted by a <a href="https://en.wikipedia.org/wiki/Same-origin_policy">same-origin policy</a>, so if your <code>webpack</code> assets are not being served from the same origin as your application, their download may be blocked by your browser. This scenario can commonly occur if you are hosting your assets under a CDN domain. Even downloads from the <code>webpack-dev-server</code> could be blocked.</p> <p>There are two workarounds:</p> <p>Firstly, you can inline the worker as a blob instead of downloading it as an external script via the <a href="#inline"><code>inline</code></a> parameter</p> <p><strong>App.js</strong></p> <pre data-language="js">import Worker from "./file.worker.js";</pre> <p><strong>webpack.config.js</strong></p> <pre data-language="js">module.exports = {
+  module: {
+    rules: [
+      {
+        loader: "worker-loader",
+        options: { inline: "fallback" },
+      },
+    ],
+  },
+};</pre> <p>Secondly, you may override the base download URL for your worker script via the <a href="#publicpath"><code>publicPath</code></a> option</p> <p><strong>App.js</strong></p> <pre data-language="js">// This will cause the worker to be downloaded from `/workers/file.worker.js`
+import Worker from "./file.worker.js";</pre> <p><strong>webpack.config.js</strong></p> <pre data-language="js">module.exports = {
+  module: {
+    rules: [
+      {
+        loader: "worker-loader",
+        options: { publicPath: "/workers/" },
+      },
+    ],
+  },
+};</pre> <h2 id="contributing">Contributing
+</h2> <p>Please take a moment to read our contributing guidelines if you haven't yet done so.</p> <p><a href="https://github.com/webpack-contrib/worker-loader/blob/master/.github/CONTRIBUTING.md">CONTRIBUTING</a></p> <h2 id="license">License
+</h2> <p><a href="https://github.com/webpack-contrib/worker-loader/blob/master/LICENSE">MIT</a></p> </div>
+<div class="print:hidden mt-20">
+<a class="text-gray-500 dark:text-gray-500 text-sm cursor-pointer font-sans hover:underline" href="https://github.com/webpack-contrib/worker-loader/edit/master/README.md">Edit this page</a><span class="mx-5 text-black font-bold dark:text-white">·</span><a class="text-gray-500 dark:text-gray-500 text-sm cursor-pointer font-sans hover:underline">Print this page</a><span class="mx-5 text-black font-bold dark:text-white">·</span><a class="text-gray-500 dark:text-gray-500 text-sm cursor-pointer font-sans hover:underline" href="https://github.com/webpack-contrib/worker-loader">Jump to repository</a>
+</div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://webpack.js.org/loaders/worker-loader" class="_attribution-link" target="_blank">https://webpack.js.org/loaders/worker-loader</a>
+  </p>
+</div>

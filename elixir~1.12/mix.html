@@ -1,0 +1,233 @@
+<h1> Mix   </h1> <section id="moduledoc"> <p>Mix is a build tool that provides tasks for creating, compiling, and testing Elixir projects, managing its dependencies, and more.</p>
+<h2 id="module-mix-project" class="section-heading">  Mix.Project </h2> <p>The foundation of Mix is a project. A project can be defined by using <a href="mix.project"><code class="inline">Mix.Project</code></a> in a module, usually placed in a file named <code class="inline">mix.exs</code>:</p>
+<pre data-language="elixir">defmodule MyApp.MixProject do
+  use Mix.Project
+
+  def project do
+    [
+      app: :my_app,
+      version: "1.0.0"
+    ]
+  end
+end</pre>
+<p>See the <a href="mix.project"><code class="inline">Mix.Project</code></a> module for detailed documentation on Mix projects.</p>
+<p>Once the project is defined, a number of default Mix tasks can be run directly from the command line:</p>
+<ul>
+<li>
+<a href="mix.tasks.compile"><code class="inline">mix compile</code></a> - compiles the current project</li>
+<li>
+<a href="mix.tasks.test"><code class="inline">mix test</code></a> - runs tests for the given project</li>
+<li>
+<a href="mix.tasks.run"><code class="inline">mix run</code></a> - runs a particular command inside the project</li>
+</ul>
+<p>Each task has its own options and sometimes specific configuration to be defined in the <code class="inline">project/0</code> function. You can use <a href="mix.tasks.help"><code class="inline">mix help</code></a> to list all available tasks and <code class="inline">mix help NAME</code> to show help for a particular task.</p>
+<p>The best way to get started with your first project is by calling <code class="inline">mix new my_project</code> from the command line.</p>
+<h2 id="module-mix-task" class="section-heading">  Mix.Task </h2> <p>Tasks are what make Mix extensible.</p>
+<p>Projects can extend Mix behaviour by adding their own tasks. For example, adding the task below inside your project will make it available to everyone that uses your project:</p>
+<pre data-language="elixir">defmodule Mix.Tasks.Hello do
+  use Mix.Task
+
+  def run(_) do
+    Mix.shell().info("Hello world")
+  end
+end</pre>
+<p>The task can now be invoked with <code class="inline">mix hello</code>.</p>
+<p>See the <a href="mix.task"><code class="inline">Mix.Task</code></a> behaviour for detailed documentation on Mix tasks.</p>
+<h2 id="module-dependencies" class="section-heading">  Dependencies </h2> <p>Mix also manages your dependencies and integrates nicely with the <a href="https://hex.pm">Hex package manager</a>.</p>
+<p>In order to use dependencies, you need to add a <code class="inline">:deps</code> key to your project configuration. We often extract the list of dependencies into its own function:</p>
+<pre data-language="elixir">defmodule MyApp.MixProject do
+  use Mix.Project
+
+  def project do
+    [
+      app: :my_app,
+      version: "1.0.0",
+      deps: deps()
+    ]
+  end
+
+  defp deps do
+    [
+      {:ecto, "~&gt; 2.0"},
+      {:plug, github: "elixir-lang/plug"}
+    ]
+  end
+end</pre>
+<p>You can run <a href="mix.tasks.deps"><code class="inline">mix help deps</code></a> to learn more about dependencies in Mix.</p>
+<h2 id="module-environments" class="section-heading">  Environments </h2> <p>Mix supports different environments. Environments allow developers to prepare and organize their project specifically for different scenarios. By default, Mix provides three environments:</p>
+<ul>
+<li>
+<code class="inline">:dev</code> - the default environment</li>
+<li>
+<code class="inline">:test</code> - the environment <a href="mix.tasks.test"><code class="inline">mix test</code></a> runs on</li>
+<li>
+<code class="inline">:prod</code> - the environment your dependencies run on</li>
+</ul>
+<p>The environment can be changed via the command line by setting the <code class="inline">MIX_ENV</code> environment variable, for example:</p>
+<pre data-language="elixir">$ MIX_ENV=prod mix run server.exs</pre>
+<p>You can also specify that certain dependencies are available only for certain environments:</p>
+<pre data-language="elixir">{:some_test_dependency, "~&gt; 1.0", only: :test}</pre>
+<p>The environment can be read via <a href="#env/0"><code class="inline">Mix.env/0</code></a>.</p>
+<h2 id="module-targets" class="section-heading">  Targets </h2> <p>Besides environments, Mix supports targets. Targets are useful when a project needs to compile to different architectures and some of the dependencies are only available to some of them. By default, the target is <code class="inline">:host</code> but it can be set via the <code class="inline">MIX_TARGET</code> environment variable. The target can be read via <a href="#target/0"><code class="inline">Mix.target/0</code></a>.</p>
+<h2 id="module-aliases" class="section-heading">  Aliases </h2> <p>Aliases are shortcuts or tasks specific to the current project.</p>
+<p>In the <a href="#module-mix-task">Mix.Task section</a>, we have defined a task that would be available to everyone using our project as a dependency. What if we wanted the task to only be available for our project? Just define an alias:</p>
+<pre data-language="elixir">defmodule MyApp.MixProject do
+  use Mix.Project
+
+  def project do
+    [
+      app: :my_app,
+      version: "1.0.0",
+      aliases: aliases()
+    ]
+  end
+
+  defp aliases do
+    [
+      c: "compile",
+      hello: &amp;hello/1
+    ]
+  end
+
+  defp hello(_) do
+    Mix.shell().info("Hello world")
+  end
+end</pre>
+<p>In the example above, we have defined two aliases. One is <code class="inline">mix c</code> which is a shortcut for <a href="mix.tasks.compile"><code class="inline">mix compile</code></a>. The other is named <code class="inline">mix hello</code>, which is the equivalent to the <code class="inline">Mix.Tasks.Hello</code> we have defined in the <a href="#module-mix-task">Mix.Task section</a>.</p>
+<p>Aliases may also be lists, specifying multiple tasks to be run consecutively:</p>
+<pre data-language="elixir">[all: [&amp;hello/1, "deps.get --only #{Mix.env()}", "compile"]]</pre>
+<p>In the example above, we have defined an alias named <code class="inline">mix all</code>, that prints "Hello world", then fetches dependencies specific to the current environment, and compiles the project.</p>
+<p>Aliases can also be used to augment existing tasks. Let's suppose you want to augment <a href="mix.tasks.clean"><code class="inline">mix clean</code></a> to clean another directory Mix does not know about:</p>
+<pre data-language="elixir">[clean: ["clean", &amp;clean_extra/1]]</pre>
+<p>Where <code class="inline">&amp;clean_extra/1</code> would be a function in your <code class="inline">mix.exs</code> with extra cleanup logic.</p>
+<p>Arguments given to the alias will be appended to the arguments of the last task in the list. Except when overriding an existing task. In this case, the arguments will be given to the original task, in order to preserve semantics. For example, in the <code class="inline">:clean</code> alias above, the arguments given to the alias will be passed to "clean" and not to <code class="inline">clean_extra/1</code>.</p>
+<p>Aliases defined in the current project do not affect its dependencies and aliases defined in dependencies are not accessible from the current project.</p>
+<p>Aliases can be used very powerfully to also run Elixir scripts and shell commands, for example:</p>
+<pre data-language="elixir"># priv/hello1.exs
+IO.puts("Hello One")
+
+# priv/hello2.exs
+IO.puts("Hello Two")
+
+# priv/world.sh
+#!/bin/sh
+echo "world!"
+
+# mix.exs
+defp aliases do
+  [
+    some_alias: ["hex.info", "run priv/hello1.exs", "cmd priv/world.sh"]
+  ]
+end</pre>
+<p>In the example above we have created the alias <code class="inline">some_alias</code> that will run the task <code class="inline">mix hex.info</code>, then <a href="mix.tasks.run"><code class="inline">mix run</code></a> to run an Elixir script, then <a href="mix.tasks.cmd"><code class="inline">mix cmd</code></a> to execute a command line shell script. This shows how powerful aliases mixed with Mix tasks can be.</p>
+<p>Mix tasks are designed to run only once. This prevents the same task from being executed multiple times. For example, if there are several tasks depending on <a href="mix.tasks.compile"><code class="inline">mix compile</code></a>, the code will be compiled once. Tasks can be executed again if they are explicitly reenabled using <a href="mix.task#reenable/1"><code class="inline">Mix.Task.reenable/1</code></a>:</p>
+<pre data-language="elixir">another_alias: [
+  "format --check-formatted priv/hello1.exs",
+  "cmd priv/world.sh",
+  fn _ -&gt; Mix.Task.reenable("format") end,
+  "format --check-formatted priv/hello2.exs"
+]</pre>
+<p>Some tasks are automatically reenabled though, as they are expected to be invoked multiple times. They are: <a href="mix.tasks.cmd"><code class="inline">mix cmd</code></a>, <a href="mix.tasks.do"><code class="inline">mix do</code></a>, <a href="mix.tasks.loadconfig"><code class="inline">mix loadconfig</code></a>, <a href="mix.tasks.profile.cprof"><code class="inline">mix profile.cprof</code></a>, <a href="mix.tasks.profile.eprof"><code class="inline">mix profile.eprof</code></a>, <a href="mix.tasks.profile.fprof"><code class="inline">mix profile.fprof</code></a>, <a href="mix.tasks.run"><code class="inline">mix run</code></a>, and <a href="mix.tasks.xref"><code class="inline">mix xref</code></a>.</p>
+<p>It is worth mentioning that some tasks, such as in the case of the <a href="mix.tasks.format"><code class="inline">mix format</code></a> command in the example above, can accept multiple files so it could be rewritten as:</p>
+<pre data-language="elixir">another_alias: ["format --check-formatted priv/hello1.exs priv/hello2.exs"]</pre>
+<h2 id="module-environment-variables" class="section-heading">  Environment variables </h2> <p>Several environment variables can be used to modify Mix's behaviour.</p>
+<p>Mix responds to the following variables:</p>
+<ul>
+<li>
+<code class="inline">MIX_ARCHIVES</code> - specifies the directory into which the archives should be installed (default: <code class="inline">~/.mix/archives</code>)</li>
+<li>
+<code class="inline">MIX_BUILD_ROOT</code> - sets the root directory where build artifacts should be written to. For example, "_build". If <code class="inline">MIX_BUILD_PATH</code> is set, this option is ignored.</li>
+<li>
+<code class="inline">MIX_BUILD_PATH</code> - sets the project <a href="mix.project#build_path/0"><code class="inline">Mix.Project.build_path/0</code></a> config. This option must always point to a subdirectory inside a temporary directory. For instance, never "/tmp" or "_build" but "_build/PROD" or "/tmp/PROD", as required by Mix</li>
+<li>
+<code class="inline">MIX_DEPS_PATH</code> - sets the project <a href="mix.project#deps_path/0"><code class="inline">Mix.Project.deps_path/0</code></a> config (default: <code class="inline">deps</code>)</li>
+<li>
+<code class="inline">MIX_DEBUG</code> - outputs debug information about each task before running it</li>
+<li>
+<code class="inline">MIX_ENV</code> - specifies which environment should be used. See <a href="#module-environments">Environments</a>
+</li>
+<li>
+<code class="inline">MIX_TARGET</code> - specifies which target should be used. See <a href="#module-targets">Targets</a>
+</li>
+<li>
+<code class="inline">MIX_EXS</code> - changes the full path to the <code class="inline">mix.exs</code> file</li>
+<li>
+<code class="inline">MIX_HOME</code> - path to Mix's home directory, stores configuration files and scripts used by Mix (default: <code class="inline">~/.mix</code>)</li>
+<li>
+<code class="inline">MIX_INSTALL_DIR</code> - (since v1.12.0) specifies directory where <a href="#install/2"><code class="inline">Mix.install/2</code></a> keeps installs cache</li>
+<li>
+<code class="inline">MIX_PATH</code> - appends extra code paths</li>
+<li>
+<code class="inline">MIX_QUIET</code> - does not print information messages to the terminal</li>
+<li>
+<code class="inline">MIX_REBAR</code> - path to rebar command that overrides the one Mix installs (default: <code class="inline">~/.mix/rebar</code>)</li>
+<li>
+<code class="inline">MIX_REBAR3</code> - path to rebar3 command that overrides the one Mix installs (default: <code class="inline">~/.mix/rebar3</code>)</li>
+<li>
+<code class="inline">MIX_XDG</code> - asks Mix to follow the <a href="https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html">XDG Directory Specification</a> for its home directory and configuration files. This behaviour needs to be opt-in due to backwards compatibility. <code class="inline">MIX_HOME</code> has higher preference than <code class="inline">MIX_XDG</code>. If none of the variables are set, the default directory <code class="inline">~/.mix</code> will be used</li>
+</ul>
+<p>Environment variables that are not meant to hold a value (and act basically as flags) should be set to either <code class="inline">1</code> or <code class="inline">true</code>, for example:</p>
+<pre data-language="elixir">$ MIX_DEBUG=1 mix compile</pre> </section> <section id="summary" class="details-list"> <h1 class="section-heading">  Summary </h1> <h2> Functions </h2>
+<dl class="summary-functions summary">  <div class="summary-row"> <dt class="summary-signature"> <a href="#compilers/0">compilers()</a> </dt> <dd class="summary-synopsis"><p>Returns the default compilers used by Mix.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#debug/1">debug(debug)</a> </dt> <dd class="summary-synopsis"><p>Sets Mix debug mode.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#debug?/0">debug?()</a> </dt> <dd class="summary-synopsis"><p>Returns <code class="inline">true</code> if Mix is in debug mode, <code class="inline">false</code> otherwise.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#env/0">env()</a> </dt> <dd class="summary-synopsis"><p>Returns the current Mix environment.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#env/1">env(env)</a> </dt> <dd class="summary-synopsis"><p>Changes the current Mix environment to <code class="inline">env</code>.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#install/2">install(deps, opts \\ [])</a> </dt> <dd class="summary-synopsis"><p>Installs and starts dependencies.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#path_for/1">path_for(atom)</a> </dt> <dd class="summary-synopsis"><p>The path for local archives or escripts.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#raise/1">raise(message)</a> </dt> <dd class="summary-synopsis"><p>Raises a Mix error that is nicely formatted, defaulting to exit code <code class="inline">1</code>.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#raise/2">raise(message, opts)</a> </dt> <dd class="summary-synopsis"><p>Raises a Mix error that is nicely formatted.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#shell/0">shell()</a> </dt> <dd class="summary-synopsis"><p>Returns the current shell.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#shell/1">shell(shell)</a> </dt> <dd class="summary-synopsis"><p>Sets the current shell.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#target/0">target()</a> </dt> <dd class="summary-synopsis"><p>Returns the Mix target.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#target/1">target(target)</a> </dt> <dd class="summary-synopsis"><p>Changes the current Mix target to <code class="inline">target</code>.</p></dd> </div> </dl> </section> <section id="functions" class="details-list"> <h1 class="section-heading">  Functions </h1> <div class="functions-list"> <section class="detail"> <h3 class="detail-header" id="compilers/0">compilers()<a href="https://github.com/elixir-lang/elixir/blob/v1.12.0/lib/mix/lib/mix.ex#L356" class="source">Source</a>
+</h3> <section class="docstring"> <h4>Specs</h4> <div class="specs"> <pre data-language="elixir">compilers() :: [atom()]</pre> </div> <p>Returns the default compilers used by Mix.</p>
+<p>It can be used in your <code class="inline">mix.exs</code> to prepend or append new compilers to Mix:</p>
+<pre data-language="elixir">def project do
+  [compilers: Mix.compilers() ++ [:foo, :bar]]
+end</pre> </section> </section> <section class="detail"> <h3 class="detail-header" id="debug/1">debug(debug)<a href="https://github.com/elixir-lang/elixir/blob/v1.12.0/lib/mix/lib/mix.ex#L431" class="source">Source</a>
+</h3> <section class="docstring"> <h4>Specs</h4> <div class="specs"> <pre data-language="elixir">debug(boolean()) :: :ok</pre> </div> <p>Sets Mix debug mode.</p> </section> </section> <section class="detail"> <h3 class="detail-header" id="debug?/0">debug?()<a href="https://github.com/elixir-lang/elixir/blob/v1.12.0/lib/mix/lib/mix.ex#L423" class="source">Source</a>
+</h3> <section class="docstring"> <h4>Specs</h4> <div class="specs"> <pre data-language="elixir">debug?() :: boolean()</pre> </div> <p>Returns <code class="inline">true</code> if Mix is in debug mode, <code class="inline">false</code> otherwise.</p> </section> </section> <section class="detail"> <h3 class="detail-header" id="env/0">env()<a href="https://github.com/elixir-lang/elixir/blob/v1.12.0/lib/mix/lib/mix.ex#L305" class="source">Source</a>
+</h3> <section class="docstring"> <h4>Specs</h4> <div class="specs"> <pre data-language="elixir">env() :: atom()</pre> </div> <p>Returns the current Mix environment.</p>
+<p>This function should not be used at runtime in application code (as opposed to infrastructure and build code like Mix tasks). Mix is a build tool and may not be available after the code is compiled (for example in a release).</p>
+<p>To differentiate the program behavior depending on the environment, it is recommended to use application environment through <a href="https://hexdocs.pm/elixir/1.12/Application.html#get_env/3"><code class="inline">Application.get_env/3</code></a>. Proper configuration can be set in config files, often per-environment (see the <a href="https://hexdocs.pm/elixir/1.12/Config.html"><code class="inline">Config</code></a> module for more information).</p> </section> </section> <section class="detail"> <h3 class="detail-header" id="env/1">env(env)<a href="https://github.com/elixir-lang/elixir/blob/v1.12.0/lib/mix/lib/mix.ex#L320" class="source">Source</a>
+</h3> <section class="docstring"> <h4>Specs</h4> <div class="specs"> <pre data-language="elixir">env(atom()) :: :ok</pre> </div> <p>Changes the current Mix environment to <code class="inline">env</code>.</p>
+<p>Be careful when invoking this function as any project configuration won't be reloaded.</p>
+<p>This function should not be used at runtime in application code (see <a href="#env/0"><code class="inline">env/0</code></a> for more information).</p> </section> </section> <section class="detail">  <h3 class="detail-header" id="install/2">install(deps, opts \\ [])<a href="https://github.com/elixir-lang/elixir/blob/v1.12.0/lib/mix/lib/mix.ex#L510" class="source">Source</a>
+</h3> <section class="docstring"> <p>Installs and starts dependencies.</p>
+<p>The given <code class="inline">deps</code> should be in the same format as defined in a regular Mix project. See <a href="mix.tasks.deps"><code class="inline">mix help deps</code></a> for more information. As a shortcut, an atom can be given as dependency to mean the latest version. In other words, specifying <code class="inline">:decimal</code> is the same as <code class="inline">{:decimal, "&gt;= 0.0.0"}</code>.</p>
+<p>After each successful installation, a given set of dependencies is cached so starting another VM and calling <a href="#install/2"><code class="inline">Mix.install/2</code></a> with the same dependencies will avoid unnecessary downloads and compilations. The location of the cache directory can be controlled using the <code class="inline">MIX_INSTALL_DIR</code> environment variable.</p>
+<p>This function can only be called outside of a Mix project and only with the same dependencies in the given VM.</p>
+<p><strong>Note:</strong> this feature is currently experimental and it may change in future releases.</p>
+<h4 id="install/2-options" class="section-heading">  Options </h4> <ul>
+<li><p><code class="inline">:force</code> - if <code class="inline">true</code>, removes install cache. This is useful when you want to update your dependencies or your install got into an inconsistent state (Default: <code class="inline">false</code>)</p></li>
+<li><p><code class="inline">:verbose</code> - if <code class="inline">true</code>, prints additional debugging information (Default: <code class="inline">false</code>)</p></li>
+<li><p><code class="inline">:consolidate_protocols</code> - if <code class="inline">true</code>, runs protocol consolidation via the <a href="mix.tasks.compile.protocols"><code class="inline">mix compile.protocols</code></a> task (Default: <code class="inline">true</code>)</p></li>
+</ul>
+<h4 id="install/2-examples" class="section-heading">  Examples </h4> <pre data-language="elixir">Mix.install([
+  :decimal,
+  {:jason, "~&gt; 1.0"}
+])</pre> </section> </section> <section class="detail"> <h3 class="detail-header" id="path_for/1">path_for(atom)<a href="https://github.com/elixir-lang/elixir/blob/v1.12.0/lib/mix/lib/mix.ex#L462" class="source">Source</a>
+</h3> <section class="docstring"> <h4>Specs</h4> <div class="specs"> <pre data-language="elixir">path_for(:archives | :escripts) :: String.t()</pre> </div> <p>The path for local archives or escripts.</p> </section> </section> <section class="detail"> <h3 class="detail-header" id="raise/1">raise(message)<a href="https://github.com/elixir-lang/elixir/blob/v1.12.0/lib/mix/lib/mix.ex#L439" class="source">Source</a>
+</h3> <section class="docstring"> <h4>Specs</h4> <div class="specs"> <pre data-language="elixir">raise(binary()) :: no_return()</pre> </div> <p>Raises a Mix error that is nicely formatted, defaulting to exit code <code class="inline">1</code>.</p> </section> </section> <section class="detail"> <h3 class="detail-header" id="raise/2">raise(message, opts)<a href="https://github.com/elixir-lang/elixir/blob/v1.12.0/lib/mix/lib/mix.ex#L453" class="source">Source</a>
+</h3> <section class="docstring"> <h4>Specs</h4> <div class="specs"> <pre data-language="elixir">raise(binary(), [{:exit_code, non_neg_integer()}]) :: no_return()</pre> </div> <p>Raises a Mix error that is nicely formatted.</p>
+<h4 id="raise/2-options" class="section-heading">  Options </h4> <ul><li>
+<code class="inline">:exit_code</code> - defines exit code value, defaults to <code class="inline">1</code>
+</li></ul> </section> </section> <section class="detail"> <h3 class="detail-header" id="shell/0">shell()<a href="https://github.com/elixir-lang/elixir/blob/v1.12.0/lib/mix/lib/mix.ex#L381" class="source">Source</a>
+</h3> <section class="docstring"> <h4>Specs</h4> <div class="specs"> <pre data-language="elixir">shell() :: module()</pre> </div> <p>Returns the current shell.</p>
+<p><a href="#shell/0"><code class="inline">shell/0</code></a> can be used as a wrapper for the current shell. It contains conveniences for requesting information from the user, printing to the shell and so forth. The Mix shell is swappable (see <a href="#shell/1"><code class="inline">shell/1</code></a>), allowing developers to use a test shell that simply sends messages to the current process instead of performing IO (see <a href="mix.shell.process"><code class="inline">Mix.Shell.Process</code></a>).</p>
+<p>By default, this returns <a href="mix.shell.io"><code class="inline">Mix.Shell.IO</code></a>.</p>
+<h4 id="shell/0-examples" class="section-heading">  Examples </h4> <pre data-language="elixir">Mix.shell().info("Preparing to do something dangerous...")
+
+if Mix.shell().yes?("Are you sure?") do
+  # do something dangerous
+end</pre> </section> </section> <section class="detail"> <h3 class="detail-header" id="shell/1">shell(shell)<a href="https://github.com/elixir-lang/elixir/blob/v1.12.0/lib/mix/lib/mix.ex#L415" class="source">Source</a>
+</h3> <section class="docstring"> <h4>Specs</h4> <div class="specs"> <pre data-language="elixir">shell(module()) :: :ok</pre> </div> <p>Sets the current shell.</p>
+<p>As an argument you may pass <a href="mix.shell.io"><code class="inline">Mix.Shell.IO</code></a>, <a href="mix.shell.process"><code class="inline">Mix.Shell.Process</code></a>, <a href="mix.shell.quiet"><code class="inline">Mix.Shell.Quiet</code></a>, or any module that implements the <a href="mix.shell"><code class="inline">Mix.Shell</code></a> behaviour.</p>
+<p>After calling this function, <code class="inline">shell</code> becomes the shell that is returned by <a href="#shell/0"><code class="inline">shell/0</code></a>.</p>
+<h4 id="shell/1-examples" class="section-heading">  Examples </h4> <pre data-language="elixir">iex&gt; Mix.shell(Mix.Shell.IO)
+:ok</pre>
+<p>You can use <a href="#shell/0"><code class="inline">shell/0</code></a> and <a href="#shell/1"><code class="inline">shell/1</code></a> to temporarily switch shells, for example, if you want to run a Mix Task that normally produces a lot of output:</p>
+<pre data-language="elixir">shell = Mix.shell()
+Mix.shell(Mix.Shell.Quiet)
+
+try do
+  Mix.Task.run("noisy.task")
+after
+  Mix.shell(shell)
+end</pre> </section> </section> <section class="detail"> <h3 class="detail-header" id="target/0">target()<a href="https://github.com/elixir-lang/elixir/blob/v1.12.0/lib/mix/lib/mix.ex#L328" class="source">Source</a>
+</h3> <section class="docstring"> <h4>Specs</h4> <div class="specs"> <pre data-language="elixir">target() :: atom()</pre> </div> <p>Returns the Mix target.</p> </section> </section> <section class="detail"> <h3 class="detail-header" id="target/1">target(target)<a href="https://github.com/elixir-lang/elixir/blob/v1.12.0/lib/mix/lib/mix.ex#L340" class="source">Source</a>
+</h3> <section class="docstring"> <h4>Specs</h4> <div class="specs"> <pre data-language="elixir">target(atom()) :: :ok</pre> </div> <p>Changes the current Mix target to <code class="inline">target</code>.</p>
+<p>Be careful when invoking this function as any project configuration won't be reloaded.</p> </section> </section> </div> </section><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://hexdocs.pm/mix/1.12.0/Mix.html" class="_attribution-link" target="_blank">https://hexdocs.pm/mix/1.12.0/Mix.html</a>
+  </p>
+</div>

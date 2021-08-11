@@ -1,0 +1,92 @@
+<h1 class="devsite-page-title">tf.distribute.experimental.CentralStorageStrategy</h1>     <div itemscope itemtype="http://developers.google.com/ReferenceObject"> <meta itemprop="name" content="tf.distribute.experimental.CentralStorageStrategy"> <meta itemprop="path" content="Stable"> <meta itemprop="property" content="extended"> <meta itemprop="property" content="num_replicas_in_sync"> <meta itemprop="property" content="__init__"> <meta itemprop="property" content="experimental_distribute_dataset"> <meta itemprop="property" content="experimental_distribute_datasets_from_function"> <meta itemprop="property" content="experimental_local_results"> <meta itemprop="property" content="experimental_make_numpy_dataset"> <meta itemprop="property" content="experimental_run_v2"> <meta itemprop="property" content="reduce"> <meta itemprop="property" content="scope"> </div>  <table class="tfo-notebook-buttons tfo-api" align="left"> <td> <a target="_blank" href="https://www.tensorflow.org/versions/r1.15/api_docs/python/tf/distribute/experimental/CentralStorageStrategy">  TensorFlow 1 version</a> </td> <td> <a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/distribute/central_storage_strategy.py#L28-L245">  View source on GitHub </a> </td>
+</table>  <h2 id="class_centralstoragestrategy">Class <code translate="no" dir="ltr">CentralStorageStrategy</code>
+</h2> <p>A one-machine strategy that puts all variables on a single device.</p> <p>Inherits From: <a href="../strategy"><code translate="no" dir="ltr">Strategy</code></a></p> <h3 id="used_in_the_guide">Used in the guide:</h3> <ul> <li><a href="https://www.tensorflow.org/guide/distributed_training">Distributed training with TensorFlow</a></li> </ul> <p>Variables are assigned to local CPU or the only GPU. If there is more than one GPU, compute operations (other than variable update operations) will be replicated across all GPUs.</p> <h4 id="for_example">For Example:</h4> <pre class="prettyprint" translate="no" dir="ltr" data-language="python">strategy = tf.distribute.experimental.CentralStorageStrategy()
+# Create a dataset
+ds = tf.data.Dataset.range(5).batch(2)
+# Distribute that dataset
+dist_dataset = strategy.experimental_distribute_dataset(ds)
+
+with strategy.scope():
+  @tf.function
+  def train_step(val):
+    return val + 1
+
+  # Iterate over the distributed dataset
+  for x in dist_dataset:
+    # process dataset elements
+    strategy.experimental_run_v2(train_step, args=(x,))
+</pre> <h2 id="__init__"><code translate="no" dir="ltr">__init__</code></h2> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/distribute/central_storage_strategy.py#L55-L71">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">__init__(
+    compute_devices=None,
+    parameter_device=None
+)
+</pre> <p>Initialize self. See help(type(self)) for accurate signature.</p> <h2 id="properties">Properties</h2> <h3 id="extended"><code translate="no" dir="ltr">extended</code></h3> <p><a href="../strategyextended"><code translate="no" dir="ltr">tf.distribute.StrategyExtended</code></a> with additional methods.</p> <h3 id="num_replicas_in_sync"><code translate="no" dir="ltr">num_replicas_in_sync</code></h3> <p>Returns number of replicas over which gradients are aggregated.</p> <h2 id="methods">Methods</h2> <h3 id="experimental_distribute_dataset"><code translate="no" dir="ltr">experimental_distribute_dataset</code></h3> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/distribute/central_storage_strategy.py#L77-L104">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">experimental_distribute_dataset(dataset)
+</pre> <p>Distributes a tf.data.Dataset instance provided via dataset.</p> <p>The returned dataset is a wrapped strategy dataset which creates a multidevice iterator under the hood. It prefetches the input data to the specified devices on the worker. The returned distributed dataset can be iterated over similar to how regular datasets can.</p> <p>NOTE: Currently, the user cannot add any more transformations to a distributed dataset.</p> <h4 id="for_example_2">For Example:</h4> <pre class="prettyprint" translate="no" dir="ltr" data-language="python">strategy = tf.distribute.CentralStorageStrategy()  # with 1 CPU and 1 GPU
+dataset = tf.data.Dataset.range(10).batch(2)
+dist_dataset = strategy.experimental_distribute_dataset(dataset)
+for x in dist_dataset:
+  print(x)  # Prints PerReplica values [0, 1], [2, 3],...
+
+</pre> <p>Args: dataset: <a href="../../data/dataset"><code translate="no" dir="ltr">tf.data.Dataset</code></a> to be prefetched to device.</p> <h4 id="returns">Returns:</h4> <p>A "distributed <code translate="no" dir="ltr">Dataset</code>" that the caller can iterate over.</p> <h3 id="experimental_distribute_datasets_from_function"><code translate="no" dir="ltr">experimental_distribute_datasets_from_function</code></h3> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/distribute/central_storage_strategy.py#L106-L146">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">experimental_distribute_datasets_from_function(dataset_fn)
+</pre> <p>Distributes <a href="../../data/dataset"><code translate="no" dir="ltr">tf.data.Dataset</code></a> instances created by calls to <code translate="no" dir="ltr">dataset_fn</code>.</p> <p><code translate="no" dir="ltr">dataset_fn</code> will be called once for each worker in the strategy. In this case, we only have one worker so <code translate="no" dir="ltr">dataset_fn</code> is called once. Each replica on this worker will then dequeue a batch of elements from this local dataset.</p> <p>The <code translate="no" dir="ltr">dataset_fn</code> should take an <a href="../inputcontext"><code translate="no" dir="ltr">tf.distribute.InputContext</code></a> instance where information about batching and input replication can be accessed.</p> <h4 id="for_example_3">For Example:</h4> <pre class="prettyprint" translate="no" dir="ltr" data-language="python">def dataset_fn(input_context):
+  batch_size = input_context.get_per_replica_batch_size(global_batch_size)
+  d = tf.data.Dataset.from_tensors([[1.]]).repeat().batch(batch_size)
+  return d.shard(
+      input_context.num_input_pipelines, input_context.input_pipeline_id)
+
+inputs = strategy.experimental_distribute_datasets_from_function(dataset_fn)
+
+for batch in inputs:
+  replica_results = strategy.experimental_run_v2(replica_fn, args=(batch,))
+</pre> <p>IMPORTANT: The <a href="../../data/dataset"><code translate="no" dir="ltr">tf.data.Dataset</code></a> returned by <code translate="no" dir="ltr">dataset_fn</code> should have a per-replica batch size, unlike <code translate="no" dir="ltr">experimental_distribute_dataset</code>, which uses the global batch size. This may be computed using <code translate="no" dir="ltr">input_context.get_per_replica_batch_size</code>.</p> <h4 id="args">Args:</h4> <ul> <li>
+<b><code translate="no" dir="ltr">dataset_fn</code></b>: A function taking a <a href="../inputcontext"><code translate="no" dir="ltr">tf.distribute.InputContext</code></a> instance and returning a <a href="../../data/dataset"><code translate="no" dir="ltr">tf.data.Dataset</code></a>.</li> </ul> <h4 id="returns_2">Returns:</h4> <p>A "distributed <code translate="no" dir="ltr">Dataset</code>", which the caller can iterate over like regular datasets.</p> <h3 id="experimental_local_results"><code translate="no" dir="ltr">experimental_local_results</code></h3> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/distribute/central_storage_strategy.py#L148-L162">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">experimental_local_results(value)
+</pre> <p>Returns the list of all local per-replica values contained in <code translate="no" dir="ltr">value</code>.</p> <p>In <code translate="no" dir="ltr">CentralStorageStrategy</code> there is a single worker so the value returned will be all the values on that worker.</p> <h4 id="args_2">Args:</h4> <ul> <li>
+<b><code translate="no" dir="ltr">value</code></b>: A value returned by <code translate="no" dir="ltr">experimental_run()</code>, <code translate="no" dir="ltr">experimental_run_v2()</code>, <code translate="no" dir="ltr">extended.call_for_each_replica()</code>, or a variable created in <code translate="no" dir="ltr">scope</code>.</li> </ul> <h4 id="returns_3">Returns:</h4> <p>A tuple of values contained in <code translate="no" dir="ltr">value</code>. If <code translate="no" dir="ltr">value</code> represents a single value, this returns <code translate="no" dir="ltr">(value,).</code></p> <h3 id="experimental_make_numpy_dataset"><code translate="no" dir="ltr">experimental_make_numpy_dataset</code></h3> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/distribute/distribute_lib.py#L578-L604">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">experimental_make_numpy_dataset(numpy_input)
+</pre> <p>Makes a <a href="../../data/dataset"><code translate="no" dir="ltr">tf.data.Dataset</code></a> for input provided via a numpy array.</p> <p>This avoids adding <code translate="no" dir="ltr">numpy_input</code> as a large constant in the graph, and copies the data to the machine or machines that will be processing the input.</p> <p>Note that you will likely need to use <code translate="no" dir="ltr">experimental_distribute_dataset</code> with the returned dataset to further distribute it with the strategy.</p> <h4 id="example">Example:</h4> <pre class="prettyprint" translate="no" dir="ltr" data-language="python">numpy_input = np.ones([10], dtype=np.float32)
+dataset = strategy.experimental_make_numpy_dataset(numpy_input)
+dist_dataset = strategy.experimental_distribute_dataset(dataset)
+</pre> <h4 id="args_3">Args:</h4> <ul> <li>
+<b><code translate="no" dir="ltr">numpy_input</code></b>: A nest of NumPy input arrays that will be converted into a dataset. Note that lists of Numpy arrays are stacked, as that is normal <a href="../../data/dataset"><code translate="no" dir="ltr">tf.data.Dataset</code></a> behavior.</li> </ul> <h4 id="returns_4">Returns:</h4> <p>A <a href="../../data/dataset"><code translate="no" dir="ltr">tf.data.Dataset</code></a> representing <code translate="no" dir="ltr">numpy_input</code>.</p> <h3 id="experimental_run_v2"><code translate="no" dir="ltr">experimental_run_v2</code></h3> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/distribute/central_storage_strategy.py#L164-L179">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">experimental_run_v2(
+    fn,
+    args=(),
+    kwargs=None
+)
+</pre> <p>Run <code translate="no" dir="ltr">fn</code> on each replica, with the given arguments.</p> <p>In <code translate="no" dir="ltr">CentralStorageStrategy</code>, <code translate="no" dir="ltr">fn</code> is called on each of the compute replicas, with the provided "per replica" arguments specific to that device.</p> <h4 id="args_4">Args:</h4> <ul> <li>
+<b><code translate="no" dir="ltr">fn</code></b>: The function to run. The output must be a <a href="../../nest"><code translate="no" dir="ltr">tf.nest</code></a> of <code translate="no" dir="ltr">Tensor</code>s.</li> <li>
+<b><code translate="no" dir="ltr">args</code></b>: (Optional) Positional arguments to <code translate="no" dir="ltr">fn</code>.</li> <li>
+<b><code translate="no" dir="ltr">kwargs</code></b>: (Optional) Keyword arguments to <code translate="no" dir="ltr">fn</code>.</li> </ul> <h4 id="returns_5">Returns:</h4> <p>Return value from running <code translate="no" dir="ltr">fn</code>.</p> <h3 id="reduce"><code translate="no" dir="ltr">reduce</code></h3> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/distribute/central_storage_strategy.py#L181-L245">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">reduce(
+    reduce_op,
+    value,
+    axis
+)
+</pre> <p>Reduce <code translate="no" dir="ltr">value</code> across replicas.</p> <p>Given a per-replica value returned by <code translate="no" dir="ltr">experimental_run_v2</code>, say a per-example loss, the batch will be divided across all the replicas. This function allows you to aggregate across replicas and optionally also across batch elements. For example, if you have a global batch size of 8 and 2 replicas, values for examples <code translate="no" dir="ltr">[0, 1, 2, 3]</code> will be on replica 0 and <code translate="no" dir="ltr">[4, 5, 6, 7]</code> will be on replica 1. By default, <code translate="no" dir="ltr">reduce</code> will just aggregate across replicas, returning <code translate="no" dir="ltr">[0+4, 1+5, 2+6, 3+7]</code>. This is useful when each replica is computing a scalar or some other value that doesn't have a "batch" dimension (like a gradient). More often you will want to aggregate across the global batch, which you can get by specifying the batch dimension as the <code translate="no" dir="ltr">axis</code>, typically <code translate="no" dir="ltr">axis=0</code>. In this case it would return a scalar <code translate="no" dir="ltr">0+1+2+3+4+5+6+7</code>.</p> <p>If there is a last partial batch, you will need to specify an axis so that the resulting shape is consistent across replicas. So if the last batch has size 6 and it is divided into [0, 1, 2, 3] and [4, 5], you would get a shape mismatch unless you specify <code translate="no" dir="ltr">axis=0</code>. If you specify <a href="../reduceop#MEAN"><code translate="no" dir="ltr">tf.distribute.ReduceOp.MEAN</code></a>, using <code translate="no" dir="ltr">axis=0</code> will use the correct denominator of 6. Contrast this with computing <code translate="no" dir="ltr">reduce_mean</code> to get a scalar value on each replica and this function to average those means, which will weigh some values <code translate="no" dir="ltr">1/8</code> and others <code translate="no" dir="ltr">1/4</code>.</p> <h4 id="for_example_4">For Example:</h4> <pre class="prettyprint" translate="no" dir="ltr" data-language="python">strategy = tf.distribute.experimental.CentralStorageStrategy(
+    compute_devices=['CPU:0', 'GPU:0'], parameter_device='CPU:0')
+ds = tf.data.Dataset.range(10)
+# Distribute that dataset
+dist_dataset = strategy.experimental_distribute_dataset(ds)
+
+with strategy.scope():
+  @tf.function
+  def train_step(val):
+    # pass through
+    return val
+
+  # Iterate over the distributed dataset
+  for x in dist_dataset:
+    result = strategy.experimental_run_v2(train_step, args=(x,))
+
+result = strategy.reduce(tf.distribute.ReduceOp.SUM, result,
+                         axis=None).numpy()
+# result: array([ 4,  6,  8, 10])
+
+result = strategy.reduce(tf.distribute.ReduceOp.SUM, result, axis=0).numpy()
+# result: 28
+</pre> <h4 id="args_5">Args:</h4> <ul> <li>
+<b><code translate="no" dir="ltr">reduce_op</code></b>: A <a href="../reduceop"><code translate="no" dir="ltr">tf.distribute.ReduceOp</code></a> value specifying how values should be combined.</li> <li>
+<b><code translate="no" dir="ltr">value</code></b>: A "per replica" value, e.g. returned by <code translate="no" dir="ltr">experimental_run_v2</code> to be combined into a single tensor.</li> <li>
+<b><code translate="no" dir="ltr">axis</code></b>: Specifies the dimension to reduce along within each replica's tensor. Should typically be set to the batch dimension, or <code translate="no" dir="ltr">None</code> to only reduce across replicas (e.g. if the tensor has no batch dimension).</li> </ul> <h4 id="returns_6">Returns:</h4> <p>A <code translate="no" dir="ltr">Tensor</code>.</p> <h3 id="scope"><code translate="no" dir="ltr">scope</code></h3> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/distribute/distribute_lib.py#L544-L554">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">scope()
+</pre> <p>Returns a context manager selecting this Strategy as current.</p> <p>Inside a <code translate="no" dir="ltr">with strategy.scope():</code> code block, this thread will use a variable creator set by <code translate="no" dir="ltr">strategy</code>, and will enter its "cross-replica context".</p> <h4 id="returns_7">Returns:</h4> <p>A context manager.</p> <h2 id="compat_aliases">Compat aliases</h2> <ul> <li><a href="centralstoragestrategy"><code translate="no" dir="ltr">tf.compat.v2.distribute.experimental.CentralStorageStrategy</code></a></li> </ul>  <devsite-page-rating position="footer" selected-rating="0" hover-rating-star="0"> </devsite-page-rating><div class="_attribution">
+  <p class="_attribution-p">
+    &copy; 2019 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/api_docs/python/tf/distribute/experimental/CentralStorageStrategy" class="_attribution-link">https://www.tensorflow.org/api_docs/python/tf/distribute/experimental/CentralStorageStrategy</a>
+  </p>
+</div>

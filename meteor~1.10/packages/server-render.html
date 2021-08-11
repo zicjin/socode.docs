@@ -1,0 +1,144 @@
+<p>This package implements generic support for server-side rendering in Meteor apps, by providing a mechanism for injecting fragments of HTML into the <code>&lt;head&gt;</code> and/or <code>&lt;body&gt;</code> of the application’s initial HTML response.</p> <h2 id="Usage">Usage</h2>
+<p>This package exports a function named <code>onPageLoad</code> which takes a callback function that will be called at page load (on the client) or whenever a new request happens (on the server).</p> <p>The callback receives a <code>sink</code> object, which is an instance of either <code>ClientSink</code> or <code>ServerSink</code> depending on the environment. Both types of <code>sink</code> have the same methods, though the server version accepts only HTML strings as content, whereas the client version also accepts DOM nodes.</p> <p>The current interface of <code>{Client,Server}Sink</code> objects is as follows:</p>  <pre class="line-numbers" style><code class="language-js">class Sink {
+  // Appends content to the &lt;head&gt;.
+  appendToHead(content)
+
+  // Appends content to the &lt;body&gt;.
+  appendToBody(content)
+
+  // Appends content to the identified element.
+  appendToElementById(id, content)
+
+  // Replaces the content of the identified element.
+  renderIntoElementById(id, content)
+
+  // Redirects request to new location.
+  redirect(location, code)
+
+
+  // server only methods
+
+  // sets the status code of the response.
+  setStatusCode(code)
+
+  // sets a header of the response.
+  setHeader(key, value)
+
+  // gets request headers
+  getHeaders()
+
+  // gets request cookies
+  getCookies()
+}
+</code></pre> <p>The <code>sink</code> object may also expose additional properties depending on the environment. For example, on the server, <code>sink.request</code> provides access to the current <code>request</code> object, and <code>sink.arch</code> identifies the target architecture of the pending HTTP response (e.g. “web.browser”).</p> <p>Here is a basic example of <code>onPageLoad</code> usage on the server:</p>  <pre class="line-numbers" style><code class="language-js">import React from "react";
+import { renderToString } from "react-dom/server";
+import { onPageLoad } from "meteor/server-render";
+
+import App from "/imports/Server.js";
+
+onPageLoad(sink =&gt; {
+  sink.renderIntoElementById("app", renderToString(
+    &lt;App location={sink.request.url} /&gt;
+  ));
+});
+</code></pre> <p>Likewise on the client:</p>  <pre class="line-numbers" style><code class="language-js">import React from "react";
+import ReactDOM from "react-dom";
+import { onPageLoad } from "meteor/server-render";
+
+onPageLoad(async sink =&gt; {
+  const App = (await import("/imports/Client.js")).default;
+  ReactDOM.hydrate(
+    &lt;App /&gt;,
+    document.getElementById("app")
+  );
+});
+</code></pre> <p>Note that the <code>onPageLoad</code> callback function is allowed to return a <code>Promise</code> if it needs to do any asynchronous work, and thus may be implemented by an <code>async</code> function (as in the client case above).</p> <p>Note also that the client example does not end up calling any methods of the <code>sink</code> object, because <code>ReactDOM.hydrate</code> has its own similar API. In fact, you are not even required to use the <code>onPageLoad</code> API on the client, if you have your own ideas about how the client should do its rendering.</p> <p>Here is a more complicated example of <code>onPageLoad</code> usage on the server, involving the <a href="https://www.styled-components.com/docs/advanced#server-side-rendering" target="_blank" rel="noopener"><code>styled-components</code></a> npm package:</p>  <pre class="line-numbers" style><code class="language-js">import React from "react";
+import { onPageLoad } from "meteor/server-render";
+import { renderToString } from "react-dom/server";
+import { ServerStyleSheet } from "styled-components"
+import App from "/imports/Server";
+
+onPageLoad(sink =&gt; {
+  const sheet = new ServerStyleSheet();
+  const html = renderToString(sheet.collectStyles(
+    &lt;App location={sink.request.url} /&gt;
+  ));
+
+  sink.renderIntoElementById("app", html);
+  sink.appendToHead(sheet.getStyleTags());
+});
+</code></pre> <p>In this example, the callback not only renders the <code>&lt;App /&gt;</code> element into the element with <code>id="app"</code>, but also appends any <code>&lt;style&gt;</code> tag(s) generated during rendering to the <code>&lt;head&gt;</code> of the response document.</p> <p>Although these examples have all involved React, the <code>onPageLoad</code> API is designed to be generically useful for any kind of server-side rendering.</p> <h2 id="Streaming-HTML">Streaming HTML</h2>
+<p>React 16 introduced <a href="https://reactjs.org/docs/react-dom-server.html#rendertonodestream" target="_blank" rel="noopener"><code>renderToNodeStream</code></a>, which enables the reading of rendered HTML in chunks. This reduces the <a href="https://en.wikipedia.org/wiki/Time_to_first_byte" target="_blank" rel="noopener">TTFB</a> (time to first byte).</p> <p>Here is a <code>renderToNodeStream</code> example using <a href="https://www.styled-components.com" target="_blank" rel="noopener">styled-components</a>. Note the use of <code>sheet.interleaveWithNodeStream</code> instead of <code>sink.appendToHead(sheet.getStyleTags());</code>:</p>  <pre class="line-numbers" style><code class="language-js">import React from "react";
+import { onPageLoad } from "meteor/server-render";
+import { renderToNodeStream } from "react-dom/server";
+import { ServerStyleSheet } from "styled-components"
+import App from "/imports/Server";
+
+onPageLoad(sink =&gt; {
+  const sheet = new ServerStyleSheet();
+  const appJSX = sheet.collectStyles(
+    &lt;App location={sink.request.url} /&gt;
+  );
+  const htmlStream = sheet.interleaveWithNodeStream(
+    renderToNodeStream(appJSX)
+  );
+  sink.renderIntoElementById("app", htmlStream);
+});
+</code></pre> <h2 id="Getting-data-from-the-request">Getting data from the request</h2>
+<p>In some cases you want to customize meta tags or something else in your response based in the requested URL, for example, if your are loading a page with a specific product in your app maybe you want to include an image and a description for <a href="https://www.contentkingapp.com/academy/open-graph/" target="_blank" rel="noopener">social previews</a>.</p> <p>You can extract information from the request using the <code>sink</code> object.</p>  <pre class="line-numbers" style><code class="language-js">import React from "react";
+import { onPageLoad } from "meteor/server-render";
+import { renderToNodeStream } from "react-dom/server";
+import { ServerStyleSheet } from "styled-components"
+import App from "/imports/Server";
+
+const getBaseUrlFromHeaders = headers =&gt; {
+  const protocol = headers['x-forwarded-proto'];
+  const { host } = headers;
+  // we need to have '//' to findOneByHost work as expected
+  return `${protocol ? `${protocol}:` : ''}//${host}`;
+};
+
+const getContext = sink =&gt; {
+  // more details about this implementation here
+  // https://github.com/meteor/meteor/issues/9765
+  const { headers, url, browser } = sink.request;
+  // no useful data will be found for galaxybot requests
+  if (browser &amp;&amp; browser.name === 'galaxybot') {
+    return null;
+  }
+  
+  // when we are running inside cordova we don't want to resolve meta tags
+  if (url &amp;&amp; url.pathname &amp;&amp; url.pathname.includes('cordova/')) {
+    return null;
+  }
+  
+  const baseUrl = getBaseUrlFromHeaders(headers);
+  const fullUrl = `${baseUrl}${url.pathname || ''}`;
+  
+  return { baseUrl, fullUrl };
+}
+
+onPageLoad(sink =&gt; {
+  const { baseUrl, fullUrl } = getContext(sink);
+  
+  // product URL contains /product on it
+  const urlParseArray = fullUrl.split('/');
+  
+  const productPosition = urlParseArray.indexOf('product');
+  const productId = productPosition !== -1 &amp;&amp; urlParseArray[productPosition + 1].replace('?', '');
+  const product = productId &amp;&amp; ProductsCollection.findOne(productId);
+  
+  const productTitle = product &amp;&amp; `Buy now ${product.name}, ${product.price}`;
+  if (productTitle) {
+    sink.appendToHead(`&lt;title&gt;${productTitle}&lt;/title&gt;\n`);
+    sink.appendToHead(`&lt;meta property="og:title" content="${productTitle}"&gt;\n`);
+    if (product.imageUrl) {
+      sink.appendToHead(`&lt;meta property="og:image" content="${product.imageUrl}"&gt;\n`);
+    }
+  }
+});
+</code></pre><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://docs.meteor.com/packages/server-render.html" class="_attribution-link" target="_blank">https://docs.meteor.com/packages/server-render.html</a>
+  </p>
+</div>

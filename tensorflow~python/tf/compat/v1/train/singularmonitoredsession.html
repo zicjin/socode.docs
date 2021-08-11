@@ -1,0 +1,76 @@
+<h1 class="devsite-page-title">tf.compat.v1.train.SingularMonitoredSession</h1>     <div itemscope itemtype="http://developers.google.com/ReferenceObject"> <meta itemprop="name" content="tf.compat.v1.train.SingularMonitoredSession"> <meta itemprop="path" content="Stable"> <meta itemprop="property" content="StepContext"> <meta itemprop="property" content="graph"> <meta itemprop="property" content="__enter__"> <meta itemprop="property" content="__exit__"> <meta itemprop="property" content="__init__"> <meta itemprop="property" content="close"> <meta itemprop="property" content="raw_session"> <meta itemprop="property" content="run"> <meta itemprop="property" content="run_step_fn"> <meta itemprop="property" content="should_stop"> </div>  <table class="tfo-notebook-buttons tfo-api" align="left"> <td> <a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/training/monitored_session.py#L1042-L1132">  View source on GitHub </a> </td>
+</table>  <h2 id="class_singularmonitoredsession">Class <code translate="no" dir="ltr">SingularMonitoredSession</code>
+</h2> <p>Session-like object that handles initialization, restoring, and hooks.</p>  <p>Please note that this utility is not recommended for distributed settings. For distributed settings, please use <a href="monitoredsession"><code translate="no" dir="ltr">tf.compat.v1.train.MonitoredSession</code></a>. The differences between <code translate="no" dir="ltr">MonitoredSession</code> and <code translate="no" dir="ltr">SingularMonitoredSession</code> are:</p> <ul> <li>
+<code translate="no" dir="ltr">MonitoredSession</code> handles <code translate="no" dir="ltr">AbortedError</code> and <code translate="no" dir="ltr">UnavailableError</code> for distributed settings, but <code translate="no" dir="ltr">SingularMonitoredSession</code> does not.</li> <li>
+<code translate="no" dir="ltr">MonitoredSession</code> can be created in <code translate="no" dir="ltr">chief</code> or <code translate="no" dir="ltr">worker</code> modes. <code translate="no" dir="ltr">SingularMonitoredSession</code> is always created as <code translate="no" dir="ltr">chief</code>.</li> <li>You can access the raw <a href="../session"><code translate="no" dir="ltr">tf.compat.v1.Session</code></a> object used by <code translate="no" dir="ltr">SingularMonitoredSession</code>, whereas in MonitoredSession the raw session is private. This can be used: <ul> <li>To <code translate="no" dir="ltr">run</code> without hooks.</li> <li>To save and restore.</li> </ul>
+</li> <li>All other functionality is identical.</li> </ul> <h4 id="example_usage">Example usage:</h4> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">saver_hook = CheckpointSaverHook(...)
+summary_hook = SummarySaverHook(...)
+with SingularMonitoredSession(hooks=[saver_hook, summary_hook]) as sess:
+  while not sess.should_stop():
+    sess.run(train_op)
+</pre> <p>Initialization: At creation time the hooked session does following things in given order:</p> <ul> <li>calls <code translate="no" dir="ltr">hook.begin()</code> for each given hook</li> <li>finalizes the graph via <code translate="no" dir="ltr">scaffold.finalize()</code>
+</li> <li>create session</li> <li>initializes the model via initialization ops provided by <code translate="no" dir="ltr">Scaffold</code>
+</li> <li>restores variables if a checkpoint exists</li> <li>launches queue runners</li> </ul> <p>Run: When <code translate="no" dir="ltr">run()</code> is called, the hooked session does following things:</p> <ul> <li>calls <code translate="no" dir="ltr">hook.before_run()</code>
+</li> <li>calls TensorFlow <code translate="no" dir="ltr">session.run()</code> with merged fetches and feed_dict</li> <li>calls <code translate="no" dir="ltr">hook.after_run()</code>
+</li> <li>returns result of <code translate="no" dir="ltr">session.run()</code> asked by user</li> </ul> <p>Exit: At the <code translate="no" dir="ltr">close()</code>, the hooked session does following things in order:</p> <ul> <li>calls <code translate="no" dir="ltr">hook.end()</code>
+</li> <li>closes the queue runners and the session</li> <li>suppresses <code translate="no" dir="ltr">OutOfRange</code> error which indicates that all inputs have been processed if the <code translate="no" dir="ltr">SingularMonitoredSession</code> is used as a context.</li> </ul> <h2 id="__init__"><code translate="no" dir="ltr">__init__</code></h2> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/training/monitored_session.py#L1095-L1128">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">__init__(
+    hooks=None,
+    scaffold=None,
+    master='',
+    config=None,
+    checkpoint_dir=None,
+    stop_grace_period_secs=120,
+    checkpoint_filename_with_path=None
+)
+</pre> <p>Creates a SingularMonitoredSession.</p> <h4 id="args">Args:</h4> <ul> <li>
+<b><code translate="no" dir="ltr">hooks</code></b>: An iterable of `SessionRunHook' objects.</li> <li>
+<b><code translate="no" dir="ltr">scaffold</code></b>: A <code translate="no" dir="ltr">Scaffold</code> used for gathering or building supportive ops. If not specified a default one is created. It's used to finalize the graph.</li> <li>
+<b><code translate="no" dir="ltr">master</code></b>: <code translate="no" dir="ltr">String</code> representation of the TensorFlow master to use.</li> <li>
+<b><code translate="no" dir="ltr">config</code></b>: <code translate="no" dir="ltr">ConfigProto</code> proto used to configure the session.</li> <li>
+<b><code translate="no" dir="ltr">checkpoint_dir</code></b>: A string. Optional path to a directory where to restore variables.</li> <li>
+<b><code translate="no" dir="ltr">stop_grace_period_secs</code></b>: Number of seconds given to threads to stop after <code translate="no" dir="ltr">close()</code> has been called.</li> <li>
+<b><code translate="no" dir="ltr">checkpoint_filename_with_path</code></b>: A string. Optional path to a checkpoint file from which to restore variables.</li> </ul> <h2 id="child_classes">Child Classes</h2> <p><a href="monitoredsession/stepcontext"><code translate="no" dir="ltr">class StepContext</code></a></p> <h2 id="properties">Properties</h2> <h3 id="graph"><code translate="no" dir="ltr">graph</code></h3> <p>The graph that was launched in this session.</p> <h2 id="methods">Methods</h2> <h3 id="__enter__"><code translate="no" dir="ltr">__enter__</code></h3> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/training/monitored_session.py#L879-L880">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">__enter__()
+</pre> <h3 id="__exit__"><code translate="no" dir="ltr">__exit__</code></h3> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/training/monitored_session.py#L882-L887">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">__exit__(
+    exception_type,
+    exception_value,
+    traceback
+)
+</pre> <h3 id="close"><code translate="no" dir="ltr">close</code></h3> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/training/monitored_session.py#L876-L877">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">close()
+</pre> <h3 id="raw_session"><code translate="no" dir="ltr">raw_session</code></h3> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/training/monitored_session.py#L1130-L1132">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">raw_session()
+</pre> <p>Returns underlying <code translate="no" dir="ltr">TensorFlow.Session</code> object.</p> <h3 id="run"><code translate="no" dir="ltr">run</code></h3> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/training/monitored_session.py#L760-L778">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">run(
+    fetches,
+    feed_dict=None,
+    options=None,
+    run_metadata=None
+)
+</pre> <p>Run ops in the monitored session.</p> <p>This method is completely compatible with the <code translate="no" dir="ltr">tf.Session.run()</code> method.</p> <h4 id="args_2">Args:</h4> <ul> <li>
+<b><code translate="no" dir="ltr">fetches</code></b>: Same as <code translate="no" dir="ltr">tf.Session.run()</code>.</li> <li>
+<b><code translate="no" dir="ltr">feed_dict</code></b>: Same as <code translate="no" dir="ltr">tf.Session.run()</code>.</li> <li>
+<b><code translate="no" dir="ltr">options</code></b>: Same as <code translate="no" dir="ltr">tf.Session.run()</code>.</li> <li>
+<b><code translate="no" dir="ltr">run_metadata</code></b>: Same as <code translate="no" dir="ltr">tf.Session.run()</code>.</li> </ul> <h4 id="returns">Returns:</h4> <p>Same as <code translate="no" dir="ltr">tf.Session.run()</code>.</p> <h3 id="run_step_fn"><code translate="no" dir="ltr">run_step_fn</code></h3> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/training/monitored_session.py#L780-L834">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">run_step_fn(step_fn)
+</pre> <p>Run ops using a step function.</p> <h4 id="args_3">Args:</h4> <ul> <li>
+<b><code translate="no" dir="ltr">step_fn</code></b>: A function or a method with a single argument of type <code translate="no" dir="ltr">StepContext</code>. The function may use methods of the argument to perform computations with access to a raw session. The returned value of the <code translate="no" dir="ltr">step_fn</code> will be returned from <code translate="no" dir="ltr">run_step_fn</code>, unless a stop is requested. In that case, the next <code translate="no" dir="ltr">should_stop</code> call will return True. Example usage:</li> </ul> <pre class="prettyprint" translate="no" dir="ltr" data-language="python">with tf.Graph().as_default():
+  c = tf.compat.v1.placeholder(dtypes.float32)
+  v = tf.add(c, 4.0)
+  w = tf.add(c, 0.5)
+  def step_fn(step_context):
+    a = step_context.session.run(fetches=v, feed_dict={c: 0.5})
+    if a &lt;= 4.5:
+      step_context.request_stop()
+      return step_context.run_with_hooks(fetches=w,
+                                         feed_dict={c: 0.1})
+
+  with tf.MonitoredSession() as session:
+    while not session.should_stop():
+      a = session.run_step_fn(step_fn)
+  Hooks interact with the `run_with_hooks()` call inside the
+       `step_fn` as they do with a `MonitoredSession.run` call.
+</pre> <h4 id="returns_2">Returns:</h4> <p>Returns the returned value of <code translate="no" dir="ltr">step_fn</code>.</p> <h4 id="raises">Raises:</h4> <ul> <li>
+<b><code translate="no" dir="ltr">StopIteration</code></b>: if <code translate="no" dir="ltr">step_fn</code> has called <code translate="no" dir="ltr">request_stop()</code>. It may be caught by <code translate="no" dir="ltr">with tf.MonitoredSession()</code> to close the session.</li> <li>
+<b><code translate="no" dir="ltr">ValueError</code></b>: if <code translate="no" dir="ltr">step_fn</code> doesn't have a single argument called <code translate="no" dir="ltr">step_context</code>. It may also optionally have <code translate="no" dir="ltr">self</code> for cases when it belongs to an object.</li> </ul> <h3 id="should_stop"><code translate="no" dir="ltr">should_stop</code></h3> <p><a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/training/monitored_session.py#L873-L874">View source</a></p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">should_stop()
+</pre>  <devsite-page-rating position="footer" selected-rating="0" hover-rating-star="0"> </devsite-page-rating><div class="_attribution">
+  <p class="_attribution-p">
+    &copy; 2019 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/api_docs/python/tf/compat/v1/train/SingularMonitoredSession" class="_attribution-link">https://www.tensorflow.org/api_docs/python/tf/compat/v1/train/SingularMonitoredSession</a>
+  </p>
+</div>

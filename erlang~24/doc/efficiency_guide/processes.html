@@ -1,0 +1,115 @@
+<div class="innertube"> <h1>8 Processes</h1> <h2><span onmouseover="document.getElementById('ghlink-creating-an-erlang-process-idm793').style.visibility = 'visible';" onmouseout="document.getElementById('ghlink-creating-an-erlang-process-idm793').style.visibility = 'hidden';">8.1 Creating an Erlang Process</span></h2> <p>An Erlang process is lightweight compared to threads and processes in operating systems.</p> <p>A newly spawned Erlang process uses 326 words of memory. The size can be found as follows:</p> <pre data-language="erlang">
+Erlang/OTP 24 [erts-12.0] [64-bit] [smp:8:8] [ds:8:8:10] [async-threads:1] [jit]
+
+Eshell V5.6  (abort with ^G)
+1&gt; Fun = fun() -&gt; receive after infinity -&gt; ok end end.
+#Fun&lt;...&gt;
+2&gt; {_,Bytes} = process_info(spawn(Fun), memory).
+{memory,1232}
+3&gt; Bytes div erlang:system_info(wordsize).
+309</pre> <p>The size includes 233 words for the heap area (which includes the stack). The garbage collector increases the heap as needed.</p> <p>The main (outer) loop for a process <strong>must</strong> be tail-recursive. Otherwise, the stack grows until the process terminates.</p> <p><strong>DO NOT</strong></p> <pre data-language="erlang">loop() -&gt; 
+  receive
+     {sys, Msg} -&gt;
+         handle_sys_msg(Msg),
+         loop();
+     {From, Msg} -&gt;
+          Reply = handle_msg(Msg),
+          From ! Reply,
+          loop()
+  end,
+  io:format("Message is processed~n", []).</pre> <p>The call to <code class="code">io:format/2</code> will never be executed, but a return address will still be pushed to the stack each time <code class="code">loop/0</code> is called recursively. The correct tail-recursive version of the function looks as follows:</p> <p><strong>DO</strong></p> <pre data-language="erlang">loop() -&gt; 
+   receive
+      {sys, Msg} -&gt;
+         handle_sys_msg(Msg),
+         loop();
+      {From, Msg} -&gt;
+         Reply = handle_msg(Msg),
+         From ! Reply,
+         loop()
+ end.</pre> <h4><span onmouseover="document.getElementById('ghlink-initial-heap-size-idm813').style.visibility = 'visible';" onmouseout="document.getElementById('ghlink-initial-heap-size-idm813').style.visibility = 'hidden';">Initial Heap Size</span></h4> <p>The default initial heap size of 233 words is quite conservative to support Erlang systems with hundreds of thousands or even millions of processes. The garbage collector grows and shrinks the heap as needed.</p> <p>In a system that use comparatively few processes, performance <strong>might</strong> be improved by increasing the minimum heap size using either the <code class="code">+h</code> option for <code>erl</code> or on a process-per-process basis using the <code class="code">min_heap_size</code> option for <code>spawn_opt/4</code>.</p> <p>The gain is twofold:</p> <ul> <li>Although the garbage collector grows the heap, it grows it step-by-step, which is more costly than directly establishing a larger heap when the process is spawned.</li> <li>The garbage collector can also shrink the heap if it is much larger than the amount of data stored on it; setting the minimum heap size prevents that.</li> </ul> <div class="warning"> <div class="label">Warning</div> <div class="content">
+
+<p>The emulator probably uses more memory, and because garbage collections occur less frequently, huge binaries can be kept much longer.</p>
+</div> </div> <p>In systems with many processes, computation tasks that run for a short time can be spawned off into a new process with a higher minimum heap size. When the process is done, it sends the result of the computation to another process and terminates. If the minimum heap size is calculated properly, the process might not have to do any garbage collections at all. <strong>This optimization is not to be attempted without proper measurements.</strong></p> <h2><span onmouseover="document.getElementById('ghlink-process-messages-idm830').style.visibility = 'visible';" onmouseout="document.getElementById('ghlink-process-messages-idm830').style.visibility = 'hidden';">8.2 Process Messages</span></h2> <p>All data in messages between Erlang processes is copied, except for <code><a href="binaryhandling#refc_binary">refc binaries</a></code> on the same Erlang node.</p> <p>When a message is sent to a process on another Erlang node, it is first encoded to the Erlang External Format before being sent through a TCP/IP socket. The receiving Erlang node decodes the message and distributes it to the correct process.</p> <h4> <span onmouseover="document.getElementById('ghlink-receiving-messages-idm835').style.visibility = 'visible';" onmouseout="document.getElementById('ghlink-receiving-messages-idm835').style.visibility = 'hidden';" id="receiving-messages">Receiving messages</span> </h4> <p>The cost of receiving messages depends on how complicated the <code class="code">receive</code> expression is. Simple expressions that match any message are very cheap:</p> <p><strong>DO</strong></p> <pre data-language="erlang">receive
+    Message -&gt; handle_msg(Message)
+end.</pre> <p>This is not always convenient however: we can receive a message that we do not know how to handle at this point, so it's rather common to only match the messages we expect:</p> <pre data-language="erlang">receive
+    {Tag, Message} -&gt; handle_msg(Message)
+end.</pre> <p>While this is convenient it means that the entire message queue must be searched until it finds a matching message. This is very expensive for processes with long message queues, so we have added an optimization for the common case of sending a request and waiting for a response shortly after:</p> <p><strong>DO</strong></p> <pre data-language="erlang">MRef = monitor(process, Process),
+Process ! {self(), MRef, Request},
+receive
+    {MRef, Reply} -&gt;
+        erlang:demonitor(MRef, [flush]),
+        handle_reply(Reply);
+    {'DOWN', MRef, _, _, Reason} -&gt;
+        handle_error(Reason)
+end.</pre> <p>Since the compiler knows that the reference created by <code class="code">monitor/2</code> cannot exist before the call (since it is a globally unique identifier), and that the <code class="code">receive</code> only matches messages that contain said reference, it will tell the emulator to search only the messages that arrived after the call to <code class="code">monitor/2</code>.</p> <p>The above is a simple example where one is but guaranteed that the optimization will take, but what about more complicated code?</p> <h5 id="recv_opt_info"> Option recv_opt_info</h5> <p>Use the <code class="code">recv_opt_info</code> option to have the compiler print information about receive optimizations. It can be given either to the compiler or <code class="code">erlc</code>:</p> <pre data-language="erlang">erlc +recv_opt_info Mod.erl</pre> <p>or passed through an environment variable:</p> <pre data-language="erlang">export ERL_COMPILER_OPTIONS=recv_opt_info</pre> <p>Notice that <code class="code">recv_opt_info</code> is not meant to be a permanent option added to your <code class="code">Makefile</code>s, because all messages that it generates cannot be eliminated. Therefore, passing the option through the environment is in most cases the most practical approach.</p> <p>The warnings look as follows:</p> <pre data-language="erlang">efficiency_guide.erl:194: Warning: INFO: receive matches any message, this is always fast
+efficiency_guide.erl:200: Warning: NOT OPTIMIZED: all clauses do not match a suitable reference
+efficiency_guide.erl:206: Warning: OPTIMIZED: reference used to mark a message queue position
+efficiency_guide.erl:208: Warning: OPTIMIZED: all clauses match reference created by monitor/2 at efficiency_guide.erl:206
+efficiency_guide.erl:219: Warning: INFO: passing reference created by make_ref/0 at efficiency_guide.erl:218
+efficiency_guide.erl:222: Warning: OPTIMIZED: all clauses match reference in function parameter 1</pre> <p>To make it clearer exactly what code the warnings refer to, the warnings in the following examples are inserted as comments after the clause they refer to, for example:</p> <pre data-language="erlang">%% DO
+simple_receive() -&gt;
+    %% efficiency_guide.erl:194: Warning: INFO: not a selective receive, this is always fast
+    receive
+        Message -&gt; handle_msg(Message)
+    end.
+
+%% DO NOT, unless Tag is known to be a suitable reference: see
+%% cross_function_receive/0 further down.
+selective_receive(Tag, Message) -&gt;
+    %% efficiency_guide.erl:200: Warning: NOT OPTIMIZED: all clauses do not match a suitable reference
+    receive
+        {Tag, Message} -&gt; handle_msg(Message)
+    end.
+
+%% DO
+optimized_receive(Process, Request) -&gt;
+    %% efficiency_guide.erl:206: Warning: OPTIMIZED: reference used to mark a message queue position
+    MRef = monitor(process, Process),
+    Process ! {self(), MRef, Request},
+    %% efficiency_guide.erl:208: Warning: OPTIMIZED: matches reference created by monitor/2 at efficiency_guide.erl:206
+    receive
+        {MRef, Reply} -&gt;
+            erlang:demonitor(MRef, [flush]),
+            handle_reply(Reply);
+        {'DOWN', MRef, _, _, Reason} -&gt;
+            handle_error(Reason)
+    end.
+
+%% DO
+cross_function_receive() -&gt;
+    %% efficiency_guide.erl:218: Warning: OPTIMIZED: reference used to mark a message queue position
+    Ref = make_ref(),
+    %% efficiency_guide.erl:219: Warning: INFO: passing reference created by make_ref/0 at efficiency_guide.erl:218
+    cross_function_receive(Ref).
+
+cross_function_receive(Ref) -&gt;
+    %% efficiency_guide.erl:222: Warning: OPTIMIZED: all clauses match reference in function parameter 1
+    receive
+        {Ref, Message} -&gt; handle_msg(Message)
+    end.</pre> <h4><span onmouseover="document.getElementById('ghlink-constant-pool-idm870').style.visibility = 'visible';" onmouseout="document.getElementById('ghlink-constant-pool-idm870').style.visibility = 'hidden';">Constant Pool</span></h4> <p>Constant Erlang terms (also called <strong>literals</strong>) are kept in constant pools; each loaded module has its own pool. The following function does not build the tuple every time it is called (only to have it discarded the next time the garbage collector was run), but the tuple is located in the module's constant pool:</p> <p><strong>DO</strong></p> <pre data-language="erlang">days_in_month(M) -&gt;
+    element(M, {31,28,31,30,31,30,31,31,30,31,30,31}).</pre> <p>But if a constant is sent to another process (or stored in an Ets table), it is <strong>copied</strong>. The reason is that the runtime system must be able to keep track of all references to constants to unload code containing constants properly. (When the code is unloaded, the constants are copied to the heap of the processes that refer to them.) The copying of constants might be eliminated in a future Erlang/OTP release.</p> <h4><span onmouseover="document.getElementById('ghlink-loss-of-sharing-idm879').style.visibility = 'visible';" onmouseout="document.getElementById('ghlink-loss-of-sharing-idm879').style.visibility = 'hidden';">Loss of Sharing</span></h4> <p>Shared subterms are <strong>not</strong> preserved in the following cases:</p> <ul> <li>When a term is sent to another process</li> <li>When a term is passed as the initial process arguments in the <code class="code">spawn</code> call</li> <li>When a term is stored in an Ets table</li> </ul> <p>That is an optimization. Most applications do not send messages with shared subterms.</p> <p>The following example shows how a shared subterm can be created:</p> <pre data-language="erlang">kilo_byte() -&gt;
+    kilo_byte(10, [42]).
+
+kilo_byte(0, Acc) -&gt;
+    Acc;
+kilo_byte(N, Acc) -&gt;
+    kilo_byte(N-1, [Acc|Acc]).</pre> <p><code class="code">kilo_byte/1</code> creates a deep list. If <code class="code">list_to_binary/1</code> is called, the deep list can be converted to a binary of 1024 bytes:</p> <pre data-language="erlang">
+1&gt; byte_size(list_to_binary(efficiency_guide:kilo_byte())).
+1024</pre> <p>Using the <code class="code">erts_debug:size/1</code> BIF, it can be seen that the deep list only requires 22 words of heap space:</p> <pre data-language="erlang">
+2&gt; erts_debug:size(efficiency_guide:kilo_byte()).
+22</pre> <p>Using the <code class="code">erts_debug:flat_size/1</code> BIF, the size of the deep list can be calculated if sharing is ignored. It becomes the size of the list when it has been sent to another process or stored in an Ets table:</p> <pre data-language="erlang">
+3&gt; erts_debug:flat_size(efficiency_guide:kilo_byte()).
+4094</pre> <p>It can be verified that sharing will be lost if the data is inserted into an Ets table:</p> <pre data-language="erlang">
+4&gt; T = ets:new(tab, []).
+#Ref&lt;0.1662103692.2407923716.214181&gt;
+5&gt; ets:insert(T, {key,efficiency_guide:kilo_byte()}).
+true
+6&gt; erts_debug:size(element(2, hd(ets:lookup(T, key)))).
+4094
+7&gt; erts_debug:flat_size(element(2, hd(ets:lookup(T, key)))).
+4094</pre> <p>When the data has passed through an Ets table, <code class="code">erts_debug:size/1</code> and <code class="code">erts_debug:flat_size/1</code> return the same value. Sharing has been lost.</p> <p>In a future Erlang/OTP release, it might be implemented a way to (optionally) preserve sharing.</p> <h2><span onmouseover="document.getElementById('ghlink-smp-emulator-idm914').style.visibility = 'visible';" onmouseout="document.getElementById('ghlink-smp-emulator-idm914').style.visibility = 'hidden';">8.3 SMP Emulator</span></h2> <p>The emulator takes advantage of a multi-core or multi-CPU computer by running several Erlang scheduler threads (typically, the same as the number of cores).</p> <p>To gain performance from a multi-core computer, your application <strong>must have more than one runnable Erlang process</strong> most of the time. Otherwise, the Erlang emulator can still only run one Erlang process at the time.</p> <p>Benchmarks that appear to be concurrent are often sequential. The estone benchmark, for example, is entirely sequential. So is the most common implementation of the "ring benchmark"; usually one process is active, while the others wait in a <code class="code">receive</code> statement.</p> </div> <div class="footer"> <hr> <p>Copyright © 2001-2021 Ericsson AB. All Rights Reserved.</p> </div><div class="_attribution">
+  <p class="_attribution-p">
+    &copy; 2010&ndash;2021 Ericsson AB<br>Licensed under the Apache License, Version 2.0.<br>
+    
+  </p>
+</div>

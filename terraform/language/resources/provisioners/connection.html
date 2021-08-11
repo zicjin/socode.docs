@@ -1,0 +1,55 @@
+ <h1 id="provisioner-connection-settings">  Provisioner Connection Settings </h1> <p>Most provisioners require access to the remote resource via SSH or WinRM, and expect a nested <code>connection</code> block with details about how to connect.</p> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> Provisioners should only be used as a last resort. For most common situations there are better alternatives. For more information, see <a href="index">the main Provisioners page</a>.</p> </blockquote> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> In Terraform 0.11 and earlier, providers could set default values for some connection settings, so that <code>connection</code> blocks could sometimes be omitted. This feature was removed in 0.12 in order to make Terraform's behavior more predictable.</p> </blockquote> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> Since the SSH connection type is most often used with newly-created remote resources, validation of SSH host keys is disabled by default. In scenarios where this is not acceptable, a separate mechanism for key distribution could be established and the <code>host_key</code> directive documented below explicitly set to verify against a specific key or signing CA.</p> </blockquote> <p>Connection blocks don't take a block label, and can be nested within either a <code>resource</code> or a <code>provisioner</code>.</p> <ul> <li>A <code>connection</code> block nested directly within a <code>resource</code> affects all of that resource's provisioners. </li> <li>A <code>connection</code> block nested in a <code>provisioner</code> block only affects that provisioner, and overrides any resource-level connection settings. </li> </ul> <p>One use case for providing multiple connections is to have an initial provisioner connect as the <code>root</code> user to set up user accounts, and have subsequent provisioners connect as a user with more limited permissions.</p> <h2 id="example-usage">  Example usage </h2> <pre data-language="ruby"># Copies the file as the root user using SSH
+provisioner "file" {
+  source      = "conf/myapp.conf"
+  destination = "/etc/myapp.conf"
+
+  connection {
+    type     = "ssh"
+    user     = "root"
+    password = "${var.root_password}"
+    host     = "${var.host}"
+  }
+}
+
+# Copies the file as the Administrator user using WinRM
+provisioner "file" {
+  source      = "conf/myapp.conf"
+  destination = "C:/App/myapp.conf"
+
+  connection {
+    type     = "winrm"
+    user     = "Administrator"
+    password = "${var.admin_password}"
+    host     = "${var.host}"
+  }
+}
+</pre>
+<h2 id="the-self-object">  The <code>self</code> Object </h2> <p>Expressions in <code>connection</code> blocks cannot refer to their parent resource by name. Instead, they can use the special <code>self</code> object.</p> <p>The <code>self</code> object represents the connection's parent resource, and has all of that resource's attributes. For example, use <code>self.public_ip</code> to reference an <code>aws_instance</code>'s <code>public_ip</code> attribute.</p> <blockquote class="alert alert-info" role="alert"> <p><strong>Technical note:</strong> Resource references are restricted here because references create dependencies. Referring to a resource by name within its own block would create a dependency cycle.</p> </blockquote> <h2 id="argument-reference">  Argument Reference </h2> <p><strong>The following arguments are supported by all connection types:</strong></p> <ul> <li>
+<p><a href="#type"><code>type</code></a> - The connection type that should be used. Valid types are <code>ssh</code> and <code>winrm</code>. Defaults to <code>ssh</code>.</p> </li> <li>
+<p><a href="#user"><code>user</code></a> - The user that we should use for the connection. Defaults to <code>root</code> when using type <code>ssh</code> and defaults to <code>Administrator</code> when using type <code>winrm</code>.</p> </li> <li>
+<p><a href="#password"><code>password</code></a> - The password we should use for the connection. In some cases this is specified by the provider.</p> </li> <li>
+<p><a href="#host"><code>host</code></a> - (Required) The address of the resource to connect to.</p> </li> <li>
+<p><a href="#port"><code>port</code></a> - The port to connect to. Defaults to <code>22</code> when using type <code>ssh</code> and defaults to <code>5985</code> when using type <code>winrm</code>.</p> </li> <li>
+<p><a href="#timeout"><code>timeout</code></a> - The timeout to wait for the connection to become available. Should be provided as a string like <code>30s</code> or <code>5m</code>. Defaults to 5 minutes.</p> </li> <li>
+<p><a href="#script_path"><code>script_path</code></a> - The path used to copy scripts meant for remote execution.</p> </li> </ul> <p><strong>Additional arguments only supported by the <code>ssh</code> connection type:</strong></p> <ul> <li>
+<p><a href="#private_key"><code>private_key</code></a> - The contents of an SSH key to use for the connection. These can be loaded from a file on disk using <a href="../../functions/file">the <code>file</code> function</a>. This takes preference over the password if provided.</p> </li> <li>
+<p><a href="#certificate"><code>certificate</code></a> - The contents of a signed CA Certificate. The certificate argument must be used in conjunction with a <code>private_key</code>. These can be loaded from a file on disk using the <a href="../../functions/file">the <code>file</code> function</a>.</p> </li> <li>
+<p><a href="#agent"><code>agent</code></a> - Set to <code>false</code> to disable using <code>ssh-agent</code> to authenticate. On Windows the only supported SSH authentication agent is <a href="http://the.earth.li/~sgtatham/putty/0.66/htmldoc/Chapter9.html#pageant">Pageant</a>.</p> </li> <li>
+<p><a href="#agent_identity"><code>agent_identity</code></a> - The preferred identity from the ssh agent for authentication.</p> </li> <li>
+<p><a href="#host_key"><code>host_key</code></a> - The public key from the remote host or the signing CA, used to verify the connection.</p> </li> <li>
+<p><a href="#target_platform"><code>target_platform</code></a> - The target platform to connect to. Valid values are <code>windows</code> and <code>unix</code>. Defaults to <code>unix</code> if not set.</p> <p>If the platform is set to <code>windows</code>, the default <code>script_path</code> is <code>c:\windows\temp\terraform_%RAND%.cmd</code>, assuming <a href="https://docs.microsoft.com/en-us/windows-server/administration/openssh/openssh_server_configuration#configuring-the-default-shell-for-openssh-in-windows">the SSH default shell</a> is <code>cmd.exe</code>. If the SSH default shell is PowerShell, set <code>script_path</code> to <code>"c:/windows/temp/terraform_%RAND%.ps1"</code></p> </li> </ul> <p><strong>Additional arguments only supported by the <code>winrm</code> connection type:</strong></p> <ul> <li>
+<p><a href="#https"><code>https</code></a> - Set to <code>true</code> to connect using HTTPS instead of HTTP.</p> </li> <li>
+<p><a href="#insecure"><code>insecure</code></a> - Set to <code>true</code> to not validate the HTTPS certificate chain.</p> </li> <li>
+<p><a href="#use_ntlm"><code>use_ntlm</code></a> - Set to <code>true</code> to use NTLM authentication, rather than default (basic authentication), removing the requirement for basic authentication to be enabled within the target guest. Further reading for remote connection authentication can be found <a href="https://docs.microsoft.com/en-us/windows/win32/winrm/authentication-for-remote-connections?redirectedfrom=MSDN">here</a>.</p> </li> <li>
+<p><a href="#cacert"><code>cacert</code></a> - The CA certificate to validate against.</p> </li> </ul>  <h2 id="connecting-through-a-bastion-host-with-ssh">  Connecting through a Bastion Host with SSH </h2> <p>The <code>ssh</code> connection also supports the following fields to facilitate connnections via a <a href="https://en.wikipedia.org/wiki/Bastion_host">bastion host</a>.</p> <ul> <li>
+<p><a href="#bastion_host"><code>bastion_host</code></a> - Setting this enables the bastion Host connection. This host will be connected to first, and then the <code>host</code> connection will be made from there.</p> </li> <li>
+<p><a href="#bastion_host_key"><code>bastion_host_key</code></a> - The public key from the remote host or the signing CA, used to verify the host connection.</p> </li> <li>
+<p><a href="#bastion_port"><code>bastion_port</code></a> - The port to use connect to the bastion host. Defaults to the value of the <code>port</code> field.</p> </li> <li>
+<p><a href="#bastion_user"><code>bastion_user</code></a> - The user for the connection to the bastion host. Defaults to the value of the <code>user</code> field.</p> </li> <li>
+<p><a href="#bastion_password"><code>bastion_password</code></a> - The password we should use for the bastion host. Defaults to the value of the <code>password</code> field.</p> </li> <li>
+<p><a href="#bastion_private_key"><code>bastion_private_key</code></a> - The contents of an SSH key file to use for the bastion host. These can be loaded from a file on disk using <a href="../../functions/file">the <code>file</code> function</a>. Defaults to the value of the <code>private_key</code> field.</p> </li> <li>
+<p><a href="#bastion_certificate"><code>bastion_certificate</code></a> - The contents of a signed CA Certificate. The certificate argument must be used in conjunction with a <code>bastion_private_key</code>. These can be loaded from a file on disk using the <a href="../../functions/file">the <code>file</code> function</a>.</p> </li> </ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/language/resources/provisioners/connection.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/language/resources/provisioners/connection.html</a>
+  </p>
+</div>

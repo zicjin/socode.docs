@@ -1,0 +1,51 @@
+ <h1 id="templatefile-function">  <code>templatefile</code> Function </h1> <p><code>templatefile</code> reads the file at the given path and renders its content as a template using a supplied set of template variables.</p> <pre data-language="ruby">templatefile(path, vars)
+</pre>
+<p>The template syntax is the same as for <a href="../expressions/strings#string-templates">string templates</a> in the main Terraform language, including interpolation sequences delimited with <code>${</code> ... <code>}</code>. This function just allows longer template sequences to be factored out into a separate file for readability.</p> <p>The "vars" argument must be a map. Within the template file, each of the keys in the map is available as a variable for interpolation. The template may also use any other function available in the Terraform language, except that recursive calls to <code>templatefile</code> are not permitted. Variable names must each start with a letter, followed by zero or more letters, digits, or underscores.</p> <p>Strings in the Terraform language are sequences of Unicode characters, so this function will interpret the file contents as UTF-8 encoded text and return the resulting Unicode characters. If the file contains invalid UTF-8 sequences then this function will produce an error.</p> <p>This function can be used only with files that already exist on disk at the beginning of a Terraform run. Functions do not participate in the dependency graph, so this function cannot be used with files that are generated dynamically during a Terraform operation.</p> <h2 id="examples">  Examples </h2> <h3 id="lists">  Lists </h3> <p>Given a template file <code>backends.tpl</code> with the following content:</p> <pre>%{ for addr in ip_addrs ~}
+backend ${addr}:${port}
+%{ endfor ~}
+</pre>
+<p>The <code>templatefile</code> function renders the template:</p> <pre>&gt; templatefile("${path.module}/backends.tpl", { port = 8080, ip_addrs = ["10.0.0.1", "10.0.0.2"] })
+backend 10.0.0.1:8080
+backend 10.0.0.2:8080
+
+</pre>
+<h3 id="maps">  Maps </h3> <p>Given a template file <code>config.tmpl</code> with the following content:</p> <pre>%{ for config_key, config_value in config }
+set ${config_key} = ${config_value}
+%{ endfor ~}
+</pre>
+<p>The <code>templatefile</code> function renders the template:</p> <pre>&gt; templatefile(
+               "${path.module}/config.tmpl",
+               {
+                 config = {
+                   "x"   = "y"
+                   "foo" = "bar"
+                   "key" = "value"
+                 }
+               }
+              )
+set foo = bar
+set key = value
+set x = y
+</pre>
+<h3 id="generating-json-or-yaml-from-a-template">  Generating JSON or YAML from a template </h3> <p>If the string you want to generate will be in JSON or YAML syntax, it's often tricky and tedious to write a template that will generate valid JSON or YAML that will be interpreted correctly when using lots of individual interpolation sequences and directives.</p> <p>Instead, you can write a template that consists only of a single interpolated call to either <a href="jsonencode"><code>jsonencode</code></a> or <a href="yamlencode"><code>yamlencode</code></a>, specifying the value to encode using <a href="../expressions/index">normal Terraform expression syntax</a> as in the following examples:</p> <pre>${jsonencode({
+  "backends": [for addr in ip_addrs : "${addr}:${port}"],
+})}
+</pre>
+<pre>${yamlencode({
+  "backends": [for addr in ip_addrs : "${addr}:${port}"],
+})}
+</pre>
+<p>Given the same input as the <code>backends.tmpl</code> example in the previous section, this will produce a valid JSON or YAML representation of the given data structure, without the need to manually handle escaping or delimiters. In the latest examples above, the repetition based on elements of <code>ip_addrs</code> is achieved by using a <a href="../expressions/for"><code>for</code> expression</a> rather than by using <a href="../expressions/strings#directives">template directives</a>.</p> <pre data-language="json">{"backends":["10.0.0.1:8080","10.0.0.2:8080"]}
+</pre>
+<p>If the resulting template is small, you can choose instead to write <code>jsonencode</code> or <code>yamlencode</code> calls inline in your main configuration files, and avoid creating separate template files at all:</p> <pre data-language="ruby">locals {
+  backend_config_json = jsonencode({
+    "backends": [for addr in ip_addrs : "${addr}:${port}"],
+  })
+}
+</pre>
+<p>For more information, see the main documentation for <a href="jsonencode"><code>jsonencode</code></a> and <a href="yamlencode"><code>yamlencode</code></a>.</p> <h2 id="related-functions">  Related Functions </h2> <ul> <li>
+<a href="file"><code>file</code></a> reads a file from disk and returns its literal contents without any template interpretation. </li> </ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/language/functions/templatefile.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/language/functions/templatefile.html</a>
+  </p>
+</div>

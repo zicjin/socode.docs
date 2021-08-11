@@ -1,0 +1,256 @@
+ <h1 id="policies-api">  Policies API </h1> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> Sentinel policies are a paid feature, available as part of the <strong>Team &amp; Governance</strong> upgrade package. <a href="https://www.hashicorp.com/products/terraform/pricing">Learn more about Terraform Cloud pricing here</a>.</p> </blockquote> <p><a href="../sentinel/index">Sentinel Policy as Code</a> is an embedded policy as code framework integrated with Terraform Cloud.</p> <p>Policies are configured on a per-organization level and are organized and grouped into <a href="../sentinel/manage-policies#policies-and-policy-sets">policy sets</a>, which define the workspaces on which policies are enforced during runs. In these workspaces, the plan's changes are validated against the relevant policies after the plan step. (For details, see <a href="../run/states">Run States and Stages</a>.)</p> <p>This page documents the API endpoints to create, read, update, and delete the Sentinel policies in an organization. Use of these endpoints provides a method to manually manage individual policies within Terraform Cloud. To view and manage the results of a specific run's policy check, use the <a href="run">Runs API</a>.</p> <blockquote class="alert alert-warning" role="alert"> <p><strong>Note</strong>: These endpoints are no longer the recommended way to use Sentinel features in Terraform Cloud. We suggest using versioned policy sets, which allows integrating with VCS or uploading policy set data and configuration as a whole. Use the <a href="policy-sets">policy sets API</a> to leverage versioned policy sets.</p> </blockquote> <h2 id="create-a-policy">  Create a Policy </h2> <p><code>POST /organizations/:organization_name/policies</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:organization_name</code></td> <td>The organization to create the policy in. The organization must already exist in the system, and the token authenticating the API request must have permission to manage policies. ((<a href="../users-teams-organizations/permissions">More about permissions.</a>)</td> </tr> </tbody>
+</table> <p>This creates a new policy object for the organization, but does not upload the actual policy code. After creation, you must use the <a href="#upload-a-policy">Upload a Policy endpoint (below)</a> with the new policy's upload path. (This endpoint's response body includes the upload path in its <code>links.upload</code> property.)</p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "policies"</code>)</td> <td>Successfully created a policy</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Organization not found, or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Malformed request body (missing attributes, wrong types, etc.)</td> </tr> </tbody>
+</table> <h3 id="request-body">  Request Body </h3> <p>This POST endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"policies"</code>.</td> </tr> <tr> <td><code>data.attributes.name</code></td> <td>string</td> <td></td> <td>The name of the policy, which cannot be modified after creation. Can include letters, numbers, <code>-</code>, and <code>_</code>.</td> </tr> <tr> <td><code>data.attributes.description</code></td> <td>string</td> <td><code>null</code></td> <td>A description of the policy's purpose. This field supports Markdown and will be rendered in the Terraform Cloud UI.</td> </tr> <tr> <td><code>data.attributes.enforce</code></td> <td>array[object]</td> <td></td> <td>An array of enforcement configurations which map Sentinel file paths to their enforcement modes. Currently policies only support a single file, so this array will consist of a single element. If the path in the enforcement map does not match the Sentinel policy (<code>&lt;NAME&gt;.sentinel</code>), then the default <code>hard-mandatory</code> will be used.</td> </tr> <tr> <td><code>data.attributes.enforce[].path</code></td> <td>string</td> <td></td> <td>Must be <code>&lt;NAME&gt;.sentinel</code>, where <code>&lt;NAME&gt;</code> has the same value as <code>data.attributes.name</code>.</td> </tr> <tr> <td><code>data.attributes.enforce[].mode</code></td> <td>string</td> <td><code>hard-mandatory</code></td> <td>The enforcement level of the policy. Valid values are <code>"hard-mandatory"</code>, <code>"soft-mandatory"</code>, and <code>"advisory"</code>. For more details, see <a href="../sentinel/manage-policies">Managing Policies</a>.</td> </tr> <tr> <td><code>data.relationships.policy-sets.data[]</code></td> <td>array[object]</td> <td><code>[]</code></td> <td>A list of resource identifier objects to define which policy sets the new policy will be a member of. These objects must contain <code>id</code> and <code>type</code> properties, and the <code>type</code> property must be <code>policy-sets</code> (e.g. <code>{ "id": "polset-3yVQZvHzf5j3WRJ1","type": "policy-sets" }</code>).</td> </tr> </tbody>
+</table> <h3 id="sample-payload">  Sample Payload </h3> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "enforce": [
+        {
+          "path": "my-example-policy.sentinel",
+          "mode": "hard-mandatory"
+        }
+      ],
+      "name": "my-example-policy",
+      "description": "An example policy."
+    },
+    "relationships": {
+      "policy-sets": {
+        "data": [
+          { "id": "polset-3yVQZvHzf5j3WRJ1", "type": "policy-sets" }
+        ]
+      }
+    },
+    "type": "policies"
+  }
+}
+</pre>
+<h3 id="sample-request">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/organizations/my-organization/policies
+</pre>
+<h3 id="sample-response">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id":"pol-u3S5p2Uwk21keu1s",
+    "type":"policies",
+    "attributes": {
+      "name":"my-example-policy",
+      "description":"An example policy.",
+      "enforce": [
+        {
+          "path":"my-example-policy.sentinel",
+          "mode":"advisory"
+        }
+      ],
+      "policy-set-count": 1,
+      "updated-at": null
+    },
+    "relationships": {
+      "organization": {
+        "data": { "id": "my-organization", "type": "organizations" }
+      },
+      "policy-sets": {
+        "data": [
+          { "id": "polset-3yVQZvHzf5j3WRJ1", "type": "policy-sets" }
+        ]
+      }
+    },
+    "links": {
+      "self":"/api/v2/policies/pol-u3S5p2Uwk21keu1s",
+      "upload":"/api/v2/policies/pol-u3S5p2Uwk21keu1s/upload"
+    }
+  }
+}
+</pre>
+<h2 id="show-a-policy">  Show a Policy </h2> <p><code>GET /policies/:policy_id</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:policy_id</code></td> <td>The ID of the policy to show. Use the "List Policies" endpoint to find IDs.</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "policies"</code>)</td> <td>The request was successful</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Policy not found or user unauthorized to perform action</td> </tr> </tbody>
+</table> <h3 id="sample-request-1">  Sample Request </h3> <pre data-language="shell">curl --request GET \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/vnd.api+json" \
+  https://app.terraform.io/api/v2/policies/pol-oXUppaX2ximkqp8w
+</pre>
+<h3 id="sample-response-1">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id": "pol-oXUppaX2ximkqp8w",
+    "type": "policies",
+    "attributes": {
+      "name": "my-example-policy",
+      "description":"An example policy.",
+      "enforce": [
+        {
+          "path": "my-example-policy.sentinel",
+          "mode": "soft-mandatory"
+        }
+      ],
+      "policy-set-count": 1,
+      "updated-at": "2018-09-11T18:21:21.784Z"
+    },
+    "relationships": {
+      "organization": {
+        "data": { "id": "my-organization", "type": "organizations" }
+      },
+      "policy-sets": {
+        "data": [
+          { "id": "polset-3yVQZvHzf5j3WRJ1", "type": "policy-sets" }
+        ]
+      }
+    },
+    "links": {
+      "self": "/api/v2/policies/pol-oXUppaX2ximkqp8w",
+      "upload": "/api/v2/policies/pol-oXUppaX2ximkqp8w/upload",
+      "download": "/api/v2/policies/pol-oXUppaX2ximkqp8w/download"
+    }
+  }
+}
+</pre>
+<h2 id="upload-a-policy">  Upload a Policy </h2> <p><code>PUT /policies/:policy_id/upload</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:policy_id</code></td> <td>The ID of the policy to upload code to. Use the "List Policies" endpoint (or the response to a "Create Policy" request) to find IDs.</td> </tr> </tbody>
+</table> <p>This endpoint uploads code to an existing Sentinel policy.</p> <blockquote class="alert alert-info" role="alert"> <p><strong>Note</strong>: This endpoint does not use JSON-API's conventions for HTTP headers and body serialization.</p> </blockquote> <blockquote class="alert alert-info" role="alert"> <p><strong>Note</strong>: This endpoint limits the size of uploaded policies to 10MB. If a larger payload is uploaded, an HTTP 413 error will be returned, and the policy will not be saved. Consider refactoring policies into multiple smaller, more concise documents if you reach this limit.</p> </blockquote> <h3 id="request-body-1">  Request Body </h3> <p>This PUT endpoint requires the text of a valid Sentinel policy, with a <code>Content-Type</code> of <code>application/octet-stream</code>.</p> <p>See <a href="../sentinel/import/index">Defining Policies</a> for details about writing Sentinel code.</p> <h3 id="sample-payload-1">  Sample Payload </h3> <pre>main = rule { true }
+</pre>
+<h3 id="sample-request-2">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/octet-stream" \
+  --request PUT \
+  --data-binary @payload.sentinel \
+  https://app.terraform.io/api/v2/policies/pol-u3S5p2Uwk21keu1s/upload
+</pre>
+<h2 id="update-a-policy">  Update a Policy </h2> <p><code>PATCH /policies/:policy_id</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:policy_id</code></td> <td>The ID of the policy to update. Use the "List Policies" endpoint to find IDs.</td> </tr> </tbody>
+</table> <p>This endpoint can update the enforcement mode of an existing policy. To update the policy code itself, use the upload endpoint.</p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "policies"</code>)</td> <td>Successfully updated the policy</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Policy not found, or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Malformed request body (missing attributes, wrong types, etc.)</td> </tr> </tbody>
+</table> <h3 id="request-body-2">  Request Body </h3> <p>This PATCH endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"policies"</code>.</td> </tr> <tr> <td><code>data.attributes.name</code></td> <td>string</td> <td>(Current name)</td> <td>Ignored if present.</td> </tr> <tr> <td><code>data.attributes.description</code></td> <td>string</td> <td><code>null</code></td> <td>A description of the policy's purpose. This field supports Markdown and will be rendered in the Terraform Cloud UI.</td> </tr> <tr> <td><code>data.attributes.enforce</code></td> <td>array[object]</td> <td></td> <td>An array of enforcement configurations which map Sentinel file paths to their enforcement modes. Currently policies only support a single file, so this array will consist of a single element. The value provided <strong>replaces</strong> the enforcement map. To make an incremental update, you can first fetch the current value of this map from the <a href="#show-a-policy">show endpoint</a> and modify it. If the path in the enforcement map does not match the Sentinel policy (<code>&lt;NAME&gt;.sentinel</code>), then the default <code>hard-mandatory</code> will be used.</td> </tr> <tr> <td><code>data.attributes.enforce[].path</code></td> <td>string</td> <td></td> <td>Must be <code>&lt;NAME&gt;.sentinel</code>, where <code>&lt;NAME&gt;</code> matches the original value of <code>data.attributes.name</code>.</td> </tr> <tr> <td><code>data.attributes.enforce[].mode</code></td> <td>string</td> <td><code>hard-mandatory</code></td> <td>The enforcement level of the policy. Valid values are <code>"hard-mandatory"</code>, <code>"soft-mandatory"</code>, and <code>"advisory"</code>. For more details, see <a href="../sentinel/manage-policies">Managing Policies</a>.</td> </tr> </tbody>
+</table> <h3 id="sample-payload-2">  Sample Payload </h3> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "enforce": [
+        {
+          "path": "my-example-policy.sentinel",
+          "mode": "soft-mandatory"
+        }
+      ],
+    },
+    "type":"policies"
+  }
+}
+</pre>
+<h3 id="sample-request-3">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request PATCH \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/policies/pol-u3S5p2Uwk21keu1s
+</pre>
+<h3 id="sample-response-2">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id":"pol-u3S5p2Uwk21keu1s",
+    "type":"policies",
+    "attributes": {
+      "name":"my-example-policy",
+      "description":"An example policy.",
+      "enforce": [
+        {
+          "path":"my-example-policy.sentinel",
+          "mode":"soft-mandatory"
+        }
+      ],
+      "policy-set-count": 0,
+      "updated-at":"2017-10-10T20:58:04.621Z"
+    },
+    "relationships": {
+      "organization": {
+        "data": { "id": "my-organization", "type": "organizations" }
+      },
+    },
+    "links": {
+      "self":"/api/v2/policies/pol-u3S5p2Uwk21keu1s",
+      "upload":"/api/v2/policies/pol-u3S5p2Uwk21keu1s/upload",
+      "download":"/api/v2/policies/pol-u3S5p2Uwk21keu1s/download"
+    }
+  }
+}
+</pre>
+<h2 id="list-policies">  List Policies </h2> <p><code>GET /organizations/:organization_name/policies</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:organization_name</code></td> <td>The organization to list policies for.</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>Array of <a href="index#json-api-documents">JSON API document</a>s (<code>type: "policies"</code>)</td> <td>Success</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Organization not found, or user unauthorized to perform action</td> </tr> </tbody>
+</table> <h3 id="query-parameters">  Query Parameters </h3> <p>This endpoint supports pagination <a href="index#query-parameters">with standard URL query parameters</a>; remember to percent-encode <code>[</code> as <code>%5B</code> and <code>]</code> as <code>%5D</code> if your tooling doesn't automatically encode URLs.</p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>page[number]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return the first page.</td> </tr> <tr> <td><code>page[size]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return 20 policies per page.</td> </tr> <tr> <td><code>search[name]</code></td> <td>
+<strong>Optional.</strong> Allows searching the organization's policies by name.</td> </tr> </tbody>
+</table> <h3 id="sample-request-4">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  https://app.terraform.io/api/v2/organizations/my-organization/policies
+</pre>
+<h3 id="sample-response-3">  Sample Response </h3> <pre data-language="json">{
+  "data": [
+    {
+      "attributes": {
+        "enforce": [
+          {
+            "mode": "advisory",
+            "path": "my-example-policy.sentinel"
+          }
+        ],
+        "name": "my-example-policy",
+        "description": "An example policy.",
+        "policy-set-count": 0,
+        "updated-at": "2017-10-10T20:52:13.898Z"
+      },
+      "id": "pol-u3S5p2Uwk21keu1s",
+      "relationships": {
+        "organization": {
+          "data": { "id": "my-organization", "type": "organizations" }
+        },
+      },
+      "links": {
+        "download": "/api/v2/policies/pol-u3S5p2Uwk21keu1s/download",
+        "self": "/api/v2/policies/pol-u3S5p2Uwk21keu1s",
+        "upload": "/api/v2/policies/pol-u3S5p2Uwk21keu1s/upload"
+      },
+      "type": "policies"
+    }
+  ]
+}
+</pre>
+<h2 id="delete-a-policy">  Delete a Policy </h2> <p><code>DELETE /policies/:policy_id</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:policy_id</code></td> <td>The ID of the policy to delete. Use the "List Policies" endpoint to find IDs.</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204">204</a></td> <td>Nothing</td> <td>Successfully deleted the policy</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Policy not found, or user unauthorized to perform action</td> </tr> </tbody>
+</table> <h3 id="sample-request-5">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request DELETE \
+  https://app.terraform.io/api/v2/policies/pl-u3S5p2Uwk21keu1s
+</pre>
+<h2 id="available-related-resources">  Available Related Resources </h2> <p>The GET endpoints above can optionally return related resources, if requested with <a href="index#inclusion-of-related-resources">the <code>include</code> query parameter</a>. The following resource types are available:</p> <ul> <li>
+<a href="#policy-sets"><code>policy-sets</code></a> - Policy sets that any returned policies are members of. </li> </ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/cloud/api/policies.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/cloud/api/policies.html</a>
+  </p>
+</div>

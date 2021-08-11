@@ -1,0 +1,82 @@
+ <h1 id="remote">  remote </h1> <p><strong>Kind: Enhanced</strong></p> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> We recommend using Terraform v0.11.13 or newer with this backend. This backend requires either a Terraform Cloud account on <a href="https://app.terraform.io">app.terraform.io</a> or a Terraform Enterprise instance (version v201809-1 or newer).</p> </blockquote> <p>The remote backend stores Terraform state and may be used to run operations in Terraform Cloud.</p> <p>When using full remote operations, operations like <code>terraform plan</code> or <code>terraform apply</code> can be executed in Terraform Cloud's run environment, with log output streaming to the local terminal. Remote plans and applies use variable values from the associated Terraform Cloud workspace.</p> <p>Terraform Cloud can also be used with local operations, in which case only state is stored in the Terraform Cloud backend.</p> <h2 id="command-support">  Command Support </h2> <p>Currently the remote backend supports the following Terraform commands:</p> <ul> <li>
+<a href="#apply"><code>apply</code></a> </li> <li>
+<a href="#console"><code>console</code></a> (supported in Terraform &gt;= v0.11.12) </li> <li>
+<a href="#destroy"><code>destroy</code></a> </li> <li>
+<a href="#fmt"><code>fmt</code></a> </li> <li>
+<a href="#get"><code>get</code></a> </li> <li>
+<a href="#graph"><code>graph</code></a> (supported in Terraform &gt;= v0.11.12) </li> <li>
+<a href="#import"><code>import</code></a> (supported in Terraform &gt;= v0.11.12) </li> <li>
+<a href="#init"><code>init</code></a> </li> <li>
+<a href="#output"><code>output</code></a> </li> <li>
+<a href="#plan"><code>plan</code></a> </li> <li>
+<a href="#providers"><code>providers</code></a> </li> <li>
+<a href="#show"><code>show</code></a> </li> <li>
+<a href="#state"><code>state</code></a> (supports all sub-commands: list, mv, pull, push, rm, show) </li> <li>
+<a href="#taint"><code>taint</code></a> </li> <li>
+<a href="#untaint"><code>untaint</code></a> </li> <li>
+<a href="#validate"><code>validate</code></a> </li> <li>
+<a href="#version"><code>version</code></a> </li> <li>
+<a href="#workspace"><code>workspace</code></a> </li> </ul> <h2 id="workspaces">  Workspaces </h2> <p>The remote backend can work with either a single remote Terraform Cloud workspace, or with multiple similarly-named remote workspaces (like <code>networking-dev</code> and <code>networking-prod</code>). The <code>workspaces</code> block of the backend configuration determines which mode it uses:</p> <ul> <li>
+<p>To use a single remote Terraform Cloud workspace, set <code>workspaces.name</code> to the remote workspace's full name (like <code>networking</code>).</p> </li> <li>
+<p>To use multiple remote workspaces, set <code>workspaces.prefix</code> to a prefix used in all of the desired remote workspace names. For example, set <code>prefix = "networking-"</code> to use Terraform cloud workspaces with names like <code>networking-dev</code> and <code>networking-prod</code>. This is helpful when mapping multiple Terraform CLI <a href="../../state/workspaces">workspaces</a> used in a single Terraform configuration to multiple Terraform Cloud workspaces.</p> </li> </ul> <p>When interacting with workspaces on the command line, Terraform uses shortened names without the common prefix. For example, if <code>prefix = "networking-"</code>, use <code>terraform workspace select prod</code> to switch to the Terraform CLI workspace <code>prod</code> within the current configuration. Remote Terraform operations such as <code>plan</code> and <code>apply</code> executed against that Terraform CLI workspace will be executed in the Terraform Cloud workspace <code>networking-prod</code>.</p> <p>Additionally, the <a href="../../state/workspaces#current-workspace-interpolation"><code>${terraform.workspace}</code></a> interpolation sequence should be removed from Terraform configurations that run remote operations against Terraform Cloud workspaces. The reason for this is that each Terraform Cloud workspace currently only uses the single <code>default</code> Terraform CLI workspace internally. In other words, if your Terraform configuration used <code>${terraform.workspace}</code> to return <code>dev</code> or <code>prod</code>, remote runs in Terraform Cloud would always evaluate it as <code>default</code> regardless of which workspace you had set with the <code>terraform workspace select</code> command. That would most likely not be what you wanted. (It is ok to use <code>${terraform.workspace}</code> in local operations.)</p> <p>The backend configuration requires either <code>name</code> or <code>prefix</code>. Omitting both or setting both results in a configuration error.</p> <p>If previous state is present when you run <code>terraform init</code> and the corresponding remote workspaces are empty or absent, Terraform will create workspaces and/or update the remote state accordingly. However, if your workspace needs variables set or requires a specific version of Terraform for remote operations, we recommend that you create your remote workspaces on Terraform Cloud before running any remote operations against them.</p> <h2 id="example-configurations">  Example Configurations </h2> <blockquote class="alert alert-info" role="alert"> <p> <strong>Note:</strong> We recommend omitting the token from the configuration, and instead using <a href="../../../cli/commands/login"><code>terraform login</code></a> or manually configuring <code>credentials</code> in the <a href="../../../cli/config/config-file#credentials">CLI config file</a>.</p> </blockquote> <h3 id="basic-configuration">  Basic Configuration </h3> <pre data-language="ruby"># Using a single workspace:
+terraform {
+  backend "remote" {
+    hostname = "app.terraform.io"
+    organization = "company"
+
+    workspaces {
+      name = "my-app-prod"
+    }
+  }
+}
+
+# Using multiple workspaces:
+terraform {
+  backend "remote" {
+    hostname = "app.terraform.io"
+    organization = "company"
+
+    workspaces {
+      prefix = "my-app-"
+    }
+  }
+}
+</pre>
+<h3 id="using-cli-input">  Using CLI Input </h3> <pre data-language="ruby"># main.tf
+terraform {
+  required_version = "~&gt; 0.12.0"
+
+  backend "remote" {}
+}
+</pre>
+<p>Backend configuration file:</p> <pre data-language="ruby"># backend.hcl
+workspaces { name = "workspace" }
+hostname     = "app.terraform.io"
+organization = "company"
+</pre>
+<p>Running <code>terraform init</code> with the backend file:</p> <pre data-language="shell">terraform init -backend-config=backend.hcl
+</pre>
+<h3 id="data-source-configuration">  Data Source Configuration </h3> <pre data-language="ruby">data "terraform_remote_state" "foo" {
+  backend = "remote"
+
+  config = {
+    organization = "company"
+
+    workspaces = {
+      name = "workspace"
+    }
+  }
+}
+</pre>
+<h2 id="configuration-variables">  Configuration variables </h2> <p>The following configuration options are supported:</p> <ul> <li>
+<a href="#hostname"><code>hostname</code></a> - (Optional) The remote backend hostname to connect to. Defaults to app.terraform.io. </li> <li>
+<a href="#organization"><code>organization</code></a> - (Required) The name of the organization containing the targeted workspace(s). </li> <li>
+<a href="#token"><code>token</code></a> - (Optional) The token used to authenticate with the remote backend. We recommend omitting the token from the configuration, and instead using <a href="../../../cli/commands/login"><code>terraform login</code></a> or manually configuring <code>credentials</code> in the <a href="../../../cli/config/config-file#credentials">CLI config file</a>. </li> <li>
+<p><a href="#workspaces-1"><code>workspaces</code></a> - (Required) A block specifying which remote workspace(s) to use. The <code>workspaces</code> block supports the following keys:</p> <ul> <li>
+<a href="#name"><code>name</code></a> - (Optional) The full name of one remote workspace. When configured, only the default workspace can be used. This option conflicts with <code>prefix</code>. </li> <li>
+<a href="#prefix"><code>prefix</code></a> - (Optional) A prefix used in the names of one or more remote workspaces, all of which can be used with this configuration. The full workspace names are used in Terraform Cloud, and the short names (minus the prefix) are used on the command line for Terraform CLI workspaces. If omitted, only the default workspace can be used. This option conflicts with <code>name</code>. </li> </ul> </li> </ul> <blockquote class="alert alert-info" role="alert"> <p> <strong>Note:</strong> You must use the <code>name</code> key when configuring a <code>terraform_remote_state</code> data source that retrieves state from another Terraform Cloud workspace. The <code>prefix</code> key is only intended for use when configuring an instance of the remote backend.</p> </blockquote> <h2 id="command-line-arguments">  Command Line Arguments </h2> <p>For configurations that include a <code>backend "remote"</code> block, commands that make local modifications to Terraform state and then push them back up to the remote workspace accept the following option to modify that behavior:</p> <ul> <li>
+<p><a href="#ignore-remote-version"><code>-ignore-remote-version</code></a> - Override checking that the local and remote Terraform versions agree, making an operation proceed even when there is a mismatch.</p> <p>Normally state-modification operations require using a local version of Terraform CLI which is compatible with the Terraform version selected for the remote workspace as part of its settings. This is to avoid the local operation creating a new state snapshot which the workspace's remote execution environment would then be unable to decode.</p> <p>Overriding this check can result in a Terraform Cloud workspace that is no longer able to complete remote operations, so we recommend against using this option.</p> </li> </ul> <h2 id="excluding-files-from-upload-with-terraformignore">  Excluding Files from Upload with .terraformignore </h2> <blockquote class="alert alert-info" role="alert"> <p><strong>Version note:</strong> <code>.terraformignore</code> support was added in Terraform 0.12.11.</p> </blockquote> <p>When executing a remote <code>plan</code> or <code>apply</code> in a <a href="../../../cloud/run/cli">CLI-driven run</a>, an archive of your configuration directory is uploaded to Terraform Cloud. You can define paths to ignore from upload via a <code>.terraformignore</code> file at the root of your configuration directory. If this file is not present, the archive will exclude the following by default:</p> <ul> <li>.git/ directories </li> <li>.terraform/ directories (exclusive of .terraform/modules) </li> </ul> <p>The <code>.terraformignore</code> file can include rules as one would include in a <a href="https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository#_ignoring">.gitignore file</a></p> <ul> <li>Comments (starting with <code>#</code>) or blank lines are ignored </li> <li>End a pattern with a forward slash / to specify a directory </li> <li>Negate a pattern by starting it with an exclamation point <code>!</code> </li> </ul> <p>Note that unlike <code>.gitignore</code>, only the <code>.terraformignore</code> at the root of the configuration directory is considered.</p><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/language/settings/backends/remote.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/language/settings/backends/remote.html</a>
+  </p>
+</div>

@@ -1,0 +1,460 @@
+ <h1 id="state-versions-api">  State Versions API </h1> <h2 id="create-a-state-version">  Create a State Version </h2> <blockquote> <p><strong>Hands-on:</strong> Try the <a href="https://learn.hashicorp.com/tutorials/terraform/cloud-state-api?in=terraform/cloud&amp;utm_source=WEBSITE&amp;utm_medium=WEB_IO&amp;utm_offer=ARTICLE_PAGE&amp;utm_content=DOCS">Version Remote State with the Terraform Cloud API</a> tutorial on HashiCorp Learn.</p> </blockquote> <p><code>POST /workspaces/:workspace_id/state-versions</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:workspace_id</code></td> <td>The workspace ID to create the new state version in. Obtain this from the <a href="../workspaces/settings">workspace settings</a> or the <a href="workspaces#show-workspace">Show Workspace</a> endpoint.</td> </tr> </tbody>
+</table> <p>Creates a state version and sets it as the current state version for the given workspace. The workspace must be locked by the user creating a state version. The workspace may be locked <a href="workspaces#lock-a-workspace">with the API</a> or <a href="../workspaces/settings#locking">with the UI</a>. This is most useful for migrating existing state from open source Terraform into a new Terraform Cloud workspace.</p> <p>Creating state versions requires permission to read and write state versions for the workspace. (<a href="../users-teams-organizations/permissions">More about permissions.</a>)</p> <blockquote class="alert alert-danger" role="alert"> <p><strong>Warning:</strong> Use caution when uploading state to workspaces that have already performed Terraform runs. Replacing state improperly can result in orphaned or duplicated infrastructure resources.</p> </blockquote> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> For Free Tier organizations, Terraform Cloud always retains at least the last 100 states (across all workspaces) and at least the most recent state for every workspace. Additional states beyond the last 100 are retained for six months, and are then deleted.</p> </blockquote> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> This endpoint cannot be accessed with <a href="../users-teams-organizations/api-tokens#organization-api-tokens">organization tokens</a>. You must access it with a <a href="../users-teams-organizations/users#api-tokens">user token</a> or <a href="../users-teams-organizations/api-tokens#team-api-tokens">team token</a>.</p> </blockquote> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/201">201</a></td> <td><a href="index#json-api-documents">JSON API document</a></td> <td>Successfully created a state version</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Workspace not found, or user unauthorized to perform action</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/409">409</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Conflict; check the error object for more information</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/412">412</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Precondition failed; check the error object for more information</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Malformed request body (missing attributes, wrong types, etc.)</td> </tr> </tbody>
+</table> <h3 id="request-body">  Request Body </h3> <p>This POST endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"state-versions"</code>.</td> </tr> <tr> <td><code>data.attributes.serial</code></td> <td>integer</td> <td></td> <td>The serial of the state version. Must match the serial value extracted from the raw state file.</td> </tr> <tr> <td><code>data.attributes.md5</code></td> <td>string</td> <td></td> <td>An MD5 hash of the raw state version</td> </tr> <tr> <td><code>data.attributes.lineage</code></td> <td>string</td> <td>(nothing)</td> <td>
+<strong>Optional</strong> Lineage of the state version. Should match the lineage extracted from the raw state file. Early versions of terraform did not have the concept of lineage, so this is an optional attribute.</td> </tr> <tr> <td><code>data.attributes.state</code></td> <td>string</td> <td></td> <td>Base64 encoded raw state file</td> </tr> <tr> <td><code>data.relationships.run.data.id</code></td> <td>string</td> <td>(nothing)</td> <td>
+<strong>Optional</strong> The ID of the run to associate with the state version.</td> </tr> </tbody>
+</table> <h3 id="sample-payload">  Sample Payload </h3> <pre data-language="json">{
+  "data": {
+    "type":"state-versions",
+    "attributes": {
+      "serial": 1,
+      "md5": "d41d8cd98f00b204e9800998ecf8427e",
+      "lineage": "871d1b4a-e579-fb7c-ffdb-f0c858a647a7",
+      "state": "..."
+    },
+    "relationships": {
+      "run": {
+        "data": {
+          "type": "runs",
+          "id": "run-bWSq4YeYpfrW4mx7"
+        }
+      }
+    }
+  }
+}
+</pre>
+<h3 id="sample-request">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/workspaces/ws-6fHMCom98SDXSQUv/state-versions
+</pre>
+<h3 id="sample-response">  Sample Response </h3> <blockquote class="alert alert-info" role="alert"> <p><strong>Note</strong>: The <code>hosted-state-download-url</code> attribute provides a url from which you can download the raw state.</p> </blockquote> <pre data-language="json">{
+    "data": {
+        "id": "sv-DmoXecHePnNznaA4",
+        "type": "state-versions",
+        "attributes": {
+            "vcs-commit-sha": null,
+            "vcs-commit-url": null,
+            "created-at": "2018-07-12T20:32:01.490Z",
+            "hosted-state-download-url": "https://archivist.terraform.io/v1/object/f55b739b-ff03-4716-b436-726466b96dc4",
+            "serial": 1
+        },
+        "links": {
+            "self": "/api/v2/state-versions/sv-DmoXecHePnNznaA4"
+        }
+    }
+}
+</pre>
+<h2 id="list-state-versions-for-a-workspace">  List State Versions for a Workspace </h2> <p><code>GET /state-versions</code></p> <p>Listing state versions requires permission to read state versions for the workspace. (<a href="../users-teams-organizations/permissions">More about permissions.</a>)</p> <h3 id="query-parameters">  Query Parameters </h3> <p>This endpoint supports pagination <a href="index#query-parameters">with standard URL query parameters</a>; remember to percent-encode <code>[</code> as <code>%5B</code> and <code>]</code> as <code>%5D</code> if your tooling doesn't automatically encode URLs.</p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>filter[workspace][name]</code></td> <td>
+<strong>Required</strong> The name of one workspace to list versions for.</td> </tr> <tr> <td><code>filter[organization][name]</code></td> <td>
+<strong>Required</strong> The name of the organization that owns the desired workspace.</td> </tr> <tr> <td><code>page[number]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return the first page.</td> </tr> <tr> <td><code>page[size]</code></td> <td>
+<strong>Optional.</strong> If omitted, the endpoint will return 20 state versions per page.</td> </tr> </tbody>
+</table> <h3 id="sample-request-1">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  "https://app.terraform.io/api/v2/state-versions?filter%5Bworkspace%5D%5Bname%5D=my-workspace&amp;filter%5Borganization%5D%5Bname%5D=my-organization"
+</pre>
+<h3 id="sample-response-1">  Sample Response </h3> <blockquote class="alert alert-info" role="alert"> <p><strong>Note</strong>: The <code>hosted-state-download-url</code> attribute provides a url from which you can download the raw state.</p> </blockquote> <pre data-language="json">{
+    "data": [
+        {
+            "id": "sv-g4rqST72reoHMM5a",
+            "type": "state-versions",
+            "attributes": {
+                "created-at": "2021-06-08T01:22:03.794Z",
+                "size": 940,
+                "hosted-state-download-url": "https://archivist.terraform.io/v1/object/...",
+                "modules": {
+                    "root": {
+                        "null-resource": 1,
+                        "data.terraform-remote-state": 1
+                    }
+                },
+                "providers": {
+                    "provider[\"terraform.io/builtin/terraform\"]": {
+                        "data.terraform-remote-state": 1
+                    },
+                    "provider[\"registry.terraform.io/hashicorp/null\"]": {
+                        "null-resource": 1
+                    }
+                },
+                "resources": [
+                    {
+                        "name": "other_username",
+                        "type": "data.terraform_remote_state",
+                        "count": 1,
+                        "module": "root",
+                        "provider": "provider[\"terraform.io/builtin/terraform\"]"
+                    },
+                    {
+                        "name": "random",
+                        "type": "null_resource",
+                        "count": 1,
+                        "module": "root",
+                        "provider": "provider[\"registry.terraform.io/hashicorp/null\"]"
+                    }
+                ],
+                "resources-processed": false,
+                "serial": 9,
+                "state-version": 4,
+                "terraform-version": "0.15.4",
+                "vcs-commit-url": "https://gitlab.com/my-organization/terraform-test/-/commit/abcdef12345",
+                "vcs-commit-sha": "abcdef12345"
+            },
+            "relationships": {
+                "run": {
+                    "data": {
+                        "id": "run-YfmFLWpgTv31VZsP",
+                        "type": "runs"
+                    }
+                },
+                "created-by": {
+                    "data": {
+                        "id": "user-onZs69ThPZjBK2wo",
+                        "type": "users"
+                    },
+                    "links": {
+                        "related": "/api/v2/runs/sv-g4rqST72reoHMM5a/created-by"
+                    }
+                },
+                "workspace": {
+                    "data": {
+                        "id": "ws-noZcaGXsac6aZSJR",
+                        "type": "workspaces"
+                    }
+                },
+                "outputs": {
+                    "data": [
+                        {
+                            "id": "wsout-V22qbeM92xb5mw9n",
+                            "type": "state-version-outputs"
+                        },
+                        {
+                            "id": "wsout-ymkuRnrNFeU5wGpV",
+                            "type": "state-version-outputs"
+                        },
+                        {
+                            "id": "wsout-v82BjkZnFEcscipg",
+                            "type": "state-version-outputs"
+                        }
+                    ]
+                }
+            },
+            "links": {
+                "self": "/api/v2/state-versions/sv-g4rqST72reoHMM5a"
+            }
+        },
+        {
+            "id": "sv-QYKf6GvNv75ZPTBr",
+            "type": "state-versions",
+            "attributes": {
+                "created-at": "2021-06-01T21:40:25.941Z",
+                "size": 819,
+                "hosted-state-download-url": "https://archivist.terraform.io/v1/object/...",
+                "modules": {
+                    "root": {
+                        "data.terraform-remote-state": 1
+                    }
+                },
+                "providers": {
+                    "provider[\"terraform.io/builtin/terraform\"]": {
+                        "data.terraform-remote-state": 1
+                    }
+                },
+                "resources": [
+                    {
+                        "name": "other_username",
+                        "type": "data.terraform_remote_state",
+                        "count": 1,
+                        "module": "root",
+                        "provider": "provider[\"terraform.io/builtin/terraform\"]"
+                    }
+                ],
+                "resources-processed": false,
+                "serial": 8,
+                "state-version": 4,
+                "terraform-version": "0.15.4",
+                "vcs-commit-url": "https://gitlab.com/my-organization/terraform-test/-/commit/12345abcdef",
+                "vcs-commit-sha": "12345abcdef"
+            },
+            "relationships": {
+                "run": {
+                    "data": {
+                        "id": "run-cVtxks6R8wsjCZMD",
+                        "type": "runs"
+                    }
+                },
+                "created-by": {
+                    "data": {
+                        "id": "user-onZs69ThPZjBK2wo",
+                        "type": "users"
+                    },
+                    "links": {
+                        "related": "/api/v2/runs/sv-QYKf6GvNv75ZPTBr/created-by"
+                    }
+                },
+                "workspace": {
+                    "data": {
+                        "id": "ws-noZcaGXsac6aZSJR",
+                        "type": "workspaces"
+                    }
+                },
+                "outputs": {
+                    "data": [
+                        {
+                            "id": "wsout-MmqMhmht6jFmLRvh",
+                            "type": "state-version-outputs"
+                        },
+                        {
+                            "id": "wsout-Kuo9TCHg3oDLDQqa",
+                            "type": "state-version-outputs"
+                        }
+                    ]
+                }
+            },
+            "links": {
+                "self": "/api/v2/state-versions/sv-QYKf6GvNv75ZPTBr"
+            }
+        }
+    ],
+    "links": {
+        "self": "https://app.terraform.io/api/v2/state-versions?filter%5Borganization%5D%5Bname%5D=hashicorp&amp;filter%5Bworkspace%5D%5Bname%5D=my-workspace&amp;page%5Bnumber%5D=1&amp;page%5Bsize%5D=20",
+        "first": "https://app.terraform.io/api/v2/state-versions?filter%5Borganization%5D%5Bname%5D=hashicorp&amp;filter%5Bworkspace%5D%5Bname%5D=my-workspace&amp;page%5Bnumber%5D=1&amp;page%5Bsize%5D=20",
+        "prev": null,
+        "next": null,
+        "last": "https://app.terraform.io.io/api/v2/state-versions?filter%5Borganization%5D%5Bname%5D=hashicorp&amp;filter%5Bworkspace%5D%5Bname%5D=my-workspace&amp;page%5Bnumber%5D=1&amp;page%5Bsize%5D=20"
+    },
+    "meta": {
+        "pagination": {
+            "current-page": 1,
+            "page-size": 20,
+            "prev-page": null,
+            "next-page": null,
+            "total-pages": 1,
+            "total-count": 10
+        }
+    }
+}
+</pre>
+<h2 id="fetch-the-current-state-version-for-a-workspace">  Fetch the Current State Version for a Workspace </h2> <p><code>GET /workspaces/:workspace_id/current-state-version</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:workspace_id</code></td> <td>The ID for the workspace whose current state version you want to fetch. Obtain this from the <a href="../workspaces/settings">workspace settings</a> or the <a href="workspaces#show-workspace">Show Workspace</a> endpoint.</td> </tr> </tbody>
+</table> <p>Fetches the current state version for the given workspace. This state version will be the input state when running terraform operations.</p> <p>Viewing state versions requires permission to read state versions for the workspace. (<a href="../users-teams-organizations/permissions">More about permissions.</a>)</p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td><a href="index#json-api-documents">JSON API document</a></td> <td>Successfully returned current state version for the given workspace</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Workspace not found, workspace does not have a current state version, or user unauthorized to perform action</td> </tr> </tbody>
+</table> <h3 id="sample-request-2">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  https://app.terraform.io/api/v2/workspaces/ws-6fHMCom98SDXSQUv/current-state-version
+</pre>
+<h3 id="sample-response-2">  Sample Response </h3> <blockquote class="alert alert-info" role="alert"> <p><strong>Note</strong>: The <code>hosted-state-download-url</code> attribute provides a url from which you can download the raw state.</p> </blockquote> <pre data-language="json">{
+    "data": {
+        "id": "sv-g4rqST72reoHMM5a",
+        "type": "state-versions",
+        "attributes": {
+            "created-at": "2021-06-08T01:22:03.794Z",
+            "size": 940,
+            "hosted-state-download-url": "https://archivist.terraform.io/v1/object/...",
+            "modules": {
+                "root": {
+                    "null-resource": 1,
+                    "data.terraform-remote-state": 1
+                }
+            },
+            "providers": {
+                "provider[\"terraform.io/builtin/terraform\"]": {
+                    "data.terraform-remote-state": 1
+                },
+                "provider[\"registry.terraform.io/hashicorp/null\"]": {
+                    "null-resource": 1
+                }
+            },
+            "resources": [
+                {
+                    "name": "other_username",
+                    "type": "data.terraform_remote_state",
+                    "count": 1,
+                    "module": "root",
+                    "provider": "provider[\"terraform.io/builtin/terraform\"]"
+                },
+                {
+                    "name": "random",
+                    "type": "null_resource",
+                    "count": 1,
+                    "module": "root",
+                    "provider": "provider[\"registry.terraform.io/hashicorp/null\"]"
+                }
+            ],
+            "resources-processed": false,
+            "serial": 9,
+            "state-version": 4,
+            "terraform-version": "0.15.4",
+            "vcs-commit-url": "https://gitlab.com/my-organization/terraform-test/-/commit/abcdef12345",
+            "vcs-commit-sha": "abcdef12345"
+        },
+        "relationships": {
+            "run": {
+                "data": {
+                    "id": "run-YfmFLWpgTv31VZsP",
+                    "type": "runs"
+                }
+            },
+            "created-by": {
+                "data": {
+                    "id": "user-onZs69ThPZjBK2wo",
+                    "type": "users"
+                },
+                "links": {
+                    "related": "/api/v2/runs/sv-g4rqST72reoHMM5a/created-by"
+                }
+            },
+            "workspace": {
+                "data": {
+                    "id": "ws-noZcaGXsac6aZSJR",
+                    "type": "workspaces"
+                }
+            },
+            "outputs": {
+                "data": [
+                    {
+                        "id": "wsout-V22qbeM92xb5mw9n",
+                        "type": "state-version-outputs"
+                    },
+                    {
+                        "id": "wsout-ymkuRnrNFeU5wGpV",
+                        "type": "state-version-outputs"
+                    },
+                    {
+                        "id": "wsout-v82BjkZnFEcscipg",
+                        "type": "state-version-outputs"
+                    }
+                ]
+            }
+        },
+        "links": {
+            "self": "/api/v2/state-versions/sv-g4rqST72reoHMM5a"
+        }
+    }
+}
+</pre>
+<h2 id="show-a-state-version">  Show a State Version </h2> <p><code>GET /state-versions/:state_version_id</code></p> <p>Viewing state versions requires permission to read state versions for the workspace. (<a href="../users-teams-organizations/permissions">More about permissions.</a>)</p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:state_version_id</code></td> <td>The ID of the desired state version.</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td><a href="index#json-api-documents">JSON API document</a></td> <td>Successfully returned current state version for the given workspace</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Workspace not found, workspace does not have a current state version, or user unauthorized to perform action</td> </tr> </tbody>
+</table> <h3 id="sample-request-3">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  https://app.terraform.io/api/v2/state-versions/sv-SDboVZC8TCxXEneJ
+</pre>
+<h3 id="sample-response-3">  Sample Response </h3> <blockquote class="alert alert-info" role="alert"> <p><strong>Note</strong>: The <code>hosted-state-download-url</code> attribute provides a url from which you can download the raw state.</p> </blockquote> <pre data-language="json">{
+    "data": {
+        "id": "sv-g4rqST72reoHMM5a",
+        "type": "state-versions",
+        "attributes": {
+            "created-at": "2021-06-08T01:22:03.794Z",
+            "size": 940,
+            "hosted-state-download-url": "https://archivist.terraform.io/v1/object/...",
+            "modules": {
+                "root": {
+                    "null-resource": 1,
+                    "data.terraform-remote-state": 1
+                }
+            },
+            "providers": {
+                "provider[\"terraform.io/builtin/terraform\"]": {
+                    "data.terraform-remote-state": 1
+                },
+                "provider[\"registry.terraform.io/hashicorp/null\"]": {
+                    "null-resource": 1
+                }
+            },
+            "resources": [
+                {
+                    "name": "other_username",
+                    "type": "data.terraform_remote_state",
+                    "count": 1,
+                    "module": "root",
+                    "provider": "provider[\"terraform.io/builtin/terraform\"]"
+                },
+                {
+                    "name": "random",
+                    "type": "null_resource",
+                    "count": 1,
+                    "module": "root",
+                    "provider": "provider[\"registry.terraform.io/hashicorp/null\"]"
+                }
+            ],
+            "resources-processed": false,
+            "serial": 9,
+            "state-version": 4,
+            "terraform-version": "0.15.4",
+            "vcs-commit-url": "https://gitlab.com/my-organization/terraform-test/-/commit/abcdef12345",
+            "vcs-commit-sha": "abcdef12345"
+        },
+        "relationships": {
+            "run": {
+                "data": {
+                    "id": "run-YfmFLWpgTv31VZsP",
+                    "type": "runs"
+                }
+            },
+            "created-by": {
+                "data": {
+                    "id": "user-onZs69ThPZjBK2wo",
+                    "type": "users"
+                },
+                "links": {
+                    "related": "/api/v2/runs/sv-g4rqST72reoHMM5a/created-by"
+                }
+            },
+            "workspace": {
+                "data": {
+                    "id": "ws-noZcaGXsac6aZSJR",
+                    "type": "workspaces"
+                }
+            },
+            "outputs": {
+                "data": [
+                    {
+                        "id": "wsout-V22qbeM92xb5mw9n",
+                        "type": "state-version-outputs"
+                    },
+                    {
+                        "id": "wsout-ymkuRnrNFeU5wGpV",
+                        "type": "state-version-outputs"
+                    },
+                    {
+                        "id": "wsout-v82BjkZnFEcscipg",
+                        "type": "state-version-outputs"
+                    }
+                ]
+            }
+        },
+        "links": {
+            "self": "/api/v2/state-versions/sv-g4rqST72reoHMM5a"
+        }
+    }
+}
+</pre>
+<h3 id="available-related-resources">  Available Related Resources </h3> <p>The GET endpoints above can optionally return related resources, if requested with <a href="index#inclusion-of-related-resources">the <code>include</code> query parameter</a>. The following resource types are available:</p> <ul> <li>
+<a href="#created_by"><code>created_by</code></a> - The user that created the state version. For state versions created via a run executed by Terraform Cloud, this is an internal user account. </li> <li>
+<a href="#run"><code>run</code></a> - The run that created the state version, if applicable. </li> <li>
+<a href="#run-created_by"><code>run.created_by</code></a> - The user that manually triggered the run, if applicable. </li> <li>
+<a href="#run-configuration_version"><code>run.configuration_version</code></a> - The configuration version used in the run. </li> <li>
+<a href="#outputs"><code>outputs</code></a> - The parsed outputs for this state version. </li> </ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/cloud/api/state-versions.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/cloud/api/state-versions.html</a>
+  </p>
+</div>

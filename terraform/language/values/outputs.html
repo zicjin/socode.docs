@@ -1,0 +1,65 @@
+ <h1 id="output-values">  Output Values </h1> <blockquote> <p><strong>Hands-on:</strong> Try the <a href="https://learn.hashicorp.com/tutorials/terraform/outputs?in=terraform/configuration-language&amp;utm_source=WEBSITE&amp;utm_medium=WEB_IO&amp;utm_offer=ARTICLE_PAGE&amp;utm_content=DOCS">Output Data From Terraform</a> tutorial on HashiCorp Learn.</p> </blockquote> <p>Output values are like the return values of a Terraform module, and have several uses:</p> <ul> <li>A child module can use outputs to expose a subset of its resource attributes to a parent module. </li> <li>A root module can use outputs to print certain values in the CLI output after running <code>terraform apply</code>. </li> <li>When using <a href="../state/remote">remote state</a>, root module outputs can be accessed by other configurations via a <a href="../state/remote-state-data"><code>terraform_remote_state</code> data source</a>. </li> </ul> <p>Resource instances managed by Terraform each export attributes whose values can be used elsewhere in configuration. Output values are a way to expose some of that information to the user of your module.</p> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> For brevity, output values are often referred to as just "outputs" when the meaning is clear from context.</p> </blockquote> <h2 id="declaring-an-output-value">  Declaring an Output Value </h2> <p>Each output value exported by a module must be declared using an <code>output</code> block:</p> <pre data-language="ruby">output "instance_ip_addr" {
+  value = aws_instance.server.private_ip
+}
+</pre>
+<p>The label immediately after the <code>output</code> keyword is the name, which must be a valid <a href="../syntax/configuration#identifiers">identifier</a>. In a root module, this name is displayed to the user; in a child module, it can be used to access the output's value.</p> <p>The <code>value</code> argument takes an <a href="../expressions/index">expression</a> whose result is to be returned to the user. In this example, the expression refers to the <code>private_ip</code> attribute exposed by an <code>aws_instance</code> resource defined elsewhere in this module (not shown). Any valid expression is allowed as an output value.</p> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> Outputs are only rendered when Terraform applies your plan. Running <code>terraform plan</code> will not render outputs.</p> </blockquote> <h2 id="accessing-child-module-outputs">  Accessing Child Module Outputs </h2> <p>In a parent module, outputs of child modules are available in expressions as <code>module.&lt;MODULE NAME&gt;.&lt;OUTPUT NAME&gt;</code>. For example, if a child module named <code>web_server</code> declared an output named <code>instance_ip_addr</code>, you could access that value as <code>module.web_server.instance_ip_addr</code>.</p> <h2 id="optional-arguments">  Optional Arguments </h2> <p><code>output</code> blocks can optionally include <code>description</code>, <code>sensitive</code>, and <code>depends_on</code> arguments, which are described in the following sections.</p>  <h3 id="description-output-value-documentation">  <code>description</code> — Output Value Documentation </h3> <p>Because the output values of a module are part of its user interface, you can briefly describe the purpose of each value using the optional <code>description</code> argument:</p> <pre data-language="ruby">output "instance_ip_addr" {
+  value       = aws_instance.server.private_ip
+  description = "The private IP address of the main server instance."
+}
+</pre>
+<p>The description should concisely explain the purpose of the output and what kind of value is expected. This description string might be included in documentation about the module, and so it should be written from the perspective of the user of the module rather than its maintainer. For commentary for module maintainers, use comments.</p>  <h3 id="sensitive-suppressing-values-in-cli-output">  <code>sensitive</code> — Suppressing Values in CLI Output </h3> <p>An output can be marked as containing sensitive material using the optional <code>sensitive</code> argument:</p> <pre data-language="ruby">output "db_password" {
+  value       = aws_db_instance.db.password
+  description = "The password for logging in to the database."
+  sensitive   = true
+}
+</pre>
+<p>Terraform will hide values marked as sensitive in the messages from <code>terraform plan</code> and <code>terraform apply</code>. In the following scenario, our root module has an output declared as sensitive and a module call with a sensitive output, which we then use in a resource attribute.</p> <pre data-language="ruby"># main.tf
+
+module "foo" {
+  source = "./mod"
+}
+
+resource "test_instance" "x" {
+  some_attribute = module.mod.a # resource attribute references a sensitive output
+}
+
+output "out" {
+  value     = "xyz"
+  sensitive = true
+}
+
+# mod/main.tf, our module containing a sensitive output
+
+output "a" {
+  value     = "secret"
+  sensitive = true
+}
+</pre>
+<p>When we run a plan or apply, the sensitive value is redacted from output:</p> <pre>Terraform will perform the following actions:
+
+  # test_instance.x will be created
+  + resource "test_instance" "x" {
+      + some_attribute    = (sensitive)
+    }
+
+Plan: 1 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + out = (sensitive value)
+</pre>
+<blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> In Terraform versions prior to Terraform 0.14, setting an output value in the root module as sensitive would prevent Terraform from showing its value in the list of outputs at the end of <code>terraform apply</code>. However, the value could still display in the CLI output for other reasons, like if the value is referenced in an expression for a resource argument.</p> </blockquote> <p>Terraform will still record sensitive values in the <a href="../state/index">state</a>, and so anyone who can access the state data will have access to the sensitive values in cleartext. For more information, see <a href="../state/sensitive-data"><em>Sensitive Data in State</em></a>.</p>  <h3 id="depends_on-explicit-output-dependencies">  <code>depends_on</code> — Explicit Output Dependencies </h3> <p>Since output values are just a means for passing data out of a module, it is usually not necessary to worry about their relationships with other nodes in the dependency graph.</p> <p>However, when a parent module accesses an output value exported by one of its child modules, the dependencies of that output value allow Terraform to correctly determine the dependencies between resources defined in different modules.</p> <p>Just as with <a href="../resources/behavior#resource-dependencies">resource dependencies</a>, Terraform analyzes the <code>value</code> expression for an output value and automatically determines a set of dependencies, but in less-common cases there are dependencies that cannot be recognized implicitly. In these rare cases, the <code>depends_on</code> argument can be used to create additional explicit dependencies:</p> <pre data-language="ruby">output "instance_ip_addr" {
+  value       = aws_instance.server.private_ip
+  description = "The private IP address of the main server instance."
+
+  depends_on = [
+    # Security group rule must be created before this IP address could
+    # actually be used, otherwise the services will be unreachable.
+    aws_security_group_rule.local_access,
+  ]
+}
+</pre>
+<p>The <code>depends_on</code> argument should be used only as a last resort. When using it, always include a comment explaining why it is being used, to help future maintainers understand the purpose of the additional dependency.</p><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/language/values/outputs.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/language/values/outputs.html</a>
+  </p>
+</div>

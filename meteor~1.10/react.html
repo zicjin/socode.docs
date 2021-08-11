@@ -1,0 +1,58 @@
+<p>After reading this guide, you’ll know:</p> <ol> <li>What React is, and why you would consider using it with Meteor.</li> <li>How to install React in your Meteor application, and how to use it correctly.</li> <li>How to integrate React with Meteor’s realtime data layer.</li> <li>How to route in a React/Meteor application.</li> </ol> <h2 id="introduction">Introduction</h2> <p><a href="https://reactjs.org/" target="_blank" rel="noopener">React</a> is a JavaScript library for building reactive user interfaces developed and distributed by the Facebook team. </p> <p>React has a vibrant and growing ecosystem and is used widely in production in a variety of combinations with different frameworks.</p> <p>To learn more about using React in general and coming up to speed with the library, you should check out the <a href="https://reactjs.org/docs/getting-started.html" target="_blank" rel="noopener">React documentation</a>.</p> <p>To get started with React in Meteor, you can follow along the <a href="https://react-tutorial.meteor.com" target="_blank" rel="noopener">React tutorial</a>.</p> <h3 id="using-with-meteor">Installing and using React</h3> <p>To install React in Meteor should add it as a npm dependency:</p>  <pre class="line-numbers" style><code class="language-sh">meteor npm install --save react react-dom
+</code></pre> <p>This will install <code>react</code> into your project and allow you to access it within your files with <code>import React from 'react'</code>.</p>  <pre class="line-numbers" style><code class="language-jsx">import React from 'react';
+
+export const HelloWorld = () =&gt; &lt;h1&gt;Hello World&lt;/h1&gt;;
+</code></pre> <p>You can render a component hierarchy to the DOM using the <code>react-dom</code> package:</p>  <pre class="line-numbers" style><code class="language-jsx">import { Meteor } from 'meteor/meteor';
+import React from 'react';
+import { render } from 'react-dom';
+import { HelloWorld } from './HelloWorld.js';
+
+Meteor.startup(() =&gt; {
+  render(&lt;HelloWorld /&gt;, document.getElementById('app'));
+});
+</code></pre> <p>You need to include a <code>&lt;div id="app"&gt;&lt;/div&gt;</code> in your body’s HTML somewhere of course.</p> <p>By default Meteor already uses React when you create a new app using <code>meteor create my-app</code> then this basic set up will be already ready for you.</p> <h3 id="using-third-party-npm-packages">Using 3rd party packages</h3> <p>Meteor does not require any different configuration as Meteor is 100% compatible with NPM, so you can use any React component library.</p> <h2 id="data">Using Meteor's data system</h2> <p>React is a front-end rendering library and as such doesn’t concern itself with how data gets into and out of components. </p> <p>On the other hand, Meteor offers in the core packages <a href="data-loading">publications</a> and <a href="methods">methods</a>, used to subscribe to and modify the data in your application.</p> <p>To integrate the two systems, we’ve developed a <a href="https://atmospherejs.com/meteor/react-meteor-data" target="_blank" rel="noopener"><code>react-meteor-data</code></a> package which allows React components to respond to data changes via Meteor’s <a href="https://www.meteor.com/tracker" target="_blank" rel="noopener">Tracker</a> reactivity system.</p> <h3 id="using-withTracker">Using `useTracker`</h3> <blockquote> <p>The <code>useTracker</code> function follows latest best practices of React. Choosing hooks instead of HOCs.</p> </blockquote> <p>To use data from a Meteor collection inside a React component, install <a href="https://atmospherejs.com/meteor/react-meteor-data" target="_blank" rel="noopener"><code>react-meteor-data</code></a>:</p>  <pre class="line-numbers" style><code class="language-sh">meteor add react-meteor-data
+</code></pre> <p>Once installed, you’ll be able to import the <code>useTracker</code> function and others.</p> <p>You can learn more about them <a href="https://github.com/meteor/react-packages/tree/master/packages/react-meteor-data#usetrackerreactivefn-deps-hook" target="_blank" rel="noopener">here</a></p> <h2 id="routing">Routing</h2> <p>Although there are many solutions for routing with Meteor and React, <a href="https://reactrouter.com/" target="_blank" rel="noopener">react-router</a> is the most popular package right now.</p> <p>As always Meteor does not require anything different when using React Router so you can follow their <a href="https://reactrouter.com/web/guides/quick-start" target="_blank" rel="noopener">quick-start guide</a> to set up React Router in your Meteor project.</p> <h2 id="meteor-and-react">Meteor Packages and Blaze</h2> <h3 id="atmosphere-packages">Using React in Atmosphere Packages</h3> <p>If you are writing an Atmosphere package and want to depend on React or an npm package that itself depends on React, you can’t use <code>Npm.depends()</code> and <code>Npm.require()</code>, as this will result in <em>2</em> copies of React being installed into the application (and besides <code>Npm.require()</code> only works on the server).</p> <p>Instead, you need to ask your users to install the correct npm packages in the application itself. This will ensure that only one copy of React is shipped to the client and there are no version conflicts.</p> <p>In order to check that a user has installed the correct versions of npm packages, you can use the <a href="https://atmospherejs.com/tmeasday/check-npm-versions" target="_blank" rel="noopener"><code>tmeasday:check-npm-versions</code></a> package to check dependency versions at runtime.</p>  <h3 id="react-in-blaze">React Components in Blaze</h3> <p>If you are not using Blaze with React you can skip this.</p> <p>If you’d like to use React within a larger app built with <a href="#blaze.html">Blaze</a> (which is a good strategy if you’d like to incrementally migrate an app from Blaze to React), you can use the <a href="https://atmospherejs.com/meteor/react-template-helper" target="_blank" rel="noopener"><code>react-template-helper</code></a> component which renders a react component inside a Blaze template. First run <code>meteor add react-template-helper</code>, then use the <code>React</code> helper in your template:</p>  <pre class="line-numbers" style><code class="language-html">&lt;template name="userDisplay"&gt;
+  &lt;div&gt;Hello, {{username}}&lt;/div&gt;
+  &lt;div&gt;{{&gt; React component=UserAvatar userId=_id}}&lt;/div&gt;
+&lt;/template&gt;
+</code></pre> <p>You will need to pass in the component class with a helper:</p>  <pre class="line-numbers" style><code class="language-js">import { Template } from 'meteor/templating';
+
+import './userDisplay.html';
+import UserAvatar from './UserAvatar.js';
+
+Template.userDisplay.helpers({
+  UserAvatar() {
+    return UserAvatar;
+  }
+})
+</code></pre> <p>The <code>component</code> argument is the React component to include, which should be passed in with a helper.</p> <p>Every other argument is passed as a prop to the component when it is rendered.</p> <p>Note that there a few caveats:</p> <ul> <li>
+<p>React components must be the only thing in the wrapper element. Due to a limitation of React (see facebook/react <a href="https://github.com/facebook/react/issues/1970" target="_blank" rel="noopener">#1970</a>, <a href="https://github.com/facebook/react/issues/2484" target="_blank" rel="noopener">#2484</a>), a React component must be rendered as the only child of its parent node, meaning it cannot have any siblings.</p> </li> <li>
+<p>This means a React component also can’t be the only thing in a Blaze template, because it’s impossible to tell where the template will be used.</p> </li> </ul> <h4 id="passing-callbacks-from-blaze">Passing callbacks to a React component</h4> <p>To pass a callback to a React component that you are including with this helper, make a <a href="http://blazejs.org/guide/reusable-components.html#Pass-callbacks" target="_blank" rel="noopener">template helper that returns a function</a>, and pass it in as a prop, like so:</p>  <pre class="line-numbers" style><code class="language-js">Template.userDisplay.helpers({
+  onClick() {
+    const instance = Template.instance();
+
+    // Return a function from this helper, where the template instance is in
+    // a closure
+    return () =&gt; {
+      instance.hasBeenClicked.set(true)
+    }
+  }
+});
+</code></pre> <p>To use it in Blaze:</p>  <pre class="line-numbers" style><code class="language-html">&lt;template name="userDisplay"&gt;
+  &lt;div&gt;
+    {{&gt; React component=UserAvatar userId=_id onClick=onClick}}
+  &lt;/div&gt;
+&lt;/template&gt;
+</code></pre> <h3 id="blaze-in-react">Blaze Templates in React</h3> <p>We can also use Blaze templates in React components. This is similarly useful for a gradual transition strategy; but more importantly, it allows us to continue to use the multitude of Atmosphere packages built for Blaze in our React projects, as well as core packages like <code>accounts-ui</code>.</p> <p>One way to do this is with the <a href="https://atmospherejs.com/gadicc/blaze-react-component" target="_blank" rel="noopener"><code>gadicc:blaze-react-component</code></a> package. First run <code>meteor add gadicc:blaze-react-component</code>, then import and use it in your components as follows:</p>  <pre class="line-numbers" style><code class="language-jsx">import React from 'react';
+import Blaze from 'meteor/gadicc:blaze-react-component';
+
+const App = () =&gt; (
+  &lt;div&gt;
+    &lt;Blaze template="itemsList" items={items} /&gt;
+  &lt;/div&gt;
+);
+</code></pre> <p>The <code>&lt;Blaze template="itemsList" items={items} /&gt;</code> line is the same as if you had written <code>{{&gt; itemsList items=items}}</code> inside of a Blaze template. For other options and further information, see the package’s <a href="https://github.com/gadicc/meteor-blaze-react-component" target="_blank" rel="noopener">project page</a>.</p><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://guide.meteor.com/react.html" class="_attribution-link" target="_blank">https://guide.meteor.com/react.html</a>
+  </p>
+</div>

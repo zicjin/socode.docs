@@ -1,0 +1,137 @@
+ <h1 id="azurerm">  azurerm </h1> <p><strong>Kind: Standard (with state locking)</strong></p> <p>Stores the state as a Blob with the given Key within the Blob Container within <a href="https://docs.microsoft.com/en-us/azure/storage/common/storage-introduction">the Blob Storage Account</a>. This backend also supports state locking and consistency checking via native capabilities of Azure Blob Storage.</p> <h2 id="example-configuration">  Example Configuration </h2> <p>When authenticating using the Azure CLI or a Service Principal (either with a Client Certificate or a Client Secret):</p> <pre data-language="ruby">terraform {
+  backend "azurerm" {
+    resource_group_name  = "StorageAccount-ResourceGroup"
+    storage_account_name = "abcd1234"
+    container_name       = "tfstate"
+    key                  = "prod.terraform.tfstate"
+  }
+}
+</pre>  <p>When authenticating using Managed Service Identity (MSI):</p> <pre data-language="ruby">terraform {
+  backend "azurerm" {
+    storage_account_name = "abcd1234"
+    container_name       = "tfstate"
+    key                  = "prod.terraform.tfstate"
+    use_msi              = true
+    subscription_id      = "00000000-0000-0000-0000-000000000000"
+    tenant_id            = "00000000-0000-0000-0000-000000000000"
+  }
+}
+</pre>  <p>When authenticating using Azure AD Authentication:</p> <pre data-language="ruby">terraform {
+  backend "azurerm" {
+    storage_account_name = "abcd1234"
+    container_name       = "tfstate"
+    key                  = "prod.terraform.tfstate"
+    use_azuread_auth     = true
+    subscription_id      = "00000000-0000-0000-0000-000000000000"
+    tenant_id            = "00000000-0000-0000-0000-000000000000"
+  }
+}
+</pre>
+<blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> When using AzureAD for Authentication to Storage you also need to ensure the <code>Storage Blob Data Owner</code> role is assigned.</p> </blockquote>  <p>When authenticating using the Access Key associated with the Storage Account:</p> <pre data-language="ruby">terraform {
+  backend "azurerm" {
+    storage_account_name = "abcd1234"
+    container_name       = "tfstate"
+    key                  = "prod.terraform.tfstate"
+
+    # rather than defining this inline, the Access Key can also be sourced
+    # from an Environment Variable - more information is available below.
+    access_key = "abcdefghijklmnopqrstuvwxyz0123456789..."
+  }
+}
+</pre>  <p>When authenticating using a SAS Token associated with the Storage Account:</p> <pre data-language="ruby">terraform {
+  backend "azurerm" {
+    storage_account_name = "abcd1234"
+    container_name       = "tfstate"
+    key                  = "prod.terraform.tfstate"
+
+    # rather than defining this inline, the SAS Token can also be sourced
+    # from an Environment Variable - more information is available below.
+    sas_token = "abcdefghijklmnopqrstuvwxyz0123456789..."
+  }
+}
+</pre>
+<blockquote class="alert alert-info" role="alert"> <p><strong>NOTE:</strong> When using a Service Principal or an Access Key - we recommend using a <a href="configuration#partial-configuration">Partial Configuration</a> for the credentials.</p> </blockquote> <h2 id="data-source-configuration">  Data Source Configuration </h2> <p>When authenticating using a Service Principal (either with a Client Certificate or a Client Secret):</p> <pre data-language="ruby">data "terraform_remote_state" "foo" {
+  backend = "azurerm"
+  config = {
+    storage_account_name = "terraform123abc"
+    container_name       = "terraform-state"
+    key                  = "prod.terraform.tfstate"
+  }
+}
+</pre>  <p>When authenticating using Managed Service Identity (MSI):</p> <pre data-language="ruby">data "terraform_remote_state" "foo" {
+  backend = "azurerm"
+  config = {
+    storage_account_name = "terraform123abc"
+    container_name       = "terraform-state"
+    key                  = "prod.terraform.tfstate"
+    use_msi              = true
+    subscription_id      = "00000000-0000-0000-0000-000000000000"
+    tenant_id            = "00000000-0000-0000-0000-000000000000"
+  }
+}
+</pre>  <p>When authenticating using AzureAD Authentication:</p> <pre data-language="ruby">data "terraform_remote_state" "foo" {
+  backend = "azurerm"
+  config = {
+    storage_account_name = "terraform123abc"
+    container_name       = "terraform-state"
+    key                  = "prod.terraform.tfstate"
+    use_azuread_auth     = true
+    subscription_id      = "00000000-0000-0000-0000-000000000000"
+    tenant_id            = "00000000-0000-0000-0000-000000000000"
+  }
+}
+</pre>
+<blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> When using AzureAD for Authentication to Storage you also need to ensure the <code>Storage Blob Data Owner</code> role is assigned.</p> </blockquote>  <p>When authenticating using the Access Key associated with the Storage Account:</p> <pre data-language="ruby">data "terraform_remote_state" "foo" {
+  backend = "azurerm"
+  config = {
+    storage_account_name = "terraform123abc"
+    container_name       = "terraform-state"
+    key                  = "prod.terraform.tfstate"
+
+    # rather than defining this inline, the Access Key can also be sourced
+    # from an Environment Variable - more information is available below.
+    access_key = "abcdefghijklmnopqrstuvwxyz0123456789..."
+  }
+}
+</pre>  <p>When authenticating using a SAS Token associated with the Storage Account:</p> <pre data-language="ruby">data "terraform_remote_state" "foo" {
+  backend = "azurerm"
+  config = {
+    storage_account_name = "terraform123abc"
+    container_name       = "terraform-state"
+    key                  = "prod.terraform.tfstate"
+
+    # rather than defining this inline, the SAS Token can also be sourced
+    # from an Environment Variable - more information is available below.
+    sas_token = "abcdefghijklmnopqrstuvwxyz0123456789..."
+  }
+}
+</pre>
+<h2 id="configuration-variables">  Configuration variables </h2> <p>The following configuration options are supported:</p> <ul> <li>
+<p><a href="#storage_account_name"><code>storage_account_name</code></a> - (Required) The Name of <a href="https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_account">the Storage Account</a>.</p> </li> <li>
+<p><a href="#container_name"><code>container_name</code></a> - (Required) The Name of <a href="https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/storage_container">the Storage Container</a> within the Storage Account.</p> </li> <li>
+<p><a href="#key"><code>key</code></a> - (Required) The name of the Blob used to retrieve/store Terraform's State file inside the Storage Container.</p> </li> <li>
+<p><a href="#environment"><code>environment</code></a> - (Optional) The Azure Environment which should be used. This can also be sourced from the <code>ARM_ENVIRONMENT</code> environment variable. Possible values are <code>public</code>, <code>china</code>, <code>german</code>, <code>stack</code> and <code>usgovernment</code>. Defaults to <code>public</code>.</p> </li> <li>
+<p><a href="#endpoint"><code>endpoint</code></a> - (Optional) The Custom Endpoint for Azure Resource Manager. This can also be sourced from the <code>ARM_ENDPOINT</code> environment variable.</p> </li> </ul> <blockquote class="alert alert-warning" role="alert"> <p><strong>NOTE:</strong> An <code>endpoint</code> should only be configured when using Azure Stack.</p> </blockquote> <ul> <li>
+<a href="#snapshot"><code>snapshot</code></a> - (Optional) Should the Blob used to store the Terraform Statefile be snapshotted before use? Defaults to <code>false</code>. This value can also be sourced from the <code>ARM_SNAPSHOT</code> environment variable. </li> </ul>  <p>When authenticating using the Managed Service Identity (MSI) - the following fields are also supported:</p> <ul> <li>
+<p><a href="#subscription_id"><code>subscription_id</code></a> - (Optional) The Subscription ID in which the Storage Account exists. This can also be sourced from the <code>ARM_SUBSCRIPTION_ID</code> environment variable.</p> </li> <li>
+<p><a href="#tenant_id"><code>tenant_id</code></a> - (Optional) The Tenant ID in which the Subscription exists. This can also be sourced from the <code>ARM_TENANT_ID</code> environment variable.</p> </li> <li>
+<p><a href="#msi_endpoint"><code>msi_endpoint</code></a> - (Optional) The path to a custom Managed Service Identity endpoint which is automatically determined if not specified. This can also be sourced from the <code>ARM_MSI_ENDPOINT</code> environment variable.</p> </li> <li>
+<p><a href="#use_msi"><code>use_msi</code></a> - (Optional) Should Managed Service Identity authentication be used? This can also be sourced from the <code>ARM_USE_MSI</code> environment variable.</p> </li> </ul>  <p>When authenticating using a SAS Token associated with the Storage Account - the following fields are also supported:</p> <ul> <li>
+<a href="#sas_token"><code>sas_token</code></a> - (Optional) The SAS Token used to access the Blob Storage Account. This can also be sourced from the <code>ARM_SAS_TOKEN</code> environment variable. </li> </ul>  <p>When authenticating using the Storage Account's Access Key - the following fields are also supported:</p> <ul> <li>
+<a href="#access_key"><code>access_key</code></a> - (Optional) The Access Key used to access the Blob Storage Account. This can also be sourced from the <code>ARM_ACCESS_KEY</code> environment variable. </li> </ul>  <p>When authenticating using AzureAD Authentication - the following fields are also supported:</p> <ul> <li>
+<a href="#use_azuread_auth"><code>use_azuread_auth</code></a> - (Optional) Should AzureAD Authentication be used to access the Blob Storage Account. This can also be sourced from the <code>ARM_USE_AZUREAD</code> environment variable. </li> </ul> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> When using AzureAD for Authentication to Storage you also need to ensure the <code>Storage Blob Data Owner</code> role is assigned.</p> </blockquote>  <p>When authenticating using a Service Principal with a Client Certificate - the following fields are also supported:</p> <ul> <li>
+<p><a href="#resource_group_name"><code>resource_group_name</code></a> - (Required) The Name of the Resource Group in which the Storage Account exists.</p> </li> <li>
+<p><a href="#client_id"><code>client_id</code></a> - (Optional) The Client ID of the Service Principal. This can also be sourced from the <code>ARM_CLIENT_ID</code> environment variable.</p> </li> <li>
+<p><a href="#client_certificate_password"><code>client_certificate_password</code></a> - (Optional) The password associated with the Client Certificate specified in <code>client_certificate_path</code>. This can also be sourced from the <code>ARM_CLIENT_CERTIFICATE_PASSWORD</code> environment variable.</p> </li> <li>
+<p><a href="#client_certificate_path"><code>client_certificate_path</code></a> - (Optional) The path to the PFX file used as the Client Certificate when authenticating as a Service Principal. This can also be sourced from the <code>ARM_CLIENT_CERTIFICATE_PATH</code> environment variable.</p> </li> <li>
+<p><a href="#subscription_id-1"><code>subscription_id</code></a> - (Optional) The Subscription ID in which the Storage Account exists. This can also be sourced from the <code>ARM_SUBSCRIPTION_ID</code> environment variable.</p> </li> <li>
+<p><a href="#tenant_id-1"><code>tenant_id</code></a> - (Optional) The Tenant ID in which the Subscription exists. This can also be sourced from the <code>ARM_TENANT_ID</code> environment variable.</p> </li> </ul>  <p>When authenticating using a Service Principal with a Client Secret - the following fields are also supported:</p> <ul> <li>
+<p><a href="#resource_group_name-1"><code>resource_group_name</code></a> - (Required) The Name of the Resource Group in which the Storage Account exists.</p> </li> <li>
+<p><a href="#client_id-1"><code>client_id</code></a> - (Optional) The Client ID of the Service Principal. This can also be sourced from the <code>ARM_CLIENT_ID</code> environment variable.</p> </li> <li>
+<p><a href="#client_secret"><code>client_secret</code></a> - (Optional) The Client Secret of the Service Principal. This can also be sourced from the <code>ARM_CLIENT_SECRET</code> environment variable.</p> </li> <li>
+<p><a href="#subscription_id-2"><code>subscription_id</code></a> - (Optional) The Subscription ID in which the Storage Account exists. This can also be sourced from the <code>ARM_SUBSCRIPTION_ID</code> environment variable.</p> </li> <li>
+<p><a href="#tenant_id-2"><code>tenant_id</code></a> - (Optional) The Tenant ID in which the Subscription exists. This can also be sourced from the <code>ARM_TENANT_ID</code> environment variable.</p> </li> </ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/language/settings/backends/azurerm.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/language/settings/backends/azurerm.html</a>
+  </p>
+</div>

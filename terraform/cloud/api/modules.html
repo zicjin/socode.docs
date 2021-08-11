@@ -1,0 +1,501 @@
+ <h1 id="registry-modules-api">  Registry Modules API </h1> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> Public Module Curation is only available in Terraform Cloud. Where applicable, the <code>registry_name</code> parameter must be <code>private</code> for Terraform Enterprise.</p> </blockquote> <h2 id="terraform-cloud-registry-implementation">  Terraform Cloud Registry Implementation </h2> <p>The Terraform Cloud Module Registry implements the <a href="../../registry/api">Registry standard API</a> for consuming/exposing private modules. Refer to the <a href="../../registry/api">Module Registry HTTP API</a> to perform the following:</p> <ul> <li>Browse available modules </li> <li>Search modules by keyword </li> <li>List available versions for a specific module </li> <li>Download source code for a specific module version </li> <li>List latest version of a module for all providers </li> <li>Get the latest version for a specific module provider </li> <li>Get a specific module </li> <li>Download the latest version of a module </li> </ul> <p>For publicly curated modules, the Terraform Cloud Module Registry acts as a proxy to the <a href="https://registry.terraform.io">Terraform Registry</a> for the following:</p> <ul> <li>List available versions for a specific module </li> <li>Get a specific module </li> <li>Get the latest version for a specific module provider </li> </ul> <p>The Terraform Cloud Module Registry endpoints differs from the Module Registry endpoints in the following ways:</p> <ul> <li>The <code>:namespace</code> parameter should be replaced with the organization name for private modules. </li> <li>The private module registry discovery endpoints have the path prefix provided in the <a href="../../registry/api#service-discovery">discovery document</a> which is currently <code>/api/registry/v1</code>. </li> <li>The public module registry discovery endpoints have the path prefix provided in the <a href="../../registry/api#service-discovery">discovery document</a> which is currently <code>/api/registry/public/v1</code>. </li> <li>
+<a href="index#authentication">Authentication</a> is handled the same as all other Terraform Cloud endpoints. </li> </ul> <h3 id="sample-registry-request-private-module-">  Sample Registry Request (private module) </h3> <p>List available versions for the <code>consul</code> module for the <code>aws</code> provider on the module registry published from the Github organization <code>my-gh-repo-org</code>:</p> <pre data-language="shell">$ curl https://registry.terraform.io/v1/modules/my-gh-repo-org/consul/aws/versions
+</pre>
+<p>The same request for the same module and provider on the Terraform Cloud module registry for the <code>my-cloud-org</code> organization:</p> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  https://app.terraform.io/api/registry/v1/modules/my-cloud-org/consul/aws/versions
+</pre>
+<h3 id="sample-proxy-request-public-module-">  Sample Proxy Request (public module) </h3> <p>List available versions for the <code>consul</code> module for the <code>aws</code> provider on the module registry published from the Github organization <code>my-gh-repo-org</code>:</p> <pre data-language="shell">$ curl https://registry.terraform.io/v1/modules/my-gh-repo-org/consul/aws/versions
+</pre>
+<p>The same request for the same module and provider on the Terraform Cloud module registry:</p> <pre data-language="shell">$ curl \
+  --header "Authorization: Bearer $TOKEN" \
+  https://app.terraform.io/api/registry/public/v1/modules/my-gh-repo-org/consul/aws/versions
+</pre>
+<h2 id="list-registry-modules-for-an-organization">  List Registry Modules for an organization </h2> <p><code>GET /organizations/:organization_name/registry-modules</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:organization_name</code></td> <td>The name of the organization to list available modules from.</td> </tr> </tbody>
+</table> <p>Lists the modules that are available to a given organization. This includes the full list of publicly curated and private modules and is filterable.</p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "registry-modules"</code>)</td> <td>The request was successful</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Modules not found or user unauthorized to perform action</td> </tr> </tbody>
+</table> <h3 id="filtering-pagination">  Filtering / Pagination </h3> <p>This endpoint supports Filtering and Pagination via the following attributes:</p> <table>
+<thead> <tr> <th>Query Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>q=&lt;wild card filter&gt;</code></td> <td>a wild card filter that will match full words for the name, namespace, provider fields for modules</td> </tr> <tr> <td><code>filter[&lt;field name&gt;]=&lt;field name&gt;</code></td> <td>an exact filter that will match a given field. The available fields to filter on are <code>registry_name</code>, <code>provider</code>, and <code>organization_name</code>.</td> </tr> <tr> <td><code>page[number]=&lt;page&gt;</code></td> <td>which page to return from the paginated results</td> </tr> <tr> <td><code>page[size]=&lt;size&gt;</code></td> <td>size of pages to return with the paginated results. The default is <code>20</code> with a max of <code>100</code>
+</td> </tr> </tbody>
+</table> <h3 id="sample-request">  Sample Request </h3> <pre data-language="shell">curl \
+  --request GET \
+  --header "Authorization: Bearer $TOKEN" \
+  https://app.terraform.io/api/v2/organizations/my-organization/registry-modules
+</pre>
+<h3 id="sample-response">  Sample Response </h3> <pre data-language="json">{
+  "data": [
+    {
+      "id": "mod-kwt1cBiX2SdDz38w",
+      "type": "registry-modules",
+      "attributes": {
+        "name": "api-gateway",
+        "namespace": "my-organization",
+        "provider": "alicloud",
+        "status": "setup_complete",
+        "version-statuses": [
+          {
+            "version": "1.1.0",
+            "status": "ok"
+          }
+        ],
+        "created-at": "2021-04-07T19:01:18.528Z",
+        "updated-at": "2021-04-07T19:01:19.863Z",
+        "registry-name": "private",
+        "permissions": {
+          "can-delete": true,
+          "can-resync": true,
+          "can-retry": true
+        }
+      },
+      "relationships": {
+        "organization": {
+          "data": {
+            "id": "my-organization",
+            "type": "organizations"
+          }
+        }
+      },
+      "links": {
+        "self": "/api/v2/organizations/my-organization/registry-modules/private/my-organization/api-gateway/alicloud"
+      }
+    },
+    {
+      "id": "mod-PopQnMtYDCcd3PRX",
+      "type": "registry-modules",
+      "attributes": {
+        "name": "aurora",
+        "namespace": "my-organization",
+        "provider": "aws",
+        "status": "setup_complete",
+        "version-statuses": [
+          {
+            "version": "4.1.0",
+            "status": "ok"
+          }
+        ],
+        "created-at": "2021-04-07T19:04:41.375Z",
+        "updated-at": "2021-04-07T19:04:42.828Z",
+        "registry-name": "private",
+        "permissions": {
+          "can-delete": true,
+          "can-resync": true,
+          "can-retry": true
+        }
+      },
+      "relationships": {
+        "organization": {
+          "data": {
+            "id": "my-organization",
+            "type": "organizations"
+          }
+        }
+      },
+      "links": {
+        "self": "/api/v2/organizations/my-organization/registry-modules/private/my-organization/aurora/aws"
+      }
+    },
+    ...,
+  ],
+  "links": {
+    "self": "https://app.terraform.io/api/v2/organizations/my-organization/registry-modules?page%5Bnumber%5D=1&amp;page%5Bsize%5D=6",
+    "first": "https://app.terraform.io/api/v2/organizations/my-organization/registry-modules?page%5Bnumber%5D=1&amp;page%5Bsize%5D=6",
+    "prev": null,
+    "next": "https://app.terraform.io/api/v2/organizations/my-organization/registry-modules?page%5Bnumber%5D=2&amp;page%5Bsize%5D=6",
+    "last": "https://app.terraform.io/api/v2/organizations/my-organization/registry-modules?page%5Bnumber%5D=29&amp;page%5Bsize%5D=6"
+  },
+  "meta": {
+    "pagination": {
+      "current-page": 1,
+      "page-size": 6,
+      "prev-page": null,
+      "next-page": 2,
+      "total-pages": 29,
+      "total-count": 169
+    }
+  }
+}
+</pre>
+<h2 id="publish-a-private-module-from-a-vcs">  Publish a Private Module from a VCS </h2> <blockquote class="alert alert-warning" role="alert"> <p><strong>Deprecation warning</strong>: the following endpoint <code>POST /registry-modules</code> is replaced by the below endpoint and will be removed from future versions of the API!</p> </blockquote> <p><code>POST /organizations/:organization_name/registry-modules/vcs</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:organization_name</code></td> <td>The name of the organization to create a module in. The organization must already exist, and the token authenticating the API request must belong to the "owners" team or a member of the "owners" team.</td> </tr> </tbody>
+</table> <p>Publishes a new registry private module from a VCS repository, with module versions managed automatically by the repository's tags. The publishing process will fetch all tags in the source repository that look like <a href="https://semver.org/">SemVer</a> versions with optional 'v' prefix. For each version, the tag is cloned and the config parsed to populate module details (input and output variables, readme, submodules, etc.). The <a href="../../registry/modules/publish#requirements">Module Registry Requirements</a> define additional requirements on naming, standard module structure and tags for releases.</p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/201">201</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "registry-modules"</code>)</td> <td>Successfully published module</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Malformed request body (missing attributes, wrong types, etc.)</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>User not authorized</td> </tr> </tbody>
+</table> <h3 id="request-body">  Request Body </h3> <p>This POST endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"registry-modules"</code>.</td> </tr> <tr> <td><code>data.attributes.vcs-repo.identifier</code></td> <td>string</td> <td></td> <td>The repository from which to ingress the configuration.</td> </tr> <tr> <td><code>data.attributes.vcs-repo.oauth-token-id</code></td> <td>string</td> <td></td> <td>The VCS Connection (OAuth Connection + Token) to use as identified. This ID can be obtained from the <a href="oauth-tokens">oauth-tokens</a> endpoint.</td> </tr> <tr> <td><code>data.attributes.vcs-repo.display_identifier</code></td> <td>string</td> <td></td> <td>The display identifier for the repository. For most VCS providers outside of BitBucket Cloud, this will match the <code>data.attributes.vcs-repo.identifier</code> string.</td> </tr> </tbody>
+</table> <p>A VCS repository identifier is a reference to a VCS repository in the format <code>:org/:repo</code>, where <code>:org</code> and <code>:repo</code> refer to the organization (or project key, for Bitbucket Server) and repository in your VCS provider. The format for Azure DevOps is <code>:org/:project/_git/:repo</code>.</p> <p>The OAuth Token ID identifies the VCS connection, and therefore the organization, that the module will be created in.</p> <h3 id="sample-payload">  Sample Payload </h3> <pre data-language="json">{
+  "data": {
+    "attributes": {
+      "vcs-repo": {
+        "identifier":"lafentres/terraform-aws-my-module",
+        "oauth-token-id":"ot-hmAyP66qk2AMVdbJ",
+        "display_identifier":"lafentres/terraform-aws-my-module"
+      }
+    },
+    "type":"registry-modules"
+  }
+}
+</pre>
+<h3 id="sample-request-1">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/organizations/my-organization/registry-modules/vcs
+</pre>
+<h3 id="sample-response-1">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id": "mod-fZn7uHu99ZCpAKZJ",
+    "type": "registry-modules",
+    "attributes": {
+      "name": "my-module",
+      "namespace": "my-organization",
+      "registry-name": "private",
+      "provider": "aws",
+      "status": "pending",
+      "version-statuses": [],
+      "created-at": "2020-07-09T19:36:56.288Z",
+      "updated-at": "2020-07-09T19:36:56.288Z",
+      "vcs-repo": {
+        "branch": "",
+        "ingress-submodules": true,
+        "identifier": "lafentres/terraform-aws-my-module",
+        "display-identifier": "lafentres/terraform-aws-my-module",
+        "oauth-token-id": "ot-hmAyP66qk2AMVdbJ",
+        "webhook-url": "https://app.terraform.io/webhooks/vcs/a12b3456..."
+      },
+      "permissions": {
+        "can-delete": true,
+        "can-resync": true,
+        "can-retry": true
+      }
+    },
+    "relationships": {
+      "organization": {
+        "data": {
+          "id": "my-organization",
+          "type": "organizations"
+        }
+      }
+    },
+    "links": {
+      "self": "/api/v2/organizations/my-organization/registry-modules/private/my-organization/my-module/aws"
+    }
+  }
+}
+</pre>
+<h2 id="create-a-module-with-no-vcs-connection-">  Create a Module (with no VCS connection) </h2> <p><code>POST /organizations/:organization_name/registry-modules</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:organization_name</code></td> <td>The name of the organization to create a module in. The organization must already exist, and the token authenticating the API request must belong to the "owners" team or a member of the "owners" team.</td> </tr> </tbody>
+</table> <p>Creates a new registry module without a backing VCS repository.</p> <h4 id="private-modules">  Private modules </h4> <p>After creating a module, a version must be created and uploaded in order to be usable. Modules created this way do not automatically update with new versions; instead, you must explicitly create and upload each new version with the <a href="#create-a-module-version">Create a Module Version</a> endpoint.</p> <h4 id="public-modules">  Public modules </h4> <p>When created, the public module record will be available in the organization's registry module list. You cannot create versions for public modules as they are maintained in the public registry.</p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/201">201</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "registry-modules"</code>)</td> <td>Successfully published module</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Malformed request body (missing attributes, wrong types, etc.)</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403">403</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Forbidden - public module curation disabled</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>User not authorized</td> </tr> </tbody>
+</table> <h3 id="request-body-1">  Request Body </h3> <p>This POST endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"registry-modules"</code>.</td> </tr> <tr> <td><code>data.attributes.name</code></td> <td>string</td> <td></td> <td>The name of this module. May contain alphanumeric characters, with dashes and underscores allowed in non-leading or trailing positions. Maximum length is 64 characters.</td> </tr> <tr> <td><code>data.attributes.provider</code></td> <td>string</td> <td></td> <td>Specifies the Terraform provider that this module is used for. May contain alphanumeric characters. Maximum length is 64 characters.</td> </tr> <tr> <td><code>data.attributes.namespace</code></td> <td>string</td> <td></td> <td>The namespace of this module. The organization name for private modules. The namespace for public modules. May contain alphanumeric characters, with dashes and underscores allowed in non-leading or trailing positions. Maximum length is 64 characters.</td> </tr> <tr> <td><code>data.attributes.registry-name</code></td> <td>string</td> <td></td> <td>Indicates whether this is a publicly maintained module or private. Must be either <code>public</code> or <code>private</code>.</td> </tr> </tbody>
+</table> <h3 id="sample-payload-private-module-">  Sample Payload (private module) </h3> <pre data-language="json">{
+  "data": {
+    "type": "registry-modules",
+    "attributes": {
+      "name": "my-module",
+      "namespace": "my-organization",
+      "provider": "aws",
+      "registry-name": "private"
+    }
+  }
+}
+</pre>
+<h3 id="sample-payload-public-module-">  Sample Payload (public module) </h3> <pre data-language="json">{
+  "data": {
+    "type": "registry-modules",
+    "attributes": {
+      "name": "vpc",
+      "namespace": "terraform-aws-modules",
+      "provider": "aws",
+      "registry-name": "public"
+    }
+  }
+}
+</pre>
+<h3 id="sample-request-2">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/organizations/my-organization/registry-modules
+</pre>
+<h3 id="sample-response-private-module-">  Sample Response (private module) </h3> <pre data-language="json">{
+  "data": {
+    "id": "mod-fZn7uHu99ZCpAKZJ",
+    "type": "registry-modules",
+    "attributes": {
+      "name": "my-module",
+      "namespace": "my-organization",
+      "registry-name": "private",
+      "provider": "aws",
+      "status": "pending",
+      "version-statuses": [],
+      "created-at": "2020-07-09T19:36:56.288Z",
+      "updated-at": "2020-07-09T19:36:56.288Z",
+      "permissions": {
+        "can-delete": true,
+        "can-resync": true,
+        "can-retry": true
+      }
+    },
+    "relationships": {
+      "organization": {
+        "data": {
+          "id": "my-organization",
+          "type": "organizations"
+        }
+      }
+    },
+    "links": {
+      "self": "/api/v2/organizations/my-organization/registry-modules/private/my-organization/my-module/aws"
+    }
+  }
+}
+</pre>
+<h3 id="sample-response-public-module-">  Sample Response (public module) </h3> <pre data-language="json">{
+  "data": {
+    "id": "mod-fZn7uHu99ZCpAKZJ",
+    "type": "registry-modules",
+    "attributes": {
+      "name": "vpc",
+      "namespace": "terraform-aws-modules",
+      "registry-name": "public",
+      "provider": "aws",
+      "status": "pending",
+      "version-statuses": [],
+      "created-at": "2020-07-09T19:36:56.288Z",
+      "updated-at": "2020-07-09T19:36:56.288Z",
+      "permissions": {
+        "can-delete": true,
+        "can-resync": true,
+        "can-retry": true
+      }
+    },
+    "relationships": {
+      "organization": {
+        "data": {
+          "id": "my-organization",
+          "type": "organizations"
+        }
+      }
+    },
+    "links": {
+      "self": "/api/v2/organizations/my-organization/registry-modules/public/terraform-aws-modules/vpc/aws"
+    }
+  }
+}
+</pre>
+<h2 id="create-a-module-version">  Create a Module Version </h2> <blockquote class="alert alert-warning" role="alert"> <p><strong>Deprecation warning</strong>: the following endpoint <code>POST /registry-modules/:organization_name/:name/:provider/versions</code> is replaced by the below endpoint and will be removed from future versions of the API!</p> </blockquote> <p><code>POST /organizations/:organization_name/registry-modules/:registry_name/:namespace/:name/:provider/versions</code></p> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:organization_name</code></td> <td>The name of the organization to create a module in. The organization must already exist, and the token authenticating the API request must belong to the "owners" team or a member of the "owners" team.</td> </tr> <tr> <td><code>:namespace</code></td> <td>The namespace of the module for which the version is being created. For private modules this is the same as the <code>:organization_name</code> parameter</td> </tr> <tr> <td><code>:name</code></td> <td>The name of the module for which the version is being created.</td> </tr> <tr> <td><code>:provider</code></td> <td>The name of the provider for which the version is being created.</td> </tr> <tr> <td><code>:registry-name</code></td> <td>Must be <code>private</code>.</td> </tr> </tbody>
+</table> <p>Creates a new registry module version. This endpoint only applies to private modules without a VCS repository; VCS-linked modules automatically create new versions for new tags. After creating the version, the module should be uploaded to the returned upload link.</p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/201">201</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "registry-module-versions"</code>)</td> <td>Successfully published module version</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/422">422</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Malformed request body (missing attributes, wrong types, etc.)</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403">403</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Forbidden - not available for public modules</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>User not authorized</td> </tr> </tbody>
+</table> <h3 id="request-body-2">  Request Body </h3> <p>This POST endpoint requires a JSON object with the following properties as a request payload.</p> <p>Properties without a default value are required.</p> <table>
+<thead> <tr> <th>Key path</th> <th>Type</th> <th>Default</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>data.type</code></td> <td>string</td> <td></td> <td>Must be <code>"registry-module-versions"</code>.</td> </tr> <tr> <td><code>data.attributes.version</code></td> <td>string</td> <td></td> <td>A valid semver version string.</td> </tr> </tbody>
+</table> <h3 id="sample-payload-1">  Sample Payload </h3> <pre data-language="json">{
+  "data": {
+    "type": "registry-module-versions",
+    "attributes": {
+      "version": "1.2.3"
+    }
+  }
+}
+</pre>
+<h3 id="sample-request-3">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request POST \
+  --data @payload.json \
+  https://app.terraform.io/api/v2/organizations/my-organization/registry-modules/private/my-organization/my-module/aws/versions
+</pre>
+<h3 id="sample-response-2">  Sample Response </h3> <pre data-language="json">{
+  "data": {
+    "id": "modver-qjjF7ArLXJSWU3WU",
+    "type": "registry-module-versions",
+    "attributes": {
+      "source": "tfe-api",
+      "status": "pending",
+      "version": "1.2.3",
+      "created-at": "2018-09-24T20:47:20.931Z",
+      "updated-at": "2018-09-24T20:47:20.931Z"
+    },
+    "relationships": {
+      "registry-module": {
+        "data": {
+          "id": "1881",
+          "type": "registry-modules"
+        }
+      }
+    },
+    "links": {
+      "upload": "https://archivist.terraform.io/v1/object/dmF1bHQ6djE6NWJPbHQ4QjV4R1ox..."
+    }
+  }
+}
+</pre>
+<h2 id="upload-a-module-version-private-module-">  Upload a Module Version (private module) </h2> <p><code>PUT https://archivist.terraform.io/v1/object/&lt;UNIQUE OBJECT ID&gt;</code></p> <p><strong>The URL is provided in the <code>upload</code> links attribute in the <code>registry-module-versions</code> resource.</strong></p> <h3 id="expected-archive-format">  Expected Archive Format </h3> <p>Terraform Cloud expects the module version uploaded to be a tarball with the module in the root (not in a subdirectory).</p> <p>Given the following folder structure:</p> <pre>terraform-null-test
+├── README.md
+├── examples
+│   └── default
+│       ├── README.md
+│       └── main.tf
+└── main.tf
+</pre>
+<p>Package the files in an archive format by running <code>tar zcvf module.tar.gz *</code> in the module's directory.</p> <pre>~$ cd terraform-null-test
+terraform-null-test$ tar zcvf module.tar.gz *
+a README.md
+a examples
+a examples/default
+a examples/default/main.tf
+a examples/default/README.md
+a main.tf
+</pre>
+<h3 id="sample-request-4">  Sample Request </h3> <pre data-language="shell">curl \
+  --header "Content-Type: application/octet-stream" \
+  --request PUT \
+  --data-binary @module.tar.gz \
+  https://archivist.terraform.io/v1/object/dmF1bHQ6djE6NWJPbHQ4QjV4R1ox...
+</pre>
+<p>After the registry module version is successfully parsed, its status will become <code>"ok"</code>.</p> <h2 id="get-a-module">  GET a Module </h2> <blockquote class="alert alert-warning" role="alert"> <p><strong>Deprecation warning</strong>: the following endpoint <code>GET /registry-modules/show/:organization_name/:name/:provider</code> is replaced by the below endpoint and will be removed from future versions of the API!</p> </blockquote> <p><code>GET /organizations/:organization_name/registry-modules/:registry_name/:namespace/:name/:provider</code></p> <h3 id="parameters">  Parameters </h3> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:organization_name</code></td> <td>The name of the organization the module belongs to.</td> </tr> <tr> <td><code>:namespace</code></td> <td>The namespace of the module. For private modules this is the name of the organization that owns the module.</td> </tr> <tr> <td><code>:name</code></td> <td>The module name.</td> </tr> <tr> <td><code>:provider</code></td> <td>The module provider.</td> </tr> <tr> <td><code>:registry-name</code></td> <td>Either <code>public</code> or <code>private</code>.</td> </tr> </tbody>
+</table> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/200">200</a></td> <td>
+<a href="index#json-api-documents">JSON API document</a> (<code>type: "registry-modules"</code>)</td> <td>The request was successful</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403">403</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Forbidden - public module curation disabled</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Module not found or user unauthorized to perform action</td> </tr> </tbody>
+</table> <h3 id="sample-request-private-module-">  Sample Request (private module) </h3> <pre data-language="shell">curl \
+  --request GET \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  https://app.terraform.io/api/v2/organizations/my-organization/registry-modules/private/my-organization/my-module/aws
+</pre>
+<h3 id="sample-request-public-module-">  Sample Request (public module) </h3> <pre data-language="shell">curl \
+  --request GET \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  https://app.terraform.io/api/v2/organizations/my-organization/registry-modules/public/terraform-aws-modules/vpc/aws
+</pre>
+<h3 id="sample-response-private-module--1">  Sample Response (private module) </h3> <pre data-language="json">{
+  "data": {
+    "id": "mod-fZn7uHu99ZCpAKZJ",
+    "type": "registry-modules",
+    "attributes": {
+      "name": "my-module",
+      "provider": "aws",
+      "namespace": "my-organization",
+      "registry-name": "private",
+      "status": "setup_complete",
+      "version-statuses": [
+        {
+          "version": "1.0.0",
+          "status": "ok"
+        }
+      ],
+      "created-at": "2020-07-09T19:36:56.288Z",
+      "updated-at": "2020-07-09T20:16:20.538Z",
+      "vcs-repo": {
+        "branch": "",
+        "ingress-submodules": true,
+        "identifier": "lafentres/terraform-aws-my-module",
+        "display-identifier": "lafentres/terraform-aws-my-module",
+        "oauth-token-id": "ot-hmAyP66qk2AMVdbJ",
+        "webhook-url": "https://app.terraform.io/webhooks/vcs/a12b3456..."
+      },
+      "permissions": {
+        "can-delete": true,
+        "can-resync": true,
+        "can-retry": true
+      }
+    },
+    "relationships": {
+      "organization": {
+        "data": {
+          "id": "my-organization",
+          "type": "organizations"
+        }
+      }
+    },
+    "links": {
+      "self": "/api/v2/organizations/my-organization/registry-modules/private/my-organization/my-module/aws"
+    }
+  }
+}
+</pre>
+<h3 id="sample-response-public-module--1">  Sample Response (public module) </h3> <pre data-language="json">{
+  "data": {
+    "id": "mod-fZn7uHu99ZCpAKZJ",
+    "type": "registry-modules",
+    "attributes": {
+      "name": "vpc",
+      "provider": "aws",
+      "namespace": "terraform-aws-modules",
+      "registry-name": "public",
+      "status": "setup_complete",
+      "version-statuses": [],
+      "created-at": "2020-07-09T19:36:56.288Z",
+      "updated-at": "2020-07-09T20:16:20.538Z",
+      "permissions": {
+        "can-delete": true,
+        "can-resync": true,
+        "can-retry": true
+      }
+    },
+    "relationships": {
+      "organization": {
+        "data": {
+          "id": "my-organization",
+          "type": "organizations"
+        }
+      }
+    },
+    "links": {
+      "self": "/api/v2/organizations/my-organization/registry-modules/public/terraform-aws-modules/vpc/aws"
+    }
+  }
+}
+</pre>
+<h2 id="delete-a-module">  Delete a Module </h2> <blockquote class="alert alert-warning" role="alert"> <p><strong>Deprecation warning</strong>: the following endpoints:</p> <ul> <li>
+<a href="#post-registry-modules-actions-delete-organization_name-name-provider-version"><code>POST /registry-modules/actions/delete/:organization_name/:name/:provider/:version</code></a> </li> <li>
+<a href="#post-registry-modules-actions-delete-organization_name-name-provider"><code>POST /registry-modules/actions/delete/:organization_name/:name/:provider</code></a> </li> <li>
+<a href="#post-registry-modules-actions-delete-organization_name-name"><code>POST /registry-modules/actions/delete/:organization_name/:name</code></a> </li> </ul> <p>are replaced by the below endpoints and will be removed from future versions of the API!</p> </blockquote> <ul> <li>
+<a href="#delete-organizations-organization_name-registry-modules-registry_name-namespace-name-provider-version"><code>DELETE /organizations/:organization_name/registry-modules/:registry_name/:namespace/:name/:provider/:version</code></a> </li> <li>
+<a href="#delete-organizations-organization_name-registry-modules-registry_name-namespace-name-provider"><code>DELETE /organizations/:organization_name/registry-modules/:registry_name/:namespace/:name/:provider</code></a> </li> <li>
+<a href="#delete-organizations-organization_name-registry-modules-registry_name-namespace-name"><code>DELETE /organizations/:organization_name/registry-modules/:registry_name/:namespace/:name</code></a> </li> </ul> <h3 id="parameters-1">  Parameters </h3> <table>
+<thead> <tr> <th>Parameter</th> <th>Description</th> </tr> </thead>
+<tbody> <tr> <td><code>:organization_name</code></td> <td>The name of the organization to delete a module from. The organization must already exist, and the token authenticating the API request must belong to the "owners" team or a member of the "owners" team.</td> </tr> <tr> <td><code>:namespace</code></td> <td>The module namespace that the deletion will affect. For private modules this is the name of the organization that owns the module.</td> </tr> <tr> <td><code>:name</code></td> <td>The module name that the deletion will affect.</td> </tr> <tr> <td><code>:provider</code></td> <td>If specified, the provider for the module that the deletion will affect.</td> </tr> <tr> <td><code>:version</code></td> <td>If specified, the version for the module and provider that will be deleted.</td> </tr> <tr> <td><code>:registry_name</code></td> <td>Either <code>public</code> or <code>private</code>
+</td> </tr> </tbody>
+</table> <p>When removing modules, there are three versions of the endpoint, depending on how many parameters are specified.</p> <ul> <li>If all parameters (module namespace, name, provider, and version) are specified, the specified version for the given provider of the module is deleted. </li> <li>If module namespace, name, and provider are specified, the specified provider for the given module is deleted along with all its versions. </li> <li>If only module namespace and name are specified, the entire module is deleted. </li> </ul> <p>For public modules, only the the endpoint specifying the module namespace and name is valid. The other DELETE endpoints will 404. For public modules, this only removes the record from the organization's Terraform Cloud Registry and does not remove the public module from registry.terraform.io.</p> <p>If a version deletion would leave a provider with no versions, the provider will be deleted. If a provider deletion would leave a module with no providers, the module will be deleted.</p> <table>
+<thead> <tr> <th>Status</th> <th>Response</th> <th>Reason</th> </tr> </thead>
+<tbody> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204">204</a></td> <td>Nothing</td> <td>Success</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403">403</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Forbidden - public module curation disabled</td> </tr> <tr> <td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404">404</a></td> <td><a href="https://jsonapi.org/format/#error-objects">JSON API error object</a></td> <td>Module, provider, or version not found or user not authorized</td> </tr> </tbody>
+</table> <h3 id="sample-request-public-module--1">  Sample Request (public module) </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request DELETE \
+  https://app.terraform.io/api/v2/organization/my-organization/registry-modules/public/terraform-aws-modules/vpc/aws
+</pre>
+<h3 id="sample-request-private-module--1">  Sample Request (private module) </h3> <pre data-language="shell">curl \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "Content-Type: application/vnd.api+json" \
+  --request DELETE \
+  https://app.terraform.io/api/v2/organization/my-organization/registry-modules/private/my-organization/my-module/aws/2.0.0
+</pre><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/cloud/api/modules.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/cloud/api/modules.html</a>
+  </p>
+</div>

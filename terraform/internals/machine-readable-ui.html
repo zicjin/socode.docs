@@ -1,0 +1,384 @@
+ <h1 id="machine-readable-ui">  Machine Readable UI </h1> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> This format is available in Terraform 0.15.3 and later.</p> </blockquote> <p>By default, many Terraform commands display UI output as unstructured text, intended to be read by a user via a terminal emulator. This text stream is not a stable interface for integrations. Some commands support a <code>-json</code> flag, which enables a structured JSON output mode with a defined interface.</p> <p>For long-running commands such as <code>plan</code>, <code>apply</code>, and <code>refresh</code>, the <code>-json</code> flag outputs a stream of JSON UI messages, one per line. These can be processed one message at a time, with integrating software filtering, combining, or modifying the output as desired.</p> <blockquote class="alert alert-info" role="alert"> <p><strong>Note:</strong> The first message output has type <code>version</code>, and includes a <code>ui</code> key, which currently has major version zero to indicate that the format is experimental and subject to change. A future version will assign a non-zero major version and make stronger promises about compatibility. We do not anticipate any significant breaking changes to the format before its first major version, however.</p> </blockquote> <h2 id="sample-json-output">  Sample JSON Output </h2> <p>Below is sample output from running <code>terraform apply -json</code>:</p> <pre>{"@level":"info","@message":"Terraform 0.15.4","@module":"terraform.ui","@timestamp":"2021-05-25T13:32:41.275359-04:00","terraform":"0.15.4","type":"version","ui":"0.1.0"}
+{"@level":"info","@message":"random_pet.animal: Plan to create","@module":"terraform.ui","@timestamp":"2021-05-25T13:32:41.705503-04:00","change":{"resource":{"addr":"random_pet.animal","module":"","resource":"random_pet.animal","implied_provider":"random","resource_type":"random_pet","resource_name":"animal","resource_key":null},"action":"create"},"type":"planned_change"}
+{"@level":"info","@message":"Plan: 1 to add, 0 to change, 0 to destroy.","@module":"terraform.ui","@timestamp":"2021-05-25T13:32:41.705638-04:00","changes":{"add":1,"change":0,"remove":0,"operation":"plan"},"type":"change_summary"}
+{"@level":"info","@message":"random_pet.animal: Creating...","@module":"terraform.ui","@timestamp":"2021-05-25T13:32:41.825308-04:00","hook":{"resource":{"addr":"random_pet.animal","module":"","resource":"random_pet.animal","implied_provider":"random","resource_type":"random_pet","resource_name":"animal","resource_key":null},"action":"create"},"type":"apply_start"}
+{"@level":"info","@message":"random_pet.animal: Creation complete after 0s [id=smart-lizard]","@module":"terraform.ui","@timestamp":"2021-05-25T13:32:41.826179-04:00","hook":{"resource":{"addr":"random_pet.animal","module":"","resource":"random_pet.animal","implied_provider":"random","resource_type":"random_pet","resource_name":"animal","resource_key":null},"action":"create","id_key":"id","id_value":"smart-lizard","elapsed_seconds":0},"type":"apply_complete"}
+{"@level":"info","@message":"Apply complete! Resources: 1 added, 0 changed, 0 destroyed.","@module":"terraform.ui","@timestamp":"2021-05-25T13:32:41.869168-04:00","changes":{"add":1,"change":0,"remove":0,"operation":"apply"},"type":"change_summary"}
+{"@level":"info","@message":"Outputs: 1","@module":"terraform.ui","@timestamp":"2021-05-25T13:32:41.869280-04:00","outputs":{"pets":{"sensitive":false,"type":"string","value":"smart-lizard"}},"type":"outputs"}
+</pre>
+<p>Each line consists of a JSON object with several keys common to all messages. These are:</p> <ul> <li>
+<a href="#level"><code>@level</code></a>: this is normally "info", but can be "error" or "warn" when showing diagnostics </li> <li>
+<a href="#message"><code>@message</code></a>: a human-readable summary of the contents of this message </li> <li>
+<a href="#module"><code>@module</code></a>: always "terraform.ui" when rendering UI output </li> <li>
+<a href="#timestamp"><code>@timestamp</code></a>: an RFC3339 timestamp of when the message was output </li> <li>
+<a href="#type"><code>type</code></a>: defines which kind of message this is and determines how to interpret other keys which may be present </li> </ul> <p>Clients presenting the logs as a user interface should handle unexpected message types by presenting at least the <code>@message</code> field to the user.</p> <p>Messages will be emitted as events occur to trigger them. This means that messages related to several resources may be interleaved (if Terraform is running with concurrency above 1). The <a href="#resource-object"><code>resource</code> object value</a> can be used to link multiple messages about a single resource.</p> <h2 id="message-types">  Message Types </h2> <p>The following message types are supported:</p> <h3 id="generic-messages">  Generic Messages </h3> <ul> <li>
+<a href="#version"><code>version</code></a>: information about the Terraform version and the version of the schema used for the following messages </li> <li>
+<a href="#log"><code>log</code></a>: unstructured human-readable log lines </li> <li>
+<a href="#diagnostic"><code>diagnostic</code></a>: diagnostic warning or error messages; <a href="../cli/commands/validate#json">see the <code>terraform validate</code> docs for more details on the format</a> </li> </ul> <h3 id="operation-results">  Operation Results </h3> <ul> <li>
+<a href="#resource_drift"><code>resource_drift</code></a>: describes a detected change to a single resource made outside of Terraform </li> <li>
+<a href="#planned_change"><code>planned_change</code></a>: describes a planned change to a single resource </li> <li>
+<a href="#change_summary"><code>change_summary</code></a>: summary of all planned or applied changes </li> <li>
+<a href="#outputs"><code>outputs</code></a>: list of all root module outputs </li> </ul> <h3 id="resource-progress">  Resource Progress </h3> <ul> <li>
+<a href="#apply_start"><code>apply_start</code></a>, <code>apply_progress</code>, <code>apply_complete</code>, <code>apply_errored</code>: sequence of messages indicating progress of a single resource through apply </li> <li>
+<a href="#provision_start"><code>provision_start</code></a>, <code>provision_progress</code>, <code>provision_complete</code>, <code>provision_errored</code>: sequence of messages indicating progress of a single provisioner step </li> <li>
+<a href="#refresh_start"><code>refresh_start</code></a>, <code>refresh_complete</code>: sequence of messages indicating progress of a single resource through refresh </li> </ul> <h2 id="version-message">  Version Message </h2> <p>A machine-readable UI command output will always begin with a <code>version</code> message. The following message-specific keys are defined:</p> <ul> <li>
+<a href="#terraform"><code>terraform</code></a>: the Terraform version which emitted this message </li> <li>
+<a href="#ui"><code>ui</code></a>: the machine-readable UI schema version defining the meaning of the following messages </li> </ul> <h3 id="example">  Example </h3> <pre data-language="json">{
+  "@level": "info",
+  "@message": "Terraform 0.15.4",
+  "@module": "terraform.ui",
+  "@timestamp": "2021-05-25T13:32:41.275359-04:00",
+  "terraform": "0.15.4",
+  "type": "version",
+  "ui": "0.1.0"
+}
+</pre>
+<h2 id="resource-drift">  Resource Drift </h2> <p>If drift is detected during planning, Terraform will emit a <code>resource_drift</code> message for each resource which has changed outside of Terraform. This message has an embedded <code>change</code> object with the following keys:</p> <ul> <li>
+<a href="#resource"><code>resource</code></a>: object describing the address of the resource to be changed; see <a href="#resource-object">resource object</a> below for details </li> <li>
+<a href="#action"><code>action</code></a>: the action planned to be taken for the resource. Values: <code>update</code>, <code>delete</code>. </li> </ul> <p>This message does not include details about the exact changes which caused the change to be planned. That information is available in <a href="json-format">the JSON plan output</a>.</p> <h3 id="example-1">  Example </h3> <pre data-language="json">{
+  "@level": "info",
+  "@message": "random_pet.animal: Drift detected (update)",
+  "@module": "terraform.ui",
+  "@timestamp": "2021-05-25T13:32:41.705503-04:00",
+  "change": {
+    "resource": {
+      "addr": "random_pet.animal",
+      "module": "",
+      "resource": "random_pet.animal",
+      "implied_provider": "random",
+      "resource_type": "random_pet",
+      "resource_name": "animal",
+      "resource_key": null
+    },
+    "action": "update"
+  },
+  "type": "resource_drift"
+}
+</pre>
+<h2 id="planned-change">  Planned Change </h2> <p>At the end of a plan or before an apply, Terraform will emit a <code>planned_change</code> message for each resource which has changes to apply. This message has an embedded <code>change</code> object with the following keys:</p> <ul> <li>
+<a href="#resource-1"><code>resource</code></a>: object describing the address of the resource to be changed; see <a href="#resource-object">resource object</a> below for details </li> <li>
+<a href="#action-1"><code>action</code></a>: the action planned to be taken for the resource. Values: <code>noop</code>, <code>create</code>, <code>read</code>, <code>update</code>, <code>replace</code>, <code>delete</code>. </li> <li>
+<a href="#reason"><code>reason</code></a>: an optional reason for the change, currently only used when the action is <code>replace</code>. Values: <ul> <li>
+<a href="#tainted"><code>tainted</code></a>: resource was marked as tainted </li> <li>
+<a href="#requested"><code>requested</code></a>: user requested that the resource be replaced, for example via the <code>-replace</code> plan flag </li> <li>
+<a href="#cannot_update"><code>cannot_update</code></a>: changes to configuration force the resource to be deleted and created rather than updated </li> </ul> </li> </ul> <p>This message does not include details about the exact changes which caused the change to be planned. That information is available in <a href="json-format">the JSON plan output</a>.</p> <h3 id="example-2">  Example </h3> <pre data-language="json">{
+  "@level": "info",
+  "@message": "random_pet.animal: Plan to create",
+  "@module": "terraform.ui",
+  "@timestamp": "2021-05-25T13:32:41.705503-04:00",
+  "change": {
+    "resource": {
+      "addr": "random_pet.animal",
+      "module": "",
+      "resource": "random_pet.animal",
+      "implied_provider": "random",
+      "resource_type": "random_pet",
+      "resource_name": "animal",
+      "resource_key": null
+    },
+    "action": "create"
+  },
+  "type": "planned_change"
+}
+</pre>
+<h2 id="change-summary">  Change Summary </h2> <p>Terraform outputs a change summary when a plan or apply operation completes. Both message types include a <code>changes</code> object, which has the following keys:</p> <ul> <li>
+<a href="#add"><code>add</code></a>: count of resources to be created (including as part of replacement) </li> <li>
+<a href="#change"><code>change</code></a>: count of resources to be changed in-place </li> <li>
+<a href="#remove"><code>remove</code></a>: count of resources to be destroyed (including as part of replacement) </li> <li>
+<a href="#operation"><code>operation</code></a>: one of <code>plan</code>, <code>apply</code>, or <code>destroy</code> </li> </ul> <h3 id="example-3">  Example </h3> <pre data-language="json">{
+  "@level": "info",
+  "@message": "Apply complete! Resources: 1 added, 0 changed, 0 destroyed.",
+  "@module": "terraform.ui",
+  "@timestamp": "2021-05-25T13:32:41.869168-04:00",
+  "changes": {
+    "add": 1,
+    "change": 0,
+    "remove": 0,
+    "operation": "apply"
+  },
+  "type": "change_summary"
+}
+</pre>
+<h2 id="outputs-1">  Outputs </h2> <p>After a successful apply, a message with type <code>outputs</code> contains the values of all root module output values. This message contains an <code>outputs</code> object, the keys of which are the output names. The outputs values are objects with the following keys:</p> <ul> <li>
+<a href="#value-"><code>value:</code></a> the value of the output, encoded in JSON </li> <li>
+<a href="#type-1"><code>type</code></a>: the detected HCL type of the output value </li> <li>
+<a href="#sensitive"><code>sensitive</code></a>: boolean value, <code>true</code> if the output is sensitive and should be hidden from UI by default </li> </ul> <p>Note that <code>sensitive</code> outputs still include the <code>value</code> field, and integrating software should respect the sensitivity value as appropriate for the given use case.</p> <h3 id="example-4">  Example </h3> <pre data-language="json">{
+  "@level": "info",
+  "@message": "Outputs: 1",
+  "@module": "terraform.ui",
+  "@timestamp": "2021-05-25T13:32:41.869280-04:00",
+  "outputs": {
+    "pets": {
+      "sensitive": false,
+      "type": "string",
+      "value": "smart-lizard"
+    }
+  },
+  "type": "outputs"
+}
+</pre>
+<h2 id="operation-messages">  Operation Messages </h2> <p>Performing Terraform operations to a resource will often result in several messages being emitted. The message types include:</p> <ul> <li>
+<a href="#apply_start-1"><code>apply_start</code></a>: when starting to apply changes for a resource </li> <li>
+<a href="#apply_progress"><code>apply_progress</code></a>: periodically, showing elapsed time output </li> <li>
+<a href="#apply_complete"><code>apply_complete</code></a>: on successful operation completion </li> <li>
+<a href="#apply_errored"><code>apply_errored</code></a>: when an error is encountered during the operation </li> <li>
+<a href="#provision_start-1"><code>provision_start</code></a>: when starting a provisioner step </li> <li>
+<a href="#provision_progress"><code>provision_progress</code></a>: on provisioner output </li> <li>
+<a href="#provision_complete"><code>provision_complete</code></a>: on successful provisioning </li> <li>
+<a href="#provision_errored"><code>provision_errored</code></a>: when an error is enountered during provisioning </li> <li>
+<a href="#refresh_start-1"><code>refresh_start</code></a>: when reading a resource during refresh </li> <li>
+<a href="#refresh_complete"><code>refresh_complete</code></a>: on successful refresh </li> </ul> <p>Each of these messages has a <code>hook</code> object, which has different fields for each type. All hooks have a <a href="#resource-object"><code>resource</code> object</a> which identifies which resource is the subject of the operation.</p> <h2 id="apply-start">  Apply Start </h2> <p>The <code>apply_start</code> message <code>hook</code> object has the following keys:</p> <ul> <li>
+<a href="#resource-2"><code>resource</code></a>: a <a href="#resource-object"><code>resource</code> object</a> identifying the resource </li> <li>
+<a href="#action-2"><code>action</code></a>: the action to be taken for the resource. Values: <code>noop</code>, <code>create</code>, <code>read</code>, <code>update</code>, <code>replace</code>, <code>delete</code> </li> <li>
+<a href="#id_key"><code>id_key</code></a> and <code>id_value</code>: a key/value pair used to identify this instance of the resource, omitted when unknown </li> </ul> <h3 id="example-5">  Example </h3> <pre data-language="json">{
+  "@level": "info",
+  "@message": "random_pet.animal: Creating...",
+  "@module": "terraform.ui",
+  "@timestamp": "2021-05-25T13:32:41.825308-04:00",
+  "hook": {
+    "resource": {
+      "addr": "random_pet.animal",
+      "module": "",
+      "resource": "random_pet.animal",
+      "implied_provider": "random",
+      "resource_type": "random_pet",
+      "resource_name": "animal",
+      "resource_key": null
+    },
+    "action": "create"
+  },
+  "type": "apply_start"
+}
+</pre>
+<h2 id="apply-progress">  Apply Progress </h2> <p>The <code>apply_progress</code> message <code>hook</code> object has the following keys:</p> <ul> <li>
+<a href="#resource-3"><code>resource</code></a>: a <a href="#resource-object"><code>resource</code> object</a> identifying the resource </li> <li>
+<a href="#action-3"><code>action</code></a>: the action being taken for the resource. Values: <code>noop</code>, <code>create</code>, <code>read</code>, <code>update</code>, <code>replace</code>, <code>delete</code> </li> <li>
+<a href="#elapsed_seconds"><code>elapsed_seconds</code></a>: time elapsed since the apply operation started, expressed as an integer number of seconds </li> </ul> <h3 id="example-6">  Example </h3> <pre data-language="json">{
+  "@level": "info",
+  "@message": "null_resource.none[4]: Still creating... [30s elapsed]",
+  "@module": "terraform.ui",
+  "@timestamp": "2021-03-17T09:34:26.222465-04:00",
+  "hook": {
+    "resource": {
+      "addr": "null_resource.none[4]",
+      "module": "",
+      "resource": "null_resource.none[4]",
+      "implied_provider": "null",
+      "resource_type": "null_resource",
+      "resource_name": "none",
+      "resource_key": 4
+    },
+    "action": "create",
+    "elapsed_seconds": 30
+  },
+  "type": "apply_progress"
+}
+</pre>
+<h2 id="apply-complete">  Apply Complete </h2> <p>The <code>apply_complete</code> message <code>hook</code> object has the following keys:</p> <ul> <li>
+<a href="#resource-4"><code>resource</code></a>: a <a href="#resource-object"><code>resource</code> object</a> identifying the resource </li> <li>
+<a href="#action-4"><code>action</code></a>: the action taken for the resource. Values: <code>noop</code>, <code>create</code>, <code>read</code>, <code>update</code>, <code>replace</code>, <code>delete</code> </li> <li>
+<a href="#id_key-1"><code>id_key</code></a> and <code>id_value</code>: a key/value pair used to identify this instance of the resource, omitted when unknown </li> <li>
+<a href="#elapsed_seconds-1"><code>elapsed_seconds</code></a>: time elapsed since the apply operation started, expressed as an integer number of seconds </li> </ul> <h3 id="example-7">  Example </h3> <pre data-language="json">{
+  "@level": "info",
+  "@message": "random_pet.animal: Creation complete after 0s [id=smart-lizard]",
+  "@module": "terraform.ui",
+  "@timestamp": "2021-05-25T13:32:41.826179-04:00",
+  "hook": {
+    "resource": {
+      "addr": "random_pet.animal",
+      "module": "",
+      "resource": "random_pet.animal",
+      "implied_provider": "random",
+      "resource_type": "random_pet",
+      "resource_name": "animal",
+      "resource_key": null
+    },
+    "action": "create",
+    "id_key": "id",
+    "id_value": "smart-lizard",
+    "elapsed_seconds": 0
+  },
+  "type": "apply_complete"
+}
+</pre>
+<h2 id="apply-errored">  Apply Errored </h2> <p>The <code>apply_complete</code> message <code>hook</code> object has the following keys:</p> <ul> <li>
+<a href="#resource-5"><code>resource</code></a>: a <a href="#resource-object"><code>resource</code> object</a> identifying the resource </li> <li>
+<a href="#action-5"><code>action</code></a>: the action taken for the resource. Values: <code>noop</code>, <code>create</code>, <code>read</code>, <code>update</code>, <code>replace</code>, <code>delete</code> </li> <li>
+<a href="#elapsed_seconds-2"><code>elapsed_seconds</code></a>: time elapsed since the apply operation started, expressed as an integer number of seconds </li> </ul> <p>The exact detail of the error will be rendered as a separate <code>diagnostic</code> message.</p> <h3 id="example-8">  Example </h3> <pre data-language="json">{
+  "@level": "info",
+  "@message": "null_resource.none[0]: Creation errored after 10s",
+  "@module": "terraform.ui",
+  "@timestamp": "2021-03-26T16:38:54.013910-04:00",
+  "hook": {
+    "resource": {
+      "addr": "null_resource.none[0]",
+      "module": "",
+      "resource": "null_resource.none[0]",
+      "implied_provider": "null",
+      "resource_type": "null_resource",
+      "resource_name": "none",
+      "resource_key": 0
+    },
+    "action": "create",
+    "elapsed_seconds": 10
+  },
+  "type": "apply_errored"
+}
+</pre>
+<h2 id="provision-start">  Provision Start </h2> <p>The <code>provision_start</code> message <code>hook</code> object has the following keys:</p> <ul> <li>
+<a href="#resource-6"><code>resource</code></a>: a <a href="#resource-object"><code>resource</code> object</a> identifying the resource </li> <li>
+<a href="#provisioner"><code>provisioner</code></a>: the type of provisioner </li> </ul> <h3 id="example-9">  Example </h3> <pre data-language="json">{
+  "@level": "info",
+  "@message": "null_resource.none[0]: Provisioning with 'local-exec'...",
+  "@module": "terraform.ui",
+  "@timestamp": "2021-03-26T16:38:43.997431-04:00",
+  "hook": {
+    "resource": {
+      "addr": "null_resource.none[0]",
+      "module": "",
+      "resource": "null_resource.none[0]",
+      "implied_provider": "null",
+      "resource_type": "null_resource",
+      "resource_name": "none",
+      "resource_key": 0
+    },
+    "provisioner": "local-exec"
+  },
+  "type": "provision_start"
+}
+</pre>
+<h2 id="provision-progress">  Provision Progress </h2> <p>The <code>provision_progress</code> message <code>hook</code> object has the following keys:</p> <ul> <li>
+<a href="#resource-7"><code>resource</code></a>: a <a href="#resource-object"><code>resource</code> object</a> identifying the resource </li> <li>
+<a href="#provisioner-1"><code>provisioner</code></a>: the type of provisioner </li> <li>
+<a href="#output"><code>output</code></a>: the output log from the provisioner </li> </ul> <p>One <code>provision_progress</code> message is output for each log line received from the provisioner.</p> <h3 id="example-10">  Example </h3> <pre data-language="json">{
+  "@level": "info",
+  "@message": "null_resource.none[0]: (local-exec): Executing: [\"/bin/sh\" \"-c\" \"sleep 10 &amp;&amp; exit 1\"]",
+  "@module": "terraform.ui",
+  "@timestamp": "2021-03-26T16:38:43.997869-04:00",
+  "hook": {
+    "resource": {
+      "addr": "null_resource.none[0]",
+      "module": "",
+      "resource": "null_resource.none[0]",
+      "implied_provider": "null",
+      "resource_type": "null_resource",
+      "resource_name": "none",
+      "resource_key": 0
+    },
+    "provisioner": "local-exec",
+    "output": "Executing: [\"/bin/sh\" \"-c\" \"sleep 10 &amp;&amp; exit 1\"]"
+  },
+  "type": "provision_progress"
+}
+</pre>
+<h2 id="provision-complete">  Provision Complete </h2> <p>The <code>provision_complete</code> message <code>hook</code> object has the following keys:</p> <ul> <li>
+<a href="#resource-8"><code>resource</code></a>: a <a href="#resource-object"><code>resource</code> object</a> identifying the resource </li> <li>
+<a href="#provisioner-2"><code>provisioner</code></a>: the type of provisioner </li> </ul> <h3 id="example-11">  Example </h3> <pre data-language="json">{
+  "@level": "info",
+  "@message": "null_resource.none[0]: (local-exec) Provisioning complete",
+  "@module": "terraform.ui",
+  "@timestamp": "2021-03-17T09:34:06.239043-04:00",
+  "hook": {
+    "resource": {
+      "addr": "null_resource.none[0]",
+      "module": "",
+      "resource": "null_resource.none[0]",
+      "implied_provider": "null",
+      "resource_type": "null_resource",
+      "resource_name": "none",
+      "resource_key": 0
+    },
+    "provisioner": "local-exec"
+  },
+  "type": "provision_complete"
+}
+</pre>
+<h2 id="provision-errored">  Provision Errored </h2> <p>The <code>provision_errored</code> message <code>hook</code> object has the following keys:</p> <ul> <li>
+<a href="#resource-9"><code>resource</code></a>: a <a href="#resource-object"><code>resource</code> object</a> identifying the resource </li> <li>
+<a href="#provisioner-3"><code>provisioner</code></a>: the type of provisioner </li> </ul> <h3 id="example-12">  Example </h3> <pre data-language="json">{
+  "@level": "info",
+  "@message": "null_resource.none[0]: (local-exec) Provisioning errored",
+  "@module": "terraform.ui",
+  "@timestamp": "2021-03-26T16:38:54.013572-04:00",
+  "hook": {
+    "resource": {
+      "addr": "null_resource.none[0]",
+      "module": "",
+      "resource": "null_resource.none[0]",
+      "implied_provider": "null",
+      "resource_type": "null_resource",
+      "resource_name": "none",
+      "resource_key": 0
+    },
+    "provisioner": "local-exec"
+  },
+  "type": "provision_errored"
+}
+</pre>
+<h2 id="refresh-start">  Refresh Start </h2> <p>The <code>refresh_start</code> message <code>hook</code> object has the following keys:</p> <ul> <li>
+<a href="#resource-10"><code>resource</code></a>: a <a href="#resource-object"><code>resource</code> object</a> identifying the resource </li> <li>
+<a href="#id_key-2"><code>id_key</code></a> and <code>id_value</code>: a key/value pair used to identify this instance of the resource </li> </ul> <h3 id="example-13">  Example </h3> <pre data-language="json">{
+  "@level": "info",
+  "@message": "null_resource.none[0]: Refreshing state... [id=1971614370559474622]",
+  "@module": "terraform.ui",
+  "@timestamp": "2021-03-26T14:18:06.508915-04:00",
+  "hook": {
+    "resource": {
+      "addr": "null_resource.none[0]",
+      "module": "",
+      "resource": "null_resource.none[0]",
+      "implied_provider": "null",
+      "resource_type": "null_resource",
+      "resource_name": "none",
+      "resource_key": 0
+    },
+    "id_key": "id",
+    "id_value": "1971614370559474622"
+  },
+  "type": "refresh_start"
+}
+</pre>
+<h2 id="refresh-complete">  Refresh Complete </h2> <p>The <code>refresh_complete</code> message <code>hook</code> object has the following keys:</p> <ul> <li>
+<a href="#resource-11"><code>resource</code></a>: a <a href="#resource-object"><code>resource</code> object</a> identifying the resource </li> <li>
+<a href="#id_key-3"><code>id_key</code></a> and <code>id_value</code>: a key/value pair used to identify this instance of the resource </li> </ul> <h3 id="example-14">  Example </h3> <pre data-language="json">{
+  "@level": "info",
+  "@message": "null_resource.none[0]: Refresh complete [id=1971614370559474622]",
+  "@module": "terraform.ui",
+  "@timestamp": "2021-03-26T14:18:06.509371-04:00",
+  "hook": {
+    "resource": {
+      "addr": "null_resource.none[0]",
+      "module": "",
+      "resource": "null_resource.none[0]",
+      "implied_provider": "null",
+      "resource_type": "null_resource",
+      "resource_name": "none",
+      "resource_key": 0
+    },
+    "id_key": "id",
+    "id_value": "1971614370559474622"
+  },
+  "type": "refresh_complete"
+}
+</pre>
+<h2 id="resource-object">  Resource Object </h2> <p>The <code>resource</code> object is a decomposed structure representing a resource address in configuration, which is used to identify which resource a given message is associated with. The object has the following keys:</p> <ul> <li>
+<a href="#addr"><code>addr</code></a>: the full unique address of the resource as a string </li> <li>
+<a href="#module-1"><code>module</code></a>: the address of the module containing the resource, in the form <code>module.foo.module.bar</code>, or an empty string for a root module resource </li> <li>
+<a href="#resource-12"><code>resource</code></a>: the module-relative address, which is identical to <code>addr</code> for root module resources </li> <li>
+<a href="#resource_type"><code>resource_type</code></a>: the type of resource being addressed </li> <li>
+<a href="#resource_name"><code>resource_name</code></a>: the name label for the resource </li> <li>
+<a href="#resource_key"><code>resource_key</code></a>: the address key (<code>count</code> or <code>for_each</code> value), or <code>null</code> if the neither are used </li> <li>
+<a href="#implied_provider"><code>implied_provider</code></a>: the provider type implied by the resource type; this may not reflect the resource's provider if provider aliases are used </li> </ul> <h3 id="example-15">  Example </h3> <pre data-language="json">{
+  "addr": "module.pets.random_pet.pet[\"friend\"]",
+  "module": "module.pets",
+  "resource": "random_pet.pet[\"friend\"]",
+  "implied_provider": "random",
+  "resource_type": "random_pet",
+  "resource_name": "pet",
+  "resource_key": "friend"
+}
+</pre><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/internals/machine-readable-ui.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/internals/machine-readable-ui.html</a>
+  </p>
+</div>

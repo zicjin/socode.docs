@@ -1,0 +1,50 @@
+<h1 class="devsite-page-title">tf.feature_column.embedding_column</h1>     <div itemscope itemtype="http://developers.google.com/ReferenceObject"> <meta itemprop="name" content="tf.feature_column.embedding_column"> <meta itemprop="path" content="Stable"> </div>  <table class="tfo-notebook-buttons tfo-api" align="left"> <td> <a target="_blank" href="https://www.tensorflow.org/versions/r1.15/api_docs/python/tf/feature_column/embedding_column">  TensorFlow 1 version</a> </td> <td> <a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/r2.1/tensorflow/python/feature_column/feature_column_v2.py#L820-L922">  View source on GitHub </a> </td>
+</table>  <p><code translate="no" dir="ltr">DenseColumn</code> that converts from sparse, categorical input.</p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">tf.feature_column.embedding_column(
+    categorical_column,
+    dimension,
+    combiner='mean',
+    initializer=None,
+    ckpt_to_load_from=None,
+    tensor_name_in_ckpt=None,
+    max_norm=None,
+    trainable=True
+)
+</pre> <h3 id="used_in_the_tutorials">Used in the tutorials:</h3> <ul> <li><a href="https://www.tensorflow.org/tutorials/structured_data/feature_columns">Classify structured data with feature columns</a></li> </ul> <p>Use this when your inputs are sparse, but you want to convert them to a dense representation (e.g., to feed to a DNN).</p> <p>Inputs must be a <code translate="no" dir="ltr">CategoricalColumn</code> created by any of the <code translate="no" dir="ltr">categorical_column_*</code> function. Here is an example of using <code translate="no" dir="ltr">embedding_column</code> with <code translate="no" dir="ltr">DNNClassifier</code>:</p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">video_id = categorical_column_with_identity(
+    key='video_id', num_buckets=1000000, default_value=0)
+columns = [embedding_column(video_id, 9),...]
+
+estimator = tf.estimator.DNNClassifier(feature_columns=columns, ...)
+
+label_column = ...
+def input_fn():
+  features = tf.io.parse_example(
+      ..., features=make_parse_example_spec(columns + [label_column]))
+  labels = features.pop(label_column.name)
+  return features, labels
+
+estimator.train(input_fn=input_fn, steps=100)
+</pre> <p>Here is an example using <code translate="no" dir="ltr">embedding_column</code> with model_fn:</p> <pre class="prettyprint lang-python" translate="no" dir="ltr" data-language="python">def model_fn(features, ...):
+  video_id = categorical_column_with_identity(
+      key='video_id', num_buckets=1000000, default_value=0)
+  columns = [embedding_column(video_id, 9),...]
+  dense_tensor = input_layer(features, columns)
+  # Form DNN layers, calculate loss, and return EstimatorSpec.
+  ...
+</pre> <h4 id="args">Args:</h4> <ul> <li>
+<b><code translate="no" dir="ltr">categorical_column</code></b>: A <code translate="no" dir="ltr">CategoricalColumn</code> created by a <code translate="no" dir="ltr">categorical_column_with_*</code> function. This column produces the sparse IDs that are inputs to the embedding lookup.</li> <li>
+<b><code translate="no" dir="ltr">dimension</code></b>: An integer specifying dimension of the embedding, must be &gt; 0.</li> <li>
+<b><code translate="no" dir="ltr">combiner</code></b>: A string specifying how to reduce if there are multiple entries in a single row. Currently 'mean', 'sqrtn' and 'sum' are supported, with 'mean' the default. 'sqrtn' often achieves good accuracy, in particular with bag-of-words columns. Each of this can be thought as example level normalizations on the column. For more information, see <code translate="no" dir="ltr">tf.embedding_lookup_sparse</code>.</li> <li>
+<b><code translate="no" dir="ltr">initializer</code></b>: A variable initializer function to be used in embedding variable initialization. If not specified, defaults to <code translate="no" dir="ltr">truncated_normal_initializer</code> with mean <code translate="no" dir="ltr">0.0</code> and standard deviation <code translate="no" dir="ltr">1/sqrt(dimension)</code>.</li> <li>
+<b><code translate="no" dir="ltr">ckpt_to_load_from</code></b>: String representing checkpoint name/pattern from which to restore column weights. Required if <code translate="no" dir="ltr">tensor_name_in_ckpt</code> is not <code translate="no" dir="ltr">None</code>.</li> <li>
+<b><code translate="no" dir="ltr">tensor_name_in_ckpt</code></b>: Name of the <code translate="no" dir="ltr">Tensor</code> in <code translate="no" dir="ltr">ckpt_to_load_from</code> from which to restore the column weights. Required if <code translate="no" dir="ltr">ckpt_to_load_from</code> is not <code translate="no" dir="ltr">None</code>.</li> <li>
+<b><code translate="no" dir="ltr">max_norm</code></b>: If not <code translate="no" dir="ltr">None</code>, embedding values are l2-normalized to this value.</li> <li>
+<b><code translate="no" dir="ltr">trainable</code></b>: Whether or not the embedding is trainable. Default is True.</li> </ul> <h4 id="returns">Returns:</h4> <p><code translate="no" dir="ltr">DenseColumn</code> that converts from sparse input.</p> <h4 id="raises">Raises:</h4> <ul> <li>
+<b><code translate="no" dir="ltr">ValueError</code></b>: if <code translate="no" dir="ltr">dimension</code> not &gt; 0.</li> <li>
+<b><code translate="no" dir="ltr">ValueError</code></b>: if exactly one of <code translate="no" dir="ltr">ckpt_to_load_from</code> and <code translate="no" dir="ltr">tensor_name_in_ckpt</code> is specified.</li> <li>
+<b><code translate="no" dir="ltr">ValueError</code></b>: if <code translate="no" dir="ltr">initializer</code> is specified and is not callable.</li> <li>
+<b><code translate="no" dir="ltr">RuntimeError</code></b>: If eager execution is enabled.</li> </ul> <h2 id="compat_aliases">Compat aliases</h2> <ul> <li><a href="embedding_column"><code translate="no" dir="ltr">tf.compat.v1.feature_column.embedding_column</code></a></li> <li><a href="embedding_column"><code translate="no" dir="ltr">tf.compat.v2.feature_column.embedding_column</code></a></li> </ul>  <devsite-page-rating position="footer" selected-rating="0" hover-rating-star="0"> </devsite-page-rating><div class="_attribution">
+  <p class="_attribution-p">
+    &copy; 2019 The TensorFlow Authors. All rights reserved.<br>Licensed under the Creative Commons Attribution License 3.0.<br>Code samples licensed under the Apache 2.0 License.<br>
+    <a href="https://www.tensorflow.org/api_docs/python/tf/feature_column/embedding_column" class="_attribution-link">https://www.tensorflow.org/api_docs/python/tf/feature_column/embedding_column</a>
+  </p>
+</div>

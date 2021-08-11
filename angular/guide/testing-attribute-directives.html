@@ -1,0 +1,104 @@
+   <h1 id="testing-attribute-directives">Testing Attribute Directives</h1> <p>An <em>attribute directive</em> modifies the behavior of an element, component or another directive. Its name reflects the way the directive is applied: as an attribute on a host element.</p> <blockquote class="alert is-helpful"> <p> For a hands-on experience you can <span name="testing" stackblitz="specs" nodownload="">run tests and explore the test code</span> in your browser as your read this guide.</p> <p> If you'd like to experiment with the application that this guide describes, you can <span name="testing" nodownload="">run it in your browser</span> or <span name="testing" downloadonly="">download and run it locally</span>.</p> </blockquote> <h2 id="testing-the-highlightdirective">Testing the <code>HighlightDirective</code>
+</h2> <p>The sample application's <code>HighlightDirective</code> sets the background color of an element based on either a data bound color or a default color (lightgray). It also sets a custom property of the element (<code>customProperty</code>) to <code>true</code> for no reason other than to show that it can.</p> <pre header="app/shared/highlight.directive.ts" data-language="typescript">import { Directive, ElementRef, Input, OnChanges } from '@angular/core';
+
+@Directive({ selector: '[highlight]' })
+/**
+ * Set backgroundColor for the attached element to highlight color
+ * and set the element's customProperty to true
+ */
+export class HighlightDirective implements OnChanges {
+
+  defaultColor =  'rgb(211, 211, 211)'; // lightgray
+
+  @Input('highlight') bgColor = '';
+
+  constructor(private el: ElementRef) {
+    el.nativeElement.style.customProperty = true;
+  }
+
+  ngOnChanges() {
+    this.el.nativeElement.style.backgroundColor = this.bgColor || this.defaultColor;
+  }
+}</pre> <p>It's used throughout the application, perhaps most simply in the <code>AboutComponent</code>:</p> <pre header="app/about/about.component.ts" data-language="typescript">import { Component } from '@angular/core';
+@Component({
+  template: `
+  &lt;h2 highlight="skyblue"&gt;About&lt;/h2&gt;
+  &lt;h3&gt;Quote of the day:&lt;/h3&gt;
+  &lt;twain-quote&gt;&lt;/twain-quote&gt;
+  `
+})
+export class AboutComponent { }</pre> <p>Testing the specific use of the <code>HighlightDirective</code> within the <code>AboutComponent</code> requires only the techniques explored in the <a href="testing-components-scenarios#nested-component-tests">"Nested component tests"</a> section of <a href="testing-components-scenarios">Component testing scenarios</a>.</p> <pre header="app/about/about.component.spec.ts" data-language="typescript">beforeEach(() =&gt; {
+  fixture = TestBed.configureTestingModule({
+    declarations: [ AboutComponent, HighlightDirective ],
+    schemas:      [ CUSTOM_ELEMENTS_SCHEMA ]
+  })
+  .createComponent(AboutComponent);
+  fixture.detectChanges(); // initial binding
+});
+
+it('should have skyblue &lt;h2&gt;', () =&gt; {
+  const h2: HTMLElement = fixture.nativeElement.querySelector('h2');
+  const bgColor = h2.style.backgroundColor;
+  expect(bgColor).toBe('skyblue');
+});</pre> <p>However, testing a single use case is unlikely to explore the full range of a directive's capabilities. Finding and testing all components that use the directive is tedious, brittle, and almost as unlikely to afford full coverage.</p> <p><em>Class-only tests</em> might be helpful, but attribute directives like this one tend to manipulate the DOM. Isolated unit tests don't touch the DOM and, therefore, do not inspire confidence in the directive's efficacy.</p> <p>A better solution is to create an artificial test component that demonstrates all ways to apply the directive.</p> <pre header="app/shared/highlight.directive.spec.ts (TestComponent)" data-language="typescript">@Component({
+  template: `
+  &lt;h2 highlight="yellow"&gt;Something Yellow&lt;/h2&gt;
+  &lt;h2 highlight&gt;The Default (Gray)&lt;/h2&gt;
+  &lt;h2&gt;No Highlight&lt;/h2&gt;
+  &lt;input #box [highlight]="box.value" value="cyan"/&gt;`
+})
+class TestComponent { }</pre> <div class="lightbox"> <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAACfCAMAAACLDWbjAAAACXBIWXMAAAsTAAALEwEAmpwYAAABwlBMVEX////R0dHZ2dn8/PwAAADU1NTl5eXT09P//wAA/////9DY2Nick5PW1tZ0//9vtrba2toEBAMICAhHR0fe3t4GBgR4eHjJycnGxsarq6tjY2Pz8/MdHR0rKysODg48PDyysrLOzs6fn5/o6Ojc3NxMTEw0NDQvLy+ioqL19QBXV1fDw8PAwABubm7U1ACurq5QUABSUlLq6gBDQwAhISH+/gBcXFwxMQD+/v6lpaWQkJCpqQDZ2QD7+wCbmwD6+vr5+QC+vr4UFBSMjIxpaWni4uLe3gC2trbw8PA/Pz8LCwCYmJjKygDq6uqIiIiDg4Ps7OyFhQDg4OAmJgA5OTkXFxeVlQBYWACUlJT39/e9vQBDQ0MrKwAlJSVmZgBwcADk5ABzc3ONjQC6urqbm5s6OgAUFAB3dwB7e3vv7wC6ugBJSQAQEAD//3TPzwAoKCiwsAB+fgBgYACAgIBrawDGxgAbGwCjowC2tgBZ//8A8vIAjIxG0NAAlJQA+fkAVFQAb28A6ekAq6sAwcEAYmIAeXkA0NAA39/k5OQAuroAnZ0AyckANDRHq6sAQkJS//+k/////+WMu7v//3ODqamM19e5KYy+AAASo0lEQVR42uyYe1MaWxLAZbbPMrVTUzWYTAALH2TxMYKIDFwKGViMFpTI9RYhgoUIiAKiLAKC8jW29gtvnzNgwEBiUkndvRb9xzAO53T3r19nZO7f/OuQuRnI/yVIveTFa/gn6It6/0SQWDeQrmRbzccfUZCsFYuRp79Ktw9l/wt2FIvtxyje59rFbrk++CLWLhZrMf4Gvy+HfwBESwd6ivcxD8XvDj/6rHQAbp+eRACqpW/sUloJACjXKbDiaqja0OloC5/3+HoXIB39fpBoFnIsHvnud+71srih756nR70qeJRvbsygw4OoxdTYiMI0JJI8HwII/ACIO2Fysdt+7Tv3Fm755yB8M1T/5j6/UsHEudl9O8L/LBAXlgarhnrm+wqzrAOMg7xMWiaAAuuXgvLTQNwNgHwIN/pLrE21lKfWo3clt6aV+Fyxe4P35c6gJ8P9QuGGYtdMoLrdCgPx57o192BLzM/HNE2rh0OFlD7CSpFOJ6Rp7tjTGIjeAiR6+FlgxeBuZyP1L0GUVicbQRV+qs9dqrvph9/rdscm94gHKxbU1sBKpqFmsnIB9TaxAG5TgQTIjzn1Ae+prXq2mirKtXA4hfyJfL5HQdR2wAQP6FhSxaAo/lAVIJVKA1QoSf8BumV0Md/5nHEX9rsnyj/W0Ko/0+iUH9TSc5CYmqiVH9J93h9BW5VmDOkbmbDmwUcTp5Y7TUlMWY0lXW64+Xoeun5aO1CNRLEMqt2YNwAmnAnhDmAnqRDioymaCT8rrcYj/YvWyiMF4XmMTd5VR6oQhvuBTrUMNFwjc9mPs05u1bM0tiFTQEFbHf84iOKhGiNQbfJ8DcPo57UqJDDvkcy0c8StUhJIY0ixDfMY+A40mmy4oAvuBCSQEcOB54xLNmFddeE2zKfgqUdumXF8xrd0kCybSgUcsjxdh/c3g6YYihuTVmEHUD0AOC770NDGQfCKHicTlBBXN5J8DMuizUdrpaknuxLJU5K8l+8lWFa7zIUMcxVBGjEWZHzUhkQkmczCQ2kUxMOMq9FRkAwDSTFdeM3R/I0aLmIRqLTTezIUkskMzd4YSEfPZwPSXt6fpQiPHRkCirvtnwyi0L6ql5EWIsyfMLPSnQiCCtMBFJz+LwWJDDMyPt3pjGE5wp1VqjIwDhLGMmnh6GlAoqk/KqW0PMiuSH/K1LpJ6idThZoK6YErMCOTQUKDnS8FwVYJ1DE0+bFZ449VByDYVtkJ45eCoMtNnDVN9o1ci9BeydbqU0Ba7cFRVsXsuWRW6h3mwgSQLk3x8Bh5GQgOajlfeeg8m5naEKSPzaJ8CUKrqcV6JF3SKxG7HivflJp2jrQe9DNWSWMEcF4FmCOyayIIek2HAd/00ki+DKSUavVb2nPDTxnBm8QNO4PGeyTDpgt2kIdO7RyLsKKyKTQFBALsuxYd7OgW9rESgGx0CKLpILcMpIRToajwyZRCQVR/MzYC4tdBokOQzqC0KpMMY/FDhxUZZrmCEys1NrVwFgdo8h8hwc5MHKcR9pZ2G56ekUq+2OqnHrL09IrWTJ5+Eejx5KZvRP16jb7heVv0TMLU5XAopCudEn3JRHttRWOrYljRiZDfjbhypt6ns1Vz4VKM0Q3IFVVVPe3eaKv3kRJPqRymr4R7qxU1x3upqU6JngaJCEYr3ciE0o3By1i7GmMFmZn6ipJs8lr5ttLt66j+XKGSfaRFG8u5XLlmHa+unLdJ/2Cq2qonw/pN697ia4u+qnSDq3p+jX7k6vpiN71qtMp1STyOgrCVfQrC1yNZtY2156XPbkoateiihOhWzT18G03RqRtOxf68f3Uz8oBEDf9CK78epKfWelTKssf/lwZpQ4rWjxJK9//av6J4a5UKvgp4Or1f++PDf3/9DxyKluy5f/WvK3P/+cfrkLmZzGQmM5nJTGYyk5nMZCYzmclMdPnbv16HzP3TQF6FIIjxVcgrAiHCqBCjyK5TRBwsE8WJS4jkcEjTNpOpmsngMeFwv0MSCRFf4rsojoFcrmxbrdsrK/qH0xjHe+c0Z+JBfSWukL40Jpr3d1bvzZM3E/v2FM2i/WiP0CiYN7benG3erxDD1QvqxHAV5z5rm/t9B+Z95x8A4OTcJ8M7aR/v30lTNgevbbjSdu6zLd9buGdfCvH1+S0bbBomh91+vTTUPBYDLr5zjFsI2V+E9Ys/rldP1pZ3yLdBSPy348+FMff7qi9okN4BmI44w+7ShSSefQVE+HgAIL8XnRcy3G1wzzw9BJv5E9gsU1JC1gaayfuRrAkrd9dYjsSwYIIDuyRJgnUdVl8AYhQuF6+5z6W1eeogHAMRiOPiQiKrXwExSlsUhBOla0xhUBjTa51HkOO14ylOEOOyrlnaWP4MQpyLaywfCwBnBpYqyXn3IhCjdD9/NCSZ+/s9BnAAYhRXMFlvqDmRE596lBOfgwhGYl4EWNP9wQX0kzvCorNwtAWJwH05DYYg3KXv3E6etC/AMUc3yyBfDbySrjbJs0EwWaPzxLcnDkH2sK+GIMTuJAzko9N6qW8UDNtB5+dhMwQxclhjsCvQUeMMrtCqf/seQewc7VqLNbjCoitiqZDBdQAixddgkTgG9oXtpaW4iIY/4ebhJCD2U8Ngr2C2mqmCoUaCD+mYwQGHi8VVOBCGpcX6bQBipGckBTk+gQ8XaBrr5fDu3HcsfglyiiA7OCkNF3eLttU9kSzcAcyvHYui8+Ds09LSWVwk9q3l5cOg/QCvK6IO4jiy0WVrp7oDwgIsoqe0LOHwaUoQxL7cXF5edV6dw6pBtFCN82cronh6iLoWnOT4zSGWMHcBPqc4ciA+gVAdCOLb2veB6T2HBk5O4oZleVd4DiIE0fS6XTT+BgeOU8Cqt2KOPhzHRcun+aAjuEQLj8RPMG2ObRxXG8IgI9vYDLb93Uu9YrBCqf/cMYZlc2yYiRsyfPjj0zz4zOZl04bD+gHWLKJ9Ez3dwKBsrmJ5crsAp9JXQDaFtztolCP2ZbzHxl4fducTiEi9O7dIp7C0Ill8sM/ppSVw+wALgtkG81aB2NfRksNyDvITyFs0vjg8haiWN0RvUvhtHGTvBOQzy+78qnjKNC6CHBTEPRt1zEgWrDSa7+VhbU0GuZZEJD/guKAM128/7lOnJoHcmcU3cG52GNaxyrgr2uxEtNpgQUIQuOKImYE4fSMgEoIuDptdODJhIsZBRA6FMBC4d5BtJ7fNNN7hNBCMHDpwZxEuD2gd0rI4I2Q6yDsGsvW/9s2lN3ElC8BlXA5Cvp4xBgIYMAbzEgghJIQIGxQgAhQFEAIJhFggWLDLgtUknfez+z5mNJr5v3OqbAik02muRHeSOz4LY+Ljcn11ngXEYmnB3OJxmFTR8pJrBa2wTlIgHpBwLCTqIFZh4rWqVWUjEGo+QX8lEQeJaOyIgSQTFgCRIMHzJF68jJouUxChBgW76WzSGCOrGWM2ARljHA1Pp4lE6rlr0UenRbC00gxPw4kMY1jEao2k8rFD/58CofbVg10o2kFhnyMWUQxHiHjk2GGAgliFPMZdT5VWXXJbdyMQKHvZiGixLBurJ4vAeEpGTI2wlHGCL0B9WFik71e8oQ1BijoIx8BT/bQmCJMyMY51BQRGlPZCumtB/lGwJM/phARIdpuBQI0j+Y0LeZ5ZRIDJ4arAMUa15jwLi/AJBefXY2Qt2Pmpi4Do4xEHjQqcPj17RaQdG4BEuRUQHlJgUnQbFuFI61GuURA+IVGHXIKQhsOu11WqNxN5AiIKsODwEuFbXsMkEXA2e7gjMmCQLKwrD3f6J5FIbcYYMUJMn34krhIWKWd/BzInJByOW4IcM4zuqyQJ6dHKNyUcT0GV4ye9J5AMBYERqwcZGCRBSC1TgNcXguQKo92iIIwbJg8dG0PLPtS1JOOBBs8R4vgKdA75ijxftM4esBd2VGZdPGoRm3IeKMmB1jxZExhgkhIceay/VYEVyKdIA4KHrSqs8VzgJn4ysqCWsTJOq8Ji2WLUzzj+cITj4RDHHErYVYUIh9SK57SLgRF7raI+opV2AUaLBclokU8JCFesOkCi1QQMzrTIabhCjoeww6kE7Di3u6i5RZloNoKOdNgtGmuahewyzFiYVhYu5adiJmAfzaxNRYpCv5OKSkp+AnclJ+40GbPIcU0/9heFZZD4jXbJ4tmN+UejQKBb9TIcR25yZMM0EwTsuRlDRiT7FqvYDBhlzSIv2wFqEU4wdmZ0ZuSU04+kpwmpqnu5geF4okmuLf8kCPuZCdnS0UFIAfCQG7hJjTRgAqNOBHIFLvD0IeAQqYyHX/b+XbzoFQWR2ffSPRtPnxxZbDcF93JEDpoiPjzT0Tmm61q0v9/fs3Ov7HwXW9j1xlRvWI3dMMd/3bUKKyNCuD+1JmQ3/NIuejki7Fq6Kj/W/RIyhCtpZI138OGDpdXLWDZVFlQJ707TxhZfiMZTwrv5FIUTdh37wqYgKegkYnru5ayz4dONaCfEvLUI4fG+dUNdTpXlGqefV3bd3PICqj/uvLkcOZ0b62rttqafPVo07env5offpphiiimmmGKKKaaYYooppphiiimmbCIHTGkDLS00+FkTepxFhw5Hn5y2K/lhsuL7WqUlg8pQrmhT8s3AMDm3Ik/ONV4j8c3hkmdxxxje7CPEBbC8Nh5bjDoc3h9DUm9hjKUMOS1NcupLK8imFIz9DIsKjzFQTpQKaA5/eFxTYnoYL6fIlUENoUOMy5Y1raM4xq2V96Wj7ZEMYHJ2P0OXNdl+UeUogHGDIsowNQ5eU377ukWQL47tmeWbLsZ7CFmPcX7dwoUkxs2V997+FkFkssxDsjT15MsLpBEQOqM8gFDmTuhZjKyDBCkI2nE/81Q2uwbC5ZrbA/GNyVeeuMr+KZCvh3kJ5GsvXQOJdPEWLeJLt1WIAdfhEmTgTcaye75vgxRCaq3mAXJWlWPRYk3NhAiISw3JwXFnCcKAVooYLpXuNlqqmkmxBKRyMA7KIbh5AgEjZ2qDrYFoqOiCCe4bID4Z5ydV7Oisg7CLGAGLhBoYxwZwq72cCJexMqxQEDkLU2u0FyBCFONjDbEVyVXJHGNXY1wiINkkRFBOQJoMKWE0zB9tEaQEE8QB54CCNHGvg9oBnC+tghyH90AahmtBPuoOUB/jGUJV7Oepa+Fs3QfznSxdK2PH8SM0kXAWoSJWarprxUQER3AA8rJV19Jgqg3yq5YdsjoHObLYpShWPKsg5SH5ZtpvgCQApAQ6OEzA8VyPEZWmwMQSRHURkDTGuwCFcZ5dxIhMV4DcX9wyCOJpwBMQWMZuCbEQDZVVkGFhxbVQmIAMhrR0VDAeL4KdgEyfgci0dKiwUKUVkN0fBILIjy7sgToi/pJl6bPS385aBGRQGFPXgIqaeQ1kCisEFYMS/AQQGvAjHSTJolL2+yDI2cVDLaL3Id8GqWfxSGhHQfXngLAw+jGA1Fw4ytKH9L8HgtpVJZeL9QfoNRA0aJX9uUCrjZ6DJH8ICAl4AgKzhmAfNLAS+hoEZtAzgj0ISc07FkRxsFIQXwTxVN0Ri2+1IOogZFkApLAlkM5wUaqFXA5AwKd7Aor08C677H8hE8ToTGAeipv4Ia0jHiULFCzVax+TyB/EqSF9AcqzBzY+Qs5crL3QKjhoisvrfgs81Z29+naa30RWahSN2ueNE/OXWkqwNZSqiwccTfOSJCnVvXZm1oOzaD9Si0lSedaeQ7eZA9/KqwXfXJFcDq6pSFIj1B7DSzCVCrokJa15sb0HWvFkuFQ4hAHiKS8cj2uk9YTqldlSyyiKnYhgtCOFiX4Saspzz9LiA0HsHBx0LOLAyZMTUajvRMjrgPzsmIrkLTnhUqTdoccBuSGiaUTL4gv1DC3cZMl159GOE47g0AVmNvO8h21iaeySiEDL9JpaXzG0GgP0LoVt5fZ2NE1zNonff1MSucoB0dqTkqX3CQLpcybWfZpbDh68oraLZWvd12Zmcfd7/QSiM3fEcqNgvtJ+NZ8Uo93RqJucRd7xhylsXdPq7Pdrlaa1S8gUU0wxxRRTTDHFFFNMMcUUU0z5P5S3/Nekg/oWQTz9X95MvO0tgrgP//P3N5J/b9MgyP3LJ9sbyT+QCWKCfBSQ8+Xg5x8Z5OH24uzk7sF2f3Z+dntxbbs+vbv4/BFBbq+vLm9Ov9jOrm/uTu7/ODm7ePh8cf7xQH6/BI86v788uby6uj69BJBT29XFyQcEuT23PTycX345tX25/PX+4uTs7GOCfLo7/Xx7Y7v+7d52Ci7228npB7XIp5Ozuxub7QEMc3J6d3N9dXNjO/ly/lHryK+X13+Ngvj57Pxng/xzyyD//dsbyb+2CuLZL6C/hJjfGr8z+R9nzR0VmOnDbAAAAABJRU5ErkJggg==" alt="HighlightDirective spec in action" width="200" height="159"> </div> <blockquote class="alert is-helpful"> <p>The <code>&lt;input&gt;</code> case binds the <code>HighlightDirective</code> to the name of a color value in the input box. The initial value is the word "cyan" which should be the background color of the input box.</p> </blockquote> <p>Here are some tests of this component:</p> <pre header="app/shared/highlight.directive.spec.ts (selected tests)" data-language="typescript">beforeEach(() =&gt; {
+  fixture = TestBed.configureTestingModule({
+    declarations: [ HighlightDirective, TestComponent ]
+  })
+  .createComponent(TestComponent);
+
+  fixture.detectChanges(); // initial binding
+
+  // all elements with an attached HighlightDirective
+  des = fixture.debugElement.queryAll(By.directive(HighlightDirective));
+
+  // the h2 without the HighlightDirective
+  bareH2 = fixture.debugElement.query(By.css('h2:not([highlight])'));
+});
+
+// color tests
+it('should have three highlighted elements', () =&gt; {
+  expect(des.length).toBe(3);
+});
+
+it('should color 1st &lt;h2&gt; background "yellow"', () =&gt; {
+  const bgColor = des[0].nativeElement.style.backgroundColor;
+  expect(bgColor).toBe('yellow');
+});
+
+it('should color 2nd &lt;h2&gt; background w/ default color', () =&gt; {
+  const dir = des[1].injector.get(HighlightDirective) as HighlightDirective;
+  const bgColor = des[1].nativeElement.style.backgroundColor;
+  expect(bgColor).toBe(dir.defaultColor);
+});
+
+it('should bind &lt;input&gt; background to value color', () =&gt; {
+  // easier to work with nativeElement
+  const input = des[2].nativeElement as HTMLInputElement;
+  expect(input.style.backgroundColor).toBe('cyan', 'initial backgroundColor');
+
+  input.value = 'green';
+
+  // Dispatch a DOM event so that Angular responds to the input value change.
+  // In older browsers, such as IE, you might need a CustomEvent instead. See
+  // https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent/CustomEvent#Polyfill
+  input.dispatchEvent(new Event('input'));
+  fixture.detectChanges();
+
+  expect(input.style.backgroundColor).toBe('green', 'changed backgroundColor');
+});
+
+
+it('bare &lt;h2&gt; should not have a customProperty', () =&gt; {
+  expect(bareH2.properties.customProperty).toBeUndefined();
+});</pre> <p>A few techniques are noteworthy:</p> <ul> <li> <p>The <code>By.directive</code> predicate is a great way to get the elements that have this directive <em>when their element types are unknown</em>.</p> </li> <li> <p>The <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/:not"><code>:not</code> pseudo-class</a> in <code>By.css('h2:not([highlight])')</code> helps find <code>&lt;h2&gt;</code> elements that <em>do not</em> have the directive. <code>By.css('*:not([highlight])')</code> finds <em>any</em> element that does not have the directive.</p> </li> <li> <p><code><a href="../api/core/debugelement#styles" class="code-anchor">DebugElement.styles</a></code> affords access to element styles even in the absence of a real browser, thanks to the <code><a href="../api/core/debugelement" class="code-anchor">DebugElement</a></code> abstraction. But feel free to exploit the <code>nativeElement</code> when that seems easier or more clear than the abstraction.</p> </li> <li> <p>Angular adds a directive to the injector of the element to which it is applied. The test for the default color uses the injector of the second <code>&lt;h2&gt;</code> to get its <code>HighlightDirective</code> instance and its <code>defaultColor</code>.</p> </li> <li> <p><code><a href="../api/core/debugelement#properties" class="code-anchor">DebugElement.properties</a></code> affords access to the artificial custom property that is set by the directive.</p> </li> </ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://angular.io/guide/testing-attribute-directives" class="_attribution-link" target="_blank">https://angular.io/guide/testing-attribute-directives</a>
+  </p>
+</div>

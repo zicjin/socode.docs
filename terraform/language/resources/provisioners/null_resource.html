@@ -1,0 +1,32 @@
+ <h1 id="provisioners-without-a-resource">  Provisioners Without a Resource </h1> <p>If you need to run provisioners that aren't directly associated with a specific resource, you can associate them with a <code>null_resource</code>.</p> <p>Instances of <a href="https://registry.terraform.io/providers/hashicorp/null/latest/docs/resources/resource"><code>null_resource</code></a> are treated like normal resources, but they don't do anything. Like with any other resource, you can configure <a href="syntax">provisioners</a> and <a href="connection">connection details</a> on a <code>null_resource</code>. You can also use its <code>triggers</code> argument and any meta-arguments to control exactly where in the dependency graph its provisioners will run.</p> <h2 id="example-usage">  Example usage </h2> <pre data-language="ruby">resource "aws_instance" "cluster" {
+  count = 3
+
+  # ...
+}
+
+resource "null_resource" "cluster" {
+  # Changes to any instance of the cluster requires re-provisioning
+  triggers = {
+    cluster_instance_ids = "${join(",", aws_instance.cluster.*.id)}"
+  }
+
+  # Bootstrap script can run on any instance of the cluster
+  # So we just choose the first in this case
+  connection {
+    host = "${element(aws_instance.cluster.*.public_ip, 0)}"
+  }
+
+  provisioner "remote-exec" {
+    # Bootstrap script called with private_ip of each node in the cluster
+    inline = [
+      "bootstrap-cluster.sh ${join(" ", aws_instance.cluster.*.private_ip)}",
+    ]
+  }
+}
+</pre>
+<h2 id="argument-reference">  Argument Reference </h2> <p>In addition to meta-arguments supported by all resources, <code>null_resource</code> supports the following specific arguments:</p> <ul> <li>
+<a href="#triggers"><code>triggers</code></a> - A map of values which should cause this set of provisioners to re-run. Values are meant to be interpolated references to variables or attributes of other resources. </li> </ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/language/resources/provisioners/null_resource.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/language/resources/provisioners/null_resource.html</a>
+  </p>
+</div>

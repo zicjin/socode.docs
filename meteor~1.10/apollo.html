@@ -1,0 +1,37 @@
+<h2 id="introduction">Introduction</h2> <p>Apollo is a GraphQL client/server for transporting data. While it doesn’t yet have all the features that Meteor’s pub/sub system has, it provides a way to get data from any database – not just MongoDB.</p> <ul> <li><a href="https://www.apollographql.com/docs/" target="_blank" rel="noopener">Apollo docs</a></li> </ul> <p>You can get started with Apollo and Meteor by creating a new Meteor application with the Apollo skeleton:</p>  <pre class="line-numbers" style><code class="language-shell">meteor create apollo-app --apollo
+</code></pre> <h3 id="client">Apollo Client</h3> <p><a href="https://www.apollographql.com/docs/react/" target="_blank" rel="noopener">Apollo client docs</a></p> <h4 id="getting-data">Getting data</h4> <p>Instead of calling <code>Meteor.subscribe</code>, you will use <a href="https://www.apollographql.com/docs/react/data/queries/" target="_blank" rel="noopener">queries</a> to get data.</p> <p>The main difference with subscriptions is that queries get called only once (by default) and don’t get updated data like a subscription would. This is great for data that doesn’t change often and where you don’t need reactivity. </p> <h4 id="changing-data">Changing data</h4> <p>Instead of calling a Meteor method with <code>Meteor.call</code>, you use a function called <a href="https://www.apollographql.com/docs/react/data/mutations/" target="_blank" rel="noopener"><code>mutate</code></a> to run a <em>mutator</em>, which is GraphQL’s equivalent to a method.</p> <p>Mutators are only run on the server, but they can return an object which then can update the local cache without the need to call a query again.</p> <h3 id="server">Apollo Server</h3> <p><a href="https://www.apollographql.com/docs/apollo-server/" target="_blank" rel="noopener">Apollo server docs</a></p> <h4 id="getting-data-server">Getting data</h4> <p>Instead of using <code>Meteor.publish</code> to define publications, you write <a href="https://www.apollographql.com/docs/apollo-server/data/resolvers/" target="_blank" rel="noopener">resolve functions</a> – called <em>resolvers</em> – that fetch different types of data in the query.</p> <h4 id="changing-data-server">Changing data</h4> <p>Instead of using <code>Meteor.methods</code> to define methods, you write <a href="https://www.apollographql.com/docs/tutorial/mutation-resolvers/" target="_blank" rel="noopener">mutators</a> – functions that <em>mutate</em> (change) data.</p> <p>These are part of the resolver functions under <code>Mutation</code> key.</p> <h3 id="graphql">GraphQL</h3> <p>GraphQL is a query language for apps to get the data they want. Instead of the server deciding what’s in a publication, the client uses GraphQL to say exactly which fields of which objects it wants. </p> <ul> <li><a href="https://graphql.org/" target="_blank" rel="noopener">About GraphQL</a></li> <li><a href="https://medium.com/apollo-stack/the-basics-of-graphql-in-5-links-9e1dc4cac055" target="_blank" rel="noopener">Intro to GraphQL</a></li> <li><a href="https://medium.com/apollo-stack/how-do-i-graphql-2fcabfc94a01#.pfdj5bxxj" target="_blank" rel="noopener">GraphQL coming from REST</a></li> </ul> <h3 id="advanced">Advanced
+</h3>
+<p><a href="https://principledgraphql.com/" target="_blank" rel="noopener">Principled GraphQL</a></p> <h4 id="latency">Latency</h4> <p>Meteor publications are blocking by default, whereas multiple GraphQL queries are executed in parallel. Publications stream data to the client as it arrives, whereas all the resolvers in a GraphQL query have to return before the data is sent to the client. (Although GraphQL is discussing adding the ability to stream results to the client as they come in.)</p> <h3>Meteor specific</h3> <p>Meteor has a specific Apollo package which includes user object into the context of a query.</p>  <pre class="line-numbers" style><code class="language-shell">meteor add apollo
+</code></pre> <p>On server you import <code>getUser</code> function and include it into the context option when setting up Apollo server:</p>  <pre class="line-numbers" style><code class="language-javascript">import { ApolloServer } from 'apollo-server-express';
+import { getUser } from 'meteor/apollo';
+import typeDefs from '/imports/apollo/schema.graphql';
+import { resolvers } from '/server/resolvers';
+
+const server = new ApolloServer({
+  typeDefs,
+  resolvers,
+  context: async ({ req }) =&gt; ({
+    user: await getUser(req.headers.authorization)
+  })
+});
+</code></pre> <p>This will make user data available (if user is logged in) as the option in the query:</p>  <pre class="line-numbers" style><code class="language-javascript">{
+  Query: {
+    userUniverses: async (obj, { hideOrgs }, { user }) =&gt; {
+      if (!user) return null
+      const selector = { userId: user._id, }
+      if (hideOrgs) selector.organizationId = { $exists: false }
+      return UniversesCollection.find(selector).fetch()
+    }
+  }
+}
+</code></pre> <p>There are many other community packages that provide additional features or makes the initial setup easier, here is an incomplete list of some of them:</p> <ul> <li>
+<a href="https://atmospherejs.com/quave/graphql" target="_blank" rel="noopener">quave:graphql</a> - Utility package to create GraphQL setup in a standard way.</li> <li>
+<a href="https://atmospherejs.com/cultofcoders/apollo" target="_blank" rel="noopener">cultofcoders:apollo</a> - Meteor &amp; Apollo integration.</li> <li>
+<a href="https://atmospherejs.com/cultofcoders/graphql-loader" target="_blank" rel="noopener">cultofcoders:graphql-loader</a> - Easily load your GraphQL schema in your Meteor app!</li> <li>
+<a href="https://atmospherejs.com/cultofcoders/apollo-accounts" target="_blank" rel="noopener">cultofcoders:apollo-accounts</a> - Meteor accounts in GraphQL</li> <li>
+<a href="https://atmospherejs.com/swydo/blaze-apollo" target="_blank" rel="noopener">swydo:blaze-apollo</a> - Blaze integration for the Apollo Client</li> <li>
+<a href="https://atmospherejs.com/swydo/ddp-apollo" target="_blank" rel="noopener">swydo:ddp-apollo</a> - DDP link and server for Apollo. </li> </ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://guide.meteor.com/apollo.html" class="_attribution-link" target="_blank">https://guide.meteor.com/apollo.html</a>
+  </p>
+</div>

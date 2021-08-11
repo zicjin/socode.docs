@@ -1,0 +1,50 @@
+ <h1 id="command-output">  Command: output </h1> <p>The <code>terraform output</code> command is used to extract the value of an output variable from the state file.</p> <h2 id="usage">  Usage </h2> <p>Usage: <code>terraform output [options] [NAME]</code></p> <p>With no additional arguments, <code>output</code> will display all the outputs for the root module. If an output <code>NAME</code> is specified, only the value of that output is printed.</p> <p>The command-line flags are all optional. The list of available flags are:</p> <ul> <li>
+<a href="#json"><code>-json</code></a> - If specified, the outputs are formatted as a JSON object, with a key per output. If <code>NAME</code> is specified, only the output specified will be returned. This can be piped into tools such as <code>jq</code> for further processing. </li> <li>
+<a href="#raw"><code>-raw</code></a> - If specified, Terraform will convert the specified output value to a string and print that string directly to the output, without any special formatting. This can be convenient when working with shell scripts, but it only supports string, number, and boolean values. Use <code>-json</code> instead for processing complex data types. </li> <li>
+<a href="#no-color"><code>-no-color</code></a> - If specified, output won't contain any color. </li> <li>
+<a href="#state-path"><code>-state=path</code></a> - Path to the state file. Defaults to "terraform.tfstate". Ignored when <a href="../../language/state/remote">remote state</a> is used. </li> </ul> <h2 id="examples">  Examples </h2> <p>These examples assume the following Terraform output snippet.</p> <pre data-language="ruby">output "instance_ips" {
+  value = aws_instance.web.*.public_ip
+}
+
+output "lb_address" {
+  value = aws_alb.web.public_dns
+}
+
+output "password" {
+  sensitive = true
+  value = var.secret_password
+}
+</pre>
+<p>To list all outputs:</p> <pre>$ terraform output
+instance_ips = [
+  "54.43.114.12",
+  "52.122.13.4",
+  "52.4.116.53"
+]
+lb_address = "my-app-alb-1657023003.us-east-1.elb.amazonaws.com"
+password = &lt;sensitive&gt;
+</pre>
+<p>Note that outputs with the <code>sensitive</code> attribute will be redacted:</p> <pre>$ terraform output password
+password = &lt;sensitive&gt;
+</pre>
+<p>To query for the DNS address of the load balancer:</p> <pre>$ terraform output lb_address
+"my-app-alb-1657023003.us-east-1.elb.amazonaws.com"
+</pre>
+<p>To query for all instance IP addresses:</p> <pre>$ terraform output instance_ips
+instance_ips = [
+  "54.43.114.12",
+  "52.122.13.4",
+  "52.4.116.53"
+]
+</pre>
+<h2 id="use-in-automation">  Use in automation </h2> <p>The <code>terraform output</code> command by default displays in a human-readable format, which can change over time to improve clarity.</p> <p>For scripting and automation, use <code>-json</code> to produce the stable JSON format. You can parse the output using a JSON command-line parser such as <a href="https://stedolan.github.io/jq/">jq</a>:</p> <pre>$ terraform output -json instance_ips | jq -r '.[0]'
+54.43.114.12
+</pre>
+<p>For the common case of directly using a string value in a shell script, you can use <code>-raw</code> instead, which will print the string directly with no extra escaping or whitespace.</p> <pre>$ terraform output -raw lb_address
+my-app-alb-1657023003.us-east-1.elb.amazonaws.com
+</pre>
+<p>The <code>-raw</code> option works only with values that Terraform can automatically convert to strings. Use <code>-json</code> instead, possibly combined with <code>jq</code>, to work with complex-typed values such as objects.</p> <p>Terraform strings are sequences of Unicode characters rather than raw bytes, so the <code>-raw</code> output will be UTF-8 encoded when it contains non-ASCII characters. If you need a different character encoding, use a separate command such as <code>iconv</code> to transcode Terraform's raw output.</p><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.terraform.io/docs/cli/commands/output.html" class="_attribution-link" target="_blank">https://www.terraform.io/docs/cli/commands/output.html</a>
+  </p>
+</div>
