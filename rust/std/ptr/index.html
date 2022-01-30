@@ -1,172 +1,181 @@
 <h1 class="fqn">Module std::ptr</h1>
-<details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock">
-<p>Manually manage memory through raw pointers.</p> <p><em><a href="../primitive.pointer">See also the pointer primitive types</a>.</em></p> <h2 id="safety" class="section-header">Safety</h2> <p>Many functions in this module take raw pointers as arguments and read from or write to them. For this to be safe, these pointers must be <em>valid</em>. Whether a pointer is valid depends on the operation it is used for (read or write), and the extent of the memory that is accessed (i.e., how many bytes are read/written). Most functions use <code>*mut T</code> and <code>*const T</code> to access only a single value, in which case the documentation omits the size and implicitly assumes it to be <code>size_of::&lt;T&gt;()</code> bytes.</p> <p>The precise rules for validity are not determined yet. The guarantees that are provided at this point are very minimal:</p> <ul> <li>A <a href="fn.null" title="null">null</a> pointer is <em>never</em> valid, not even for accesses of <a href="https://doc.rust-lang.org/nomicon/exotic-sizes.html#zero-sized-types-zsts">size zero</a>.</li> <li>For a pointer to be valid, it is necessary, but not always sufficient, that the pointer be <em>dereferenceable</em>: the memory range of the given size starting at the pointer must all be within the bounds of a single allocated object. Note that in Rust, every (stack-allocated) variable is considered a separate allocated object.</li> <li>Even for operations of <a href="https://doc.rust-lang.org/nomicon/exotic-sizes.html#zero-sized-types-zsts">size zero</a>, the pointer must not be pointing to deallocated memory, i.e., deallocation makes pointers invalid even for zero-sized operations. However, casting any non-zero integer <em>literal</em> to a pointer is valid for zero-sized accesses, even if some memory happens to exist at that address and gets deallocated. This corresponds to writing your own allocator: allocating zero-sized objects is not very hard. The canonical way to obtain a pointer that is valid for zero-sized accesses is <a href="struct.nonnull#method.dangling" title="NonNull::dangling"><code>NonNull::dangling</code></a>.</li> <li>All accesses performed by functions in this module are <em>non-atomic</em> in the sense of <a href="../sync/atomic/index">atomic operations</a> used to synchronize between threads. This means it is undefined behavior to perform two concurrent accesses to the same location from different threads unless both accesses only read from memory. Notice that this explicitly includes <a href="fn.read_volatile" title="read_volatile"><code>read_volatile</code></a> and <a href="fn.write_volatile" title="write_volatile"><code>write_volatile</code></a>: Volatile accesses cannot be used for inter-thread synchronization.</li> <li>The result of casting a reference to a pointer is valid for as long as the underlying object is live and no reference (just raw pointers) is used to access the same memory.</li> </ul> <p>These axioms, along with careful use of <a href="../primitive.pointer#method.offset"><code>offset</code></a> for pointer arithmetic, are enough to correctly implement many useful things in unsafe code. Stronger guarantees will be provided eventually, as the <a href="https://doc.rust-lang.org/nomicon/aliasing.html">aliasing</a> rules are being determined. For more information, see the <a href="../../book/ch19-01-unsafe-rust#dereferencing-a-raw-pointer">book</a> as well as the section in the reference devoted to <a href="../../reference/behavior-considered-undefined">undefined behavior</a>.</p> <h3 id="alignment" class="section-header">Alignment</h3> <p>Valid raw pointers as defined above are not necessarily properly aligned (where “proper” alignment is defined by the pointee type, i.e., <code>*const T</code> must be aligned to <code>mem::align_of::&lt;T&gt;()</code>). However, most functions require their arguments to be properly aligned, and will explicitly state this requirement in their documentation. Notable exceptions to this are <a href="fn.read_unaligned" title="read_unaligned"><code>read_unaligned</code></a> and <a href="fn.write_unaligned" title="write_unaligned"><code>write_unaligned</code></a>.</p> <p>When a function requires proper alignment, it does so even if the access has size 0, i.e., even if memory is not actually touched. Consider using <a href="struct.nonnull#method.dangling" title="NonNull::dangling"><code>NonNull::dangling</code></a> in such cases.</p> <h3 id="allocated-object" class="section-header">Allocated object</h3> <p>For several operations, such as <a href="../primitive.pointer#method.offset"><code>offset</code></a> or field projections (<code>expr.field</code>), the notion of an “allocated object” becomes relevant. An allocated object is a contiguous region of memory. Common examples of allocated objects include stack-allocated variables (each variable is a separate allocated object), heap allocations (each allocation created by the global allocator is a separate allocated object), and <code>static</code> variables.</p> </div></details><h3 id="macros" class="section-header">Macros</h3> <table>
-<tr class="module-item">
-<td><a class="macro" href="macro.addr_of" title="std::ptr::addr_of macro">addr_of</a></td>
-<td class="docblock-short">
-<p>Create a <code>const</code> raw pointer to a place, without creating an intermediate reference.</p> </td>
-</tr>
-<tr class="module-item">
-<td><a class="macro" href="macro.addr_of_mut" title="std::ptr::addr_of_mut macro">addr_of_mut</a></td>
-<td class="docblock-short">
-<p>Create a <code>mut</code> raw pointer to a place, without creating an intermediate reference.</p> </td>
-</tr>
-</table>
-<h3 id="structs" class="section-header">Structs</h3> <table>
-<tr class="unstable module-item">
-<td><a class="struct" href="struct.dynmetadata" title="std::ptr::DynMetadata struct">DynMetadata</a></td>
-<td class="docblock-short">
-<span class="stab unstable" title="">Experimental</span><p>The metadata for a <code>Dyn = dyn SomeTrait</code> trait object type.</p> </td>
-</tr>
-<tr class="module-item">
-<td><a class="struct" href="struct.nonnull" title="std::ptr::NonNull struct">NonNull</a></td>
-<td class="docblock-short">
-<p><code>*mut T</code> but non-zero and covariant.</p> </td>
-</tr>
-</table>
-<h3 id="traits" class="section-header">Traits</h3> <table><tr class="unstable module-item">
-<td><a class="trait" href="trait.pointee" title="std::ptr::Pointee trait">Pointee</a></td>
-<td class="docblock-short">
-<span class="stab unstable" title="">Experimental</span><p>Provides the pointer metadata type of any pointed-to type.</p> </td>
-</tr></table>
-<h3 id="functions" class="section-header">Functions</h3> <table>
-<tr class="unstable module-item">
-<td><a class="fn" href="fn.from_raw_parts" title="std::ptr::from_raw_parts fn">from_raw_parts</a></td>
-<td class="docblock-short">
-<span class="stab unstable" title="">Experimental</span><p>Forms a (possibly-wide) raw pointer from a data address and metadata.</p> </td>
-</tr>
-<tr class="unstable module-item">
-<td><a class="fn" href="fn.from_raw_parts_mut" title="std::ptr::from_raw_parts_mut fn">from_raw_parts_mut</a></td>
-<td class="docblock-short">
-<span class="stab unstable" title="">Experimental</span><p>Performs the same functionality as <a href="fn.from_raw_parts" title="from_raw_parts"><code>from_raw_parts</code></a>, except that a raw <code>*mut</code> pointer is returned, as opposed to a raw <code>*const</code> pointer.</p> </td>
-</tr>
-<tr class="unstable module-item">
-<td><a class="fn" href="fn.metadata" title="std::ptr::metadata fn">metadata</a></td>
-<td class="docblock-short">
-<span class="stab unstable" title="">Experimental</span><p>Extract the metadata component of a pointer.</p> </td>
-</tr>
-<tr class="module-item">
-<td>
+<p>Manually manage memory through raw pointers.</p> <p><em><a href="../primitive.pointer">See also the pointer primitive types</a>.</em></p> <h3 id="safety" class="section-header">Safety</h3> <p>Many functions in this module take raw pointers as arguments and read from or write to them. For this to be safe, these pointers must be <em>valid</em>. Whether a pointer is valid depends on the operation it is used for (read or write), and the extent of the memory that is accessed (i.e., how many bytes are read/written). Most functions use <code>*mut T</code> and <code>*const T</code> to access only a single value, in which case the documentation omits the size and implicitly assumes it to be <code>size_of::&lt;T&gt;()</code> bytes.</p> <p>The precise rules for validity are not determined yet. The guarantees that are provided at this point are very minimal:</p> <ul> <li>A <a href="fn.null" title="null">null</a> pointer is <em>never</em> valid, not even for accesses of <a href="https://doc.rust-lang.org/nomicon/exotic-sizes.html#zero-sized-types-zsts">size zero</a>.</li> <li>For a pointer to be valid, it is necessary, but not always sufficient, that the pointer be <em>dereferenceable</em>: the memory range of the given size starting at the pointer must all be within the bounds of a single allocated object. Note that in Rust, every (stack-allocated) variable is considered a separate allocated object.</li> <li>Even for operations of <a href="https://doc.rust-lang.org/nomicon/exotic-sizes.html#zero-sized-types-zsts">size zero</a>, the pointer must not be pointing to deallocated memory, i.e., deallocation makes pointers invalid even for zero-sized operations. However, casting any non-zero integer <em>literal</em> to a pointer is valid for zero-sized accesses, even if some memory happens to exist at that address and gets deallocated. This corresponds to writing your own allocator: allocating zero-sized objects is not very hard. The canonical way to obtain a pointer that is valid for zero-sized accesses is <a href="struct.nonnull#method.dangling" title="NonNull::dangling"><code>NonNull::dangling</code></a>.</li> <li>All accesses performed by functions in this module are <em>non-atomic</em> in the sense of <a href="../sync/atomic/index">atomic operations</a> used to synchronize between threads. This means it is undefined behavior to perform two concurrent accesses to the same location from different threads unless both accesses only read from memory. Notice that this explicitly includes <a href="fn.read_volatile" title="read_volatile"><code>read_volatile</code></a> and <a href="fn.write_volatile" title="write_volatile"><code>write_volatile</code></a>: Volatile accesses cannot be used for inter-thread synchronization.</li> <li>The result of casting a reference to a pointer is valid for as long as the underlying object is live and no reference (just raw pointers) is used to access the same memory.</li> </ul> <p>These axioms, along with careful use of <a href="../primitive.pointer#method.offset"><code>offset</code></a> for pointer arithmetic, are enough to correctly implement many useful things in unsafe code. Stronger guarantees will be provided eventually, as the <a href="https://doc.rust-lang.org/nomicon/aliasing.html">aliasing</a> rules are being determined. For more information, see the <a href="../../book/ch19-01-unsafe-rust#dereferencing-a-raw-pointer">book</a> as well as the section in the reference devoted to <a href="../../reference/behavior-considered-undefined">undefined behavior</a>.</p> <h3 id="alignment" class="section-header">Alignment</h3> <p>Valid raw pointers as defined above are not necessarily properly aligned (where “proper” alignment is defined by the pointee type, i.e., <code>*const T</code> must be aligned to <code>mem::align_of::&lt;T&gt;()</code>). However, most functions require their arguments to be properly aligned, and will explicitly state this requirement in their documentation. Notable exceptions to this are <a href="fn.read_unaligned" title="read_unaligned"><code>read_unaligned</code></a> and <a href="fn.write_unaligned" title="write_unaligned"><code>write_unaligned</code></a>.</p> <p>When a function requires proper alignment, it does so even if the access has size 0, i.e., even if memory is not actually touched. Consider using <a href="struct.nonnull#method.dangling" title="NonNull::dangling"><code>NonNull::dangling</code></a> in such cases.</p> <h3 id="allocated-object" class="section-header">Allocated object</h3> <p>For several operations, such as <a href="../primitive.pointer#method.offset"><code>offset</code></a> or field projections (<code>expr.field</code>), the notion of an “allocated object” becomes relevant. An allocated object is a contiguous region of memory. Common examples of allocated objects include stack-allocated variables (each variable is a separate allocated object), heap allocations (each allocation created by the global allocator is a separate allocated object), and <code>static</code> variables.</p> <h2 id="macros" class="small-section-header">Macros</h2> <div class="item-table">
+<div class="item-row">
+<div class="item-left module-item"><a class="macro" href="macro.addr_of" title="std::ptr::addr_of macro">addr_of</a></div>
+<div class="item-right docblock-short">
+<p>Create a <code>const</code> raw pointer to a place, without creating an intermediate reference.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left module-item"><a class="macro" href="macro.addr_of_mut" title="std::ptr::addr_of_mut macro">addr_of_mut</a></div>
+<div class="item-right docblock-short">
+<p>Create a <code>mut</code> raw pointer to a place, without creating an intermediate reference.</p> </div>
+</div>
+</div>
+<h2 id="structs" class="small-section-header">Structs</h2> <div class="item-table">
+<div class="item-row">
+<div class="item-left unstable module-item">
+<a class="struct" href="struct.dynmetadata" title="std::ptr::DynMetadata struct">DynMetadata</a><span class="stab unstable" title="">Experimental</span>
+</div>
+<div class="item-right docblock-short">
+<p>The metadata for a <code>Dyn = dyn SomeTrait</code> trait object type.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left module-item"><a class="struct" href="struct.nonnull" title="std::ptr::NonNull struct">NonNull</a></div>
+<div class="item-right docblock-short">
+<p><code>*mut T</code> but non-zero and covariant.</p> </div>
+</div>
+</div>
+<h2 id="traits" class="small-section-header">Traits</h2> <div class="item-table"><div class="item-row">
+<div class="item-left unstable module-item">
+<a class="trait" href="trait.pointee" title="std::ptr::Pointee trait">Pointee</a><span class="stab unstable" title="">Experimental</span>
+</div>
+<div class="item-right docblock-short">
+<p>Provides the pointer metadata type of any pointed-to type.</p> </div>
+</div></div>
+<h2 id="functions" class="small-section-header">Functions</h2> <div class="item-table">
+<div class="item-row">
+<div class="item-left unstable module-item">
+<a class="fn" href="fn.from_raw_parts" title="std::ptr::from_raw_parts fn">from_raw_parts</a><span class="stab unstable" title="">Experimental</span>
+</div>
+<div class="item-right docblock-short">
+<p>Forms a (possibly-wide) raw pointer from a data address and metadata.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left unstable module-item">
+<a class="fn" href="fn.from_raw_parts_mut" title="std::ptr::from_raw_parts_mut fn">from_raw_parts_mut</a><span class="stab unstable" title="">Experimental</span>
+</div>
+<div class="item-right docblock-short">
+<p>Performs the same functionality as <a href="fn.from_raw_parts" title="from_raw_parts"><code>from_raw_parts</code></a>, except that a raw <code>*mut</code> pointer is returned, as opposed to a raw <code>*const</code> pointer.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left unstable module-item">
+<a class="fn" href="fn.metadata" title="std::ptr::metadata fn">metadata</a><span class="stab unstable" title="">Experimental</span>
+</div>
+<div class="item-right docblock-short">
+<p>Extract the metadata component of a pointer.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left module-item">
 <a class="fn" href="fn.copy" title="std::ptr::copy fn">copy</a><a title="unsafe function" href="#"><sup>⚠</sup></a>
-</td>
-<td class="docblock-short">
-<p>Copies <code>count * size_of::&lt;T&gt;()</code> bytes from <code>src</code> to <code>dst</code>. The source and destination may overlap.</p> </td>
-</tr>
-<tr class="module-item">
-<td>
+</div>
+<div class="item-right docblock-short">
+<p>Copies <code>count * size_of::&lt;T&gt;()</code> bytes from <code>src</code> to <code>dst</code>. The source and destination may overlap.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left module-item">
 <a class="fn" href="fn.copy_nonoverlapping" title="std::ptr::copy_nonoverlapping fn">copy_nonoverlapping</a><a title="unsafe function" href="#"><sup>⚠</sup></a>
-</td>
-<td class="docblock-short">
-<p>Copies <code>count * size_of::&lt;T&gt;()</code> bytes from <code>src</code> to <code>dst</code>. The source and destination must <em>not</em> overlap.</p> </td>
-</tr>
-<tr class="module-item">
-<td>
+</div>
+<div class="item-right docblock-short">
+<p>Copies <code>count * size_of::&lt;T&gt;()</code> bytes from <code>src</code> to <code>dst</code>. The source and destination must <em>not</em> overlap.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left module-item">
 <a class="fn" href="fn.drop_in_place" title="std::ptr::drop_in_place fn">drop_in_place</a><a title="unsafe function" href="#"><sup>⚠</sup></a>
-</td>
-<td class="docblock-short">
-<p>Executes the destructor (if any) of the pointed-to value.</p> </td>
-</tr>
-<tr class="module-item">
-<td><a class="fn" href="fn.eq" title="std::ptr::eq fn">eq</a></td>
-<td class="docblock-short">
-<p>Compares raw pointers for equality.</p> </td>
-</tr>
-<tr class="module-item">
-<td><a class="fn" href="fn.hash" title="std::ptr::hash fn">hash</a></td>
-<td class="docblock-short">
-<p>Hash a raw pointer.</p> </td>
-</tr>
-<tr class="module-item">
-<td><a class="fn" href="fn.null" title="std::ptr::null fn">null</a></td>
-<td class="docblock-short">
-<p>Creates a null raw pointer.</p> </td>
-</tr>
-<tr class="module-item">
-<td><a class="fn" href="fn.null_mut" title="std::ptr::null_mut fn">null_mut</a></td>
-<td class="docblock-short">
-<p>Creates a null mutable raw pointer.</p> </td>
-</tr>
-<tr class="module-item">
-<td>
+</div>
+<div class="item-right docblock-short">
+<p>Executes the destructor (if any) of the pointed-to value.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left module-item"><a class="fn" href="fn.eq" title="std::ptr::eq fn">eq</a></div>
+<div class="item-right docblock-short">
+<p>Compares raw pointers for equality.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left module-item"><a class="fn" href="fn.hash" title="std::ptr::hash fn">hash</a></div>
+<div class="item-right docblock-short">
+<p>Hash a raw pointer.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left module-item"><a class="fn" href="fn.null" title="std::ptr::null fn">null</a></div>
+<div class="item-right docblock-short">
+<p>Creates a null raw pointer.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left module-item"><a class="fn" href="fn.null_mut" title="std::ptr::null_mut fn">null_mut</a></div>
+<div class="item-right docblock-short">
+<p>Creates a null mutable raw pointer.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left module-item">
 <a class="fn" href="fn.read" title="std::ptr::read fn">read</a><a title="unsafe function" href="#"><sup>⚠</sup></a>
-</td>
-<td class="docblock-short">
-<p>Reads the value from <code>src</code> without moving it. This leaves the memory in <code>src</code> unchanged.</p> </td>
-</tr>
-<tr class="module-item">
-<td>
+</div>
+<div class="item-right docblock-short">
+<p>Reads the value from <code>src</code> without moving it. This leaves the memory in <code>src</code> unchanged.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left module-item">
 <a class="fn" href="fn.read_unaligned" title="std::ptr::read_unaligned fn">read_unaligned</a><a title="unsafe function" href="#"><sup>⚠</sup></a>
-</td>
-<td class="docblock-short">
-<p>Reads the value from <code>src</code> without moving it. This leaves the memory in <code>src</code> unchanged.</p> </td>
-</tr>
-<tr class="module-item">
-<td>
+</div>
+<div class="item-right docblock-short">
+<p>Reads the value from <code>src</code> without moving it. This leaves the memory in <code>src</code> unchanged.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left module-item">
 <a class="fn" href="fn.read_volatile" title="std::ptr::read_volatile fn">read_volatile</a><a title="unsafe function" href="#"><sup>⚠</sup></a>
-</td>
-<td class="docblock-short">
-<p>Performs a volatile read of the value from <code>src</code> without moving it. This leaves the memory in <code>src</code> unchanged.</p> </td>
-</tr>
-<tr class="module-item">
-<td>
+</div>
+<div class="item-right docblock-short">
+<p>Performs a volatile read of the value from <code>src</code> without moving it. This leaves the memory in <code>src</code> unchanged.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left module-item">
 <a class="fn" href="fn.replace" title="std::ptr::replace fn">replace</a><a title="unsafe function" href="#"><sup>⚠</sup></a>
-</td>
-<td class="docblock-short">
-<p>Moves <code>src</code> into the pointed <code>dst</code>, returning the previous <code>dst</code> value.</p> </td>
-</tr>
-<tr class="module-item">
-<td><a class="fn" href="fn.slice_from_raw_parts" title="std::ptr::slice_from_raw_parts fn">slice_from_raw_parts</a></td>
-<td class="docblock-short">
-<p>Forms a raw slice from a pointer and a length.</p> </td>
-</tr>
-<tr class="module-item">
-<td><a class="fn" href="fn.slice_from_raw_parts_mut" title="std::ptr::slice_from_raw_parts_mut fn">slice_from_raw_parts_mut</a></td>
-<td class="docblock-short">
-<p>Performs the same functionality as <a href="fn.slice_from_raw_parts" title="slice_from_raw_parts"><code>slice_from_raw_parts</code></a>, except that a raw mutable slice is returned, as opposed to a raw immutable slice.</p> </td>
-</tr>
-<tr class="module-item">
-<td>
+</div>
+<div class="item-right docblock-short">
+<p>Moves <code>src</code> into the pointed <code>dst</code>, returning the previous <code>dst</code> value.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left module-item"><a class="fn" href="fn.slice_from_raw_parts" title="std::ptr::slice_from_raw_parts fn">slice_from_raw_parts</a></div>
+<div class="item-right docblock-short">
+<p>Forms a raw slice from a pointer and a length.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left module-item"><a class="fn" href="fn.slice_from_raw_parts_mut" title="std::ptr::slice_from_raw_parts_mut fn">slice_from_raw_parts_mut</a></div>
+<div class="item-right docblock-short">
+<p>Performs the same functionality as <a href="fn.slice_from_raw_parts" title="slice_from_raw_parts"><code>slice_from_raw_parts</code></a>, except that a raw mutable slice is returned, as opposed to a raw immutable slice.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left module-item">
 <a class="fn" href="fn.swap" title="std::ptr::swap fn">swap</a><a title="unsafe function" href="#"><sup>⚠</sup></a>
-</td>
-<td class="docblock-short">
-<p>Swaps the values at two mutable locations of the same type, without deinitializing either.</p> </td>
-</tr>
-<tr class="module-item">
-<td>
+</div>
+<div class="item-right docblock-short">
+<p>Swaps the values at two mutable locations of the same type, without deinitializing either.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left module-item">
 <a class="fn" href="fn.swap_nonoverlapping" title="std::ptr::swap_nonoverlapping fn">swap_nonoverlapping</a><a title="unsafe function" href="#"><sup>⚠</sup></a>
-</td>
-<td class="docblock-short">
-<p>Swaps <code>count * size_of::&lt;T&gt;()</code> bytes between the two regions of memory beginning at <code>x</code> and <code>y</code>. The two regions must <em>not</em> overlap.</p> </td>
-</tr>
-<tr class="module-item">
-<td>
+</div>
+<div class="item-right docblock-short">
+<p>Swaps <code>count * size_of::&lt;T&gt;()</code> bytes between the two regions of memory beginning at <code>x</code> and <code>y</code>. The two regions must <em>not</em> overlap.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left module-item">
 <a class="fn" href="fn.write" title="std::ptr::write fn">write</a><a title="unsafe function" href="#"><sup>⚠</sup></a>
-</td>
-<td class="docblock-short">
-<p>Overwrites a memory location with the given value without reading or dropping the old value.</p> </td>
-</tr>
-<tr class="module-item">
-<td>
+</div>
+<div class="item-right docblock-short">
+<p>Overwrites a memory location with the given value without reading or dropping the old value.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left module-item">
 <a class="fn" href="fn.write_bytes" title="std::ptr::write_bytes fn">write_bytes</a><a title="unsafe function" href="#"><sup>⚠</sup></a>
-</td>
-<td class="docblock-short">
-<p>Sets <code>count * size_of::&lt;T&gt;()</code> bytes of memory starting at <code>dst</code> to <code>val</code>.</p> </td>
-</tr>
-<tr class="module-item">
-<td>
+</div>
+<div class="item-right docblock-short">
+<p>Sets <code>count * size_of::&lt;T&gt;()</code> bytes of memory starting at <code>dst</code> to <code>val</code>.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left module-item">
 <a class="fn" href="fn.write_unaligned" title="std::ptr::write_unaligned fn">write_unaligned</a><a title="unsafe function" href="#"><sup>⚠</sup></a>
-</td>
-<td class="docblock-short">
-<p>Overwrites a memory location with the given value without reading or dropping the old value.</p> </td>
-</tr>
-<tr class="module-item">
-<td>
+</div>
+<div class="item-right docblock-short">
+<p>Overwrites a memory location with the given value without reading or dropping the old value.</p> </div>
+</div>
+<div class="item-row">
+<div class="item-left module-item">
 <a class="fn" href="fn.write_volatile" title="std::ptr::write_volatile fn">write_volatile</a><a title="unsafe function" href="#"><sup>⚠</sup></a>
-</td>
-<td class="docblock-short">
-<p>Performs a volatile write of a memory location with the given value without reading or dropping the old value.</p> </td>
-</tr>
-</table><div class="_attribution">
+</div>
+<div class="item-right docblock-short">
+<p>Performs a volatile write of a memory location with the given value without reading or dropping the old value.</p> </div>
+</div>
+</div><div class="_attribution">
   <p class="_attribution-p">
     <a href="https://doc.rust-lang.org/std/ptr/index.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/std/ptr/index.html</a>
   </p>

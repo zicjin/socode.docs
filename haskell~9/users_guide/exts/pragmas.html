@@ -5,7 +5,7 @@
 <th class="field-name">Where:</th>
 <td class="field-body">file header</td> </tr>  </table> <p>Enable or disable a set of language extensions.</p> </dd>
 </dl> <p>The <code>LANGUAGE</code> pragma allows language extensions to be enabled in a portable way. It is the intention that all Haskell compilers support the <code>LANGUAGE</code> pragma with the same syntax, although not all extensions are supported by all compilers, of course. The <code>LANGUAGE</code> pragma should be used instead of <code>OPTIONS_GHC</code>, if possible.</p> <p>For example, to enable the FFI and preprocessing with CPP:</p> <pre data-language="haskell">{-# LANGUAGE ForeignFunctionInterface, CPP #-}
-</pre> <p><code>LANGUAGE</code> is a file-header pragma (see <a class="reference internal" href="#pragmas"><span class="std std-ref">Pragmas</span></a>).</p> <p>Every language extension can also be turned into a command-line flag by prefixing it with “<code>-X</code>”; for example <code>-XForeignFunctionInterface</code>. (Similarly, all “<code>-X</code>” flags can be written as <code>LANGUAGE</code> pragmas.)</p> <p>A list of all supported language extensions can be obtained by invoking <code>ghc --supported-extensions</code> (see <a class="reference internal" href="../using#ghc-flag---supported-extensions"><code>--supported-extensions</code></a>).</p> <p>Any extension from the <code>Extension</code> type defined in <a class="reference external" href="https://downloads.haskell.org/~ghc/9.0.1/docs/html/libraries/Cabal-3.4.0.0/Language-Haskell-Extension.html">Language.Haskell.Extension</a> may be used. GHC will report an error if any of the requested extensions are not supported.</p>   <h2 id="options-pragma">6.20.2. <code>OPTIONS_GHC</code> pragma</h2> <dl class="pragma" id="options-ghc-pragma"> <dt id="pragma-OPTIONS_GHC">
+</pre> <p><code>LANGUAGE</code> is a file-header pragma (see <a class="reference internal" href="#pragmas"><span class="std std-ref">Pragmas</span></a>).</p> <p>Every language extension can also be turned into a command-line flag by prefixing it with “<code>-X</code>”; for example <code>-XForeignFunctionInterface</code>. (Similarly, all “<code>-X</code>” flags can be written as <code>LANGUAGE</code> pragmas.)</p> <p>A list of all supported language extensions can be obtained by invoking <code>ghc --supported-extensions</code> (see <a class="reference internal" href="../using#ghc-flag---supported-extensions"><code>--supported-extensions</code></a>).</p> <p>Any extension from the <code>Extension</code> type defined in <a class="reference external" href="https://downloads.haskell.org/~ghc/9.2.1/docs/html/libraries/Cabal-3.6.0.0/Language-Haskell-Extension.html">Language.Haskell.Extension</a> may be used. GHC will report an error if any of the requested extensions are not supported.</p>   <h2 id="options-pragma">6.20.2. <code>OPTIONS_GHC</code> pragma</h2> <dl class="pragma" id="options-ghc-pragma"> <dt id="pragma-OPTIONS_GHC">
 <code>{-# OPTIONS_GHC ⟨flags⟩ #-}</code> </dt> <dd>
 <table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
 <th class="field-name">Where:</th>
@@ -208,21 +208,45 @@ pattern RightChoice a = Choice True a
 foo :: Choice Int -&gt; Int
 foo (LeftChoice n) = n * 2
 foo (RightChoice n) = n - 2
-</pre> <p><code>COMPLETE</code> pragmas are only used by the pattern match checker. If a function definition matches on all the constructors specified in the pragma then the compiler will produce no warning.</p> <p><code>COMPLETE</code> pragmas can contain any data constructors or pattern synonyms which are in scope, but must mention at least one data constructor or pattern synonym defined in the same module. <code>COMPLETE</code> pragmas may only appear at the top level of a module. Once defined, they are automatically imported and exported from modules. <code>COMPLETE</code> pragmas should be thought of as asserting a universal truth about a set of patterns and as a result, should not be used to silence context specific incomplete match warnings.</p> <p>When specifying a <code>COMPLETE</code> pragma, the result types of all patterns must be consistent with each other. This is a sanity check as it would be impossible to match on all the patterns if the types were inconsistent.</p> <p>The result type must also be unambiguous. Usually this can be inferred but when all the pattern synonyms in a group are polymorphic in the constructor the user must provide a type signature.</p> <pre data-language="haskell">class LL f where
-  go :: f a -&gt; ()
+</pre> <p><code>COMPLETE</code> pragmas are only used by the pattern match checker. If a function definition matches on all the constructors specified in the pragma then the compiler will produce no warning.</p> <p><code>COMPLETE</code> pragmas can contain any data constructors or pattern synonyms which are in scope, but must mention at least one data constructor or pattern synonym defined in the same module. <code>COMPLETE</code> pragmas may only appear at the top level of a module. Once defined, they are automatically imported and exported from modules. <code>COMPLETE</code> pragmas should be thought of as asserting a universal truth about a set of patterns and as a result, should not be used to silence context specific incomplete match warnings.</p> <p>It is also possible to restrict the types to which a <code>COMPLETE</code> pragma applies by putting a double colon <code>::</code> after the list of constructors, followed by a result type constructor, which will be used to restrict the cases in which the pragma applies. GHC will compare the annotated result type constructor with the type constructor in the head of the scrutinee type in a pattern match to see if the <code>COMPLETE</code> pragma is meant to apply to it.</p> <p>This is especially useful in cases that the constructors specified are polymorphic, e.g.:</p> <pre data-language="haskell">data Proxy a = Proxy
 
-instance LL [] where
-  go _ = ()
+class IsEmpty a where
+  isEmpty :: a -&gt; Bool
 
-pattern T :: LL f =&gt; f a
-pattern T &lt;- (go -&gt; ())
+class IsCons a where
+  type Elt a
+  isCons :: a -&gt; Maybe (Elt a, a)
 
-{-# COMPLETE T :: [] #-}
+pattern Empty :: IsEmpty a =&gt; a
+pattern Empty &lt;- (isEmpty -&gt; True)
 
--- No warning
-foo :: [a] -&gt; Int
-foo T = 5
-</pre>   <h2 id="overlap-pragma">6.20.16. <code>OVERLAPPING</code>, <code>OVERLAPPABLE</code>, <code>OVERLAPS</code>, and <code>INCOHERENT</code> pragmas</h2> <dl class="pragma" id="overlapping-overlappable-overlaps-and-incoherent-pragmas"> <dt id="pragma-OVERLAPPING">
+pattern Cons :: IsCons a =&gt; Elt a -&gt; a -&gt; a
+pattern Cons x xs &lt;- (isCons -&gt; Just (x,xs))
+
+instance IsEmpty (Proxy a) where
+  isEmpty Proxy = True
+
+instance IsEmpty [a] where
+  isEmpty = null
+
+instance IsCons [a] where
+  type Elt [a] = a
+  isCons [] = Nothing
+  isCons (x:xs) = Just (x,xs)
+
+{-# COMPLETE Empty :: Proxy #-}
+{-# COMPLETE Empty, Cons :: [] #-}
+
+foo :: Proxy a -&gt; Int
+foo Empty = 0
+
+bar :: [a] -&gt; Int
+bar Empty = 0
+bar (Cons _ _) = 1
+
+baz :: [a] -&gt; Int
+baz Empty = 0
+</pre> <p>In this example, <code>foo</code> and <code>bar</code> will not be warned about, as their pattern matches are covered by the two <code>COMPLETE</code> pragmas above, but <code>baz</code> will be warned about as incomplete.</p>   <h2 id="overlap-pragma">6.20.16. <code>OVERLAPPING</code>, <code>OVERLAPPABLE</code>, <code>OVERLAPS</code>, and <code>INCOHERENT</code> pragmas</h2> <dl class="pragma" id="overlapping-overlappable-overlaps-and-incoherent-pragmas"> <dt id="pragma-OVERLAPPING">
 <code>{-# OVERLAPPING #-}</code> </dt> 
 </dl> <dl class="pragma"> <dt id="pragma-OVERLAPPABLE">
 <code>{-# OVERLAPPABLE #-}</code> </dt> 
@@ -236,6 +260,6 @@ foo T = 5
 </dl> <p>The pragmas <code>OVERLAPPING</code>, <code>OVERLAPPABLE</code>, <code>OVERLAPS</code>, <code>INCOHERENT</code> are used to specify the overlap behavior for individual instances, as described in Section <a class="reference internal" href="instances#instance-overlap"><span class="std std-ref">Overlapping instances</span></a>. The pragmas are written immediately after the <code>instance</code> keyword, like this:</p> <pre data-language="haskell">instance {-# OVERLAPPING #-} C t where ...
 </pre>   </div> </div><div class="_attribution">
   <p class="_attribution-p">
-    <a href="https://downloads.haskell.org/~ghc/9.0.1/docs/html/users_guide/exts/pragmas.html" class="_attribution-link" target="_blank">https://downloads.haskell.org/~ghc/9.0.1/docs/html/users_guide/exts/pragmas.html</a>
+    <a href="https://downloads.haskell.org/~ghc/9.2.1/docs/html/users_guide/exts/pragmas.html" class="_attribution-link" target="_blank">https://downloads.haskell.org/~ghc/9.2.1/docs/html/users_guide/exts/pragmas.html</a>
   </p>
 </div>

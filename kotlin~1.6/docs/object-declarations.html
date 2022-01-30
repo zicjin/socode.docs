@@ -1,0 +1,57 @@
+<h1 data-toc="object-declarations" id="object-declarations.md">Object expressions and declarations</h1>
+<p id="988cf526">Sometimes you need to create an object that is a slight modification of some class, without explicitly declaring a new subclass for it. Kotlin can handle this with <em id="477b637f" class="">object expressions</em> and <em id="389fdae9" class="">object declarations</em>.</p>
+<section class="chapter"><h2 id="object-expressions" data-toc="object-declarations#object-expressions">Object expressions</h2>
+<p id="ac678197"><em id="6730bd36" class="">Object expressions</em> create objects of anonymous classes, that is, classes that aren't explicitly declared with the <code class="code ">class</code> declaration. Such classes are useful for one-time use. You can define them from scratch, inherit from existing classes, or implement interfaces. Instances of anonymous classes are also called <em id="124ac113" class="">anonymous objects</em> because they are defined by an expression, not a name.</p>
+<section class="chapter"><h3 id="creating-anonymous-objects-from-scratch" data-toc="object-declarations#creating-anonymous-objects-from-scratch">Creating anonymous objects from scratch</h3>
+<p id="a73be80e">Object expressions start with the <code class="code ">object</code> keyword.</p>
+<p id="882242d2">If you just need an object that doesn’t have any nontrivial supertypes, write its members in curly braces after <code class="code ">object</code>:</p>
+<pre class="code-block" data-lang="kotlin" data-runnable="true" data-language="kotlin"> fun main() { //sampleStart val helloWorld = object { val hello = "Hello" val world = "World" // object expressions extend Any, so `override` is required on `toString()` override fun toString() = "$hello $world" } //sampleEnd print(helloWorld) } </pre></section><section class="chapter"><h3 id="inheriting-anonymous-objects-from-supertypes" data-toc="object-declarations#inheriting-anonymous-objects-from-supertypes">Inheriting anonymous objects from supertypes</h3>
+<p id="660b1845">To create an object of an anonymous class that inherits from some type (or types), specify this type after <code class="code ">object</code> and a colon (<code class="code ">:</code>). Then implement or override the members of this class as if you were <a href="inheritance" id="71b602e2">inheriting</a> from it:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">window.addMouseListener(object : MouseAdapter() { override fun mouseClicked(e: MouseEvent) { /*...*/ } override fun mouseEntered(e: MouseEvent) { /*...*/ } }) </pre>
+<p id="ad16d5e4">If a supertype has a constructor, pass appropriate constructor parameters to it. Multiple supertypes can be specified as a comma-delimited list after the colon:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">open class A(x: Int) { public open val y: Int = x } interface B { /*...*/ } val ab: A = object : A(1), B { override val y = 15 } </pre></section><section class="chapter"><h3 id="using-anonymous-objects-as-return-and-value-types" data-toc="object-declarations#using-anonymous-objects-as-return-and-value-types">Using anonymous objects as return and value types</h3>
+<p id="1a4baf5b">When an anonymous object is used as a type of a local or <a href="visibility-modifiers#packages" id="1e6d1f00">private</a> but not <a href="inline-functions" id="d44f32f9">inline</a> declaration (function or property), all its members are accessible via this function or property:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">class C { private fun getObject() = object { val x: String = "x" } fun printX() { println(getObject().x) } } </pre>
+<p id="3dd0d52b">If this function or property is public or private inline, its actual type is:</p>
+<ul class="list _ul" id="600a52c4">
+<li class="list__item" id="24268df4"><p><code class="code ">Any</code> if the anonymous object doesn't have a declared supertype</p></li>
+<li class="list__item" id="e727aa07"><p>The declared supertype of the anonymous object, if there is exactly one such type</p></li>
+<li class="list__item" id="3cfbd017"><p>The explicitly declared type if there is more than one declared supertype</p></li>
+</ul>
+<p id="cc338e8b">In all these cases, members added in the anonymous object are not accessible. Overridden members are accessible if they are declared in the actual type of the function or property:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">interface A { fun funFromA() {} } interface B class C { // The return type is Any. x is not accessible fun getObject() = object { val x: String = "x" } // The return type is A; x is not accessible fun getObjectA() = object: A { override fun funFromA() {} val x: String = "x" } // The return type is B; funFromA() and x are not accessible fun getObjectB(): B = object: A, B { // explicit return type is required override fun funFromA() {} val x: String = "x" } } </pre></section><section class="chapter"><h3 id="accessing-variables-from-anonymous-objects" data-toc="object-declarations#accessing-variables-from-anonymous-objects">Accessing variables from anonymous objects</h3>
+<p id="91199e29">The code in object expressions can access variables from the enclosing scope:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">fun countClicks(window: JComponent) { var clickCount = 0 var enterCount = 0 window.addMouseListener(object : MouseAdapter() { override fun mouseClicked(e: MouseEvent) { clickCount++ } override fun mouseEntered(e: MouseEvent) { enterCount++ } }) // ... } </pre></section></section><section class="chapter"><h2 id="object-declarations-overview" data-toc="object-declarations#object-declarations-overview">Object declarations</h2>
+<p id="283254ef">The <a href="https://en.wikipedia.org/wiki/Singleton_pattern" id="7004f261" data-external="true" rel="noopener noreferrer">Singleton</a> pattern can be useful in several cases, and Kotlin makes it easy to declare singletons:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">object DataProviderManager { fun registerDataProvider(provider: DataProvider) { // ... } val allDataProviders: Collection&lt;DataProvider&gt; get() = // ... } </pre>
+<p id="f54b4ba2">This is called an <em id="a5814b8f" class="">object declaration</em>, and it always has a name following the <code class="code ">object</code> keyword. Just like a variable declaration, an object declaration is not an expression, and it cannot be used on the right-hand side of an assignment statement.</p>
+<p id="99eef8fe">The initialization of an object declaration is thread-safe and done on first access.</p>
+<p id="1052967b">To refer to the object, use its name directly:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">DataProviderManager.registerDataProvider(...) </pre>
+<p id="c0864663">Such objects can have supertypes:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">object DefaultListener : MouseAdapter() { override fun mouseClicked(e: MouseEvent) { ... } override fun mouseEntered(e: MouseEvent) { ... } } </pre>
+<aside data-type="note" class="prompt" data-title="" id="68f9d8c3"><p id="22a1f64a">Object declarations can't be local (that is, they can't be nested directly inside a function), but they can be nested into other object declarations or non-inner classes.</p></aside><section class="chapter"><h3 id="companion-objects" data-toc="object-declarations#companion-objects">Companion objects</h3>
+<p id="cd20978a">An object declaration inside a class can be marked with the <code class="code ">companion</code> keyword:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">class MyClass { companion object Factory { fun create(): MyClass = MyClass() } } </pre>
+<p id="5cec7885">Members of the companion object can be called simply by using the class name as the qualifier:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">val instance = MyClass.create() </pre>
+<p id="f5bd59c">The name of the companion object can be omitted, in which case the name <code class="code ">Companion</code> will be used:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">class MyClass { companion object { } } val x = MyClass.Companion </pre>
+<p id="a53f812d">Class members can access the private members of the corresponding companion object.</p>
+<p id="d05bf28f">The name of a class used by itself (not as a qualifier to another name) acts as a reference to the companion object of the class (whether named or not):</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">class MyClass1 { companion object Named { } } val x = MyClass1 class MyClass2 { companion object { } } val y = MyClass2 </pre>
+<p id="c2ff8618">Note that even though the members of companion objects look like static members in other languages, at runtime those are still instance members of real objects, and can, for example, implement interfaces:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">interface Factory&lt;T&gt; { fun create(): T } class MyClass { companion object : Factory&lt;MyClass&gt; { override fun create(): MyClass = MyClass() } } val f: Factory&lt;MyClass&gt; = MyClass </pre>
+<p id="6b292c53">However, on the JVM you can have members of companion objects generated as real static methods and fields if you use the <code class="code ">@JvmStatic</code> annotation. See the <a href="java-to-kotlin-interop#static-fields" id="17cfb06f">Java interoperability</a> section for more detail.</p></section><section class="chapter"><h3 id="semantic-difference-between-object-expressions-and-declarations" data-toc="object-declarations#semantic-difference-between-object-expressions-and-declarations">Semantic difference between object expressions and declarations</h3>
+<p id="e43b842d">There is one important semantic difference between object expressions and object declarations:</p>
+<ul class="list _ul" id="c2416206">
+<li class="list__item" id="deee951a"><p>Object expressions are executed (and initialized) <em id="7fd9b28b" class="">immediately</em>, where they are used.</p></li>
+<li class="list__item" id="1ee1ea0b"><p>Object declarations are initialized <em id="c6d0cbd2" class="">lazily</em>, when accessed for the first time.</p></li>
+<li class="list__item" id="1f8811a"><p>A companion object is initialized when the corresponding class is loaded (resolved) that matches the semantics of a Java static initializer.</p></li>
+</ul></section></section><div class="last-modified"> Last modified: 04 August 2021</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="inline-classes">Inline classes</a> <a class="navigation-links__next" href="delegation">Delegation</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/object-declarations.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/object-declarations.html</a>
+  </p>
+</div>

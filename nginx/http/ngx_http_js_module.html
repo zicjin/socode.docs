@@ -4,6 +4,10 @@
 <li><a href="#directives">Directives</a></li>
 <li><a href="#js_body_filter">js_body_filter</a></li>
 <li><a href="#js_content">js_content</a></li>
+<li><a href="#js_fetch_ciphers">js_fetch_ciphers</a></li>
+<li><a href="#js_fetch_protocols">js_fetch_protocols</a></li>
+<li><a href="#js_fetch_trusted_certificate">js_fetch_trusted_certificate</a></li>
+<li><a href="#js_fetch_verify_depth">js_fetch_verify_depth</a></li>
 <li><a href="#js_header_filter">js_header_filter</a></li>
 <li><a href="#js_import">js_import</a></li>
 <li><a href="#js_include">js_include</a></li>
@@ -19,6 +23,9 @@ http {
 
     js_set $foo     http.foo;
     js_set $summary http.summary;
+    js_set $hash    http.hash;
+
+    resolver 10.0.0.1;
 
     server {
         listen 8000;
@@ -34,6 +41,18 @@ http {
 
         location = /hello {
             js_content http.hello;
+        }
+
+        # since 0.7.0
+        location = /fetch {
+            js_content                   http.fetch;
+            js_fetch_trusted_certificate /path/to/ISRG_Root_X1.pem;
+        }
+
+        # since 0.7.0
+        location = /crypto {
+            add_header Hash $hash;
+            return     200;
         }
     }
 }
@@ -86,7 +105,21 @@ function hello(r) {
     r.return(200, "Hello world!");
 }
 
-export default {foo, summary, baz, hello};
+// since 0.7.0
+async function fetch(r) {
+    let results = await Promise.all([ngx.fetch('https://nginx.org/'),
+                                     ngx.fetch('https://nginx.org/en/')]);
+
+    r.return(200, JSON.stringify(results, undefined, 4));
+}
+
+// since 0.7.0
+async function hash(r) {
+    let hash = await crypto.subtle.digest('SHA-512', r.headersIn.host);
+    r.setReturnValue(Buffer.from(hash).toString('hex'));
+}
+
+export default {foo, summary, baz, hello, fetch, hash};
 </pre>
  <h4 id="directives">Directives</h4>
 <div class="directive" id="js_body_filter">
@@ -103,13 +136,42 @@ function filter(r, data, flags) {
 </pre>
 <p> To stop filtering (following data chunks will be passed to client without calling <code>js_body_filter</code>), <a href="../njs/reference#r_done"><code>r.done()</code></a> can be used. </p>
 <p> If the filter function changes the length of the response body, then it is required to clear out the “Content-Length” response header (if any) in <a href="#js_header_filter"><code>js_header_filter</code></a> to enforce chunked transfer encoding. </p>
+ <blockquote class="note"> As the <code>js_body_filter</code> handler returns its result immediately, it supports only synchronous operations. Thus, asynchronous operations such as <a href="../njs/reference#r_subrequest">r.subrequest()</a> or <a href="../njs/reference#settimeout">setTimeout()</a> are not supported. </blockquote>
+
 <div class="directive" id="js_content"><table cellspacing="0"> <tr> <th> Syntax: </th> <td> <code><strong>js_content</strong> <i>function</i> | <i>module.function</i>;</code><br> </td> </tr> <tr> <th> Default: </th> <td> — </td> </tr> <tr> <th> Context: </th> <td> <code>location</code>, <code>limit_except</code><br> </td> </tr> </table></div>
 <p> Sets an njs function as a location content handler. Since <a href="../njs/changes#njs0.4.0">0.4.0</a>, a module function can be referenced. </p>
+<div class="directive" id="js_fetch_ciphers">
+<table cellspacing="0"> <tr> <th> Syntax: </th> <td> <code><strong>js_fetch_ciphers</strong> <i>ciphers</i>;</code><br> </td> </tr> <tr> <th> Default: </th> <td> <code>js_fetch_ciphers HIGH:!aNULL:!MD5;</code> </td> </tr> <tr> <th> Context: </th> <td> <code>http</code>, <code>server</code>, <code>location</code><br> </td> </tr> </table>
+<p>This directive appeared in version 0.7.0. </p>
+</div>
+<p> Specifies the enabled ciphers for HTTPS requests with <a href="../njs/reference#ngx_fetch">Fetch API</a>. The ciphers are specified in the format understood by the OpenSSL library. </p>
+<p> The full list can be viewed using the “<code>openssl ciphers</code>” command. </p>
+<div class="directive" id="js_fetch_protocols">
+<table cellspacing="0"> <tr> <th> Syntax: </th> <td> <code><strong>js_fetch_protocols</strong> 
+    [TLSv1]
+    [TLSv1.1]
+    [TLSv1.2]
+    [TLSv1.3];</code><br> </td> </tr> <tr> <th> Default: </th> <td> <code>js_fetch_protocols TLSv1 TLSv1.1 TLSv1.2;</code> </td> </tr> <tr> <th> Context: </th> <td> <code>http</code>, <code>server</code>, <code>location</code><br> </td> </tr> </table>
+<p>This directive appeared in version 0.7.0. </p>
+</div>
+<p> Enables the specified protocols for HTTPS requests with <a href="../njs/reference#ngx_fetch">Fetch API</a>. </p>
+<div class="directive" id="js_fetch_trusted_certificate">
+<table cellspacing="0"> <tr> <th> Syntax: </th> <td> <code><strong>js_fetch_trusted_certificate</strong> <i>file</i>;</code><br> </td> </tr> <tr> <th> Default: </th> <td> — </td> </tr> <tr> <th> Context: </th> <td> <code>http</code>, <code>server</code>, <code>location</code><br> </td> </tr> </table>
+<p>This directive appeared in version 0.7.0. </p>
+</div>
+<p> Specifies a <code><i>file</i></code> with trusted CA certificates in the PEM format used to <a href="../njs/reference#fetch_verify">verify</a> the HTTPS certificate with <a href="../njs/reference#ngx_fetch">Fetch API</a>. </p>
+<div class="directive" id="js_fetch_verify_depth">
+<table cellspacing="0"> <tr> <th> Syntax: </th> <td> <code><strong>js_fetch_verify_depth</strong> <i>number</i>;</code><br> </td> </tr> <tr> <th> Default: </th> <td> <code>js_fetch_verify_depth 100;</code> </td> </tr> <tr> <th> Context: </th> <td> <code>http</code>, <code>server</code>, <code>location</code><br> </td> </tr> </table>
+<p>This directive appeared in version 0.7.0. </p>
+</div>
+<p> Sets the verification depth in the HTTPS server certificates chain with <a href="../njs/reference#ngx_fetch">Fetch API</a>. </p>
 <div class="directive" id="js_header_filter">
 <table cellspacing="0"> <tr> <th> Syntax: </th> <td> <code><strong>js_header_filter</strong> <i>function</i> | <i>module.function</i>;</code><br> </td> </tr> <tr> <th> Default: </th> <td> — </td> </tr> <tr> <th> Context: </th> <td> <code>location</code>, <code>limit_except</code><br> </td> </tr> </table>
 <p>This directive appeared in version 0.5.1. </p>
 </div>
 <p> Sets an njs function as a response header filter. The directive allows changing arbitrary header fields of a response header. </p>
+ <blockquote class="note"> As the <code>js_header_filter</code> handler returns its result immediately, it supports only synchronous operations. Thus, asynchronous operations such as <a href="../njs/reference#r_subrequest">r.subrequest()</a> or <a href="../njs/reference#settimeout">setTimeout()</a> are not supported. </blockquote>
+
 <div class="directive" id="js_import">
 <table cellspacing="0"> <tr> <th> Syntax: </th> <td> <code><strong>js_import</strong> <i>module.js</i> |
 <i>export_name from module.js</i>;</code><br> </td> </tr> <tr> <th> Default: </th> <td> — </td> </tr> <tr> <th> Context: </th> <td> <code>http</code><br> </td> </tr> </table>
@@ -134,7 +196,7 @@ function version(r) {
 }
 </pre>
 
-<p> The directive is deprecated since <a href="../njs/changes#njs0.4.0">0.4.0</a>, the <a href="#js_import">js_import</a> directive should be used instead. </p>
+<p> The directive was made obsolete in version <a href="../njs/changes#njs0.4.0">0.4.0</a> and was removed in version <a href="../njs/changes#njs0.7.1">0.7.1</a>. The <a href="#js_import">js_import</a> directive should be used instead. </p>
 <div class="directive" id="js_path">
 <table cellspacing="0"> <tr> <th> Syntax: </th> <td> <code><strong>js_path</strong> 
 <i>path</i>;</code><br> </td> </tr> <tr> <th> Default: </th> <td> — </td> </tr> <tr> <th> Context: </th> <td> <code>http</code><br> </td> </tr> </table>
@@ -146,7 +208,7 @@ function version(r) {
 <i>module.function</i>;</code><br> </td> </tr> <tr> <th> Default: </th> <td> — </td> </tr> <tr> <th> Context: </th> <td> <code>http</code><br> </td> </tr> </table></div>
 <p> Sets an njs <code>function</code> for the specified <code>variable</code>. Since <a href="../njs/changes#njs0.4.0">0.4.0</a>, a module function can be referenced. </p>
 <p> The function is called when the variable is referenced for the first time for a given request. The exact moment depends on a <a href="../dev/development_guide#http_phases">phase</a> at which the variable is referenced. This can be used to perform some logic not related to variable evaluation. For example, if the variable is referenced only in the <a href="ngx_http_log_module#log_format">log_format</a> directive, its handler will not be executed until the log phase. This handler can be used to do some cleanup right before the request is freed. </p>
- <blockquote class="note"> As the <code>js_set</code> handler returns its result immediately, it supports only synchronous callbacks. Thus, asynchronous callbacks such as <a href="../njs/reference#r_subrequest">r.subrequest()</a> or <a href="../njs/reference#settimeout">setTimeout()</a> are not supported. </blockquote>
+ <blockquote class="note"> As the <code>js_set</code> handler returns its result immediately, it supports only synchronous operations. Thus, asynchronous operations such as <a href="../njs/reference#r_subrequest">r.subrequest()</a> or <a href="../njs/reference#settimeout">setTimeout()</a> are not supported. </blockquote>
 
 <div class="directive" id="js_var">
 <table cellspacing="0"> <tr> <th> Syntax: </th> <td> <code><strong>js_var</strong> <i>$variable</i> [<i>value</i>];</code><br> </td> </tr> <tr> <th> Default: </th> <td> — </td> </tr> <tr> <th> Context: </th> <td> <code>http</code><br> </td> </tr> </table>

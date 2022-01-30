@@ -1,0 +1,112 @@
+<h1 data-toc="mapping-primitive-data-types-from-c" id="mapping-primitive-data-types-from-c.md">Mapping primitive data types from C – tutorial</h1>
+<p id="fbf285ad">In this tutorial, you will learn what C data types are visible in Kotlin/Native and vice versa. You will:</p>
+<ul class="list _ul" id="36d6a0d">
+<li class="list__item" id="73a8e187"><p>See what <a href="#types-in-c-language" id="5c956f7f">Data types are in C language</a>.</p></li>
+<li class="list__item" id="9de97de8"><p>Create a <a href="#example-c-library" id="5663b734">tiny C Library</a> that uses those types in exports.</p></li>
+<li class="list__item" id="96cc0e46"><p><a href="#inspect-generated-kotlin-apis-for-a-c-library" id="9ac3b912">Inspect generated Kotlin APIs from a C library</a>.</p></li>
+<li class="list__item" id="5878f92"><p>Find how <a href="#primitive-types-in-kotlin" id="cb623f84">Primitive types in Kotlin</a> are mapped to C.</p></li>
+</ul>
+<section class="chapter"><h2 id="types-in-c-language" data-toc="mapping-primitive-data-types-from-c#types-in-c-language">Types in C language</h2>
+<p id="b21f40be">What types are there in the C language? Let's take the <a href="https://en.wikipedia.org/wiki/C_data_types" id="a36417bb" data-external="true" rel="noopener noreferrer">C data types</a> article from Wikipedia as a basis. There are following types in the C programming language:</p>
+<ul class="list _ul" id="78d141f9">
+<li class="list__item" id="e0725abd"><p>basic types <code class="code ">char, int, float, double</code> with modifiers <code class="code ">signed, unsigned, short, long</code></p></li>
+<li class="list__item" id="576c5efc"><p>structures, unions, arrays</p></li>
+<li class="list__item" id="be61286"><p>pointers</p></li>
+<li class="list__item" id="6baf5c94"><p>function pointers</p></li>
+</ul>
+<p id="80f0e256">There are also more specific types:</p>
+<ul class="list _ul" id="d79069cc">
+<li class="list__item" id="9b69c7d1"><p>boolean type (from <a href="https://en.wikipedia.org/wiki/C99" id="99e5e609" data-external="true" rel="noopener noreferrer">C99</a>)</p></li>
+<li class="list__item" id="49455c1f"><p><code class="code ">size_t</code> and <code class="code ">ptrdiff_t</code> (also <code class="code ">ssize_t</code>)</p></li>
+<li class="list__item" id="f090b24c"><p>fixed width integer types, such as <code class="code ">int32_t</code> or <code class="code ">uint64_t</code> (from <a href="https://en.wikipedia.org/wiki/C99" id="6d6db282" data-external="true" rel="noopener noreferrer">C99</a>)</p></li>
+</ul>
+<p id="f68b19fd">There are also the following type qualifiers in the C language: <code class="code ">const</code>, <code class="code ">volatile</code>, <code class="code ">restruct</code>, <code class="code ">atomic</code>.</p>
+<p id="82bc3f15">The best way to see what C data types are visible in Kotlin is to try it.</p></section><section class="chapter"><h2 id="example-c-library" data-toc="mapping-primitive-data-types-from-c#example-c-library">Example C library</h2>
+<p id="7071b068">Create a <code class="code ">lib.h</code> file to see how C functions are mapped into Kotlin:</p>
+<pre class="code-block" data-lang="c" data-language="c">#ifndef LIB2_H_INCLUDED #define LIB2_H_INCLUDED void ints(char c, short d, int e, long f); void uints(unsigned char c, unsigned short d, unsigned int e, unsigned long f); void doubles(float a, double b); #endif </pre>
+<p id="d6caebf0">The file is missing the <code class="code ">extern "C"</code> block, which is not needed for this example, but may be necessary if you use C++ and overloaded functions. The <a href="https://stackoverflow.com/questions/1041866/what-is-the-effect-of-extern-c-in-c" id="9a40dcb3" data-external="true" rel="noopener noreferrer">C++ compatibility thread</a> on Stackoverflow contains more details on this.</p>
+<p id="9853b9a5">For every set of <code class="code ">.h</code> files, you will be using the <a href="native-c-interop" id="ef851858"><code class="code ">cinterop</code> tool</a> from Kotlin/Native to generate a Kotlin/Native library, or <code class="code ">.klib</code>. The generated library will bridge calls from Kotlin/Native to C. It includes respective Kotlin declarations for the definitions form the <code class="code ">.h</code> files. It is only necessary to have a <code class="code ">.h</code> file to run the <code class="code ">cinterop</code> tool. And you do not need to create a <code class="code ">lib.c</code> file, unless you want to compile and run the example. More details on this are covered in the <a href="native-c-interop" id="318e019b">C interop</a> page. It is enough for the tutorial to create the <code class="code ">lib.def</code> file with the following content:</p>
+<pre class="code-block" data-lang="c" data-language="c">headers = lib.h </pre>
+<p id="efff66ad">You may include all declarations directly into the <code class="code ">.def</code> file after a <code class="code ">---</code> separator. It can be helpful to include macros or other C defines into the code generated by the <code class="code ">cinterop</code> tool. Method bodies are compiled and fully included into the binary too. Use that feature to have a runnable example without a need for a C compiler. To implement that, you need to add implementations to the C functions from the <code class="code ">lib.h</code> file, and place these functions into a <code class="code ">.def</code> file. You will have the following <code class="code ">interop.def</code> result:</p>
+<pre class="code-block" data-lang="c" data-language="c"> --- void ints(char c, short d, int e, long f) { } void uints(unsigned char c, unsigned short d, unsigned int e, unsigned long f) { } void doubles(float a, double b) { } </pre>
+<p id="dae30769">The <code class="code ">interop.def</code> file is enough to compile and run the application or open it in an IDE. Now it is time to create project files, open the project in <a href="https://jetbrains.com/idea" id="3e29fc23" data-external="true" rel="noopener noreferrer">IntelliJ IDEA</a> and run it.</p></section><section class="chapter"><h2 id="inspect-generated-kotlin-apis-for-a-c-library" data-toc="mapping-primitive-data-types-from-c#inspect-generated-kotlin-apis-for-a-c-library">Inspect generated Kotlin APIs for a C library</h2>
+<p id="baa4896c">While it is possible to use the command line, either directly or by combining it with a script file (such as <code class="code ">.sh</code> or <code class="code ">.bat</code> file), this approach doesn't scale well for big projects that have hundreds of files and libraries. It is then better to use the Kotlin/Native compiler with a build system, as it helps to download and cache the Kotlin/Native compiler binaries and libraries with transitive dependencies and run the compiler and tests. Kotlin/Native can use the <a href="https://gradle.org" id="8e5ab161" data-external="true" rel="noopener noreferrer">Gradle</a> build system through the <a href="mpp-discover-project#multiplatform-plugin" id="9974b76b">kotlin-multiplatform</a> plugin.</p>
+<p id="531d5a90">We covered the basics of setting up an IDE compatible project with Gradle in the <a href="native-gradle" id="c92d0b38">A Basic Kotlin/Native Application</a> tutorial. Please check it out if you are looking for detailed first steps and instructions on how to start a new Kotlin/Native project and open it in IntelliJ IDEA. In this tutorial, we'll look at the advanced C interop related usages of Kotlin/Native and <a href="mpp-discover-project#multiplatform-plugin" id="7983726f">multiplatform</a> builds with Gradle.</p>
+<p id="f26e48fd">First, create a project folder. All the paths in this tutorial will be relative to this folder. Sometimes the missing directories will have to be created before any new files can be added.</p>
+<p id="68a705ab">Use the following <code class="code ">build.gradle(.kts)</code> Gradle build file:</p>
+<div class="tabs" id="329360e" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="3511ab72" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code-block" data-lang="kotlin" data-title="Kotlin" data-language="kotlin">plugins { kotlin("multiplatform") version "1.6.10" } repositories { mavenCentral() } kotlin { linuxX64("native") { // on Linux // macosX64("native") { // on x86_64 macOS // macosArm64("native") { // on Apple Silicon macOS // mingwX64("native") { // on Windows val main by compilations.getting val interop by main.cinterops.creating binaries { executable() } } } tasks.wrapper { gradleVersion = "6.7.1" distributionType = Wrapper.DistributionType.BIN } </pre></div>
+<div class="tabs__content" data-gtm="tab" id="d642f214" data-sync-tabs="groovy" data-title="Groovy"><pre class="code-block" data-lang="groovy" data-title="Groovy" data-language="groovy">plugins { id 'org.jetbrains.kotlin.multiplatform' version '1.6.10' } repositories { mavenCentral() } kotlin { linuxX64('native') { // on Linux // macosX64("native") { // on x86_64 macOS // macosArm64("native") { // on Apple Silicon macOS // mingwX64('native') { // on Windows compilations.main.cinterops { interop } binaries { executable() } } } wrapper { gradleVersion = '6.7.1' distributionType = 'BIN' } </pre></div>
+</div>
+<p id="2777df0c">The project file configures the C interop as an additional step of the build. Let's move the <code class="code ">interop.def</code> file to the <code class="code ">src/nativeInterop/cinterop</code> directory. Gradle recommends using conventions instead of configurations, for example, the source files are expected to be in the <code class="code ">src/nativeMain/kotlin</code> folder. By default, all the symbols from C are imported to the <code class="code ">interop</code> package, you may want to import the whole package in our <code class="code ">.kt</code> files. Check out the <a href="mpp-discover-project#multiplatform-plugin" id="d48f8dfd">kotlin-multiplatform</a> plugin documentation to learn about all the different ways you could configure it.</p>
+<p id="5b2a059b">Create a <code class="code ">src/nativeMain/kotlin/hello.kt</code> stub file with the following content to see how C primitive type declarations are visible from Kotlin:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">import interop.* fun main() { println("Hello Kotlin/Native!") ints(/* fix me*/) uints(/* fix me*/) doubles(/* fix me*/) } </pre>
+<p id="c6d1569a">Now you are ready to <a href="native-get-started" id="a216ec0c">open the project in IntelliJ IDEA</a> and to see how to fix the example project. While doing that, see how C primitive types are mapped into Kotlin/Native.</p></section><section class="chapter"><h2 id="primitive-types-in-kotlin" data-toc="mapping-primitive-data-types-from-c#primitive-types-in-kotlin">Primitive types in kotlin</h2>
+<p id="793c1531">With the help of IntelliJ IDEA's <b id="a590c0f5" class="">Go to | Declaration</b> or compiler errors, you see the following generated API for the C functions:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">fun ints(c: Byte, d: Short, e: Int, f: Long) fun uints(c: UByte, d: UShort, e: UInt, f: ULong) fun doubles(a: Float, b: Double) </pre>
+<p id="61097289">C types are mapped in the way we would expect, note that <code class="code ">char</code> type is mapped to <code class="code ">kotlin.Byte</code> as it is usually an 8-bit signed value.</p>
+<div class="table-wrapper"><table class=" wide" id="53ca89cd">
+<thead><tr class="ijRowHead" id="657b56">
+<th id="b4fddb74"><p>C</p></th>
+<th id="b918190c"><p>Kotlin</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="114ebf95">
+<td id="5861c3f2"><p>char</p></td>
+<td id="ff97a498"><p>kotlin.Byte</p></td>
+</tr>
+<tr class="" id="b7235aab">
+<td id="2d6bfcb9"><p>unsigned char</p></td>
+<td id="d64eb63c"><p>kotlin.UByte</p></td>
+</tr>
+<tr class="" id="87a473f4">
+<td id="9b27bd2e"><p>short</p></td>
+<td id="d58d57de"><p>kotlin.Short</p></td>
+</tr>
+<tr class="" id="7a08764">
+<td id="d979ba90"><p>unsigned short</p></td>
+<td id="f0566e2f"><p>kotlin.UShort</p></td>
+</tr>
+<tr class="" id="3155f98f">
+<td id="fdaa6362"><p>int</p></td>
+<td id="8241ffcb"><p>kotlin.Int</p></td>
+</tr>
+<tr class="" id="b1af9b7e">
+<td id="18069236"><p>unsigned int</p></td>
+<td id="1220ca27"><p>kotlin.UInt</p></td>
+</tr>
+<tr class="" id="df2b487d">
+<td id="7e9eb57c"><p>long long</p></td>
+<td id="d80d0fe3"><p>kotlin.Long</p></td>
+</tr>
+<tr class="" id="85480c14">
+<td id="8df24c5b"><p>unsigned long long</p></td>
+<td id="886802a8"><p>kotlin.ULong</p></td>
+</tr>
+<tr class="" id="25b36c4c">
+<td id="8f2999af"><p>float</p></td>
+<td id="38211d9f"><p>kotlin.Float</p></td>
+</tr>
+<tr class="" id="29a3587a">
+<td id="17ded714"><p>double</p></td>
+<td id="aba21a94"><p>kotlin.Double</p></td>
+</tr>
+</tbody>
+</table></div></section><section class="chapter"><h2 id="fix-the-code" data-toc="mapping-primitive-data-types-from-c#fix-the-code">Fix the code</h2>
+<p id="8d802518">You've seen all definitions and it is the time to fix the code. Run the <code class="code ">runDebugExecutableNative</code> Gradle task <a href="native-get-started" id="d0690d6f">in IDE</a> or use the following command to run the code:</p>
+<pre class="code-block" data-lang="bash" data-language="bash">./gradlew runDebugExecutableNative </pre>
+<p id="996376c8">The final code in the <code class="code ">hello.kt</code> file may look like that:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">import interop.* fun main() { println("Hello Kotlin/Native!") ints(1, 2, 3, 4) uints(5, 6, 7, 8) doubles(9.0f, 10.0) } </pre></section><section class="chapter"><h2 id="next-steps" data-toc="mapping-primitive-data-types-from-c#next-steps">Next steps</h2>
+<p id="5015a0ef">Continue to explore more complicated C language types and their representation in Kotlin/Native in the next tutorials:</p>
+<ul class="list _ul" id="54b36182">
+<li class="list__item" id="3fc57fa9"><p><a href="mapping-struct-union-types-from-c" id="8d92a35e">Mapping struct and union types from C</a></p></li>
+<li class="list__item" id="20937865"><p><a href="mapping-function-pointers-from-c" id="d76f8746">Mapping function pointers from C</a></p></li>
+<li class="list__item" id="5358495"><p><a href="mapping-strings-from-c" id="b77df519">Mapping strings from C</a></p></li>
+</ul>
+<p id="45b2a1f3">The <a href="native-c-interop" id="76c89128">C interop documentation</a> covers more advanced scenarios of the interop.</p></section><div class="last-modified"> Last modified: 08 September 2021</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="native-c-interop">Interoperability with C</a> <a class="navigation-links__next" href="mapping-struct-union-types-from-c">Mapping struct and union types from C – tutorial</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/mapping-primitive-data-types-from-c.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/mapping-primitive-data-types-from-c.html</a>
+  </p>
+</div>

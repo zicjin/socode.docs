@@ -36,12 +36,8 @@ error[E0133]: call to unsafe function is unsafe and requires unsafe function or 
   |
   = note: consult the function's documentation for information on how to avoid undefined behavior
 
-error: aborting due to previous error
-
 For more information about this error, try `rustc --explain E0133`.
-error: could not compile `unsafe-example`
-
-To learn more, run the command again with --verbose.
+error: could not compile `unsafe-example` due to previous error
 </pre> <p>By inserting the <code>unsafe</code> block around our call to <code>dangerous</code>, we’re asserting to Rust that we’ve read the function’s documentation, we understand how to use it properly, and we’ve verified that we’re fulfilling the contract of the function.</p> <p>Bodies of unsafe functions are effectively <code>unsafe</code> blocks, so to perform other unsafe operations within an unsafe function, we don’t need to add another <code>unsafe</code> block.</p> <h4 id="creating-a-safe-abstraction-over-unsafe-code">Creating a Safe Abstraction over Unsafe Code</h4> <p>Just because a function contains unsafe code doesn’t mean we need to mark the entire function as unsafe. In fact, wrapping unsafe code in a safe function is a common abstraction. As an example, let’s study a function from the standard library, <code>split_at_mut</code>, that requires some unsafe code and explore how we might implement it. This safe method is defined on mutable slices: it takes one slice and makes it two by splitting the slice at the index given as an argument. Listing 19-4 shows how to use <code>split_at_mut</code>.</p> <pre data-language="rust">fn main() {
     let mut v = vec![1, 2, 3, 4, 5, 6];
 
@@ -79,12 +75,8 @@ error[E0499]: cannot borrow `*slice` as mutable more than once at a time
   |     |     first mutable borrow occurs here
   |     returning this value requires that `*slice` is borrowed for `'1`
 
-error: aborting due to previous error
-
 For more information about this error, try `rustc --explain E0499`.
-error: could not compile `unsafe-example`
-
-To learn more, run the command again with --verbose.
+error: could not compile `unsafe-example` due to previous error
 </pre> <p>Rust’s borrow checker can’t understand that we’re borrowing different parts of the slice; it only knows that we’re borrowing from the same slice twice. Borrowing different parts of a slice is fundamentally okay because the two slices aren’t overlapping, but Rust isn’t smart enough to know this. When we know code is okay, but Rust doesn’t, it’s time to reach for unsafe code.</p> <p>Listing 19-6 shows how to use an <code>unsafe</code> block, a raw pointer, and some calls to unsafe functions to make the implementation of <code>split_at_mut</code> work.</p> <pre data-language="rust">use std::slice;
 
 fn split_at_mut(slice: &amp;mut [i32], mid: usize) -&gt; (&amp;mut [i32], &amp;mut [i32]) {
@@ -135,7 +127,7 @@ pub extern "C" fn call_from_c() {
 fn main() {
     println!("name is: {}", HELLO_WORLD);
 }
-</pre> <p><span class="caption">Listing 19-9: Defining and using an immutable static variable</span></p> <p>Static variables are similar to constants, which we discussed in the <a href="ch03-01-variables-and-mutability#differences-between-variables-and-constants">“Differences Between Variables and Constants”</a> section in Chapter 3. The names of static variables are in <code>SCREAMING_SNAKE_CASE</code> by convention, and we <em>must</em> annotate the variable’s type, which is <code>&amp;'static str</code> in this example. Static variables can only store references with the <code>'static</code> lifetime, which means the Rust compiler can figure out the lifetime; we don’t need to annotate it explicitly. Accessing an immutable static variable is safe.</p> <p>Constants and immutable static variables might seem similar, but a subtle difference is that values in a static variable have a fixed address in memory. Using the value will always access the same data. Constants, on the other hand, are allowed to duplicate their data whenever they’re used.</p> <p>Another difference between constants and static variables is that static variables can be mutable. Accessing and modifying mutable static variables is <em>unsafe</em>. Listing 19-10 shows how to declare, access, and modify a mutable static variable named <code>COUNTER</code>.</p> <p><span class="filename">Filename: src/main.rs</span></p> <pre data-language="rust">static mut COUNTER: u32 = 0;
+</pre> <p><span class="caption">Listing 19-9: Defining and using an immutable static variable</span></p> <p>Static variables are similar to constants, which we discussed in the <a href="ch03-01-variables-and-mutability#constants">“Differences Between Variables and Constants”</a> section in Chapter 3. The names of static variables are in <code>SCREAMING_SNAKE_CASE</code> by convention. Static variables can only store references with the <code>'static</code> lifetime, which means the Rust compiler can figure out the lifetime and we aren’t required to annotate it explicitly. Accessing an immutable static variable is safe.</p> <p>Constants and immutable static variables might seem similar, but a subtle difference is that values in a static variable have a fixed address in memory. Using the value will always access the same data. Constants, on the other hand, are allowed to duplicate their data whenever they’re used.</p> <p>Another difference between constants and static variables is that static variables can be mutable. Accessing and modifying mutable static variables is <em>unsafe</em>. Listing 19-10 shows how to declare, access, and modify a mutable static variable named <code>COUNTER</code>.</p> <p><span class="filename">Filename: src/main.rs</span></p> <pre data-language="rust">static mut COUNTER: u32 = 0;
 
 fn add_to_count(inc: u32) {
     unsafe {

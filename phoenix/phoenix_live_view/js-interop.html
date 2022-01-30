@@ -1,20 +1,19 @@
-<h1>JavaScript interoperability</h1>
-<p>As seen earlier, you start by instantiating a single LiveSocket to enable LiveView client/server interaction, for example:</p>
+<h1> <button class="settings display-settings">  <span class="sr-only">Settings</span> </button>  <span>JavaScript interoperability</span> </h1> <p>To enable LiveView client/server interaction, we instantiate a LiveSocket. For example:</p>
 <pre data-language="elixir">import {Socket} from "phoenix"
-import LiveSocket from "phoenix_live_view"
+import {LiveSocket} from "phoenix_live_view"
 
 let csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 let liveSocket = new LiveSocket("/live", Socket, {params: {_csrf_token: csrfToken}})
 liveSocket.connect()</pre>
-<p>All options are passed directly to the <a href="../phoenix/1.5.7/phoenix.socket"><code class="inline">Phoenix.Socket</code></a> constructor, except for the following LiveView specific options:</p>
+<p>All options are passed directly to the <a href="../phoenix/1.5.9/phoenix.socket"><code class="inline">Phoenix.Socket</code></a> constructor, except for the following LiveView specific options:</p>
 <ul>
 <li>
 <code class="inline">bindingPrefix</code> - the prefix to use for phoenix bindings. Defaults <code class="inline">"phx-"</code>
 </li>
 <li>
-<code class="inline">params</code> - the <code class="inline">connect_params</code> to pass to the view's mount callback. May be a literal object or closure returning an object. When a closure is provided, the function receives the view's phx-view name.</li>
+<code class="inline">params</code> - the <code class="inline">connect_params</code> to pass to the view's mount callback. May be a literal object or closure returning an object. When a closure is provided, the function receives the view's element.</li>
 <li>
-<code class="inline">hooks</code> – a reference to a user-defined hooks namespace, containing client callbacks for server/client interop. See the <a href="#client-hooks">Client hooks</a> section below for details.</li>
+<code class="inline">hooks</code> – a reference to a user-defined hooks namespace, containing client callbacks for server/client interop. See the <a href="#client-hooks-via-phx-hook">Client hooks</a> section below for details.</li>
 <li>
 <code class="inline">uploaders</code> – a reference to a user-defined uploaders namespace, containing client callbacks for client-side direct-to-cloud uploads. See the <a href="uploads-external">External Uploads guide</a> for details.</li>
 </ul>
@@ -37,43 +36,8 @@ window.liveSocket = liveSocket
 &gt;&gt; liveSocket.enableLatencySim(1000)
 [Log] latency simulator enabled for the duration of this browser session.
       Call disableLatencySim() to disable</pre>
-<h2 id="loading-state-and-errors" class="section-heading">  Loading state and errors </h2> <p>By default, the following classes are applied to the LiveView's parent container:</p>
-<ul>
-<li>
-<code class="inline">"phx-connected"</code> - applied when the view has connected to the server</li>
-<li>
-<code class="inline">"phx-disconnected"</code> - applied when the view is not connected to the server</li>
-<li>
-<code class="inline">"phx-error"</code> - applied when an error occurs on the server. Note, this class will be applied in conjunction with <code class="inline">"phx-disconnected"</code> if connection to the server is lost.</li>
-</ul>
-<p>All <code class="inline">phx-</code> event bindings apply their own css classes when pushed. For example the following markup:</p>
-<pre data-language="elixir">&lt;button phx-click="clicked" phx-window-keydown="key"&gt;...&lt;/button&gt;</pre>
-<p>On click, would receive the <code class="inline">phx-click-loading</code> class, and on keydown would receive the <code class="inline">phx-keydown-loading</code> class. The css loading classes are maintained until an acknowledgement is received on the client for the pushed event.</p>
-<p>In the case of forms, when a <code class="inline">phx-change</code> is sent to the server, the input element which emitted the change receives the <code class="inline">phx-change-loading</code> class, along with the parent form tag. The following events receive css loading classes:</p>
-<ul>
-<li>
-<code class="inline">phx-click</code> - <code class="inline">phx-click-loading</code>
-</li>
-<li>
-<code class="inline">phx-change</code> - <code class="inline">phx-change-loading</code>
-</li>
-<li>
-<code class="inline">phx-submit</code> - <code class="inline">phx-submit-loading</code>
-</li>
-<li>
-<code class="inline">phx-focus</code> - <code class="inline">phx-focus-loading</code>
-</li>
-<li>
-<code class="inline">phx-blur</code> - <code class="inline">phx-blur-loading</code>
-</li>
-<li>
-<code class="inline">phx-window-keydown</code> - <code class="inline">phx-keydown-loading</code>
-</li>
-<li>
-<code class="inline">phx-window-keyup</code> - <code class="inline">phx-keyup-loading</code>
-</li>
-</ul>
-<p>For live page navigation via <code class="inline">live_redirect</code> and <code class="inline">live_patch</code>, as well as form submits via <code class="inline">phx-submit</code>, the JavaScript events <code class="inline">"phx:page-loading-start"</code> and <code class="inline">"phx:page-loading-stop"</code> are dispatched on window. Additionally, any <code class="inline">phx-</code> event may dispatch page loading events by annotating the DOM element with <code class="inline">phx-page-loading</code>. This is useful for showing main page loading status, for example:</p>
+<h2 id="event-listeners" class="section-heading">  Event listeners </h2> <p>LiveView emits several events to the browsers and allows developers to submit their own events too.</p>
+<h3 id="live-navigation-events" class="section-heading">  Live navigation events </h3> <p>For live page navigation via <code class="inline">live_redirect</code> and <code class="inline">live_patch</code>, as well as form submits via <code class="inline">phx-submit</code>, the JavaScript events <code class="inline">"phx:page-loading-start"</code> and <code class="inline">"phx:page-loading-stop"</code> are dispatched on window. Additionally, any <code class="inline">phx-</code> event may dispatch page loading events by annotating the DOM element with <code class="inline">phx-page-loading</code>. This is useful for showing main page loading status, for example:</p>
 <pre data-language="elixir">// app.js
 import topbar from "topbar"
 window.addEventListener("phx:page-loading-start", info =&gt; topbar.show())
@@ -92,7 +56,36 @@ window.addEventListener("phx:page-loading-stop", info =&gt; topbar.hide())</pre>
 </ul>
 <p>For all kinds of page loading events, all but <code class="inline">"element"</code> will receive an additional <code class="inline">to</code> key in the info metadata pointing to the href associated with the page load.</p>
 <p>In the case of an <code class="inline">"element"</code> page loading event, the info will contain a <code class="inline">"target"</code> key containing the DOM element which triggered the page loading state.</p>
-<h2 id="client-hooks" class="section-heading">  Client hooks </h2> <p>To handle custom client-side JavaScript when an element is added, updated, or removed by the server, a hook object may be provided with the following life-cycle callbacks:</p>
+<h3 id="handling-server-pushed-events" class="section-heading">  Handling server-pushed events </h3> <p>When the server uses <a href="phoenix.liveview#push_event/3"><code class="inline">Phoenix.LiveView.push_event/3</code></a>, the event name will be dispatched in the browser with the <code class="inline">phx:</code> prefix. For example, imagine the following template where you want to highlight an existing element from the server to draw the user's attention:</p>
+<pre data-language="elixir">&lt;div id={"item-#{item.id}"} class="item"&gt;
+  &lt;%= item.title %&gt;
+&lt;/div&gt;</pre>
+<p>Next, the server can issue a highlight using the standard <code class="inline">push_event</code>:</p>
+<pre data-language="elixir">def handle_info({:item_updated, item}, socket) do
+  {:ok, push_event(socket, "highlight", %{id: item.id})}
+end</pre>
+<p>Finally, a window event listener can listen for the event and conditionally execute the highlight command if the element matches:</p>
+<pre data-language="elixir">let liveSocket = new LiveSocket(...)
+window.addEventListener(`phx:highlight`, (e) =&gt; {
+  let el = document.getElementById(e.detail.id)
+  if(el) {
+    // logic for highlighting
+  }
+})</pre>
+<p>If you desire, you can also integrate this functionality with Phoenix' JS commands, executing JS commands for the given element whenever highlight is triggered. First, update the element to embed the JS command into a data attribute:</p>
+<pre data-language="elixir">&lt;div id={"item-#{item.id}"} class="item" data-highlight={JS.transition("highligh")}&gt;
+  &lt;%= item.title %&gt;
+&lt;/div&gt;</pre>
+<p>Now, in the event listener, use <code class="inline">LiveSocket.execJS</code> to trigger all JS commands in the new attribute:</p>
+<pre data-language="elixir">let liveSocket = new LiveSocket(...)
+window.addEventListener(`phx:highlight`, (e) =&gt; {
+  document.querySelectorAll(`[data-highlight]`).forEach(el =&gt; {
+    if(el.id == e.detail.id){
+      liveSocket.execJS(el, el.getAttribute("data-highlight"))
+    }
+  })
+})</pre>
+<h2 id="client-hooks-via-phx-hook" class="section-heading">  Client hooks via <code class="inline">phx-hook</code> </h2> <p>To handle custom client-side JavaScript when an element is added, updated, or removed by the server, a hook object may be provided via <code class="inline">phx-hook</code>. <code class="inline">phx-hook</code> must point to an object with the following life-cycle callbacks:</p>
 <ul>
 <li>
 <code class="inline">mounted</code> - the element has been added to the DOM and its server LiveView has finished mounting</li>
@@ -110,15 +103,17 @@ window.addEventListener("phx:page-loading-stop", info =&gt; topbar.hide())</pre>
 <p>The above life-cycle callbacks have in-scope access to the following attributes:</p>
 <ul>
 <li>
-<code class="inline">el</code> - attribute referencing the bound DOM node,</li>
-<li>
-<code class="inline">viewName</code> - attribute matching the DOM node's phx-view value</li>
+<code class="inline">el</code> - attribute referencing the bound DOM node</li>
 <li>
 <code class="inline">pushEvent(event, payload, (reply, ref) =&gt; ...)</code> - method to push an event from the client to the LiveView server</li>
 <li>
 <code class="inline">pushEventTo(selectorOrTarget, event, payload, (reply, ref) =&gt; ...)</code> - method to push targeted events from the client to LiveViews and LiveComponents. It sends the event to the LiveComponent or LiveView the <code class="inline">selectorOrTarget</code> is defined in, where it's value can be either a query selector or an actual DOM element. If the query selector returns more than one element it will send the event to all of them, even if all the elements are in the same LiveComponent or LiveView.</li>
 <li>
 <code class="inline">handleEvent(event, (payload) =&gt; ...)</code> - method to handle an event pushed from the server</li>
+<li>
+<code class="inline">upload(name, files)</code> - method to inject a list of file-like objects into an uploader.</li>
+<li>
+<code class="inline">uploadTo(selectorOrTarget, name, files)</code> - method to inject a list of file-like objects into an uploader. The hook will send the files to the uploader with <code class="inline">name</code> defined by <a href="phoenix.liveview#allow_upload/3"><code class="inline">allow_upload/3</code></a> on the server-side. Dispatching new uploads triggers an input change event which will be sent to the LiveComponent or LiveView the <code class="inline">selectorOrTarget</code> is defined in, where it's value can be either a query selector or an actual DOM element. If the query selector returns more than one live file input, an error will be logged.</li>
 </ul>
 <p>For example, the markup for a controlled input for phone-number formatting could be written like this:</p>
 <pre data-language="elixir">&lt;input type="text" name="user[phone_number]" id="user-phone-number" phx-hook="PhoneNumber" /&gt;</pre>
@@ -143,12 +138,12 @@ let liveSocket = new LiveSocket("/live", Socket, {hooks: Hooks, ...})
   ...,
   dom: {
     onBeforeElUpdated(from, to){
-      if(from.__x){ window.Alpine.clone(from.__x, to) }
+      if(from._x_dataStack){ window.Alpine.clone(from, to) }
     }
   },
 })</pre>
 <h3 id="client-server-communication" class="section-heading">  Client-server communication </h3> <p>A hook can push events to the LiveView by using the <code class="inline">pushEvent</code> function and receive a reply from the server via a <code class="inline">{:reply, map, socket}</code> return value. The reply payload will be passed to the optional <code class="inline">pushEvent</code> response callback.</p>
-<p>Communication with the hook from the server can be done by reading data attributes on the hook element or by using <code class="inline">push_event</code> on the server and <code class="inline">handleEvent</code> on the client.</p>
+<p>Communication with the hook from the server can be done by reading data attributes on the hook element or by using <a href="phoenix.liveview#push_event/3"><code class="inline">Phoenix.LiveView.push_event/3</code></a> on the server and <code class="inline">handleEvent</code> on the client.</p>
 <p>For example, to implement infinite scrolling, one can pass the current page using data attributes:</p>
 <pre data-language="elixir">&lt;div id="infinite-scroll" phx-hook="InfiniteScroll" data-page="&lt;%= @page %&gt;"&gt;</pre>
 <p>And then in the client:</p>
@@ -174,8 +169,18 @@ let liveSocket = new LiveSocket("/live", Socket, {hooks: Hooks, ...})
     this.handleEvent("points", ({points}) =&gt; MyChartLib.addPoints(points))
   }
 }</pre>
-<p><em>Note</em>: events pushed from the server via <code class="inline">push_event</code> are global and will be dispatched to all active hooks on the client who are handling that event.</p>
-<p><em>Note</em>: In case a LiveView pushes events and renders content, <code class="inline">handleEvent</code> callbacks are invoked after the page is updated. Therefore, if the LiveView redirects at the same time it pushes events, callbacks won't be invoked.</p> <div class="bottom-actions"> <div class="bottom-actions-item"> <a href="dom-patching" class="bottom-actions-button" rel="prev"> <span class="subheader"> ← Previous Page </span> <span class="title"> DOM patching &amp; temporary assigns </span> </a> </div> <div class="bottom-actions-item"> <a href="uploads-external" class="bottom-actions-button" rel="next"> <span class="subheader"> Next Page → </span> <span class="title"> External Uploads </span> </a> </div> </div><div class="_attribution">
+<p><em>Note</em>: remember events pushed from the server via <code class="inline">push_event</code> are global and will be dispatched to all active hooks on the client who are handling that event.</p>
+<p><em>Note</em>: In case a LiveView pushes events and renders content, <code class="inline">handleEvent</code> callbacks are invoked after the page is updated. Therefore, if the LiveView redirects at the same time it pushes events, callbacks won't be invoked on the old page's elements. Callbacks would be invoked on the redirected page's newly mounted hook elements.</p>
+<h2 id="triggering-phx-form-events-with-javascript" class="section-heading">  Triggering <code class="inline">phx-</code> form events with JavaScript </h2> <p>Often it is desirable to trigger an event on a DOM element without explicit user interaction on the element. For example, a custom form element such as a date picker or custom select input which utilizes a hidden input element to store the selected state.</p>
+<p>In these cases, the event functions on the DOM API can be used, for example to trigger a <code class="inline">phx-change</code> event:</p>
+<pre data-language="elixir">document.getElementById("my-select").dispatchEvent(
+  new Event("input", {bubbles: true})
+)</pre>
+<p>When using a client hook, <code class="inline">this.el</code> can be used to determine the element as outlined in the "Client hooks" documentation.</p>
+<p>It is also possible to trigger a <code class="inline">phx-submit</code> using a "submit" event:</p>
+<pre data-language="elixir">document.getElementById("my-form").dispatchEvent(
+  new Event("submit", {bubbles: true})
+)</pre> <div class="bottom-actions"> <div class="bottom-actions-item"> <a href="dom-patching" class="bottom-actions-button" rel="prev"> <span class="subheader"> ← Previous Page </span> <span class="title"> DOM patching &amp; temporary assigns </span> </a> </div> <div class="bottom-actions-item"> <a href="uploads-external" class="bottom-actions-button" rel="next"> <span class="subheader"> Next Page → </span> <span class="title"> External Uploads </span> </a> </div> </div><div class="_attribution">
   <p class="_attribution-p">
     <a href="https://hexdocs.pm/phoenix_live_view/js-interop.html" class="_attribution-link" target="_blank">https://hexdocs.pm/phoenix_live_view/js-interop.html</a>
   </p>

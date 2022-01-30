@@ -1,32 +1,28 @@
-<p class="_links"><a href="../../dart-async/dart-async-library" class="_links-link">dart:async</a></p> <h1>StreamTransformer&lt;<wbr>S, T&gt;</wbr> constructor  </h1> <section class="multi-line-signature"> const StreamTransformer&lt;<wbr>S, T&gt;</wbr>(<wbr><ol class="parameter-list">
+<p class="_links"><a href="../../dart-async/dart-async-library" class="_links-link">dart:async</a></p> <h1>StreamTransformer&lt;<wbr>S, T&gt;</wbr> constructor  </h1> <section class="multi-line-signature">const StreamTransformer&lt;<wbr>S, T&gt;</wbr>(<wbr><ol class="parameter-list">
 <li>
 <a href="../streamsubscription-class">StreamSubscription</a>&lt;<wbr>T&gt;</wbr> onListen(<ol class="parameter-list">
 <li>
 <a href="../stream-class">Stream</a>&lt;<wbr>S&gt;</wbr> stream, </li> <li>
 <a href="../../dart-core/bool-class">bool</a> cancelOnError</li> </ol> )</li> </ol>) </wbr></section>  <p>Creates a <a href="../streamtransformer-class">StreamTransformer</a> based on the given <code>onListen</code> callback.</p> <p>The returned stream transformer uses the provided <code>onListen</code> callback when a transformed stream is listened to. At that time, the callback receives the input stream (the one passed to <a href="bind">bind</a>) and a boolean flag <code>cancelOnError</code> to create a <a href="../streamsubscription-class">StreamSubscription</a>.</p> <p>If the transformed stream is a broadcast stream, so is the stream returned by the <a href="bind">StreamTransformer.bind</a> method by this transformer.</p> <p>If the transformed stream is listened to multiple times, the <code>onListen</code> callback is called again for each new <a href="../stream/listen">Stream.listen</a> call. This happens whether the stream is a broadcast stream or not, but the call will usually fail for non-broadcast streams.</p> <p>The <code>onListen</code> callback does <em>not</em> receive the handlers that were passed to <a href="../stream/listen">Stream.listen</a>. These are automatically set after the call to the <code>onListen</code> callback (using <a href="../streamsubscription/ondata">StreamSubscription.onData</a>, <a href="../streamsubscription/onerror">StreamSubscription.onError</a> and <a href="../streamsubscription/ondone">StreamSubscription.onDone</a>).</p> <p>Most commonly, an <code>onListen</code> callback will first call <a href="../stream/listen">Stream.listen</a> on the provided stream (with the corresponding <code>cancelOnError</code> flag), and then return a new <a href="../streamsubscription-class">StreamSubscription</a>.</p> <p>There are two common ways to create a StreamSubscription:</p> <ol> <li>by allocating a <a href="../streamcontroller-class">StreamController</a> and to return the result of listening to its stream. It's important to forward pause, resume and cancel events (unless the transformer intentionally wants to change this behavior).</li> <li>by creating a new class that implements <a href="../streamsubscription-class">StreamSubscription</a>. Note that the subscription should run callbacks in the <a href="../zone-class">Zone</a> the stream was listened to (see <a href="../zone-class">Zone</a> and <a href="../zone/bindcallback">Zone.bindCallback</a>).</li> </ol> <p>Example:</p> <pre class="language-dart" data-language="dart">/// Starts listening to [input] and duplicates all non-error events.
 StreamSubscription&lt;int&gt; _onListen(Stream&lt;int&gt; input, bool cancelOnError) {
-  late StreamSubscription&lt;String&gt; subscription;
-  // Create controller that forwards pause, resume and cancel events.
-  var controller = new StreamController&lt;String&gt;(
-      onPause: () {
-        subscription.pause();
-      },
-      onResume: () {
-        subscription.resume();
-      },
-      onCancel: () =&gt; subscription.cancel(),
-      sync: true); // "sync" is correct here, since events are forwarded.
-
-  // Listen to the provided stream.
-  subscription = input.listen((data) {
-    // Duplicate the data.
-    controller.add(data);
-    controller.add(data);
-  },
-      onError: controller.addError,
-      onDone: controller.close,
-      cancelOnError: cancelOnError);
-
+  // Create the result controller.
+  // Using `sync` is correct here, since only async events are forwarded.
+  var controller = StreamController&lt;int&gt;(sync: true);
+  controller.onListen = () {
+    var subscription = input.listen((data) {
+      // Duplicate the data.
+      controller.add(data);
+      controller.add(data);
+    },
+        onError: controller.addError,
+        onDone: controller.close,
+        cancelOnError: cancelOnError);
+    // Controller forwards pause, resume and cancel events.
+    controller
+      ..onPause = subscription.pause
+      ..onResume = subscription.resume
+      ..onCancel = subscription.cancel;
+  };
   // Return a new [StreamSubscription] by listening to the controller's
   // stream.
   return controller.stream.listen(null);
@@ -42,6 +38,6 @@ intStream.transform(duplicator);</pre>   <h2 id="source">Implementation</h2> <pr
     _StreamSubscriptionTransformer&lt;S, T&gt;;</pre><div class="_attribution">
   <p class="_attribution-p">
     &copy; 2012 the Dart project authors<br>Licensed under the Creative Commons Attribution-ShareAlike License v4.0.<br>
-    <a href="https://api.dart.dev/stable/2.13.0/dart-async/StreamTransformer/StreamTransformer.html" class="_attribution-link">https://api.dart.dev/stable/2.13.0/dart-async/StreamTransformer/StreamTransformer.html</a>
+    <a href="https://api.dart.dev/stable/2.15.1/dart-async/StreamTransformer/StreamTransformer.html" class="_attribution-link">https://api.dart.dev/stable/2.15.1/dart-async/StreamTransformer/StreamTransformer.html</a>
   </p>
 </div>

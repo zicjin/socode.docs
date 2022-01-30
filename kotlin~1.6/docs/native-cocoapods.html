@@ -1,0 +1,57 @@
+<h1 data-toc="native-cocoapods" id="native-cocoapods.md">CocoaPods overview</h1>
+<p id="ad7bbdb5">Kotlin/Native provides integration with the <a href="https://cocoapods.org/" id="ba58dc8d" data-external="true" rel="noopener noreferrer">CocoaPods dependency manager</a>. You can add dependencies on Pod libraries as well as use a multiplatform project with native targets as a CocoaPods dependency.</p>
+<p id="b51c9c6e">You can manage Pod dependencies directly in IntelliJ IDEA and enjoy all the additional features such as code highlighting and completion. You can build the whole Kotlin project with Gradle and not ever have to switch to Xcode.</p>
+<p id="a9b00bdc">Use Xcode only when you need to write Swift/Objective-C code or run your application on a simulator or device. To work correctly with Xcode, you should <a href="#update-podfile-for-xcode" id="a9408852">update your Podfile</a>.</p>
+<p id="4e7eb312">Depending on your project and purposes, you can add dependencies between <a href="native-cocoapods-libraries" id="fa98093d">a Kotlin project and a Pod library</a> as well as <a href="native-cocoapods-xcode" id="b85c9851">a Kotlin Gradle project and an Xcode project</a>.</p>
+<section class="chapter"><h2 id="set-up-the-environment-to-work-with-cocoapods" data-toc="native-cocoapods#set-up-the-environment-to-work-with-cocoapods">Set up the environment to work with CocoaPods</h2>
+<ol class="list _decimal" id="2363e68a">
+<li class="list__item" id="12233321">
+<p id="be34ae3f">Install the <a href="https://cocoapods.org/" id="4ade8352" data-external="true" rel="noopener noreferrer">CocoaPods dependency manager</a>:</p>
+<pre class="code-block" data-lang="ruby" data-language="ruby">$ sudo gem install cocoapods </pre>
+</li>
+<li class="list__item" id="6e42855">
+<p id="83480d13">Install the <a href="https://github.com/square/cocoapods-generate" id="6074ae29" data-external="true" rel="noopener noreferrer"><code class="code ">cocoapods-generate</code></a> plugin:</p>
+<pre class="code-block" data-lang="ruby" data-language="ruby">$ sudo gem install cocoapods-generate </pre>
+</li>
+</ol>
+<aside data-type="note" class="prompt" data-title="" id="41d90ecb"><p id="2ad970d1">If you encounter any problems during the installation, follow the <a href="https://guides.cocoapods.org/using/getting-started.html#getting-started" id="4396eea3" data-external="true" rel="noopener noreferrer">official CocoaPods installation guide</a></p></aside></section><section class="chapter"><h2 id="add-and-configure-kotlin-cocoapods-gradle-plugin" data-toc="native-cocoapods#add-and-configure-kotlin-cocoapods-gradle-plugin">Add and configure Kotlin CocoaPods Gradle plugin</h2>
+<ol class="list _decimal" id="2d275fb8">
+<li class="list__item" id="42ada582">
+<p id="7a644c1b">In <code class="code ">build.gradle(.kts)</code> of your project, apply the CocoaPods plugin as well as the Kotlin Multiplatform plugin:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">plugins { kotlin("multiplatform") version "1.6.10" kotlin("native.cocoapods") version "1.6.10" } </pre>
+</li>
+<li class="list__item" id="8cd73cf4">
+<p id="285bb39e">Configure <code class="code ">summary</code>, <code class="code ">homepage</code>, and <code class="code ">frameworkName</code>of the <code class="code ">Podspec</code> file in the <code class="code ">cocoapods</code> block. <br> <code class="code ">version</code> is a version of the Gradle project:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">plugins { kotlin("multiplatform") version "1.6.10" kotlin("native.cocoapods") version "1.6.10" } // CocoaPods requires the podspec to have a version. version = "1.0" kotlin { cocoapods { framework { // Mandatory properties // Configure fields required by CocoaPods. summary = "Some description for a Kotlin/Native module" homepage = "Link to a Kotlin/Native module homepage" // Framework name configuration. Use this property instead of deprecated 'frameworkName' baseName = "MyFramework" // Optional properties // (Optional) Dynamic framework support isStatic = false // (Optional) Dependency export export(project(":anotherKMMModule")) transitiveExport = true // (Optional) Bitcode embedding embedBitcode(BITCODE) } // Maps custom Xcode configuration to NativeBuildType xcodeConfigurationToNativeBuildType["CUSTOM_DEBUG"] = NativeBuildType.DEBUG xcodeConfigurationToNativeBuildType["CUSTOM_RELEASE"] = NativeBuildType.RELEASE } } </pre>
+<aside data-type="note" class="prompt" data-title="" id="c151a826"><p id="44abdd94">See the full syntax of Kotlin DSL in the <a href="https://github.com/JetBrains/kotlin/blob/master/libraries/tools/kotlin-gradle-plugin/src/main/kotlin/org/jetbrains/kotlin/gradle/targets/native/cocoapods/CocoapodsExtension.kt" id="f9c1fdf8" data-external="true" rel="noopener noreferrer">Kotlin Gradle plugin repository</a>.</p></aside>
+</li>
+<li class="list__item" id="86245c5e"><p id="217562fc">Re-import the project.</p></li>
+<li class="list__item" id="c84bc696"><p id="3a9a8919">Generate the <a href="https://docs.gradle.org/current/userguide/gradle_wrapper.html" id="9bdff777" data-external="true" rel="noopener noreferrer">Gradle wrapper</a> to avoid compatibility issues during an Xcode build.</p></li>
+</ol>
+<p id="749e496f">When applied, the CocoaPods plugin does the following:</p>
+<ul class="list _ul" id="e3f3eb03">
+<li class="list__item" id="57246403"><p>Adds both <code class="code ">debug</code> and <code class="code ">release</code> frameworks as output binaries for all macOS, iOS, tvOS, and watchOS targets.</p></li>
+<li class="list__item" id="1498276a"><p>Creates a <code class="code ">podspec</code> task which generates a <a href="https://guides.cocoapods.org/syntax/podspec.html" id="10b8bc54" data-external="true" rel="noopener noreferrer">Podspec</a> file for the project.</p></li>
+</ul>
+<p id="3e753b3b">The <code class="code ">Podspec</code> file includes a path to an output framework and script phases that automate building this framework during the build process of an Xcode project.</p></section><section class="chapter"><h2 id="update-podfile-for-xcode" data-toc="native-cocoapods#update-podfile-for-xcode">Update Podfile for Xcode</h2>
+<p id="eb484dd4">If you want to import your Kotlin project in an Xcode project, you need to make some changes to your Podfile:</p>
+<ul class="list _ul" id="96cbaef0">
+<li class="list__item" id="1166b455">
+<p id="2f0c3ae">If your project has any Git, HTTP, or custom Podspec repository dependencies, you should also specify the path to the Podspec in the Podfile.</p>
+<p id="d75f08a0">For example, if you add a dependency on <code class="code ">podspecWithFilesExample</code>, declare the path to the Podspec in the Podfile:</p>
+<pre class="code-block" data-lang="ruby" data-language="ruby">target 'ios-app' do # ... other depedencies ... pod 'podspecWithFilesExample', :path =&gt; 'cocoapods/externalSources/url/podspecWithFilesExample' end </pre>
+<p id="e10c28ee">The <code class="code ">:path</code> should contain the filepath to the Pod.</p>
+</li>
+<li class="list__item" id="88d2627b">
+<p id="5c269cb8">When you add a library from the custom Podspec repository, you should also specify the <a href="https://guides.cocoapods.org/syntax/podfile.html#source" id="ef698fdf" data-external="true" rel="noopener noreferrer">location</a> of specs at the beginning of your Podfile:</p>
+<pre class="code-block" data-lang="ruby" data-language="ruby">source 'https://github.com/Kotlin/kotlin-cocoapods-spec.git' target 'kotlin-cocoapods-xcproj' do # ... other depedencies ... pod 'example' end </pre>
+</li>
+</ul>
+<aside data-type="note" class="prompt" data-title="" id="5f420933"><p id="93b08cd9">Re-import the project after making changes in the Podfile.</p></aside><p id="29ad0934">If you don't make these changes to the Podfile, the <code class="code ">podInstall</code> task will fail, and the CocoaPods plugin will show an error message in the log.</p>
+<p id="6f3b44a0">Check out the <code class="code ">withXcproject</code> branch of the <a href="https://github.com/Kotlin/kmm-with-cocoapods-sample" id="569a697c" data-external="true" rel="noopener noreferrer">sample project</a>, which contains an example of Xcode integration with an existing Xcode project named <code class="code ">kotlin-cocoapods-xcproj</code>.</p></section><div class="last-modified"> Last modified: 20 January 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="native-objc-interop">Interoperability with Swift/Objective-C</a> <a class="navigation-links__next" href="native-cocoapods-libraries">Add dependencies on a Pod library</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/native-cocoapods.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/native-cocoapods.html</a>
+  </p>
+</div>

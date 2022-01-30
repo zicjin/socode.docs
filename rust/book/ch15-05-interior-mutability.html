@@ -16,12 +16,8 @@ error[E0596]: cannot borrow `x` as mutable, as it is not declared as mutable
 3 |     let y = &amp;mut x;
   |             ^^^^^^ cannot borrow as mutable
 
-error: aborting due to previous error
-
 For more information about this error, try `rustc --explain E0596`.
-error: could not compile `borrowing`
-
-To learn more, run the command again with --verbose.
+error: could not compile `borrowing` due to previous error
 </pre> <p>However, there are situations in which it would be useful for a value to mutate itself in its methods but appear immutable to other code. Code outside the value’s methods would not be able to mutate the value. Using <code>RefCell&lt;T&gt;</code> is one way to get the ability to have interior mutability. But <code>RefCell&lt;T&gt;</code> doesn’t get around the borrowing rules completely: the borrow checker in the compiler allows this interior mutability, and the borrowing rules are checked at runtime instead. If you violate the rules, you’ll get a <code>panic!</code> instead of a compiler error.</p> <p>Let’s work through a practical example where we can use <code>RefCell&lt;T&gt;</code> to mutate an immutable value and see why that is useful.</p> <h4 id="a-use-case-for-interior-mutability-mock-objects">A Use Case for Interior Mutability: Mock Objects</h4> <p>A <em>test double</em> is the general programming concept for a type used in place of another type during testing. <em>Mock objects</em> are specific types of test doubles that record what happens during a test so you can assert that the correct actions took place.</p> <p>Rust doesn’t have objects in the same sense as other languages have objects, and Rust doesn’t have mock object functionality built into the standard library as some other languages do. However, you can definitely create a struct that will serve the same purposes as a mock object.</p> <p>Here’s the scenario we’ll test: we’ll create a library that tracks a value against a maximum value and sends messages based on how close to the maximum value the current value is. This library could be used to keep track of a user’s quota for the number of API calls they’re allowed to make, for example.</p> <p>Our library will only provide the functionality of tracking how close to the maximum a value is and what the messages should be at what times. Applications that use our library will be expected to provide the mechanism for sending the messages: the application could put a message in the application, send an email, send a text message, or something else. The library doesn’t need to know that detail. All it needs is something that implements a trait we’ll provide called <code>Messenger</code>. Listing 15-20 shows the library code:</p> <p><span class="filename">Filename: src/lib.rs</span></p> <pre data-language="rust">pub trait Messenger {
     fn send(&amp;self, msg: &amp;str);
 }
@@ -136,17 +132,14 @@ mod tests {
 error[E0596]: cannot borrow `self.sent_messages` as mutable, as it is behind a `&amp;` reference
   --&gt; src/lib.rs:58:13
    |
-57 |         fn send(&amp;self, message: &amp;str) {
-   |                 ----- help: consider changing this to be a mutable reference: `&amp;mut self`
+2  |     fn send(&amp;self, msg: &amp;str);
+   |             ----- help: consider changing that to be a mutable reference: `&amp;mut self`
+...
 58 |             self.sent_messages.push(String::from(message));
    |             ^^^^^^^^^^^^^^^^^^ `self` is a `&amp;` reference, so the data it refers to cannot be borrowed as mutable
 
-error: aborting due to previous error
-
 For more information about this error, try `rustc --explain E0596`.
-error: could not compile `limit-tracker`
-
-To learn more, run the command again with --verbose.
+error: could not compile `limit-tracker` due to previous error
 warning: build failed, waiting for other jobs to finish...
 error: build failed
 </pre> <p>We can’t modify the <code>MockMessenger</code> to keep track of the messages, because the <code>send</code> method takes an immutable reference to <code>self</code>. We also can’t take the suggestion from the error text to use <code>&amp;mut self</code> instead, because then the signature of <code>send</code> wouldn’t match the signature in the <code>Messenger</code> trait definition (feel free to try and see what error message you get).</p> <p>This is a situation in which interior mutability can help! We’ll store the <code>sent_messages</code> within a <code>RefCell&lt;T&gt;</code>, and then the <code>send</code> method will be able to modify <code>sent_messages</code> to store the messages we’ve seen. Listing 15-22 shows what that looks like:</p> <p><span class="filename">Filename: src/lib.rs</span></p> <pre data-language="rust">pub trait Messenger {
@@ -302,7 +295,7 @@ mod tests {
 </pre> <p><span class="caption">Listing 15-23: Creating two mutable references in the same scope to see that <code>RefCell&lt;T&gt;</code> will panic</span></p> <p>We create a variable <code>one_borrow</code> for the <code>RefMut&lt;T&gt;</code> smart pointer returned from <code>borrow_mut</code>. Then we create another mutable borrow in the same way in the variable <code>two_borrow</code>. This makes two mutable references in the same scope, which isn’t allowed. When we run the tests for our library, the code in Listing 15-23 will compile without any errors, but the test will fail:</p> <pre>$ cargo test
    Compiling limit-tracker v0.1.0 (file:///projects/limit-tracker)
     Finished test [unoptimized + debuginfo] target(s) in 0.91s
-     Running target/debug/deps/limit_tracker-d1b2637139dca6ca
+     Running unittests (target/debug/deps/limit_tracker-e599811fa246dbde)
 
 running 1 test
 test tests::it_sends_an_over_75_percent_warning_message ... FAILED

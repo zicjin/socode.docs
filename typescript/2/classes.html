@@ -14,7 +14,7 @@ pt.y = 0;</pre> <p>As with other locations, the type annotation is optional, but
 const pt = new Point();
 // Prints 0, 0
 console.log(`${pt.x}, ${pt.y}`);</pre> <p>Just like with <code>const</code>, <code>let</code>, and <code>var</code>, the initializer of a class property will be used to infer its type:</p> <pre data-language="ts">const pt = new Point();
-pt.x = "0";</pre> <h4 id="--strictpropertyinitialization" style="position:relative;"><code>--strictPropertyInitialization</code></h4> <p>The <code>strictPropertyInitialization</code> setting controls whether class fields need to be initialized in the constructor.</p> <pre data-language="ts">class BadGreeter {
+pt.x = "0";</pre> <h4 id="--strictpropertyinitialization" style="position:relative;"><code>--strictPropertyInitialization</code></h4> <p>The <a href="https://www.typescriptlang.org/tsconfig#strictPropertyInitialization"><code>strictPropertyInitialization</code></a> setting controls whether class fields need to be initialized in the constructor.</p> <pre data-language="ts">class BadGreeter {
   name: string;
 }</pre> <pre data-language="ts">class GoodGreeter {
   name: string;
@@ -93,24 +93,24 @@ class C {
 }</pre> <blockquote> <p>Note that a field-backed get/set pair with no extra logic is very rarely useful in JavaScript. It’s fine to expose public fields if you don’t need to add additional logic during the get/set operations.</p> </blockquote> <p>TypeScript has some special inference rules for accessors:</p> <ul> <li>If <code>get</code> exists but no <code>set</code>, the property is automatically <code>readonly</code>
 </li> <li>If the type of the setter parameter is not specified, it is inferred from the return type of the getter</li> <li>Getters and setters must have the same <a href="#member-visibility">Member Visibility</a>
 </li> </ul> <p>Since <a href="https://devblogs.microsoft.com/typescript/announcing-typescript-4-3/">TypeScript 4.3</a>, it is possible to have accessors with different types for getting and setting.</p> <pre data-language="ts">class Thing {
-    _size = 0;
+  _size = 0;
  
-    get size(): number {
-        return this._size;
+  get size(): number {
+    return this._size;
+  }
+ 
+  set size(value: string | number | boolean) {
+    let num = Number(value);
+ 
+    // Don't allow NaN, Infinity, etc
+ 
+    if (!Number.isFinite(num)) {
+      this._size = 0;
+      return;
     }
  
-    set size(value: string | number | boolean) {
-        let num = Number(value);
- 
-        // Don't allow NaN, Infinity, etc
- 
-        if (!Number.isFinite(num)) {
-            this._size = 0;
-            return;
-        }
- 
-        this._size = num;
-    }
+    this._size = num;
+  }
 }</pre> <h3 id="index-signatures" style="position:relative;">Index Signatures</h3> <p>Classes can declare index signatures; these work the same as <a href="objects#index-signatures">Index Signatures for other object types</a>:</p> <pre data-language="ts">class MyClass {
   [s: string]: boolean | ((s: string) =&gt; boolean);
  
@@ -202,7 +202,29 @@ class Derived extends Base {
   }
 }</pre> <p>If we compiled this code despite the error, this sample would then crash:</p> <pre data-language="ts">const b: Base = new Derived();
 // Crashes because "name" will be undefined
-b.greet();</pre> <h4 id="initialization-order" style="position:relative;">Initialization Order</h4> <p>The order that JavaScript classes initialize can be surprising in some cases. Let’s consider this code:</p> <pre data-language="ts">class Base {
+b.greet();</pre> <h4 id="type-only-field-declarations" style="position:relative;">Type-only Field Declarations</h4> <p>When <code>target &gt;= ES2022</code> or <a href="https://www.typescriptlang.org/tsconfig#useDefineForClassFields"><code>useDefineForClassFields</code></a> is <code>true</code>, class fields are initialized after the parent class constructor completes, overwriting any value set by the parent class. This can be a problem when you only want to re-declare a more accurate type for an inherited field. To handle these cases, you can write <code>declare</code> to indicate to TypeScript that there should be no runtime effect for this field declaration.</p> <pre data-language="ts">interface Animal {
+  dateOfBirth: any;
+}
+ 
+interface Dog extends Animal {
+  breed: any;
+}
+ 
+class AnimalHouse {
+  resident: Animal;
+  constructor(animal: Animal) {
+    this.resident = animal;
+  }
+}
+ 
+class DogHouse extends AnimalHouse {
+  // Does not emit JavaScript code,
+  // only ensures the types are correct
+  declare resident: Dog;
+  constructor(dog: Dog) {
+    super(dog);
+  }
+}</pre> <h4 id="initialization-order" style="position:relative;">Initialization Order</h4> <p>The order that JavaScript classes initialize can be surprising in some cases. Let’s consider this code:</p> <pre data-language="ts">class Base {
   name = "base";
   constructor() {
     console.log("My name is " + this.name);
@@ -214,7 +236,7 @@ class Derived extends Base {
 }
  
 // Prints "base", not "derived"
-const d = new Derived();</pre> <p>What happened here?</p> <p>The order of class initialization, as defined by JavaScript, is:</p> <ul> <li>The base class fields are initialized</li> <li>The base class constructor runs</li> <li>The derived class fields are initialized</li> <li>The derived class constructor runs</li> </ul> <p>This means that the base class constructor saw its own value for <code>name</code> during its own constructor, because the derived class field initializations hadn’t run yet.</p> <h4 id="inheriting-built-in-types" style="position:relative;">Inheriting Built-in Types</h4> <blockquote> <p>Note: If you don’t plan to inherit from built-in types like <code>Array</code>, <code>Error</code>, <code>Map</code>, etc. or your compilation target is explicitely set to <code>ES6</code>/<code>ES2015</code> or above, you may skip this section</p> </blockquote> <p>In ES2015, constructors which return an object implicitly substitute the value of <code>this</code> for any callers of <code>super(...)</code>. It is necessary for generated constructor code to capture any potential return value of <code>super(...)</code> and replace it with <code>this</code>.</p> <p>As a result, subclassing <code>Error</code>, <code>Array</code>, and others may no longer work as expected. This is due to the fact that constructor functions for <code>Error</code>, <code>Array</code>, and the like use ECMAScript 6’s <code>new.target</code> to adjust the prototype chain; however, there is no way to ensure a value for <code>new.target</code> when invoking a constructor in ECMAScript 5. Other downlevel compilers generally have the same limitation by default.</p> <p>For a subclass like the following:</p> <pre data-language="ts">class MsgError extends Error {
+const d = new Derived();</pre> <p>What happened here?</p> <p>The order of class initialization, as defined by JavaScript, is:</p> <ul> <li>The base class fields are initialized</li> <li>The base class constructor runs</li> <li>The derived class fields are initialized</li> <li>The derived class constructor runs</li> </ul> <p>This means that the base class constructor saw its own value for <code>name</code> during its own constructor, because the derived class field initializations hadn’t run yet.</p> <h4 id="inheriting-built-in-types" style="position:relative;">Inheriting Built-in Types</h4> <blockquote> <p>Note: If you don’t plan to inherit from built-in types like <code>Array</code>, <code>Error</code>, <code>Map</code>, etc. or your compilation target is explicitly set to <code>ES6</code>/<code>ES2015</code> or above, you may skip this section</p> </blockquote> <p>In ES2015, constructors which return an object implicitly substitute the value of <code>this</code> for any callers of <code>super(...)</code>. It is necessary for generated constructor code to capture any potential return value of <code>super(...)</code> and replace it with <code>this</code>.</p> <p>As a result, subclassing <code>Error</code>, <code>Array</code>, and others may no longer work as expected. This is due to the fact that constructor functions for <code>Error</code>, <code>Array</code>, and the like use ECMAScript 6’s <code>new.target</code> to adjust the prototype chain; however, there is no way to ensure a value for <code>new.target</code> when invoking a constructor in ECMAScript 5. Other downlevel compilers generally have the same limitation by default.</p> <p>For a subclass like the following:</p> <pre data-language="ts">class MsgError extends Error {
   constructor(m: string) {
     super(m);
   }
@@ -299,12 +321,42 @@ class Derived extends Base {
     // No error
     return other.x === this.x;
   }
-}</pre> <h4 id="caveats" style="position:relative;">Caveats</h4> <p>Like other aspects of TypeScript’s type system, <code>private</code> and <code>protected</code> are only enforced during type checking. This means that JavaScript runtime constructs like <code>in</code> or simple property lookup can still access a <code>private</code> or <code>protected</code> member:</p> <pre data-language="ts">class MySafe {
+}</pre> <h4 id="caveats" style="position:relative;">Caveats</h4> <p>Like other aspects of TypeScript’s type system, <code>private</code> and <code>protected</code> <a href="https://www.typescriptlang.org/play?removeComments=true&amp;target=99&amp;ts=4.3.4#code/PTAEGMBsEMGddAEQPYHNQBMCmVoCcsEAHPASwDdoAXLUAM1K0gwQFdZSA7dAKWkoDK4MkSoByBAGJQJLAwAeAWABQIUH0HDSoiTLKUaoUggAW+DHorUsAOlABJcQlhUy4KpACeoLJzrI8cCwMGxU1ABVPIiwhESpMZEJQTmR4lxFQaQxWMm4IZABbIlIYKlJkTlDlXHgkNFAAbxVQTIAjfABrAEEC5FZOeIBeUAAGAG5mmSw8WAroSFIqb2GAIjMiIk8VieVJ8Ar01ncAgAoASkaAXxVr3dUwGoQAYWpMHBgCYn1rekZmNg4eUi0Vi2icoBWJCsNBWoA6WE8AHcAiEwmBgTEtDovtDaMZQLM6PEoQZbA5wSk0q5SO4vD4-AEghZoJwLGYEIRwNBoqAzFRwCZCFUIlFMXECdSiAhId8YZgclx0PsiiVqOVOAAaUAFLAsxWgKiC35MFigfC0FKgSAVVDTSyk+W5dB4fplHVVR6gF7xJrKFotEk-HXIRE9PoDUDDcaTAPTWaceaLZYQlmoPBbHYx-KcQ7HPDnK43FQqfY5+IMDDISPJLCIuqoc47UsuUCofAME3Vzi1r3URvF5QV5A2STtPDdXqunZDgDaYlHnTDrrEAF0dm28B3mDZg6HJwN1+2-hg57ulwNV2NQGoZbjYfNrYiENBwEFaojFiZQK08C-4fFKTVCozWfTgfFgLkeT5AUqiAA">are only enforced during type checking</a>.</p> <p>This means that JavaScript runtime constructs like <code>in</code> or simple property lookup can still access a <code>private</code> or <code>protected</code> member:</p> <pre data-language="ts">class MySafe {
   private secretKey = 12345;
 }</pre> <pre data-language="js">// In a JavaScript file...
 const s = new MySafe();
 // Will print 12345
-console.log(s.secretKey);</pre> <p>If you need to protect values in your class from malicious actors, you should use mechanisms that offer hard runtime privacy, such as closures, weak maps, or <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes/Private_class_fields">private fields</a>.</p> <h2 id="static-members" style="position:relative;">Static Members</h2> <blockquote class="bg-reading"> <p>Background Reading:<br> <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes/static">Static Members (MDN)</a><br> </p> </blockquote> <p>Classes may have <code>static</code> members. These members aren’t associated with a particular instance of the class. They can be accessed through the class constructor object itself:</p> <pre data-language="ts">class MyClass {
+console.log(s.secretKey);</pre> <p><code>private</code> also allows access using bracket notation during type checking. This makes <code>private</code>-declared fields potentially easier to access for things like unit tests, with the drawback that these fields are <em>soft private</em> and don’t strictly enforce privacy.</p> <pre data-language="ts">class MySafe {
+  private secretKey = 12345;
+}
+ 
+const s = new MySafe();
+ 
+// Not allowed during type checking
+console.log(s.secretKey);
+ 
+// OK
+console.log(s["secretKey"]);</pre> <p>Unlike TypeScripts’s <code>private</code>, JavaScript’s <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes/Private_class_fields">private fields</a> (<code>#</code>) remain private after compilation and do not provide the previously mentioned escape hatches like bracket notation access, making them <em>hard private</em>.</p> <pre data-language="ts">class Dog {
+  #barkAmount = 0;
+  personality = "happy";
+ 
+  constructor() {}
+}</pre> <pre data-language="ts">"use strict";
+class Dog {
+    #barkAmount = 0;
+    personality = "happy";
+    constructor() { }
+}
+ </pre> <p>When compiling to ES2021 or less, TypeScript will use WeakMaps in place of <code>#</code>.</p> <pre data-language="ts">"use strict";
+var _Dog_barkAmount;
+class Dog {
+    constructor() {
+        _Dog_barkAmount.set(this, 0);
+        this.personality = "happy";
+    }
+}
+_Dog_barkAmount = new WeakMap();
+ </pre> <p>If you need to protect values in your class from malicious actors, you should use mechanisms that offer hard runtime privacy, such as closures, WeakMaps, or private fields. Note that these added privacy checks during runtime could affect performance.</p> <h2 id="static-members" style="position:relative;">Static Members</h2> <blockquote class="bg-reading"> <p>Background Reading:<br> <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes/static">Static Members (MDN)</a><br> </p> </blockquote> <p>Classes may have <code>static</code> members. These members aren’t associated with a particular instance of the class. They can be accessed through the class constructor object itself:</p> <pre data-language="ts">class MyClass {
   static x = 0;
   static printX() {
     console.log(MyClass.x);
@@ -323,7 +375,7 @@ class Derived extends Base {
   myGreeting = Derived.getGreeting();
 }</pre> <h3 id="special-static-names" style="position:relative;">Special Static Names</h3> <p>It’s generally not safe/possible to overwrite properties from the <code>Function</code> prototype. Because classes are themselves functions that can be invoked with <code>new</code>, certain <code>static</code> names can’t be used. Function properties like <code>name</code>, <code>length</code>, and <code>call</code> aren’t valid to define as <code>static</code> members:</p> <pre data-language="ts">class S {
   static name = "S!";
-}</pre> <h3 id="why-no-static-classes" style="position:relative;">Why No Static Classes?</h3> <p>TypeScript (and JavaScript) don’t have a construct called <code>static class</code> the same way C# and Java do.</p> <p>Those constructs <em>only</em> exist because those languages force all data and functions to be inside a class; because that restriction doesn’t exist in TypeScript, there’s no need for them. A class with only a single instance is typically just represented as a normal <em>object</em> in JavaScript/TypeScript.</p> <p>For example, we don’t need a “static class” syntax in TypeScript because a regular object (or even top-level function) will do the job just as well:</p> <pre data-language="ts">// Unnecessary "static" class
+}</pre> <h3 id="why-no-static-classes" style="position:relative;">Why No Static Classes?</h3> <p>TypeScript (and JavaScript) don’t have a construct called <code>static class</code> the same way as, for example, C# does.</p> <p>Those constructs <em>only</em> exist because those languages force all data and functions to be inside a class; because that restriction doesn’t exist in TypeScript, there’s no need for them. A class with only a single instance is typically just represented as a normal <em>object</em> in JavaScript/TypeScript.</p> <p>For example, we don’t need a “static class” syntax in TypeScript because a regular object (or even top-level function) will do the job just as well:</p> <pre data-language="ts">// Unnecessary "static" class
 class MyStaticClass {
   static doSomething() {}
 }
@@ -334,7 +386,22 @@ function doSomething() {}
 // Preferred (alternative 2)
 const MyHelperObject = {
   dosomething() {},
-};</pre> <h2 id="generic-classes" style="position:relative;">Generic Classes</h2> <p>Classes, much like interfaces, can be generic. When a generic class is instantiated with <code>new</code>, its type parameters are inferred the same way as in a function call:</p> <pre data-language="ts">class Box&lt;Type&gt; {
+};</pre> <h2 id="static-blocks-in-classes" style="position:relative;">
+<code>static</code> Blocks in Classes</h2> <p>Static blocks allow you to write a sequence of statements with their own scope that can access private fields within the containing class. This means that we can write initialization code with all the capabilities of writing statements, no leakage of variables, and full access to our class’s internals.</p> <pre data-language="ts">class Foo {
+    static #count = 0;
+ 
+    get count() {
+        return Foo.#count;
+    }
+ 
+    static {
+        try {
+            const lastInstances = loadLastInstances();
+            Foo.#count += lastInstances.length;
+        }
+        catch {}
+    }
+}</pre> <h2 id="generic-classes" style="position:relative;">Generic Classes</h2> <p>Classes, much like interfaces, can be generic. When a generic class is instantiated with <code>new</code>, its type parameters are inferred the same way as in a function call:</p> <pre data-language="ts">class Box&lt;Type&gt; {
   contents: Type;
   constructor(value: Type) {
     this.contents = value;
@@ -385,8 +452,7 @@ c.getName();
  
 // Error, would crash
 const g = c.getName;
-console.log(g());</pre> <p>This method takes the opposite trade-offs of the arrow function approach:</p> <ul> <li>JavaScript callers might still use the class method incorrectly without realizing it</li> <li>Only one function per class definition gets allocated, rather than one per class instance</li> <li>Base method definitions can still be called via <code>super.</code>
-</li> </ul> <h2 id="this-types" style="position:relative;">
+console.log(g());</pre> <p>This method makes the opposite trade-offs of the arrow function approach:</p> <ul> <li>JavaScript callers might still use the class method incorrectly without realizing it</li> <li>Only one function per class definition gets allocated, rather than one per class instance</li> <li>Base method definitions can still be called via <code>super</code>.</li> </ul> <h2 id="this-types" style="position:relative;">
 <code>this</code> Types</h2> <p>In classes, a special type called <code>this</code> refers <em>dynamically</em> to the type of the current class. Let’s see how this is useful:</p>  <pre data-language="ts">class Box {
   contents: string = "";
   set(value: string) {
@@ -488,7 +554,7 @@ console.log(a.z);</pre> <h2 id="class-expressions" style="position:relative;">Cl
 };
  
 const m = new someClass("Hello, world");</pre> <h2 id="abstract-classes-and-members" style="position:relative;">
-<code>abstract</code> Classes and Members</h2> <p>Classes, methods, and fields in TypeScript may be <em>abstract</em>.</p> <p>An <em>abstract method</em> or <em>abstract field</em> is one that hasn’t had an implementation provided. These members must exist inside an <em>abstract class</em>, which cannot be directly instantiated.</p> <p>The role of abstract classes is to serve as a base class for subclasses which do implement all the abstract members. When a class doesn’t have any abstract members, it is said to be <em>concrete</em>.</p> <p>Let’s look at an example</p> <pre data-language="ts">abstract class Base {
+<code>abstract</code> Classes and Members</h2> <p>Classes, methods, and fields in TypeScript may be <em>abstract</em>.</p> <p>An <em>abstract method</em> or <em>abstract field</em> is one that hasn’t had an implementation provided. These members must exist inside an <em>abstract class</em>, which cannot be directly instantiated.</p> <p>The role of abstract classes is to serve as a base class for subclasses which do implement all the abstract members. When a class doesn’t have any abstract members, it is said to be <em>concrete</em>.</p> <p>Let’s look at an example:</p> <pre data-language="ts">abstract class Base {
   abstract getName(): string;
  
   printName() {

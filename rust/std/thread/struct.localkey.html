@@ -1,8 +1,6 @@
 <h1 class="fqn">Struct std::thread::LocalKey</h1>
 <pre class="rust struct" data-language="rust">pub struct LocalKey&lt;T: 'static&gt; { /* fields omitted */ }</pre>
-<details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock">
-<p>A thread local storage key which owns its contents.</p> <p>This key uses the fastest possible implementation available to it for the target platform. It is instantiated with the <a href="../macro.thread_local" title="thread_local!"><code>thread_local!</code></a> macro and the primary method is the <a href="struct.localkey#method.with"><code>with</code></a> method.</p> <p>The <a href="struct.localkey#method.with"><code>with</code></a> method yields a reference to the contained value which cannot be sent across threads or escape the given closure.</p> <h2 id="initialization-and-destruction" class="section-header">Initialization and Destruction</h2> <p>Initialization is dynamically performed on the first call to <a href="struct.localkey#method.with"><code>with</code></a> within a thread, and values that implement <a href="../ops/trait.drop" title="Drop"><code>Drop</code></a> get destructed when a thread exits. Some caveats apply, which are explained below.</p> <p>A <code>LocalKey</code>’s initializer cannot recursively depend on itself, and using a <code>LocalKey</code> in this way will cause the initializer to infinitely recurse on the first call to <code>with</code>.</p> <h2 id="examples" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
-use std::cell::RefCell;
+<p>A thread local storage key which owns its contents.</p> <p>This key uses the fastest possible implementation available to it for the target platform. It is instantiated with the <a href="../macro.thread_local" title="thread_local!"><code>thread_local!</code></a> macro and the primary method is the <a href="struct.localkey#method.with"><code>with</code></a> method.</p> <p>The <a href="struct.localkey#method.with"><code>with</code></a> method yields a reference to the contained value which cannot be sent across threads or escape the given closure.</p> <h3 id="initialization-and-destruction" class="section-header">Initialization and Destruction</h3> <p>Initialization is dynamically performed on the first call to <a href="struct.localkey#method.with"><code>with</code></a> within a thread, and values that implement <a href="../ops/trait.drop" title="Drop"><code>Drop</code></a> get destructed when a thread exits. Some caveats apply, which are explained below.</p> <p>A <code>LocalKey</code>’s initializer cannot recursively depend on itself, and using a <code>LocalKey</code> in this way will cause the initializer to infinitely recurse on the first call to <code>with</code>.</p> <h3 id="examples" class="section-header">Examples</h3> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::cell::RefCell;
 use std::thread;
 
 thread_local!(static FOO: RefCell&lt;u32&gt; = RefCell::new(1));
@@ -26,124 +24,148 @@ t.join().unwrap();
 // we retain our original value of 2 despite the child thread
 FOO.with(|f| {
     assert_eq!(*f.borrow(), 2);
-});</pre></div> <h2 id="platform-specific-behavior" class="section-header">Platform-specific behavior</h2> <p>Note that a “best effort” is made to ensure that destructors for types stored in thread local storage are run, but not all platforms can guarantee that destructors will be run for all types in thread local storage. For example, there are a number of known caveats where destructors are not run:</p> <ol> <li>On Unix systems when pthread-based TLS is being used, destructors will not be run for TLS values on the main thread when it exits. Note that the application will exit immediately after the main thread exits as well.</li> <li>On all platforms it’s possible for TLS to re-initialize other TLS slots during destruction. Some platforms ensure that this cannot happen infinitely by preventing re-initialization of any slot that has been destroyed, but not all platforms have this guard. Those platforms that do not guard typically have a synthetic limit after which point no more destructors are run.</li> </ol> </div></details><h2 id="implementations" class="small-section-header">Implementations</h2>
-<details class="rustdoc-toggle implementors-toggle" open><summary><div id="impl" class="impl has-srclink">
+});</pre></div> <h3 id="platform-specific-behavior" class="section-header">Platform-specific behavior</h3> <p>Note that a “best effort” is made to ensure that destructors for types stored in thread local storage are run, but not all platforms can guarantee that destructors will be run for all types in thread local storage. For example, there are a number of known caveats where destructors are not run:</p> <ol> <li>On Unix systems when pthread-based TLS is being used, destructors will not be run for TLS values on the main thread when it exits. Note that the application will exit immediately after the main thread exits as well.</li> <li>On all platforms it’s possible for TLS to re-initialize other TLS slots during destruction. Some platforms ensure that this cannot happen infinitely by preventing re-initialization of any slot that has been destroyed, but not all platforms have this guard. Those platforms that do not guard typically have a synthetic limit after which point no more destructors are run.</li> </ol> <h2 id="implementations" class="small-section-header">Implementations</h2>
+<summary><div id="impl" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/local.rs.html#348-402" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;T: 'static&gt; LocalKey&lt;T&gt;</h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/std/thread/local.rs.html#349-403" title="goto source code">[src]</a>
-</div></summary><div class="impl-items">
-<details class="rustdoc-toggle method-toggle" open><summary><div id="method.with" class="method has-srclink">
+</div></summary><summary><div id="method.with" class="method has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/local.rs.html#371-379" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn with&lt;F, R&gt;(&amp;'static self, f: F) -&gt; R <span class="where fmt-newline">where<br> F: <a class="trait" href="../ops/trait.fnonce" title="trait std::ops::FnOnce">FnOnce</a>(<a class="primitive" href="../primitive.reference">&amp;</a>T) -&gt; R, </span>
 </h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/std/thread/local.rs.html#372-380" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>Acquires a reference to the value in this TLS key.</p> <p>This will lazily initialize the value if this thread has not referenced this key yet.</p> <h2 id="panics" class="section-header">Panics</h2> <p>This function will <code>panic!()</code> if the key currently has its destructor running, and it <strong>may</strong> panic if the destructor has previously been run for this thread.</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.try_with" class="method has-srclink">
+<p>Acquires a reference to the value in this TLS key.</p> <p>This will lazily initialize the value if this thread has not referenced this key yet.</p> <h5 id="panics" class="section-header">Panics</h5> <p>This function will <code>panic!()</code> if the key currently has its destructor running, and it <strong>may</strong> panic if the destructor has previously been run for this thread.</p> </div>
+<summary><div id="method.try_with" class="method has-srclink">
+<div class="rightside">
+<a class="srclink" href="https://doc.rust-lang.org/src/std/thread/local.rs.html#393-401" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.26.0">1.26.0</span>
+</div>
 <h4 class="code-header">pub fn try_with&lt;F, R&gt;(&amp;'static self, f: F) -&gt; Result&lt;R, AccessError&gt; <span class="where fmt-newline">where<br> F: <a class="trait" href="../ops/trait.fnonce" title="trait std::ops::FnOnce">FnOnce</a>(<a class="primitive" href="../primitive.reference">&amp;</a>T) -&gt; R, </span>
 </h4>
-<span class="since" title="Stable since Rust version 1.26.0">1.26.0</span><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/local.rs.html#394-402" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>Acquires a reference to the value in this TLS key.</p> <p>This will lazily initialize the value if this thread has not referenced this key yet. If the key has been destroyed (which may happen if this is called in a destructor), this function will return an <a href="struct.accesserror" title="AccessError"><code>AccessError</code></a>.</p> <h2 id="panics-1" class="section-header">Panics</h2> <p>This function will still <code>panic!()</code> if the key is uninitialized and the key’s initializer panics.</p> </div></details>
-</div></details><h2 id="trait-implementations" class="small-section-header">Trait Implementations</h2>
-<div id="trait-implementations-list"><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Debug" class="impl has-srclink">
-<h3 class="code-header in-band">impl&lt;T: 'static&gt; Debug for LocalKey&lt;T&gt;</h3>
+<p>Acquires a reference to the value in this TLS key.</p> <p>This will lazily initialize the value if this thread has not referenced this key yet. If the key has been destroyed (which may happen if this is called in a destructor), this function will return an <a href="struct.accesserror" title="AccessError"><code>AccessError</code></a>.</p> <h5 id="panics-1" class="section-header">Panics</h5> <p>This function will still <code>panic!()</code> if the key is uninitialized and the key’s initializer panics.</p> </div>
+<h2 id="trait-implementations" class="small-section-header">Trait Implementations</h2>
+<div id="trait-implementations-list">
+<summary><div id="impl-Debug" class="impl has-srclink">
+<div class="rightside">
 <a class="srclink" href="https://doc.rust-lang.org/src/std/thread/local.rs.html#101-105" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.16.0">1.16.0</span>
-</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.fmt" class="method trait-impl has-srclink">
+</div>
+<h3 class="code-header in-band">impl&lt;T: 'static&gt; Debug for LocalKey&lt;T&gt;</h3>
+</div></summary><div class="impl-items">
+<summary><div id="method.fmt" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/local.rs.html#102-104" title="goto source code">[src]</a></div>
 <h4 class="code-header">fn fmt(&amp;self, f: &amp;mut Formatter&lt;'_&gt;) -&gt; Result</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/std/thread/local.rs.html#102-104" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>Formats the value using the given formatter. <a href="../fmt/trait.debug#tymethod.fmt">Read more</a></p> </div></details></div></details></div>
+<p>Formats the value using the given formatter. <a href="../fmt/trait.debug#tymethod.fmt">Read more</a></p> </div>
+</div>
+</div>
 <h2 id="synthetic-implementations" class="small-section-header">Auto Trait Implementations</h2>
 <div id="synthetic-implementations-list">
 <div id="impl-RefUnwindSafe" class="impl has-srclink">
-<h3 class="code-header in-band">impl&lt;T&gt; RefUnwindSafe for LocalKey&lt;T&gt;</h3>
 
+<h3 class="code-header in-band">impl&lt;T&gt; RefUnwindSafe for LocalKey&lt;T&gt;</h3>
 </div>
 <div id="impl-Send" class="impl has-srclink">
-<h3 class="code-header in-band">impl&lt;T&gt; Send for LocalKey&lt;T&gt;</h3>
 
+<h3 class="code-header in-band">impl&lt;T&gt; Send for LocalKey&lt;T&gt;</h3>
 </div>
 <div id="impl-Sync" class="impl has-srclink">
-<h3 class="code-header in-band">impl&lt;T&gt; Sync for LocalKey&lt;T&gt;</h3>
 
+<h3 class="code-header in-band">impl&lt;T&gt; Sync for LocalKey&lt;T&gt;</h3>
 </div>
 <div id="impl-Unpin" class="impl has-srclink">
-<h3 class="code-header in-band">impl&lt;T&gt; Unpin for LocalKey&lt;T&gt;</h3>
 
+<h3 class="code-header in-band">impl&lt;T&gt; Unpin for LocalKey&lt;T&gt;</h3>
 </div>
 <div id="impl-UnwindSafe" class="impl has-srclink">
-<h3 class="code-header in-band">impl&lt;T&gt; UnwindSafe for LocalKey&lt;T&gt;</h3>
 
+<h3 class="code-header in-band">impl&lt;T&gt; UnwindSafe for LocalKey&lt;T&gt;</h3>
 </div>
 </div>
 <h2 id="blanket-implementations" class="small-section-header">Blanket Implementations</h2>
 <div id="blanket-implementations-list">
-<details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Any" class="impl has-srclink">
+<summary><div id="impl-Any" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#132-136" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;T&gt; Any for T <span class="where fmt-newline">where<br> T: 'static + ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
 </h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#131-135" title="goto source code">[src]</a>
-</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.type_id" class="method trait-impl has-srclink">
+</div></summary><div class="impl-items">
+<summary><div id="method.type_id" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#133" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn type_id(&amp;self) -&gt; TypeId</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#132" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>Gets the <code>TypeId</code> of <code>self</code>. <a href="../any/trait.any#tymethod.type_id">Read more</a></p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Borrow%3CT%3E" class="impl has-srclink">
+<p>Gets the <code>TypeId</code> of <code>self</code>. <a href="../any/trait.any#tymethod.type_id">Read more</a></p> </div>
+</div>
+<summary><div id="impl-Borrow%3CT%3E" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#208-213" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;T&gt; Borrow&lt;T&gt; for T <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
 </h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#208-213" title="goto source code">[src]</a>
-</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.borrow" class="method trait-impl has-srclink">
+</div></summary><div class="impl-items">
+<summary><div id="method.borrow" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#210" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn borrow(&amp;self) -&gt; &amp;T</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#210" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>Immutably borrows from an owned value. <a href="../borrow/trait.borrow#tymethod.borrow">Read more</a></p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-BorrowMut%3CT%3E" class="impl has-srclink">
+<p>Immutably borrows from an owned value. <a href="../borrow/trait.borrow#tymethod.borrow">Read more</a></p> </div>
+</div>
+<summary><div id="impl-BorrowMut%3CT%3E" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#216-220" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;T&gt; BorrowMut&lt;T&gt; for T <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
 </h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#216-220" title="goto source code">[src]</a>
-</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.borrow_mut" class="method trait-impl has-srclink">
+</div></summary><div class="impl-items">
+<summary><div id="method.borrow_mut" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#217" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn borrow_mut(&amp;mut self) -&gt; &amp;mut T</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#217" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>Mutably borrows from an owned value. <a href="../borrow/trait.borrowmut#tymethod.borrow_mut">Read more</a></p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-From%3CT%3E" class="impl has-srclink">
+<p>Mutably borrows from an owned value. <a href="../borrow/trait.borrowmut#tymethod.borrow_mut">Read more</a></p> </div>
+</div>
+<summary><div id="impl-From%3CT%3E" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#549-553" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;T&gt; From&lt;T&gt; for T</h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#544-548" title="goto source code">[src]</a>
-</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.from" class="method trait-impl has-srclink">
+</div></summary><div class="impl-items">
+<summary><div id="method.from" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#550" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn from(t: T) -&gt; T</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#545" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>Performs the conversion.</p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Into%3CU%3E" class="impl has-srclink">
+<p>Performs the conversion.</p> </div>
+</div>
+<summary><div id="impl-Into%3CU%3E" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#537-544" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;T, U&gt; Into&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.from" title="trait std::convert::From">From</a>&lt;T&gt;, </span>
 </h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#533-540" title="goto source code">[src]</a>
-</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.into" class="method trait-impl has-srclink">
+</div></summary><div class="impl-items">
+<summary><div id="method.into" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#541" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn into(self) -&gt; U</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#537" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>Performs the conversion.</p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-TryFrom%3CU%3E" class="impl has-srclink">
+<p>Performs the conversion.</p> </div>
+</div>
+<summary><div id="impl-TryFrom%3CU%3E" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#587-596" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;T, U&gt; TryFrom&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.into" title="trait std::convert::Into">Into</a>&lt;T&gt;, </span>
 </h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#581-590" title="goto source code">[src]</a>
 </div></summary><div class="impl-items">
-<details class="rustdoc-toggle" open><summary><div id="associatedtype.Error" class="type trait-impl has-srclink">
+<summary><div id="associatedtype.Error" class="type trait-impl has-srclink">
 <h4 class="code-header">type Error = Infallible</h4>
-
 </div></summary><div class="docblock">
-<p>The type returned in the event of a conversion error.</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.try_from" class="method trait-impl has-srclink">
+<p>The type returned in the event of a conversion error.</p> </div>
+<summary><div id="method.try_from" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#593" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn try_from(value: U) -&gt; Result&lt;T, &lt;T as TryFrom&lt;U&gt;&gt;::Error&gt;</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#587" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>Performs the conversion.</p> </div></details>
-</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-TryInto%3CU%3E" class="impl has-srclink">
+<p>Performs the conversion.</p> </div>
+</div>
+<summary><div id="impl-TryInto%3CU%3E" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#573-582" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;T, U&gt; TryInto&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.tryfrom" title="trait std::convert::TryFrom">TryFrom</a>&lt;T&gt;, </span>
 </h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#567-576" title="goto source code">[src]</a>
 </div></summary><div class="impl-items">
-<details class="rustdoc-toggle" open><summary><div id="associatedtype.Error-1" class="type trait-impl has-srclink">
+<summary><div id="associatedtype.Error-1" class="type trait-impl has-srclink">
 <h4 class="code-header">type Error = &lt;U as TryFrom&lt;T&gt;&gt;::Error</h4>
-
 </div></summary><div class="docblock">
-<p>The type returned in the event of a conversion error.</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.try_into" class="method trait-impl has-srclink">
+<p>The type returned in the event of a conversion error.</p> </div>
+<summary><div id="method.try_into" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#579" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn try_into(self) -&gt; Result&lt;U, &lt;U as TryFrom&lt;T&gt;&gt;::Error&gt;</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#573" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>Performs the conversion.</p> </div></details>
-</div></details>
+<p>Performs the conversion.</p> </div>
+</div>
 </div><div class="_attribution">
   <p class="_attribution-p">
     <a href="https://doc.rust-lang.org/std/thread/struct.LocalKey.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/std/thread/struct.LocalKey.html</a>

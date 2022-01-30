@@ -1,0 +1,75 @@
+<h1 id="community-general-mssql-script-execute-sql-scripts-on-a-mssql-database">community.general.mssql_script – Execute SQL scripts on a MSSQL database</h1> <div class="admonition note"> <p class="admonition-title">Note</p> <p>This plugin is part of the <a class="reference external" href="https://galaxy.ansible.com/community/general">community.general collection</a> (version 4.2.0).</p> <p>You might already have this collection installed if you are using the <code>ansible</code> package. It is not included in <code>ansible-core</code>. To check whether it is installed, run <code>ansible-galaxy collection list</code>.</p> <p>To install it, use: <code>ansible-galaxy collection install community.general</code>.</p> <p>To use it in a playbook, specify: <code>community.general.mssql_script</code>.</p> </div> <div class="versionadded"> <p><span class="versionmodified added">New in version 4.0.0: </span>of community.general</p> </div>  <ul class="simple"> <li><a class="reference internal" href="#synopsis" id="id1">Synopsis</a></li> <li><a class="reference internal" href="#requirements" id="id2">Requirements</a></li> <li><a class="reference internal" href="#parameters" id="id3">Parameters</a></li> <li><a class="reference internal" href="#notes" id="id4">Notes</a></li> <li><a class="reference internal" href="#examples" id="id5">Examples</a></li> <li><a class="reference internal" href="#return-values" id="id6">Return Values</a></li> </ul>   <h2 id="synopsis">Synopsis</h2> <ul class="simple"> <li>Execute SQL scripts on a MSSQL database.</li> </ul>   <h2 id="requirements">Requirements</h2> <p>The below requirements are needed on the host that executes this module.</p> <ul class="simple"> <li>python &gt;= 2.7</li> <li>pymssql</li> </ul>   <h2 id="parameters">Parameters</h2> <table class="documentation-table"> <tr> <th colspan="1">Parameter</th> <th>Choices/Defaults</th> <th width="100%">Comments</th> </tr> <tr> <td colspan="1">  <b>login_host</b>  <div> <span>string</span> / <span>required</span> </div> </td> <td> </td> <td> <div>Host running the database.</div> </td> </tr> <tr> <td colspan="1">  <b>login_password</b>  <div> <span>string</span> </div> </td> <td> </td> <td> <div>The password used to authenticate with.</div> </td> </tr> <tr> <td colspan="1">  <b>login_port</b>  <div> <span>integer</span> </div> </td> <td> <b>Default:</b><br><div>1433</div> </td> <td> <div>Port of the MSSQL server. Requires <em>login_host</em> be defined as well.</div> </td> </tr> <tr> <td colspan="1">  <b>login_user</b>  <div> <span>string</span> </div> </td> <td> </td> <td> <div>The username used to authenticate with.</div> </td> </tr> <tr> <td colspan="1">  <b>name</b>  <div> <span>string</span> </div> </td> <td> <b>Default:</b><br><div>""</div> </td> <td> <div>Database to run script against.</div> <div>
+<br>aliases: db</div> </td> </tr> <tr> <td colspan="1">  <b>output</b>  <div> <span>string</span> </div> </td> <td> <ul>
+<b>Choices:</b> <li>dict</li> <li><div>
+<b>default</b> ←</div></li> </ul> </td> <td> <div>With <code>default</code> each row will be returned as a list of values. See <code>query_results</code>.</div> <div>Output format <code>dict</code> will return dictionary with the column names as keys. See <code>query_results_dict</code>.</div> <div>
+<code>dict</code> requires named columns to be returned by each query otherwise an error is thrown.</div> </td> </tr> <tr> <td colspan="1">  <b>params</b>  <div> <span>dictionary</span> </div> </td> <td> </td> <td> <div>Parameters passed to the script as SQL parameters. ('SELECT %(name)s"' with <code>example: '{"name": "John Doe"}</code>.)'</div> </td> </tr> <tr> <td colspan="1">  <b>script</b>  <div> <span>string</span> / <span>required</span> </div> </td> <td> </td> <td> <div>The SQL script to be executed.</div> <div>Script can contain multiple SQL statements. Multiple Batches can be separated by <code>GO</code> command.</div> <div>Each batch must return at least one result set.</div> </td> </tr> </table> <br>  <h2 id="notes">Notes</h2> <div class="admonition note"> <p class="admonition-title">Note</p> <ul class="simple"> <li>Requires the pymssql Python package on the remote host. For Ubuntu, this is as easy as <code>pip install pymssql</code> (See <a class="reference internal" href="../../ansible/builtin/pip_module#ansible-collections-ansible-builtin-pip-module"><span class="std std-ref">ansible.builtin.pip</span></a>.)</li> </ul> </div>   <h2 id="examples">Examples</h2> <pre data-language="yaml+jinja">- name: Check DB connection
+  community.general.mssql_script:
+    login_user: "{{ mssql_login_user }}"
+    login_password: "{{ mssql_login_password }}"
+    login_host: "{{ mssql_host }}"
+    login_port: "{{ mssql_port }}"
+    db: master
+    script: "SELECT 1"
+
+- name: Query with parameter
+  community.general.mssql_script:
+    login_user: "{{ mssql_login_user }}"
+    login_password: "{{ mssql_login_password }}"
+    login_host: "{{ mssql_host }}"
+    login_port: "{{ mssql_port }}"
+    script: |
+      SELECT name, state_desc FROM sys.databases WHERE name = %(dbname)s
+    params:
+      dbname: msdb
+  register: result_params
+- assert:
+    that:
+      - result_params.query_results[0][0][0][0] == 'msdb'
+      - result_params.query_results[0][0][0][1] == 'ONLINE'
+
+- name: two batches with default output
+  community.general.mssql_script:
+    login_user: "{{ mssql_login_user }}"
+    login_password: "{{ mssql_login_password }}"
+    login_host: "{{ mssql_host }}"
+    login_port: "{{ mssql_port }}"
+    script: |
+      SELECT 'Batch 0 - Select 0'
+      SELECT 'Batch 0 - Select 1'
+      GO
+      SELECT 'Batch 1 - Select 0'
+  register: result_batches
+- assert:
+    that:
+      - result_batches.query_results | length == 2  # two batch results
+      - result_batches.query_results[0] | length == 2  # two selects in first batch
+      - result_batches.query_results[0][0] | length == 1  # one row in first select
+      - result_batches.query_results[0][0][0] | length == 1  # one column in first row
+      - result_batches.query_results[0][0][0][0] == 'Batch 0 - Select 0'  # each row contains a list of values.
+
+- name: two batches with dict output
+  community.general.mssql_script:
+    login_user: "{{ mssql_login_user }}"
+    login_password: "{{ mssql_login_password }}"
+    login_host: "{{ mssql_host }}"
+    login_port: "{{ mssql_port }}"
+    output: dict
+    script: |
+      SELECT 'Batch 0 - Select 0' as b0s0
+      SELECT 'Batch 0 - Select 1' as b0s1
+      GO
+      SELECT 'Batch 1 - Select 0' as b1s0
+  register: result_batches_dict
+- assert:
+    that:
+      - result_batches_dict.query_results_dict | length == 2  # two batch results
+      - result_batches_dict.query_results_dict[0] | length == 2  # two selects in first batch
+      - result_batches_dict.query_results_dict[0][0] | length == 1  # one row in first select
+      - result_batches_dict.query_results_dict[0][0][0]['b0s0'] == 'Batch 0 - Select 0'  # column 'b0s0' of first row
+</pre>   <h2 id="return-values">Return Values</h2> <p>Common return values are documented <a class="reference internal" href="../../../reference_appendices/common_return_values#common-return-values"><span class="std std-ref">here</span></a>, the following are the fields unique to this module:</p> <table class="documentation-table"> <tr> <th colspan="4">Key</th> <th>Returned</th> <th width="100%">Description</th> </tr> <tr> <td colspan="4">  <b>query_results</b>  <div> <span>list</span> / <span>elements=list</span> </div> </td> <td>success and <em>output=default</em>
+</td> <td> <div>List of batches (queries separated by <code>GO</code> keyword).</div> <br> <div><b>Sample:</b></div> <div>[[[['Batch 0 - Select 0']], [['Batch 0 - Select 1']]], [[['Batch 1 - Select 0']]]]</div> </td> </tr> <tr> <td class="elbow-placeholder"> </td> <td colspan="3">  <b>queries</b>  <div> <span>list</span> / <span>elements=list</span> </div> </td> <td>success</td> <td> <div>List of result sets of each query.</div> <div>If a query returns no results, the results of this and all the following queries will not be included in the output.</div> <div>Use the <code>GO</code> keyword in <em>script</em> to separate queries.</div> <br> </td> </tr> <tr> <td class="elbow-placeholder"> </td> <td class="elbow-placeholder"> </td> <td colspan="2">  <b>rows</b>  <div> <span>list</span> / <span>elements=list</span> </div> </td> <td>success</td> <td> <div>List of rows returned by query.</div> <br> </td> </tr> <tr> <td class="elbow-placeholder"> </td> <td class="elbow-placeholder"> </td> <td class="elbow-placeholder"> </td> <td colspan="1">  <b>column_value</b>  <div> <span>list</span> / <span>elements=string</span> </div> </td> <td>success, if output is default</td> <td> <div>List of column values.</div> <div>Any non-standard JSON type is converted to string.</div> <br> <div><b>Sample:</b></div> <div>['Batch 0 - Select 0']</div> </td> </tr> <tr> <td colspan="4">  <b>query_results_dict</b>  <div> <span>list</span> / <span>elements=list</span> </div> </td> <td>success and <em>output=dict</em>
+</td> <td> <div>List of batches (queries separated by <code>GO</code> keyword).</div> <br> <div><b>Sample:</b></div> <div>[[[['Batch 0 - Select 0']], [['Batch 0 - Select 1']]], [[['Batch 1 - Select 0']]]]</div> </td> </tr> <tr> <td class="elbow-placeholder"> </td> <td colspan="3">  <b>queries</b>  <div> <span>list</span> / <span>elements=list</span> </div> </td> <td>success</td> <td> <div>List of result sets of each query.</div> <div>If a query returns no results, the results of this and all the following queries will not be included in the output. Use 'GO' keyword to separate queries.</div> <br> </td> </tr> <tr> <td class="elbow-placeholder"> </td> <td class="elbow-placeholder"> </td> <td colspan="2">  <b>rows</b>  <div> <span>list</span> / <span>elements=list</span> </div> </td> <td>success</td> <td> <div>List of rows returned by query.</div> <br> </td> </tr> <tr> <td class="elbow-placeholder"> </td> <td class="elbow-placeholder"> </td> <td class="elbow-placeholder"> </td> <td colspan="1">  <b>column_dict</b>  <div> <span>dictionary</span> </div> </td> <td>success, if output is dict</td> <td> <div>Dictionary of column names and values.</div> <div>Any non-standard JSON type is converted to string.</div> <br> <div><b>Sample:</b></div> <div>{'col_name': 'Batch 0 - Select 0'}</div> </td> </tr> </table> <br><br> <h3 id="authors">Authors</h3> <ul class="simple"> <li>Kris Budde (@kbudde)</li> </ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://docs.ansible.com/ansible/latest/collections/community/general/mssql_script_module.html" class="_attribution-link" target="_blank">https://docs.ansible.com/ansible/latest/collections/community/general/mssql_script_module.html</a>
+  </p>
+</div>

@@ -34,32 +34,36 @@ setup(props) {
 
   console.log(title.value)
 }</pre> </div>
-<h3 id="context"> Context</h3> <p>The second argument passed to the <code>setup</code> function is the <code>context</code>. The <code>context</code> is a normal JavaScript object that exposes three component properties:</p> <div class="language-js line-numbers-mode">
+<h3 id="context"> Context</h3> <p>The second argument passed to the <code>setup</code> function is the <code>context</code>. The <code>context</code> is a normal JavaScript object that exposes other values that may be useful inside <code>setup</code>:</p> <div class="language-js line-numbers-mode">
 <pre class="language-js" data-language="javascript">// MyBook.vue
 
 export default {
   setup(props, context) {
-    // Attributes (Non-reactive object)
+    // Attributes (Non-reactive object, equivalent to $attrs)
     console.log(context.attrs)
 
-    // Slots (Non-reactive object)
+    // Slots (Non-reactive object, equivalent to $slots)
     console.log(context.slots)
 
-    // Emit Events (Method)
+    // Emit events (Function, equivalent to $emit)
     console.log(context.emit)
+
+    // Expose public properties (Function)
+    console.log(context.expose)
   }
 }</pre> </div>
 <p>The <code>context</code> object is a normal JavaScript object, i.e., it is not reactive, this means you can safely use ES6 destructuring on <code>context</code>.</p> <div class="language-js line-numbers-mode">
 <pre class="language-js" data-language="javascript">// MyBook.vue
 export default {
-  setup(props, { attrs, slots, emit }) {
+  setup(props, { attrs, slots, emit, expose }) {
     ...
   }
 }</pre> </div>
-<p><code>attrs</code> and <code>slots</code> are stateful objects that are always updated when the component itself is updated. This means you should avoid destructuring them and always reference properties as <code>attrs.x</code> or <code>slots.x</code>. Also note that unlike <code>props</code>, <code>attrs</code> and <code>slots</code> are <strong>not</strong> reactive. If you intend to apply side effects based on <code>attrs</code> or <code>slots</code> changes, you should do so inside an <code>onUpdated</code> lifecycle hook.</p> <h2 id="accessing-component-properties"> Accessing Component Properties</h2> <p>When <code>setup</code> is executed, the component instance has not been created yet. As a result, you will only be able to access the following properties:</p> <ul>
+<p><code>attrs</code> and <code>slots</code> are stateful objects that are always updated when the component itself is updated. This means you should avoid destructuring them and always reference properties as <code>attrs.x</code> or <code>slots.x</code>. Also note that, unlike <code>props</code>, the properties of <code>attrs</code> and <code>slots</code> are <strong>not</strong> reactive. If you intend to apply side effects based on changes to <code>attrs</code> or <code>slots</code>, you should do so inside an <code>onBeforeUpdate</code> lifecycle hook.</p> <p>We'll explain the role of <code>expose</code> shortly.</p> <h2 id="accessing-component-properties"> Accessing Component Properties</h2> <p>When <code>setup</code> is executed, you will only be able to access the following properties:</p> <ul>
 <li><code>props</code></li> <li><code>attrs</code></li> <li><code>slots</code></li> <li><code>emit</code></li>
 </ul> <p>In other words, you <strong>will not have access</strong> to the following component options:</p> <ul>
-<li><code>data</code></li> <li><code>computed</code></li> <li><code>methods</code></li>
+<li><code>data</code></li> <li><code>computed</code></li> <li><code>methods</code></li> <li>
+<code>refs</code> (template refs)</li>
 </ul> <h2 id="usage-with-templates"> Usage with Templates</h2> <p>If <code>setup</code> returns an object, the properties on the object can be accessed in the component's template, as well as the properties of the <code>props</code> passed into <code>setup</code>:</p> <div class="language-vue-html line-numbers-mode">
 <pre class="language-vue-html" data-language="javascript">&lt;!-- MyBook.vue --&gt;
 &lt;template&gt;
@@ -94,11 +98,26 @@ export default {
   setup() {
     const readersNumber = ref(0)
     const book = reactive({ title: 'Vue 3 Guide' })
-    // Please note that we need to explicitly expose ref value here
+    // Please note that we need to explicitly use ref value here
     return () =&gt; h('div', [readersNumber.value, book.title])
   }
 }</pre> </div>
-<h2 id="usage-of-this"> Usage of <code>this</code>
+<p>Returning a render function prevents us from returning anything else. Internally that shouldn't be a problem, but it can be problematic if we want to expose methods of this component to the parent component via template refs.</p> <p>We can solve this problem by calling <code>expose</code>, passing it an object that defines the properties that should be available on the external component instance:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">import { h, ref } from 'vue'
+
+export default {
+  setup(props, { expose }) {
+    const count = ref(0)
+    const increment = () =&gt; ++count.value
+
+    expose({
+      increment
+    })
+
+    return () =&gt; h('div', count.value)
+  }
+}</pre> </div>
+<p>The <code>increment</code> method would then be available in the parent component via a template ref.</p> <h2 id="usage-of-this"> Usage of <code>this</code>
 </h2> <p><strong>Inside <code>setup()</code>, <code>this</code> won't be a reference to the current active instance</strong> Since <code>setup()</code> is called before other component options are resolved, <code>this</code> inside <code>setup()</code> will behave quite differently from <code>this</code> in other options. This might cause confusions when using <code>setup()</code> along other Options API.</p>
 </div>   <div class="_attribution">
   <p class="_attribution-p">

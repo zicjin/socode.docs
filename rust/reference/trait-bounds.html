@@ -3,7 +3,7 @@
 fn main() {
 type Surface = i32;
 trait Shape {
-    fn draw(&amp;self, Surface);
+    fn draw(&amp;self, surface: Surface);
     fn name() -&gt; &amp;'static str;
 }
 
@@ -28,7 +28,21 @@ fn name_figure&lt;U: Shape&gt;(
     );
 }
 }
-</pre> <p>Trait and lifetime bounds are also used to name <a href="types/trait-object">trait objects</a>.</p> <h2 id="sized"><code id="">?Sized</code></h2> <p><code>?</code> is only used to declare that the <a href="special-types-and-traits#sized"><code>Sized</code></a> trait may not be implemented for a type parameter or associated type. <code>?Sized</code> may not be used as a bound for other types.</p> <h2 id="lifetime-bounds">Lifetime bounds</h2> <p>Lifetime bounds can be applied to types or other lifetimes. The bound <code>'a: 'b</code> is usually read as <code>'a</code> <em>outlives</em> <code>'b</code>. <code>'a: 'b</code> means that <code>'a</code> lasts longer than <code>'b</code>, so a reference <code>&amp;'a ()</code> is valid whenever <code>&amp;'b ()</code> is valid.</p> <pre data-language="rust">
+</pre> <p>Bounds that don't use the item's parameters or <a href="#higher-ranked-trait-bounds">higher-ranked lifetimes</a> are checked when the item is defined. It is an error for such a bound to be false.</p> <p><a href="special-types-and-traits#copy"><code>Copy</code></a>, <a href="special-types-and-traits#clone"><code>Clone</code></a>, and <a href="special-types-and-traits#sized"><code>Sized</code></a> bounds are also checked for certain generic types when using the item, even if the use does not provide a concrete type. It is an error to have <code>Copy</code> or <code>Clone</code> as a bound on a mutable reference, <a href="types/trait-object">trait object</a>, or <a href="types/slice">slice</a>. It is an error to have <code>Sized</code> as a bound on a trait object or slice.</p> <pre data-language="rust">
+#![allow(unused)]
+fn main() {
+struct A&lt;'a, T&gt;
+where
+    i32: Default,           // Allowed, but not useful
+    i32: Iterator,          // Error: `i32` is not an iterator
+    &amp;'a mut T: Copy,        // (at use) Error: the trait bound is not satisfied
+    [T]: Sized,             // (at use) Error: size cannot be known at compilation
+{
+    f: &amp;'a T,
+}
+struct UsesA&lt;'a, T&gt;(A&lt;'a, T&gt;);
+}
+</pre> <p>Trait and lifetime bounds are also used to name <a href="types/trait-object">trait objects</a>.</p> <h2 id="sized"><code id="">?Sized</code></h2> <p><code>?</code> is only used to relax the implicit <a href="special-types-and-traits#sized"><code>Sized</code></a> trait bound for <a href="types/parameters">type parameters</a> or <a href="items/associated-items#associated-types">associated types</a>. <code>?Sized</code> may not be used as a bound for other types.</p> <h2 id="lifetime-bounds">Lifetime bounds</h2> <p>Lifetime bounds can be applied to types or to other lifetimes. The bound <code>'a: 'b</code> is usually read as <code>'a</code> <em>outlives</em> <code>'b</code>. <code>'a: 'b</code> means that <code>'a</code> lasts at least as long as <code>'b</code>, so a reference <code>&amp;'a ()</code> is valid whenever <code>&amp;'b ()</code> is valid.</p> <pre data-language="rust">
 #![allow(unused)]
 fn main() {
 fn f&lt;'a, 'b&gt;(x: &amp;'a i32, mut y: &amp;'b i32) where 'a: 'b {
@@ -36,7 +50,7 @@ fn f&lt;'a, 'b&gt;(x: &amp;'a i32, mut y: &amp;'b i32) where 'a: 'b {
     let r: &amp;'b &amp;'a i32 = &amp;&amp;0;   // &amp;'b &amp;'a i32 is well formed because 'a: 'b
 }
 }
-</pre> <p><code>T: 'a</code> means that all lifetime parameters of <code>T</code> outlive <code>'a</code>. For example if <code>'a</code> is an unconstrained lifetime parameter then <code>i32: 'static</code> and <code>&amp;'static str: 'a</code> are satisfied but <code>Vec&lt;&amp;'a ()&gt;: 'static</code> is not.</p> <h2 id="higher-ranked-trait-bounds">Higher-ranked trait bounds</h2> <blockquote> <p><em>ForLifetimes</em> :<br> <code>for</code> <a href="items/generics"><em>GenericParams</em></a></p> </blockquote> <p>Type bounds may be <em>higher ranked</em> over lifetimes. These bounds specify a bound is true <em>for all</em> lifetimes. For example, a bound such as <code>for&lt;'a&gt; &amp;'a T: PartialEq&lt;i32&gt;</code> would require an implementation like</p> <pre data-language="rust">
+</pre> <p><code>T: 'a</code> means that all lifetime parameters of <code>T</code> outlive <code>'a</code>. For example, if <code>'a</code> is an unconstrained lifetime parameter, then <code>i32: 'static</code> and <code>&amp;'static str: 'a</code> are satisfied, but <code>Vec&lt;&amp;'a ()&gt;: 'static</code> is not.</p> <h2 id="higher-ranked-trait-bounds">Higher-ranked trait bounds</h2> <blockquote> <p><em>ForLifetimes</em> :<br> <code>for</code> <a href="items/generics"><em>GenericParams</em></a></p> </blockquote> <p>Type bounds may be <em>higher ranked</em> over lifetimes. These bounds specify a bound is true <em>for all</em> lifetimes. For example, a bound such as <code>for&lt;'a&gt; &amp;'a T: PartialEq&lt;i32&gt;</code> would require an implementation like</p> <pre data-language="rust">
 #![allow(unused)]
 fn main() {
 struct T;
@@ -45,7 +59,7 @@ impl&lt;'a&gt; PartialEq&lt;i32&gt; for &amp;'a T {
    fn eq(&amp;self, other: &amp;i32) -&gt; bool {true}
 }
 }
-</pre> <p>and could then be used to compare a <code>&amp;'a T</code> with any lifetime to an <code>i32</code>.</p> <p>Only a higher-ranked bound can be used here as the lifetime of the reference is shorter than a lifetime parameter on the function:</p> <pre data-language="rust">
+</pre> <p>and could then be used to compare a <code>&amp;'a T</code> with any lifetime to an <code>i32</code>.</p> <p>Only a higher-ranked bound can be used here, because the lifetime of the reference is shorter than any possible lifetime parameter on the function:</p> <pre data-language="rust">
 #![allow(unused)]
 fn main() {
 fn call_on_ref_zero&lt;F&gt;(f: F) where for&lt;'a&gt; F: Fn(&amp;'a i32) {
@@ -53,7 +67,7 @@ fn call_on_ref_zero&lt;F&gt;(f: F) where for&lt;'a&gt; F: Fn(&amp;'a i32) {
     f(&amp;zero);
 }
 }
-</pre> <p>Higher-ranked lifetimes may also be specified just before the trait, the only difference is the scope of the lifetime parameter, which extends only to the end of the following trait instead of the whole bound. This function is equivalent to the last one.</p> <pre data-language="rust">
+</pre> <p>Higher-ranked lifetimes may also be specified just before the trait: the only difference is the scope of the lifetime parameter, which extends only to the end of the following trait instead of the whole bound. This function is equivalent to the last one.</p> <pre data-language="rust">
 #![allow(unused)]
 fn main() {
 fn call_on_ref_zero&lt;F&gt;(f: F) where F: for&lt;'a&gt; Fn(&amp;'a i32) {

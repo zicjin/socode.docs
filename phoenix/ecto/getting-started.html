@@ -138,7 +138,7 @@ Friends.Repo.insert(changeset)</pre>
 <p>Just like the last time we did an insertion, this returns a tuple. This time however, the first element in the tuple is <code class="inline">:error</code>, which indicates something bad happened. The specifics of what happened are included in the changeset which is returned. We can access these by doing some pattern matching:</p>
 <pre data-language="elixir">{:error, changeset} = Friends.Repo.insert(changeset)</pre>
 <p>Then we can get to the errors by doing <code class="inline">changeset.errors</code>:</p>
-<pre data-language="elixir">[first_name: "can't be blank", last_name: "can't be blank"]</pre>
+<pre data-language="elixir">[first_name: {"can't be blank", [validation: :required]}, last_name: {"can't be blank", [validation: :required]}]</pre>
 <p>And we can ask the changeset itself if it is valid, even before doing an insertion:</p>
 <pre data-language="elixir">changeset.valid?
 #=&gt; false</pre>
@@ -166,12 +166,12 @@ changeset = Friends.Person.changeset(person, %{first_name: "Ryan", last_name: "B
 end</pre>
 <p><strong>NOTE:</strong> <code class="inline">changeset.valid?</code> will not check constraints (such as <code class="inline">uniqueness_constraint</code>). For that, you will need to attempt to do an insertion and check for errors from the database. It's for this reason it's best practice to try inserting data and validate the returned tuple from <code class="inline">Friends.Repo.insert</code> to get the correct errors, as prior to insertion the changeset will only contain validation errors from the application itself.</p>
 <p>If the insertion of the changeset succeeds, then you can do whatever you wish with the <code class="inline">person</code> returned in that result. If it fails, then you have access to the changeset and its errors. In the failure case, you may wish to present these errors to the end user. The errors in the changeset are a keyword list that looks like this:</p>
-<pre data-language="elixir">[first_name: {"can't be blank", []},
- last_name: {"can't be blank", []}]</pre>
-<p>The first element of the tuple is the validation message, and the second element is a keyword list of options for the validation message. The <code class="inline">validate_required/3</code> validations don't return any options, but other methods such as <code class="inline">validate_length/3</code> do. Imagine that we had a field called <code class="inline">bio</code> that we were validating, and that field has to be longer than 15 characters. This is what would be returned:</p>
-<pre data-language="elixir">[first_name: {"can't be blank", []},
- last_name: {"can't be blank", []},
- bio: {"should be at least %{count} characters", [count: 15]}]</pre>
+<pre data-language="elixir">[first_name: {"can't be blank", [validation: :required]},
+ last_name: {"can't be blank", [validation: :required]}]</pre>
+<p>The first element of the tuple is the validation message, and the second element is a keyword list of options for the validation message. Imagine that we had a field called <code class="inline">bio</code> that we were validating, and that field has to be longer than 15 characters. This is what would be returned:</p>
+<pre data-language="elixir">[first_name: {"can't be blank", [validation: :required]},
+ last_name: {"can't be blank", [validation: :required]},
+ bio: {"should be at least %{count} character(s)", [count: 15, validation: :length, kind: :min, type: :string]}]</pre>
 <p>To display these error messages in a human friendly way, we can use <a href="ecto.changeset#traverse_errors/2"><code class="inline">Ecto.Changeset.traverse_errors/2</code></a>:</p>
 <pre data-language="elixir">traverse_errors(changeset, fn {msg, opts} -&gt;
   Enum.reduce(opts, msg, fn {key, value}, acc -&gt;
@@ -182,7 +182,7 @@ end)</pre>
 <pre data-language="elixir">%{
   first_name: ["can't be blank"],
   last_name: ["can't be blank"],
-  bio: ["should be at least 15 characters"],
+  bio: ["should be at least 15 character(s)"],
 }</pre>
 <p>One more final thing to mention here: you can trigger an exception to be thrown by using <code class="inline">Friends.Repo.insert!/2</code>. If a changeset is invalid, you will see an <a href="ecto.invalidchangeseterror"><code class="inline">Ecto.InvalidChangesetError</code></a> exception. Here's a quick example of that:</p>
 <pre data-language="elixir">Friends.Repo.insert! Friends.Person.changeset(%Friends.Person{}, %{first_name: "Ryan"})
@@ -211,7 +211,7 @@ Changeset
       valid?: false
     &gt;
 
-   lib/ecto/repo/schema.ex:169: Ecto.Repo.Schema.insert!/4</pre>
+   (ecto) lib/ecto/repo/schema.ex:257: Ecto.Repo.Schema.insert!/4</pre>
 <p>This exception shows us the changes from the changeset, and how the changeset is invalid. This can be useful if you want to insert a bunch of data and then have an exception raised if that data is not inserted correctly at all.</p>
 <p>Now that we've covered inserting data into the database, let's look at how we can pull that data back out.</p>
 <h2 id="our-first-queries" class="section-heading">  Our first queries </h2> <p>Querying a database requires two steps in Ecto. First, we must construct the query and then we must execute that query against the database by passing the query to the repository. Before we do this, let's re-create the database for our app and setup some test data. To re-create the database, we'll run these commands:</p>
@@ -231,7 +231,7 @@ Enum.each(people, fn (person) -&gt; Friends.Repo.insert(person) end)</pre>
 <h3 id="fetching-a-single-record" class="section-heading">  Fetching a single record </h3> <p>Let's start off with fetching just one record from our <code class="inline">people</code> table:</p>
 <pre data-language="elixir">Friends.Person |&gt; Ecto.Query.first</pre>
 <p>That code will generate an <a href="ecto.query"><code class="inline">Ecto.Query</code></a>, which will be this:</p>
-<pre data-language="elixir">#Ecto.Query&lt;from p in Friends.Person, order_by: [asc: p.id], limit: 1&gt;</pre>
+<pre data-language="elixir">#Ecto.Query&lt;from p0 in Friends.Person, order_by: [asc: p0.id], limit: 1&gt;</pre>
 <p>The code between the angle brackets <code class="inline">&lt;...&gt;</code> here shows the Ecto query which has been constructed. We could construct this query ourselves with almost exactly the same syntax:</p>
 <pre data-language="elixir">require Ecto.Query
 Ecto.Query.from p in Friends.Person, order_by: [asc: p.id], limit: 1</pre>
@@ -287,22 +287,20 @@ from p in Friends.Person
 <p>One important thing to note with both query syntaxes is that they require variables to be pinned, using the pin operator (<code class="inline">^</code>). Otherwise, this happens:</p>
 <pre data-language="elixir">last_name = "Smith"
 Friends.Person |&gt; Ecto.Query.where(last_name: last_name) |&gt; Friends.Repo.all</pre>
-<pre data-language="elixir">** (Ecto.Query.CompileError) variable `last_name` is not a valid query expression.
-  Variables need to be explicitly interpolated in queries with ^
-             expanding macro: Ecto.Query.where/2
-             iex:1: (file)
+<pre data-language="elixir">** (Ecto.Query.CompileError) unbound variable `last_name` in query. If you are attempting to interpolate a value, use ^var
+    (ecto)   expanding macro: Ecto.Query.where/2
+             iex:15: (file)
     (elixir) expanding macro: Kernel.|&gt;/2
-             iex:1: (file)</pre>
+             iex:15: (file)</pre>
 <p>The same will happen in the longer query syntax too:</p>
 <pre data-language="elixir">Ecto.Query.from(p in Friends.Person, where: p.last_name == last_name) |&gt; Friends.Repo.all</pre>
-<pre data-language="elixir">** (Ecto.Query.CompileError) variable `last_name` is not a valid query expression.
-  Variables need to be explicitly interpolated in queries with ^
-             expanding macro: Ecto.Query.where/3
-             iex:1: (file)
-             expanding macro: Ecto.Query.from/2
-             iex:1: (file)
+<pre data-language="elixir">** (Ecto.Query.CompileError) unbound variable `last_name` in query. If you are attempting to interpolate a value, use ^var
+    (ecto)   expanding macro: Ecto.Query.where/3
+             iex:15: (file)
+    (ecto)   expanding macro: Ecto.Query.from/2
+             iex:15: (file)
     (elixir) expanding macro: Kernel.|&gt;/2
-             iex:1: (file)</pre>
+             iex:15: (file)</pre>
 <p>To get around this, we use the pin operator (<code class="inline">^</code>):</p>
 <pre data-language="elixir">last_name = "Smith"
 Friends.Person |&gt; Ecto.Query.where(last_name: ^last_name) |&gt; Friends.Repo.all</pre>
@@ -333,9 +331,13 @@ Ecto.Query.from(p in Friends.Person, where: p.last_name == ^last_name) |&gt; Fri
 <pre data-language="elixir">changeset = Friends.Person.changeset(person, %{first_name: ""})
 Friends.Repo.update(changeset)
 #=&gt; {:error,
-     #Ecto.Changeset&lt;action: :update, changes: %{first_name: ""},
-      errors: [first_name: "can't be blank"], data: #Friends.Person&lt;&gt;,
-      valid?: false&gt;}</pre>
+     #Ecto.Changeset&lt;
+       action: :update, 
+       changes: %{},
+       errors: [first_name: {"can't be blank", [validation: :required]}], 
+       data: #Friends.Person&lt;&gt;,
+       valid?: false
+     &gt;}</pre>
 <p>This means that you can also use a <code class="inline">case</code> statement to do different things depending on the outcome of the <code class="inline">update</code> function:</p>
 <pre data-language="elixir">case Friends.Repo.update(changeset) do
   {:ok, person} -&gt;
@@ -349,19 +351,29 @@ Friends.Repo.update! changeset
 
 ** (Ecto.InvalidChangesetError) could not perform update because changeset is invalid.
 
-* Changeset changes
+Errors
 
-%{first_name: ""}
+  %{first_name: [{"can't be blank", [validation: :required]}]}
 
-* Changeset params
+Applied changes
 
-%{"first_name" =&gt; ""}
+  %{}
 
-* Changeset errors
+Params
 
-[first_name: {"can't be blank", []}]
+  %{"first_name" =&gt; ""}
 
-    lib/ecto/repo/schema.ex:132: Ecto.Repo.Schema.update!/4</pre>
+Changeset
+
+    #Ecto.Changeset&lt;
+      action: :update,
+      changes: %{},
+      errors: [first_name: {"can't be blank", [validation: :required]}],
+      data: #Friends.Person&lt;&gt;,
+      valid?: false
+    &gt;
+
+    (ecto) lib/ecto/repo/schema.ex:270: Ecto.Repo.Schema.update!/4</pre>
 <h2 id="deleting-records" class="section-heading">  Deleting records </h2> <p>We've now covered creating (<code class="inline">insert</code>), reading (<code class="inline">get</code>, <code class="inline">get_by</code>, <code class="inline">where</code>) and updating records. The last thing that we'll cover in this guide is how to delete a record using Ecto.</p>
 <p>Similar to updating, we must first fetch a record from the database and then call <code class="inline">Friends.Repo.delete</code> to delete that record:</p>
 <pre data-language="elixir">person = Friends.Repo.get(Friends.Person, 1)

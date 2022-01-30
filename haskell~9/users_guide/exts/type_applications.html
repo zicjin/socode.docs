@@ -4,7 +4,7 @@
 <table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
 <th class="field-name">Since:</th>
 <td class="field-body">8.0.1</td> </tr>  </table> <p>Allow the use of type application syntax.</p> </dd>
-</dl> <p>The <a class="reference internal" href="#extension-TypeApplications"><code>TypeApplications</code></a> extension allows you to use <em>visible type application</em> in expressions. Here is an example: <code>show (read @Int "5")</code>. The <code>@Int</code> is the visible type application; it specifies the value of the type variable in <code>read</code>‘s type.</p> <p>A visible type application is preceded with an <code>@</code> sign. (To disambiguate the syntax, the <code>@</code> must be preceded with a non-identifier letter, usually a space. For example, <code>read@Int 5</code> would not parse.) It can be used whenever the full polymorphic type of the function is known. If the function is an identifier (the common case), its type is considered known only when the identifier has been given a type signature. If the identifier does not have a type signature, visible type application cannot be used.</p> <p>GHC also permits visible kind application, where users can declare the kind arguments to be instantiated in kind-polymorphic cases. Its usage parallels visible type application in the term level, as specified above.</p>  <h2 id="inferred-vs-specified">6.4.14.1. Inferred vs. specified type variables</h2> <p id="inferred-vs-specified-type-variables">GHC tracks a distinction between what we call <em>inferred</em> and <em>specified</em> type variables. Only specified type variables are available for instantiation with visible type application. An example illustrates this well:</p> <pre data-language="haskell">f :: (Eq b, Eq a) =&gt; a -&gt; b -&gt; Bool
+</dl> <p>The <a class="reference internal" href="#extension-TypeApplications"><code>TypeApplications</code></a> extension allows you to use <em>visible type application</em> in expressions. Here is an example: <code>show (read @Int "5")</code>. The <code>@Int</code> is the visible type application; it specifies the value of the type variable in <code>read</code>‘s type.</p> <p>A visible type application is preceded with an <code>@</code> sign. (To disambiguate the syntax, the <code>@</code> must be preceded with a non-identifier letter, usually a space. For example, <code>read@Int 5</code> would not parse.) It can be used whenever the full polymorphic type of the function is known. If the function is an identifier (the common case), its type is considered known only when the identifier has been given a type signature. If the identifier does not have a type signature, visible type application cannot be used.</p> <p>GHC also permits visible kind application, where users can declare the kind arguments to be instantiated in kind-polymorphic cases. Its usage parallels visible type application in the term level, as specified above.</p> <p>In addition to visible type application in terms and types, the type application syntax can be used in patterns matching a data constructor to bind type variables in that constructor’s type.</p>  <h2 id="inferred-vs-specified">6.4.14.1. Inferred vs. specified type variables</h2> <p id="inferred-vs-specified-type-variables">GHC tracks a distinction between what we call <em>inferred</em> and <em>specified</em> type variables. Only specified type variables are available for instantiation with visible type application. An example illustrates this well:</p> <pre data-language="haskell">f :: (Eq b, Eq a) =&gt; a -&gt; b -&gt; Bool
 f x y = (x == x) &amp;&amp; (y == y)
 
 g x y = (x == x) &amp;&amp; (y == y)
@@ -47,9 +47,45 @@ pattern Pat x y = MkT x y
 </pre> </li> </ul> <p>The braces are <em>not</em> allowed in the following places:</p> <ul> <li>
 <p class="first">In visible dependent quantifiers. Consider:</p> <pre data-language="haskell">data T :: forall {k} -&gt; k -&gt; Type
 </pre> <p>This example is rejected, as a visible argument should by definition be explicitly applied. Making them inferred (and thus not appliable) would be conflicting.</p> </li> <li>
-<p class="first">In default type signatures for class methods, in SPECIALISE pragmas or in instance declaration heads, e.g.:</p> <pre data-language="haskell">instance forall {a}. Eq (Maybe a) where ...
-</pre> <p>The reason for this is, essentially, that none of these define a new construct. This means that no new type is being defined where specificity could play a role.</p> </li> <li>On the left-hand sides of type declarations, such as classes, data types, etc. </li> </ul>   </div> </div><div class="_attribution">
+<p class="first">In SPECIALISE pragmas or in instance declaration heads, e.g.:</p> <pre data-language="haskell">instance forall {a}. Eq (Maybe a) where ...
+</pre> <p>The reason for this is, essentially, that none of these define a new construct. This means that no new type is being defined where specificity could play a role.</p> </li> <li>On the left-hand sides of type declarations, such as classes, data types, etc. </li> </ul> <p>Note that while specified and inferred type variables have different properties vis-à-vis visible type application, they do not otherwise affect GHC’s notion of equality over types. For example, given the following definitions:</p> <pre data-language="haskell">id1 :: forall a. a -&gt; a
+id1 x = x
+
+id2 :: forall {a}. a -&gt; a
+id2 x = x
+
+app1 :: (forall a. a -&gt; a) -&gt; b -&gt; b
+app1 g x = g x
+
+app2 :: (forall {a}. a -&gt; a) -&gt; b -&gt; b
+app2 g x = g x
+</pre> <p>GHC will deem all of <code>app1 id1</code>, <code>app1 id2</code>, <code>app2 id1</code>, and <code>app2 id2</code> to be well typed.</p>   <h2 id="id3">6.4.14.4. Type Applications in Patterns</h2> <p id="type-applications-in-patterns">The type application syntax can be used in patterns that match a data constructor. The syntax can’t be used with record patterns or infix patterns. This is useful in particular to bind existential type variables associated with a GADT data constructor as in the following example:</p> <pre data-language="haskell">{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TypeApplications #-}
+import Data.Proxy
+
+data Foo where
+  Foo :: forall a. (Show a, Num a) =&gt; Foo
+
+test :: Foo -&gt; String
+test x = case x of
+  Foo @t -&gt; show @t 0
+
+main :: IO ()
+main = print $ test (Foo @Float)
+</pre> <p>In this example, the case in <code>test`</code> is binding an existential variable introduced by <code>Foo</code> that otherwise could not be named and used.</p> <p>It’s possible to bind variables to any part of the type arguments to a constructor; there is no need for them to be existential. In addition, it’s possible to “match” against part of the type argument using type constructors.</p> <p>For a somewhat-contrived example:</p> <pre data-language="haskell">foo :: (Num a) =&gt; Maybe [a] -&gt; String
+foo (Nothing @[t]) = show (0 :: t)
+foo (Just @[t] xs) = show (sum xs :: t)
+</pre> <p>Here, we’re binding the type variable t to be the type of the elements of the list type which is itself the argument to Maybe.</p> <p>The order of the type arguments specified by the type applications in a pattern is the same as that for an expression: either the order as given by the user in an explicit <code>forall</code> in the definition of the data constructor, or if that is not present, the order in which the type variables appear in its type signature from left to right.</p> <p>For example if we have the following declaration in GADT syntax:</p> <pre data-language="haskell">data Foo :: * -&gt; * where
+  A :: forall s t. [(t,s)] -&gt; Foo (t,s)
+  B :: (t,s) -&gt; Foo (t,s)
+</pre> <p>Then the type arguments to <code>A</code> will match first <code>s</code> and then <code>t</code>, while the type arguments to <code>B</code> will match first <code>t</code> and then <code>s</code>.</p> <p>Type arguments appearing in patterns can influence the inferred type of a definition:</p> <pre data-language="haskell">foo (Nothing @Int) = 0
+foo (Just x) = x
+</pre> <p>will have inferred type:</p> <pre data-language="haskell">foo :: Maybe Int -&gt; Int
+</pre> <p>which is more restricted than what it would be without the application:</p> <pre data-language="haskell">foo :: Num a =&gt; Maybe a -&gt; a
+</pre> <p>For more information and detail regarding type applications in patterns, see the paper <a class="reference external" href="https://arxiv.org/pdf/1806.03476">Type variables in patterns</a> by Eisenberg, Breitner and Peyton Jones. Relative to that paper, the implementation in GHC for now at least makes one additional conservative restriction, that type variables occurring in patterns must not already be in scope, and so are always new variables that only bind whatever type is matched, rather than ever referring to a variable from an outer scope. Type wildcards <code>_</code> may be used in any place where no new variable needs binding.</p>   </div> </div><div class="_attribution">
   <p class="_attribution-p">
-    <a href="https://downloads.haskell.org/~ghc/9.0.1/docs/html/users_guide/exts/type_applications.html" class="_attribution-link" target="_blank">https://downloads.haskell.org/~ghc/9.0.1/docs/html/users_guide/exts/type_applications.html</a>
+    <a href="https://downloads.haskell.org/~ghc/9.2.1/docs/html/users_guide/exts/type_applications.html" class="_attribution-link" target="_blank">https://downloads.haskell.org/~ghc/9.2.1/docs/html/users_guide/exts/type_applications.html</a>
   </p>
 </div>

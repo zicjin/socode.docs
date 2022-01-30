@@ -20,6 +20,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
+/** @type {import('eslint').Rule.RuleModule} */
 module.exports = {
     meta: {
         type: "suggestion",
@@ -67,14 +68,16 @@ module.exports = {
 <code>recommended</code> (boolean) is whether the <code>"extends": "eslint:recommended"</code> property in a <a href="../user-guide/configuring/configuration-files#extending-configuration-files">configuration file</a> enables the rule</li>
 <li>
 <code>url</code> (string) specifies the URL at which the full documentation can be accessed (enabling code editors to provide a helpful link on highlighted rule violations)</li>
-<li>
-<code>suggestion</code> (boolean) specifies whether rules can return suggestions (defaults to false if omitted)</li>
 </ul>
 <p>In a custom rule or plugin, you can omit <code>docs</code> or include any properties that you need in it.</p>
 </li>
 <li>
 <p><code>fixable</code> (string) is either <code>"code"</code> or <code>"whitespace"</code> if the <code>--fix</code> option on the <a href="../user-guide/command-line-interface#--fix">command line</a> automatically fixes problems reported by the rule</p>
 <p><strong>Important:</strong> the <code>fixable</code> property is mandatory for fixable rules. If this property isn't specified, ESLint will throw an error whenever the rule attempts to produce a fix. Omit the <code>fixable</code> property if the rule is not fixable.</p>
+</li>
+<li>
+<p><code>hasSuggestions</code> (boolean) specifies whether rules can return suggestions (defaults to <code>false</code> if omitted)</p>
+<p><strong>Important:</strong> the <code>hasSuggestions</code> property is mandatory for rules that provide suggestions. If this property isn't set to <code>true</code>, ESLint will throw an error whenever the rule attempts to produce a suggestion. Omit the <code>hasSuggestions</code> property if the rule does not provide suggestions.</p>
 </li>
 <li><p><code>schema</code> (array) specifies the <a href="#options-schemas">options</a> so ESLint can prevent invalid <a href="../user-guide/configuring/rules#configuring-rules">rule configurations</a></p></li>
 <li><p><code>deprecated</code> (boolean) indicates whether the rule has been deprecated. You may omit the <code>deprecated</code> property if the rule has not been deprecated.</p></li>
@@ -376,6 +379,7 @@ ruleTester.run("my-rule", rule, {
 <li>
 <code>replaceTextRange(range, text)</code> - replaces the text in the given range</li>
 </ul>
+<p>A range is a two-item array containing character indices inside of the source code. The first item is the start of the range (inclusive) and the second item is the end of the range (exclusive). Every node and token has a <code>range</code> property to identify the source code range they represent.</p>
 <p>The above methods return a <code>fixing</code> object. The <code>fix()</code> function can return the following values:</p>
 <ul>
 <li>A <code>fixing</code> object.</li>
@@ -405,6 +409,19 @@ ruleTester.run("my-rule", rule, {
 </ul>
 </li>
 </ol>
+<p>Note: Making fixes as small as possible is a best practice, but in some cases it may be correct to extend the range of the fix in order to intentionally prevent other rules from making fixes in a surrounding range in the same pass. For instance, if replacement text declares a new variable, it can be useful to prevent other changes in the scope of the variable as they might cause name collisions.</p>
+<p>The following example replaces <code>node</code> and also ensures that no other fixes will be applied in the range of <code>node.parent</code> in the same pass:</p>
+<pre data-language="js">context.report({
+    node,
+    message,
+    *fix(fixer) {
+        yield fixer.replaceText(node, replacementText);
+
+        // extend range of the fix to the range of `node.parent`
+        yield fixer.insertTextBefore(node.parent, "");
+        yield fixer.insertTextAfter(node.parent, "");
+    }
+});</pre>
 <h3 id="providing-suggestions">Providing Suggestions</h3>
 <p>In some cases fixes aren't appropriate to be automatically applied, for example, if a fix potentially changes functionality or if there are multiple valid ways to fix a rule depending on the implementation intent (see the best practices for <a href="#applying-fixes">applying fixes</a> listed above). In these cases, there is an alternative <code>suggest</code> option on <code>context.report()</code> that allows other tools, such as editors, to expose helpers for users to manually apply a suggestion.</p>
 <p>In order to provide suggestions, use the <code>suggest</code> key in the report argument with an array of suggestion objects. The suggestion objects represent individual suggestions that could be applied and require either a <code>desc</code> key string that describes what applying the suggestion would do or a <code>messageId</code> key (see <a href="#suggestion-messageids">below</a>), and a <code>fix</code> key that is a function defining the suggestion result. This <code>fix</code> function follows the same API as regular fixes (described above in <a href="#applying-fixes">applying fixes</a>).</p>
@@ -427,6 +444,7 @@ ruleTester.run("my-rule", rule, {
         }
     ]
 });</pre>
+<p><strong>Important:</strong> The <code>meta.hasSuggestions</code> property is mandatory for rules that provide suggestions. ESLint will throw an error if a rule attempts to produce a suggestion but does not <a href="#rule-basics">export</a> this property.</p>
 <p>Note: Suggestions will be applied as a stand-alone change, without triggering multipass fixes. Each suggestion should focus on a singular change in the code and should not try to conform to user defined styles. For example, if a suggestion is adding a new statement into the codebase, it should not try to match correct indentation, or conform to user preferences on presence/absence of semicolons. All of those things can be corrected by multipass autofix when the user triggers it.</p>
 <p>Best practices for suggestions:</p>
 <ol>
@@ -442,7 +460,8 @@ ruleTester.run("my-rule", rule, {
             unnecessaryEscape: "Unnecessary escape character: \\{{character}}.",
             removeEscape: "Remove the `\\`. This maintains the current functionality.",
             escapeBackslash: "Replace the `\\` with `\\\\` to include the actual backslash character."
-        }
+        },
+        hasSuggestions: true
     },
     create: function(context) {
         // ...
@@ -475,7 +494,8 @@ ruleTester.run("my-rule", rule, {
         messages: {
             unnecessaryEscape: "Unnecessary escape character: \\{{character}}.",
             removeEscape: "Remove `\\` before {{character}}.",
-        }
+        },
+        hasSuggestions: true
     },
     create: function(context) {
         // ...
@@ -519,7 +539,7 @@ ruleTester.run("my-rule", rule, {
         // ...
     }
 };</pre>
-<p>Once you have an instance of <code>SourceCode</code>, you can use the methods on it to work with the code:</p>
+<p>Once you have an instance of <code>SourceCode</code>, you can use the following methods on it to work with the code:</p>
 <ul>
 <li>
 <code>getText(node)</code> - returns the source code for the given node. Omit <code>node</code> to get the whole source.</li>
@@ -686,8 +706,8 @@ var nodeSourceWithFollowing = sourceCode.getText(node, 0, 2);</pre>
 <p>To keep the linting process efficient and unobtrusive, it is useful to verify the performance impact of new rules or modifications to existing rules.</p>
 <h3 id="overall-performance">Overall Performance</h3>
 <p>When developing in the ESLint core repository, the <code>npm run perf</code> command gives a high-level overview of ESLint running time with all core rules enabled.</p>
-<pre data-language="bash">$ git checkout master
-Switched to branch 'master'
+<pre data-language="bash">$ git checkout main
+Switched to branch 'main'
 
 $ npm run perf
 CPU Speed is 2200 with multiplier 7500000

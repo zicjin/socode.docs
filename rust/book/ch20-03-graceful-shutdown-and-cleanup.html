@@ -81,12 +81,8 @@ error[E0507]: cannot move out of `worker.thread` which is behind a mutable refer
 52 |             worker.thread.join().unwrap();
    |             ^^^^^^^^^^^^^ move occurs because `worker.thread` has type `JoinHandle&lt;()&gt;`, which does not implement the `Copy` trait
 
-error: aborting due to previous error
-
 For more information about this error, try `rustc --explain E0507`.
-error: could not compile `hello`
-
-To learn more, run the command again with --verbose.
+error: could not compile `hello` due to previous error
 </pre> <p>The error tells us we can’t call <code>join</code> because we only have a mutable borrow of each <code>worker</code> and <code>join</code> takes ownership of its argument. To solve this issue, we need to move the thread out of the <code>Worker</code> instance that owns <code>thread</code> so <code>join</code> can consume the thread. We did this in Listing 17-15: if <code>Worker</code> holds an <code>Option&lt;thread::JoinHandle&lt;()&gt;&gt;</code> instead, we can call the <code>take</code> method on the <code>Option</code> to move the value out of the <code>Some</code> variant and leave a <code>None</code> variant in its place. In other words, a <code>Worker</code> that is running will have a <code>Some</code> variant in <code>thread</code>, and when we want to clean up a <code>Worker</code>, we’ll replace <code>Some</code> with <code>None</code> so the <code>Worker</code> doesn’t have a thread to run.</p> <p>So we know we want to update the definition of <code>Worker</code> like this:</p> <p><span class="filename">Filename: src/lib.rs</span></p> <pre data-language="rust">use std::sync::mpsc;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -163,7 +159,7 @@ impl Worker {
 }
 </pre> <p>Now let’s lean on the compiler to find the other places that need to change. Checking this code, we get two errors:</p> <pre>$ cargo check
     Checking hello v0.1.0 (file:///projects/hello)
-error[E0599]: no method named `join` found for enum `Option&lt;JoinHandle&lt;()&gt;&gt;` in the current scope
+error[E0599]: no method named `join` found for enum `Option` in the current scope
   --&gt; src/lib.rs:52:27
    |
 52 |             worker.thread.join().unwrap();
@@ -181,13 +177,9 @@ error[E0308]: mismatched types
    = note: expected enum `Option&lt;JoinHandle&lt;()&gt;&gt;`
             found struct `JoinHandle&lt;_&gt;`
 
-error: aborting due to 2 previous errors
-
 Some errors have detailed explanations: E0308, E0599.
 For more information about an error, try `rustc --explain E0308`.
-error: could not compile `hello`
-
-To learn more, run the command again with --verbose.
+error: could not compile `hello` due to 2 previous errors
 </pre> <p>Let’s address the second error, which points to the code at the end of <code>Worker::new</code>; we need to wrap the <code>thread</code> value in <code>Some</code> when we create a new <code>Worker</code>. Make the following changes to fix this error:</p> <p><span class="filename">Filename: src/lib.rs</span></p> <pre data-language="rust">use std::sync::mpsc;
 use std::sync::Arc;
 use std::sync::Mutex;

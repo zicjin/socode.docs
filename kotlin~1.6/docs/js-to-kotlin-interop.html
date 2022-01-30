@@ -1,0 +1,64 @@
+<h1 data-toc="js-to-kotlin-interop" id="js-to-kotlin-interop.md">Use Kotlin code from JavaScript</h1>
+<p id="333b3893">Depending on the selected <a href="js-modules" id="fb686cf4">JavaScript Module</a> system, the Kotlin/JS compiler generates different output. But in general, the Kotlin compiler generates normal JavaScript classes, functions and properties, which you can freely use from JavaScript code. There are some subtle things you should remember, though.</p>
+<section class="chapter"><h2 id="isolating-declarations-in-a-separate-javascript-object-in-plain-mode" data-toc="js-to-kotlin-interop#isolating-declarations-in-a-separate-javascript-object-in-plain-mode">Isolating declarations in a separate JavaScript object in plain mode</h2>
+<p id="dcdb8a41">If you have explicitly set your module kind to be <code class="code ">plain</code>, Kotlin creates an object that contains all Kotlin declarations from the current module. This is done to prevent spoiling the global object. This means that for a module <code class="code ">myModule</code>, all declarations are available to JavaScript via the <code class="code ">myModule</code> object. For example:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">fun foo() = "Hello" </pre>
+<p id="b4610356">Can be called from JavaScript like this:</p>
+<pre class="code-block" data-lang="javascript" data-language="javascript">alert(myModule.foo()); </pre>
+<p id="fe20fc61">This is not applicable when you compile your Kotlin module to JavaScript modules like UMD (which is the default setting for both <code class="code ">browser</code> and <code class="code ">nodejs</code> targets), CommonJS or AMD. In this case, your declarations will be exposed in the format specified by your chosen JavaScript module system. When using UMD or CommonJS, for example, your call site could look like this:</p>
+<pre class="code-block" data-lang="javascript" data-language="javascript">alert(require('myModule').foo()); </pre>
+<p id="187610d3">Check the article on <a href="js-modules" id="8d4a6c08">JavaScript Modules</a> for more information on the topic of JavaScript module systems.</p></section><section class="chapter"><h2 id="package-structure" data-toc="js-to-kotlin-interop#package-structure">Package structure</h2>
+<p id="cd0abe31">Kotlin exposes its package structure to JavaScript, so unless you define your declarations in the root package, you have to use fully qualified names in JavaScript. For example:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">package my.qualified.packagename fun foo() = "Hello" </pre>
+<p id="ebef2ce4">When using UMD or CommonJS, for example, your callsite could look like this:</p>
+<pre class="code-block" data-lang="javascript" data-language="javascript">alert(require('myModule').my.qualified.packagename.foo()) </pre>
+<p id="9f0a4c37">Or, in the case of using <code class="code ">plain</code> as a module system setting:</p>
+<pre class="code-block" data-lang="javascript" data-language="javascript">alert(myModule.my.qualified.packagename.foo()); </pre>
+<section class="chapter"><h3 id="jsname-annotation" data-toc="js-to-kotlin-interop#jsname-annotation">@JsName annotation</h3>
+<p id="d06792ea">In some cases (for example, to support overloads), the Kotlin compiler mangles the names of generated functions and attributes in JavaScript code. To control the generated names, you can use the <code class="code ">@JsName</code> annotation:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">// Module 'kjs' class Person(val name: String) { fun hello() { println("Hello $name!") } @JsName("helloWithGreeting") fun hello(greeting: String) { println("$greeting $name!") } } </pre>
+<p id="b90a08eb">Now you can use this class from JavaScript in the following way:</p>
+<pre class="code-block" data-lang="javascript" data-language="javascript">// If necessary, import 'kjs' according to chosen module system var person = new kjs.Person("Dmitry"); // refers to module 'kjs' person.hello(); // prints "Hello Dmitry!" person.helloWithGreeting("Servus"); // prints "Servus Dmitry!" </pre>
+<p id="6cefbed1">If we didn't specify the <code class="code ">@JsName</code> annotation, the name of the corresponding function would contain a suffix calculated from the function signature, for example <code class="code ">hello_61zpoe$</code>.</p>
+<p id="f8517ed6">Note that there are some cases in which the Kotlin compiler does not apply mangling:</p>
+<ul class="list _ul" id="edfb7230">
+<li class="list__item" id="11e12272"><p><code class="code ">external</code> declarations are not mangled.</p></li>
+<li class="list__item" id="242c6640"><p>Any overridden functions in non-<code class="code ">external</code> classes inheriting from <code class="code ">external</code> classes are not mangled.</p></li>
+</ul>
+<p id="36123572">The parameter of <code class="code ">@JsName</code> is required to be a constant string literal which is a valid identifier. The compiler will report an error on any attempt to pass non-identifier string to <code class="code ">@JsName</code>. The following example produces a compile-time error:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">@JsName("new C()") // error here external fun newC() </pre></section><section class="chapter"><h3 id="jsexport-annotation" data-toc="js-to-kotlin-interop#jsexport-annotation">@JsExport annotation</h3>
+<aside data-type="note" class="prompt" data-title="" id="3e1fd37b"><p id="4af7134f">The <code class="code ">@JsExport</code> annotation is currently marked as experimental. Its design may change in future versions.</p></aside><p id="d31ef809">By applying the <code class="code ">@JsExport</code> annotation to a top-level declaration (like a class or function), you make the Kotlin declaration available from JavaScript. The annotation exports all nested declarations with the name given in Kotlin. It can also be applied on file-level using <code class="code ">@file:JsExport</code>.</p>
+<p id="750ec9fd">To resolve ambiguities in exports (like overloads for functions with the same name), you can use the <code class="code ">@JsExport</code> annotation together with <code class="code ">@JsName</code> to specify the names for the generated and exported functions.</p>
+<p id="d0dd556">The <code class="code ">@JsExport</code> annotation is available in the current default compiler backend and the new <a href="js-ir-compiler" id="b3918218">IR compiler backend</a>. If you are targeting the IR compiler backend, you <b id="cff5c681" class="">must</b> use the <code class="code ">@JsExport</code> annotation to make your functions visible from Kotlin in the first place.</p>
+<p id="d9d6230e">For multiplatform projects, <code class="code ">@JsExport</code> is available in common code as well. It only has an effect when compiling for the JavaScript target, and allows you to also export Kotlin declarations that are not platform specific.</p></section></section><section class="chapter"><h2 id="kotlin-types-in-javascript" data-toc="js-to-kotlin-interop#kotlin-types-in-javascript">Kotlin types in JavaScript</h2>
+<ul class="list _ul" id="cbf71401">
+<li class="list__item" id="3e539eda"><p id="42f76277">Kotlin numeric types, except for <code class="code ">kotlin.Long</code> are mapped to JavaScript <code class="code ">Number</code>.</p></li>
+<li class="list__item" id="f84bd39e"><p id="888d42b0"><code class="code ">kotlin.Char</code> is mapped to JavaScript <code class="code ">Number</code> representing character code.</p></li>
+<li class="list__item" id="d695e29f">
+<p id="7820f924">Kotlin can't distinguish between numeric types at run time (except for <code class="code ">kotlin.Long</code>), so the following code works:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">fun f() { val x: Int = 23 val y: Any = x println(y as Float) } </pre>
+</li>
+<li class="list__item" id="9e451051"><p id="8a91a060">Kotlin preserves overflow semantics for <code class="code ">kotlin.Int</code>, <code class="code ">kotlin.Byte</code>, <code class="code ">kotlin.Short</code>, <code class="code ">kotlin.Char</code> and <code class="code ">kotlin.Long</code>.</p></li>
+<li class="list__item" id="1f24110f"><p id="43efa6c1"><code class="code ">kotlin.Long</code> is not mapped to any JavaScript object, as there is no 64-bit integer number type in JavaScript. It is emulated by a Kotlin class.</p></li>
+<li class="list__item" id="900ee3"><p id="b78a3cd9"><code class="code ">kotlin.String</code> is mapped to JavaScript <code class="code ">String</code>.</p></li>
+<li class="list__item" id="e0a72cf"><p id="2d8956e5"><code class="code ">kotlin.Any</code> is mapped to JavaScript <code class="code ">Object</code> (<code class="code ">new Object()</code>, <code class="code ">{}</code>, and so on).</p></li>
+<li class="list__item" id="a62e93c8"><p id="7d5a0c65"><code class="code ">kotlin.Array</code> is mapped to JavaScript <code class="code ">Array</code>.</p></li>
+<li class="list__item" id="d9edd7d6"><p id="1b0be4f5">Kotlin collections (<code class="code ">List</code>, <code class="code ">Set</code>, <code class="code ">Map</code>, and so on) are not mapped to any specific JavaScript type.</p></li>
+<li class="list__item" id="4fb1e3d8"><p id="77dccd82"><code class="code ">kotlin.Throwable</code> is mapped to JavaScript Error.</p></li>
+<li class="list__item" id="80709eb9"><p id="6ab86974">Kotlin preserves lazy object initialization in JavaScript.</p></li>
+<li class="list__item" id="bc6e4efd"><p id="d9c81e27">Kotlin does not implement lazy initialization of top-level properties in JavaScript.</p></li>
+</ul>
+<section class="chapter"><h3 id="primitive-arrays" data-toc="js-to-kotlin-interop#primitive-arrays">Primitive arrays</h3>
+<p id="3cc59cd8">Primitive array translation utilizes JavaScript <code class="code ">TypedArray</code>:</p>
+<ul class="list _ul" id="4145eed1">
+<li class="list__item" id="5b4b44ef"><p><code class="code ">kotlin.ByteArray</code>, <code class="code ">-.ShortArray</code>, <code class="code ">-.IntArray</code>, <code class="code ">-.FloatArray</code>, and <code class="code ">-.DoubleArray</code> are mapped to JavaScript <code class="code ">Int8Array</code>, <code class="code ">Int16Array</code>, <code class="code ">Int32Array</code>, <code class="code ">Float32Array</code>, and <code class="code ">Float64Array</code> correspondingly.</p></li>
+<li class="list__item" id="647f9157"><p><code class="code ">kotlin.BooleanArray</code> is mapped to JavaScript <code class="code ">Int8Array</code> with a property <code class="code ">$type$ == "BooleanArray"</code>.</p></li>
+<li class="list__item" id="95c97439"><p><code class="code ">kotlin.CharArray</code> is mapped to JavaScript <code class="code ">UInt16Array</code> with a property <code class="code ">$type$ == "CharArray"</code>.</p></li>
+<li class="list__item" id="360dd76f"><p><code class="code ">kotlin.LongArray</code> is mapped to JavaScript <code class="code ">Array</code> of <code class="code ">kotlin.Long</code> with a property <code class="code ">$type$ == "LongArray"</code>.</p></li>
+</ul></section></section><div class="last-modified"> Last modified: 25 August 2021</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="using-packages-from-npm">Use dependencies from npm</a> <a class="navigation-links__next" href="js-modules">JavaScript modules</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/js-to-kotlin-interop.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/js-to-kotlin-interop.html</a>
+  </p>
+</div>

@@ -86,7 +86,7 @@
 <p> At the end of each garbage-collection cycle, the finalizers are called in the reverse order that the objects were marked for finalization, among those collected in that cycle; that is, the first finalizer to be called is the one associated with the object marked last in the program. The execution of each finalizer may occur at any point during the execution of the regular code. </p>
 <p> Because the object being collected must still be used by the finalizer, that object (and other objects accessible only through it) must be <em>resurrected</em> by Lua. Usually, this resurrection is transient, and the object memory is freed in the next garbage-collection cycle. However, if the finalizer stores the object in some global place (e.g., a global variable), then the resurrection is permanent. Moreover, if the finalizer marks a finalizing object for finalization again, its finalizer will be called again in the next cycle where the object is dead. In any case, the object memory is freed only in a GC cycle where the object is dead and not marked for finalization. </p>
 <p> When you close a state (see <a href="#lua_close"><code>lua_close</code></a>), Lua calls the finalizers of all objects marked for finalization, following the reverse order that they were marked. If any finalizer marks objects for collection during that phase, these marks have no effect. </p>
-<p> Finalizers cannot yield. Except for that, they can do anything, such as raise errors, create new objects, or even run the garbage collector. However, because they can run in unpredictable times, it is good practice to restrict each finalizer to the minimum necessary to properly release its associated resource. </p>
+<p> Finalizers cannot yield nor run the garbage collector. Because they can run in unpredictable times, it is good practice to restrict each finalizer to the minimum necessary to properly release its associated resource. </p>
 <p> Any error while running a finalizer generates a warning; the error is not propagated. </p>
 <h3 id="2.5.4">2.5.4 – Weak Tables</h3> <p> A <em>weak table</em> is a table whose elements are <em>weak references</em>. A weak reference is ignored by the garbage collector. In other words, if the only references to an object are weak references, then the garbage collector will collect that object. </p>
 <p> A weak table can have weak keys, weak values, or both. A table with weak values allows the collection of its values, but prevents the collection of its keys. A table with both weak keys and weak values allows the collection of both keys and values. In any case, if either the key or the value is collected, the whole pair is removed from the table. The weakness of a table is controlled by the <code>__mode</code> field of its metatable. This metavalue, if present, must be one of the following strings: "<code>k</code>", for a table with weak keys; "<code>v</code>", for a table with weak values; or "<code>kv</code>", for a table with both weak keys and values. </p>
@@ -199,7 +199,7 @@ varlist ::= var {‘,’ var}
 explist ::= exp {‘,’ exp}</pre>
 <p> Expressions are discussed in <a href="#3.4">§3.4</a>. </p>
 <p> Before the assignment, the list of values is <em>adjusted</em> to the length of the list of variables. If there are more values than needed, the excess values are thrown away. If there are fewer values than needed, the list is extended with <b>nil</b>'s. If the list of expressions ends with a function call, then all values returned by that call enter the list of values, before the adjustment (except when the call is enclosed in parentheses; see <a href="#3.4">§3.4</a>). </p>
-<p> The assignment statement first evaluates all its expressions and only then the assignments are performed. Thus the code </p>
+<p> If a variable is both assigned and read inside a multiple assignment, Lua ensures all reads get the value of the variable before the assignment. Thus the code </p>
 <pre data-language="lua">i = 3
 i, a[i] = i+1, 20</pre>
 <p> sets <code>a[3]</code> to 20, without affecting <code>a[4]</code> because the <code>i</code> in <code>a[i]</code> is evaluated (to 3) before it is assigned 4. Similarly, the line </p>
@@ -207,6 +207,7 @@ i, a[i] = i+1, 20</pre>
 <p> exchanges the values of <code>x</code> and <code>y</code>, and </p>
 <pre data-language="lua">x, y, z = y, z, x</pre>
 <p> cyclically permutes the values of <code>x</code>, <code>y</code>, and <code>z</code>. </p>
+<p> Note that this guarantee covers only accesses syntactically inside the assignment statement. If a function or a metamethod called during the assignment changes the value of a variable, Lua gives no guarantees about the order of that access. </p>
 <p> An assignment to a global name <code>x = val</code> is equivalent to the assignment <code>_ENV.x = val</code> (see <a href="#2.2">§2.2</a>). </p>
 <p> The meaning of assignments to table fields and global variables (which are actually table fields, too) can be changed via metatables (see <a href="#2.4">§2.4</a>). </p>
 <h3 id="3.3.4">3.3.4 – Control Structures</h3>
@@ -361,12 +362,13 @@ false or nil        --&gt; nil
 <p> The string concatenation operator in Lua is denoted by two dots ('<code>..</code>'). If both operands are strings or numbers, then the numbers are converted to strings in a non-specified format (see <a href="#3.4.3">§3.4.3</a>). Otherwise, the <code>__concat</code> metamethod is called (see <a href="#2.4">§2.4</a>). </p>
 <h3 id="3.4.7">3.4.7 – The Length Operator</h3> <p> The length operator is denoted by the unary prefix operator <code>#</code>. </p>
 <p> The length of a string is its number of bytes. (That is the usual meaning of string length when each character is one byte.) </p>
-<p> The length operator applied on a table returns a border in that table. A <em>border</em> in a table <code>t</code> is any natural number that satisfies the following condition: </p>
-<pre data-language="lua">(border == 0 or t[border] ~= nil) and t[border + 1] == nil</pre>
-<p> In words, a border is any (natural) index present in the table that is followed by an absent index (or zero, when index 1 is absent). </p>
-<p> A table with exactly one border is called a <em>sequence</em>. For instance, the table <code>{10, 20, 30, 40, 50}</code> is a sequence, as it has only one border (5). The table <code>{10, 20, 30, nil, 50}</code> has two borders (3 and 5), and therefore it is not a sequence. (The <b>nil</b> at index 4 is called a <em>hole</em>.) The table <code>{nil, 20, 30, nil, nil, 60, nil}</code> has three borders (0, 3, and 6) and three holes (at indices 1, 4, and 5), so it is not a sequence, too. The table <code>{}</code> is a sequence with border 0. Note that non-natural keys do not interfere with whether a table is a sequence. </p>
+<p> The length operator applied on a table returns a border in that table. A <em>border</em> in a table <code>t</code> is any non-negative integer that satisfies the following condition: </p>
+<pre data-language="lua">(border == 0 or t[border] ~= nil) and
+(t[border + 1] == nil or border == math.maxinteger)</pre>
+<p> In words, a border is any positive integer index present in the table that is followed by an absent index, plus two limit cases: zero, when index 1 is absent; and the maximum value for an integer, when that index is present. Note that keys that are not positive integers do not interfere with borders. </p>
+<p> A table with exactly one border is called a <em>sequence</em>. For instance, the table <code>{10, 20, 30, 40, 50}</code> is a sequence, as it has only one border (5). The table <code>{10, 20, 30, nil, 50}</code> has two borders (3 and 5), and therefore it is not a sequence. (The <b>nil</b> at index 4 is called a <em>hole</em>.) The table <code>{nil, 20, 30, nil, nil, 60, nil}</code> has three borders (0, 3, and 6), so it is not a sequence, too. The table <code>{}</code> is a sequence with border 0. </p>
 <p> When <code>t</code> is a sequence, <code>#t</code> returns its only border, which corresponds to the intuitive notion of the length of the sequence. When <code>t</code> is not a sequence, <code>#t</code> can return any of its borders. (The exact one depends on details of the internal representation of the table, which in turn can depend on how the table was populated and the memory addresses of its non-numeric keys.) </p>
-<p> The computation of the length of a table has a guaranteed worst time of <em>O(log n)</em>, where <em>n</em> is the largest natural key in the table. </p>
+<p> The computation of the length of a table has a guaranteed worst time of <em>O(log n)</em>, where <em>n</em> is the largest integer key in the table. </p>
 <p> A program can modify the behavior of the length operator for any value but strings through the <code>__len</code> metamethod (see <a href="#2.4">§2.4</a>). </p>
 <h3 id="3.4.8">3.4.8 – Precedence</h3>
 <p> Operator precedence in Lua follows the table below, from lower to higher priority: </p>
@@ -734,6 +736,7 @@ lua_setglobal(L, "a");                         /* set global 'a' */</pre>
 <code>LUA_GCINC</code> (int pause, int stepmul, stepsize):  Changes the collector to incremental mode with the given parameters (see <a href="#2.5.1">§2.5.1</a>). Returns the previous mode (<code>LUA_GCGEN</code> or <code>LUA_GCINC</code>). </li> <li>
 <code>LUA_GCGEN</code> (int minormul, int majormul):  Changes the collector to generational mode with the given parameters (see <a href="#2.5.2">§2.5.2</a>). Returns the previous mode (<code>LUA_GCGEN</code> or <code>LUA_GCINC</code>). </li> </ul>
 <p> For more details about these options, see <a href="#pdf-collectgarbage"><code>collectgarbage</code></a>. </p>
+<p> This function should not be called by a finalizer. </p>
 <h3 id="lua_getallocf">
 <code>lua_getallocf</code><span class="apii">[-0, +0, –]</span>
 </h3>
@@ -1328,7 +1331,7 @@ while (lua_next(L, t) != 0) {
   char short_src[LUA_IDSIZE]; /* (S) */
   /* private part */
   other fields
-} lua_Debug;</pre> <p> A structure used to carry different pieces of information about a function or an activation record. <a href="#lua_getstack"><code>lua_getstack</code></a> fills only the private part of this structure, for later use. To fill the other fields of <a href="#lua_Debug"><code>lua_Debug</code></a> with useful information, you must call <a href="#lua_getinfo"><code>lua_getinfo</code></a>. </p>
+} lua_Debug;</pre> <p> A structure used to carry different pieces of information about a function or an activation record. <a href="#lua_getstack"><code>lua_getstack</code></a> fills only the private part of this structure, for later use. To fill the other fields of <a href="#lua_Debug"><code>lua_Debug</code></a> with useful information, you must call <a href="#lua_getinfo"><code>lua_getinfo</code></a> with an appropriate parameter. (Specifically, to get a field, you must add the letter between parentheses in the field's comment to the parameter <code>what</code> of <a href="#lua_getinfo"><code>lua_getinfo</code></a>.) </p>
 <p> The fields of <a href="#lua_Debug"><code>lua_Debug</code></a> have the following meaning: </p>
 <ul> <li>
 <code>source</code>:  the source of the chunk that created the function. If <code>source</code> starts with a '<code>@</code>', it means that the function was defined in a file where the file name follows the '<code>@</code>'. If <code>source</code> starts with a '<code>=</code>', the remainder of its contents describes the source in a user-dependent manner. Otherwise, the function was defined in a string where <code>source</code> is that string. </li> <li>
@@ -1370,10 +1373,8 @@ while (lua_next(L, t) != 0) {
 <pre data-language="lua">lua_Debug ar;
 lua_getglobal(L, "f");  /* get global 'f' */
 lua_getinfo(L, "&gt;S", &amp;ar);
-printf("%d\n", ar.linedefined);</pre> <p> Each character in the string <code>what</code> selects some fields of the structure <code>ar</code> to be filled or a value to be pushed on the stack: </p>
-<ul> <li>'<code>n</code>':  fills in the field <code>name</code> and <code>namewhat</code>; </li> <li>'<code>S</code>':  fills in the fields <code>source</code>, <code>short_src</code>, <code>linedefined</code>, <code>lastlinedefined</code>, and <code>what</code>; </li> <li>'<code>l</code>':  fills in the field <code>currentline</code>; </li> <li>'<code>t</code>':  fills in the field <code>istailcall</code>; </li> <li>'<code>u</code>':  fills in the fields <code>nups</code>, <code>nparams</code>, and <code>isvararg</code>; </li> <li>'<code>f</code>':  pushes onto the stack the function that is running at the given level; </li> <li>'<code>L</code>':  pushes onto the stack a table whose indices are the numbers of the lines that are valid on the function. (A <em>valid line</em> is a line with some associated code, that is, a line where you can put a break point. Non-valid lines include empty lines and comments.) <p> If this option is given together with option '<code>f</code>', its table is pushed after the function. </p>
-<p> This is the only option that can raise a memory error. </p>
-</li> </ul> <p> This function returns 0 to signal an invalid option in <code>what</code>; even then the valid options are handled correctly. </p>
+printf("%d\n", ar.linedefined);</pre> <p> Each character in the string <code>what</code> selects some fields of the structure <code>ar</code> to be filled or a value to be pushed on the stack. (These characters are also documented in the declaration of the structure <a href="#lua_Debug"><code>lua_Debug</code></a>, between parentheses in the comments following each field.) </p>
+<ul> <li>'<code>f</code>':  pushes onto the stack the function that is running at the given level; </li> <li>'<code>l</code>':  fills in the field <code>currentline</code>; </li> <li>'<code>n</code>':  fills in the fields <code>name</code> and <code>namewhat</code>; </li> <li>'<code>r</code>':  fills in the fields <code>ftransfer</code> and <code>ntransfer</code>; </li> <li>'<code>S</code>':  fills in the fields <code>source</code>, <code>short_src</code>, <code>linedefined</code>, <code>lastlinedefined</code>, and <code>what</code>; </li> <li>'<code>t</code>':  fills in the field <code>istailcall</code>; </li> <li>'<code>u</code>':  fills in the fields <code>nups</code>, <code>nparams</code>, and <code>isvararg</code>; </li> <li>'<code>L</code>':  pushes onto the stack a table whose indices are the lines on the function with some associated code, that is, the lines where you can put a break point. (Lines with no code include empty lines and comments.) If this option is given together with option '<code>f</code>', its table is pushed after the function. This is the only option that can raise a memory error. </li> </ul> <p> This function returns 0 to signal an invalid option in <code>what</code>; even then the valid options are handled correctly. </p>
 <h3 id="lua_getlocal">
 <code>lua_getlocal</code><span class="apii">[-0, +(0|1), –]</span>
 </h3>
@@ -1452,7 +1453,7 @@ printf("%d\n", ar.linedefined);</pre> <p> Each character in the string <code>wha
 
 <pre data-language="lua">void luaL_addchar (luaL_Buffer *B, char c);</pre> <p> Adds the byte <code>c</code> to the buffer <code>B</code> (see <a href="#luaL_Buffer"><code>luaL_Buffer</code></a>). </p>
 <h3 id="luaL_addgsub">
-<code>luaL_addgsub</code><span class="apii">[-0, +0, <em>m</em>]</span>
+<code>luaL_addgsub</code><span class="apii">[-?, +?, <em>m</em>]</span>
 </h3>
 
 <pre data-language="lua">const void luaL_addgsub (luaL_Buffer *B, const char *s,
@@ -1473,7 +1474,7 @@ printf("%d\n", ar.linedefined);</pre> <p> Each character in the string <code>wha
 
 <pre data-language="lua">void luaL_addstring (luaL_Buffer *B, const char *s);</pre> <p> Adds the zero-terminated string pointed to by <code>s</code> to the buffer <code>B</code> (see <a href="#luaL_Buffer"><code>luaL_Buffer</code></a>). </p>
 <h3 id="luaL_addvalue">
-<code>luaL_addvalue</code><span class="apii">[-1, +?, <em>m</em>]</span>
+<code>luaL_addvalue</code><span class="apii">[-?, +?, <em>m</em>]</span>
 </h3>
 
 <pre data-language="lua">void luaL_addvalue (luaL_Buffer *B);</pre> <p> Adds the value on the top of the stack to the buffer <code>B</code> (see <a href="#luaL_Buffer"><code>luaL_Buffer</code></a>). Pops the value. </p>
@@ -1511,7 +1512,7 @@ printf("%d\n", ar.linedefined);</pre> <p> Each character in the string <code>wha
 
 <pre data-language="lua">char *luaL_buffaddr (luaL_Buffer *B);</pre> <p> Returns the address of the current content of buffer <code>B</code> (see <a href="#luaL_Buffer"><code>luaL_Buffer</code></a>). Note that any addition to the buffer may invalidate this address. </p>
 <h3 id="luaL_buffinit">
-<code>luaL_buffinit</code><span class="apii">[-0, +0, –]</span>
+<code>luaL_buffinit</code><span class="apii">[-0, +?, –]</span>
 </h3>
 
 <pre data-language="lua">void luaL_buffinit (lua_State *L, luaL_Buffer *B);</pre> <p> Initializes a buffer <code>B</code> (see <a href="#luaL_Buffer"><code>luaL_Buffer</code></a>). This function does not allocate any space; the buffer must be declared as a variable. </p>
@@ -1526,7 +1527,7 @@ printf("%d\n", ar.linedefined);</pre> <p> Each character in the string <code>wha
 
 <pre data-language="lua">char *luaL_buffinitsize (lua_State *L, luaL_Buffer *B, size_t sz);</pre> <p> Equivalent to the sequence <a href="#luaL_buffinit"><code>luaL_buffinit</code></a>, <a href="#luaL_prepbuffsize"><code>luaL_prepbuffsize</code></a>. </p>
 <h3 id="luaL_buffsub">
-<code>luaL_buffsub</code><span class="apii">[-0, +0, –]</span>
+<code>luaL_buffsub</code><span class="apii">[-?, +?, –]</span>
 </h3>
 
 <pre data-language="lua">void luaL_buffsub (luaL_Buffer *B, int n);</pre> <p> Removes <code>n</code> bytes from the the buffer <code>B</code> (see <a href="#luaL_Buffer"><code>luaL_Buffer</code></a>). The buffer must have at least that many bytes. </p>
@@ -1807,6 +1808,7 @@ printf("%d\n", ar.linedefined);</pre> <p> Each character in the string <code>wha
 
 <pre data-language="lua">void luaL_setfuncs (lua_State *L, const luaL_Reg *l, int nup);</pre> <p> Registers all functions in the array <code>l</code> (see <a href="#luaL_Reg"><code>luaL_Reg</code></a>) into the table on the top of the stack (below optional upvalues, see next). </p>
 <p> When <code>nup</code> is not zero, all functions are created with <code>nup</code> upvalues, initialized with copies of the <code>nup</code> values previously pushed on the stack on top of the library table. These values are popped from the stack after the registration. </p>
+<p> A function with a <code>NULL</code> value represents a placeholder, which is filled with <b>false</b>. </p>
 <h3 id="luaL_setmetatable">
 <code>luaL_setmetatable</code><span class="apii">[-0, +0, –]</span>
 </h3>
@@ -1875,9 +1877,10 @@ printf("%d\n", ar.linedefined);</pre> <p> Each character in the string <code>wha
 <h3 id="pdf-collectgarbage"><code>collectgarbage ([opt [, arg]])</code></h3> <p> This function is a generic interface to the garbage collector. It performs different functions according to its first argument, <code>opt</code>: </p>
 <ul> <li>"<code>collect</code>":  Performs a full garbage-collection cycle. This is the default option. </li> <li>"<code>stop</code>":  Stops automatic execution of the garbage collector. The collector will run only when explicitly invoked, until a call to restart it. </li> <li>"<code>restart</code>":  Restarts automatic execution of the garbage collector. </li> <li>"<code>count</code>":  Returns the total memory in use by Lua in Kbytes. The value has a fractional part, so that it multiplied by 1024 gives the exact number of bytes in use by Lua. </li> <li>"<code>step</code>":  Performs a garbage-collection step. The step "size" is controlled by <code>arg</code>. With a zero value, the collector will perform one basic (indivisible) step. For non-zero values, the collector will perform as if that amount of memory (in Kbytes) had been allocated by Lua. Returns <b>true</b> if the step finished a collection cycle. </li> <li>"<code>isrunning</code>":  Returns a boolean that tells whether the collector is running (i.e., not stopped). </li> <li>"<code>incremental</code>":  Change the collector mode to incremental. This option can be followed by three numbers: the garbage-collector pause, the step multiplier, and the step size (see <a href="#2.5.1">§2.5.1</a>). A zero means to not change that value. </li> <li>"<code>generational</code>":  Change the collector mode to generational. This option can be followed by two numbers: the garbage-collector minor multiplier and the major multiplier (see <a href="#2.5.2">§2.5.2</a>). A zero means to not change that value. </li> </ul>
 <p> See <a href="#2.5">§2.5</a> for more details about garbage collection and some of these options. </p>
+<p> This function should not be called by a finalizer. </p>
 
 <h3 id="pdf-dofile"><code>dofile ([filename])</code></h3> Opens the named file and executes its content as a Lua chunk. When called without arguments, <code>dofile</code> executes the content of the standard input (<code>stdin</code>). Returns all values returned by the chunk. In case of errors, <code>dofile</code> propagates the error to its caller. (That is, <code>dofile</code> does not run in protected mode.) 
-<h3 id="pdf-error"><code>error (message [, level])</code></h3> Raises an error (see <a href="#2.3">§2.3</a>) with @{message} as the error object. This function never returns. <p> Usually, <code>error</code> adds some information about the error position at the beginning of the message, if the message is a string. The <code>level</code> argument specifies how to get the error position. With level 1 (the default), the error position is where the <code>error</code> function was called. Level 2 points the error to where the function that called <code>error</code> was called; and so on. Passing a level 0 avoids the addition of error position information to the message. </p>
+<h3 id="pdf-error"><code>error (message [, level])</code></h3> Raises an error (see <a href="#2.3">§2.3</a>) with <code>message</code> as the error object. This function never returns. <p> Usually, <code>error</code> adds some information about the error position at the beginning of the message, if the message is a string. The <code>level</code> argument specifies how to get the error position. With level 1 (the default), the error position is where the <code>error</code> function was called. Level 2 points the error to where the function that called <code>error</code> was called; and so on. Passing a level 0 avoids the addition of error position information to the message. </p>
 
 <h3 id="pdf-_G"><code>_G</code></h3> A global variable (not a function) that holds the global environment (see <a href="#2.2">§2.2</a>). Lua itself does not use this variable; changing its value does not affect any environment, nor vice versa. 
 <h3 id="pdf-getmetatable"><code>getmetatable (object)</code></h3> <p> If <code>object</code> does not have a metatable, returns <b>nil</b>. Otherwise, if the object's metatable has a <code>__metatable</code> field, returns the associated value. Otherwise, returns the metatable of the given object. </p>
@@ -1899,7 +1902,7 @@ printf("%d\n", ar.linedefined);</pre> <p> Each character in the string <code>wha
 
 <h3 id="pdf-next"><code>next (table [, index])</code></h3> <p> Allows a program to traverse all fields of a table. Its first argument is a table and its second argument is an index in this table. A call to <code>next</code> returns the next index of the table and its associated value. When called with <b>nil</b> as its second argument, <code>next</code> returns an initial index and its associated value. When called with the last index, or with <b>nil</b> in an empty table, <code>next</code> returns <b>nil</b>. If the second argument is absent, then it is interpreted as <b>nil</b>. In particular, you can use <code>next(t)</code> to check whether a table is empty. </p>
 <p> The order in which the indices are enumerated is not specified, <em>even for numeric indices</em>. (To traverse a table in numerical order, use a numerical <b>for</b>.) </p>
-<p> The behavior of <code>next</code> is undefined if, during the traversal, you assign any value to a non-existent field in the table. You may however modify existing fields. In particular, you may set existing fields to nil. </p>
+<p> You should not assign any value to a non-existent field in a table during its traversal. You may however modify existing fields. In particular, you may set existing fields to nil. </p>
 
 <h3 id="pdf-pairs"><code>pairs (t)</code></h3> <p> If <code>t</code> has a metamethod <code>__pairs</code>, calls it with <code>t</code> as argument and returns the first three results from the call. </p>
 <p> Otherwise, returns three values: the <a href="#pdf-next"><code>next</code></a> function, the table <code>t</code>, and <b>nil</b>, so that the construction </p>
@@ -1907,7 +1910,7 @@ printf("%d\n", ar.linedefined);</pre> <p> Each character in the string <code>wha
 <p> will iterate over all key–value pairs of table <code>t</code>. </p>
 <p> See function <a href="#pdf-next"><code>next</code></a> for the caveats of modifying the table during its traversal. </p>
 
-<h3 id="pdf-pcall"><code>pcall (f [, arg1, ···])</code></h3> <p> Calls the function <code>f</code> with the given arguments in <em>protected mode</em>. This means that any error inside <code>f</code> is not propagated; instead, <code>pcall</code> catches the error and returns a status code. Its first result is the status code (a boolean), which is true if the call succeeds without errors. In such case, <code>pcall</code> also returns all results from the call, after this first result. In case of any error, <code>pcall</code> returns <b>false</b> plus the error object. Note that errors caught by <code>pcall</code> do not call a message handler. </p>
+<h3 id="pdf-pcall"><code>pcall (f [, arg1, ···])</code></h3> <p> Calls the function <code>f</code> with the given arguments in <em>protected mode</em>. This means that any error inside <code>f</code> is not propagated; instead, <code>pcall</code> catches the error and returns a status code. Its first result is the status code (a boolean), which is <b>true</b> if the call succeeds without errors. In such case, <code>pcall</code> also returns all results from the call, after this first result. In case of any error, <code>pcall</code> returns <b>false</b> plus the error object. Note that errors caught by <code>pcall</code> do not call a message handler. </p>
 
 <h3 id="pdf-print"><code>print (···)</code></h3> Receives any number of arguments and prints their values to <code>stdout</code>, converting each argument to a string following the same rules of <a href="#pdf-tostring"><code>tostring</code></a>. <p> The function <code>print</code> is not intended for formatted output, but only as a quick way to show a value, for instance for debugging. For complete control over the output, use <a href="#pdf-string.format"><code>string.format</code></a> and <a href="#pdf-io.write"><code>io.write</code></a>. </p>
 
@@ -1944,13 +1947,13 @@ printf("%d\n", ar.linedefined);</pre> <p> Each character in the string <code>wha
 
 <h3 id="pdf-coroutine.create"><code>coroutine.create (f)</code></h3> <p> Creates a new coroutine, with body <code>f</code>. <code>f</code> must be a function. Returns this new coroutine, an object with type <code>"thread"</code>. </p>
 
-<h3 id="pdf-coroutine.isyieldable"><code>coroutine.isyieldable ([co])</code></h3> <p> Returns true when the coroutine <code>co</code> can yield. The default for <code>co</code> is the running coroutine. </p>
+<h3 id="pdf-coroutine.isyieldable"><code>coroutine.isyieldable ([co])</code></h3> <p> Returns <b>true</b> when the coroutine <code>co</code> can yield. The default for <code>co</code> is the running coroutine. </p>
 <p> A coroutine is yieldable if it is not the main thread and it is not inside a non-yieldable C function. </p>
 
 <h3 id="pdf-coroutine.resume"><code>coroutine.resume (co [, val1, ···])</code></h3> <p> Starts or continues the execution of coroutine <code>co</code>. The first time you resume a coroutine, it starts running its body. The values <code>val1</code>, ... are passed as the arguments to the body function. If the coroutine has yielded, <code>resume</code> restarts it; the values <code>val1</code>, ... are passed as the results from the yield. </p>
 <p> If the coroutine runs without any errors, <code>resume</code> returns <b>true</b> plus any values passed to <code>yield</code> (when the coroutine yields) or any values returned by the body function (when the coroutine terminates). If there is any error, <code>resume</code> returns <b>false</b> plus the error message. </p>
 
-<h3 id="pdf-coroutine.running"><code>coroutine.running ()</code></h3> <p> Returns the running coroutine plus a boolean, true when the running coroutine is the main one. </p>
+<h3 id="pdf-coroutine.running"><code>coroutine.running ()</code></h3> <p> Returns the running coroutine plus a boolean, <b>true</b> when the running coroutine is the main one. </p>
 
 <h3 id="pdf-coroutine.status"><code>coroutine.status (co)</code></h3> <p> Returns the status of the coroutine <code>co</code>, as a string: <code>"running"</code>, if the coroutine is running (that is, it is the one that called <code>status</code>); <code>"suspended"</code>, if the coroutine is suspended in a call to <code>yield</code>, or if it has not started running yet; <code>"normal"</code> if the coroutine is active but not running (that is, it has resumed another coroutine); and <code>"dead"</code> if the coroutine has finished its body function, or if it has stopped with an error. </p>
 
@@ -2014,16 +2017,16 @@ printf("%d\n", ar.linedefined);</pre> <p> Each character in the string <code>wha
 <h3 id="pdf-string.dump"><code>string.dump (function [, strip])</code></h3> <p> Returns a string containing a binary representation (a <em>binary chunk</em>) of the given function, so that a later <a href="#pdf-load"><code>load</code></a> on this string returns a copy of the function (but with new upvalues). If <code>strip</code> is a true value, the binary representation may not include all debug information about the function, to save space. </p>
 <p> Functions with upvalues have only their number of upvalues saved. When (re)loaded, those upvalues receive fresh instances. (See the <a href="#pdf-load"><code>load</code></a> function for details about how these upvalues are initialized. You can use the debug library to serialize and reload the upvalues of a function in a way adequate to your needs.) </p>
 
-<h3 id="pdf-string.find"><code>string.find (s, pattern [, init [, plain]])</code></h3> <p> Looks for the first match of <code>pattern</code> (see <a href="#6.4.1">§6.4.1</a>) in the string <code>s</code>. If it finds a match, then <code>find</code> returns the indices of <code>s</code> where this occurrence starts and ends; otherwise, it returns <b>fail</b>. A third, optional numeric argument <code>init</code> specifies where to start the search; its default value is 1 and can be negative. A value of <b>true</b> as a fourth, optional argument <code>plain</code> turns off the pattern matching facilities, so the function does a plain "find substring" operation, with no characters in <code>pattern</code> being considered magic. </p>
+<h3 id="pdf-string.find"><code>string.find (s, pattern [, init [, plain]])</code></h3> <p> Looks for the first match of <code>pattern</code> (see <a href="#6.4.1">§6.4.1</a>) in the string <code>s</code>. If it finds a match, then <code>find</code> returns the indices of <code>s</code> where this occurrence starts and ends; otherwise, it returns <b>fail</b>. A third, optional numeric argument <code>init</code> specifies where to start the search; its default value is 1 and can be negative. A <b>true</b> as a fourth, optional argument <code>plain</code> turns off the pattern matching facilities, so the function does a plain "find substring" operation, with no characters in <code>pattern</code> being considered magic. </p>
 <p> If the pattern has captures, then in a successful match the captured values are also returned, after the two indices. </p>
 
-<h3 id="pdf-string.format"><code>string.format (formatstring, ···)</code></h3> <p> Returns a formatted version of its variable number of arguments following the description given in its first argument, which must be a string. The format string follows the same rules as the ISO C function <code>sprintf</code>. The only differences are that the conversion specifiers and modifiers <code>*</code>, <code>h</code>, <code>L</code>, <code>l</code>, and <code>n</code> are not supported and that there is an extra specifier, <code>q</code>. </p>
+<h3 id="pdf-string.format"><code>string.format (formatstring, ···)</code></h3> <p> Returns a formatted version of its variable number of arguments following the description given in its first argument, which must be a string. The format string follows the same rules as the ISO C function <code>sprintf</code>. The only differences are that the conversion specifiers and modifiers <code>F</code>, <code>n</code>, <code>*</code>, <code>h</code>, <code>L</code>, and <code>l</code> are not supported and that there is an extra specifier, <code>q</code>. Both width and precision, when present, are limited to two digits. </p>
 <p> The specifier <code>q</code> formats booleans, nil, numbers, and strings in a way that the result is a valid constant in Lua source code. Booleans and nil are written in the obvious way (<code>true</code>, <code>false</code>, <code>nil</code>). Floats are written in hexadecimal, to preserve full precision. A string is written between double quotes, using escape sequences when necessary to ensure that it can safely be read back by the Lua interpreter. For instance, the call </p>
 <pre data-language="lua">string.format('%q', 'a string with "quotes" and \n new line')</pre>
 <p> may produce the string: </p>
 <pre data-language="lua">"a string with \"quotes\" and \
  new line"</pre>
-<p> This specifier does not support modifiers (flags, width, length). </p>
+<p> This specifier does not support modifiers (flags, width, precision). </p>
 <p> The conversion specifiers <code>A</code>, <code>a</code>, <code>E</code>, <code>e</code>, <code>f</code>, <code>G</code>, and <code>g</code> all expect a number as argument. The specifiers <code>c</code>, <code>d</code>, <code>i</code>, <code>o</code>, <code>u</code>, <code>X</code>, and <code>x</code> expect an integer. When Lua is compiled with a C89 compiler, the specifiers <code>A</code> and <code>a</code> (hexadecimal floats) do not support modifiers. </p>
 <p> The specifier <code>s</code> expects a string; if its argument is not a string, it is converted to one following the same rules of <a href="#pdf-tostring"><code>tostring</code></a>. If the specifier has any modifier, the corresponding string argument should not contain embedded zeros. </p>
 <p> The specifier <code>p</code> formats the pointer returned by <a href="#lua_topointer"><code>lua_topointer</code></a>. That gives a unique string identifier for tables, userdata, threads, strings, and functions. For other values (numbers, nil, booleans), this specifier results in a string representing the pointer <code>NULL</code>. </p>
@@ -2259,7 +2262,7 @@ x = string.gsub("$name-$version.tar.gz", "%$(%w+)", t)
 
 <h3 id="pdf-math.type"><code>math.type (x)</code></h3> <p> Returns "<code>integer</code>" if <code>x</code> is an integer, "<code>float</code>" if it is a float, or <b>fail</b> if <code>x</code> is not a number. </p>
 
-<h3 id="pdf-math.ult"><code>math.ult (m, n)</code></h3> <p> Returns a boolean, true if and only if integer <code>m</code> is below integer <code>n</code> when they are compared as unsigned integers. </p>
+<h3 id="pdf-math.ult"><code>math.ult (m, n)</code></h3> <p> Returns a boolean, <b>true</b> if and only if integer <code>m</code> is below integer <code>n</code> when they are compared as unsigned integers. </p>
 <h2 id="6.8">6.8 – Input and Output Facilities</h2> <p> The I/O library provides two different styles for file manipulation. The first one uses implicit file handles; that is, there are operations to set a default input file and a default output file, and all input/output operations are done over these default files. The second style uses explicit file handles. </p>
 <p> When using implicit file handles, all operations are supplied by table <a id="pdf-io"><code>io</code></a>. When using explicit file handles, the operation <a href="#pdf-io.open"><code>io.open</code></a> returns a file handle and then all operations are supplied as methods of the file handle. </p>
 <p> The metatable for file handles provides metamethods for <code>__gc</code> and <code>__close</code> that try to close the file when called. </p>

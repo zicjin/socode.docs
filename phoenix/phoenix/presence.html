@@ -1,9 +1,13 @@
 <h1>Presence</h1>
-<blockquote><p><strong>Requirement</strong>: This guide expects that you have gone through the introductory guides and got a Phoenix application up and running.</p></blockquote>
-<blockquote><p><strong>Requirement</strong>: This guide expects that you have gone through <a href="channels">the Channels guide</a>.</p></blockquote>
+<blockquote><p><strong>Requirement</strong>: This guide expects that you have gone through the <a href="installation">introductory guides</a> and got a Phoenix application <a href="up_and_running">up and running</a>.</p></blockquote>
+<blockquote><p><strong>Requirement</strong>: This guide expects that you have gone through the <a href="channels">Channels guide</a>.</p></blockquote>
 <p>Phoenix Presence is a feature which allows you to register process information on a topic and replicate it transparently across a cluster. It's a combination of both a server-side and client-side library which makes it simple to implement. A simple use-case would be showing which users are currently online in an application.</p>
-<p>Phoenix Presence is special for a number of reasons. It has no single point of failure, no single source of truth, relies entirely on the standard library with no operational dependencies and self heals. This is all handled with a conflict-free replicated data type (CRDT) protocol.</p>
-<p>To get started with Presence we'll first need to generate a presence module. We can do this with the <a href="mix.tasks.phx.gen.presence"><code class="inline">mix phx.gen.presence</code></a> task:</p>
+<p>Phoenix Presence is special for a number of reasons. It has no single point of failure, no single source of truth, relies entirely on the standard library with no operational dependencies and self heals.</p>
+<h2 id="setting-up" class="section-heading">  Setting up </h2> <p>We are going to use Presence to track which users are connected on the server and send updates to the client as users join and leave. We will deliver those updates via Phoenix Channels. Therefore, let's create a <code class="inline">RoomChannel</code>, as we did in the channels guides:</p>
+<pre data-language="elixir">$ mix phx.gen.channel Room
+</pre>
+<p>Follow the steps after the generator and you are ready to start tracking presence.</p>
+<h2 id="the-presence-generator" class="section-heading">  The Presence generator </h2> <p>To get started with Presence we'll first need to generate a presence module. We can do this with the <a href="mix.tasks.phx.gen.presence"><code class="inline">mix phx.gen.presence</code></a> task:</p>
 <pre data-language="elixir">$ mix phx.gen.presence
 * creating lib/hello_web/channels/presence.ex
 
@@ -16,7 +20,7 @@ in lib/hello/application.ex:
     ]
 
 You're all set! See the Phoenix.Presence docs for more details:
-http://hexdocs.pm/phoenix/Phoenix.Presence.html
+https://hexdocs.pm/phoenix/Phoenix.Presence.html
 </pre>
 <p>If we open up the <code class="inline">lib/hello_web/channels/presence.ex</code> file, we will see the following line:</p>
 <pre data-language="elixir">use Phoenix.Presence,
@@ -27,41 +31,21 @@ http://hexdocs.pm/phoenix/Phoenix.Presence.html
   ...
   HelloWeb.Presence,
 ]</pre>
-<p>Next we will create a channel that Presence can communicate on. For this example we will create a <code class="inline">RoomChannel</code> (<a href="channels">see the channels guide for more details on this</a>):</p>
-<pre data-language="elixir">$ mix phx.gen.channel Room
-* creating lib/hello_web/channels/room_channel.ex
-* creating test/hello_web/channels/room_channel_test.exs
-
-Add the channel to your `lib/hello_web/channels/user_socket.ex` handler, for example:
-
-    channel "room:lobby", HelloWeb.RoomChannel
-</pre>
-<p>and register it in <code class="inline">lib/hello_web/channels/user_socket.ex</code>:</p>
-<pre data-language="elixir">defmodule HelloWeb.UserSocket do
-  use Phoenix.Socket
-
-  channel "room:lobby", HelloWeb.RoomChannel
-end</pre>
-<p>We also need to change our connect function to take a <code class="inline">user_id</code> from the params and assign it on the socket. In production you may want to use <a href="phoenix.token"><code class="inline">Phoenix.Token</code></a> if you have real users that are authenticated.</p>
-<pre data-language="elixir">def connect(params, socket, _connect_info) do
-  {:ok, assign(socket, :user_id, params["user_id"])}
-end</pre>
 <p>Next, we will create the channel that we'll communicate presence over. After a user joins we can push the list of presences down the channel and then track the connection. We can also provide a map of additional information to track.</p>
-<p>Note that we provide the <code class="inline">user_id</code> from the connection in order to uniquely identify the client. You can use whatever identifier you like, but you'll see how this is provided to the socket in the client-side example below.</p>
-<p>To learn more about channels, read the <a href="channels">channel documentation in the guide</a>.</p>
 <pre data-language="elixir">defmodule HelloWeb.RoomChannel do
   use Phoenix.Channel
   alias HelloWeb.Presence
 
-  def join("room:lobby", _params, socket) do
+  def join("room:lobby", %{"name" =&gt; name}, socket) do
     send(self(), :after_join)
-    {:ok, socket}
+    {:ok, assign(socket, :name, name)}
   end
 
   def handle_info(:after_join, socket) do
-    {:ok, _} = Presence.track(socket, socket.assigns.user_id, %{
-      online_at: inspect(System.system_time(:second))
-    })
+    {:ok, _} =
+      Presence.track(socket, socket.assigns.name, %{
+        online_at: inspect(System.system_time(:second))
+      })
 
     push(socket, "presence_state", Presence.list(socket))
     {:noreply, socket}
@@ -73,11 +57,8 @@ end</pre>
 <p>We can see presence working by adding the following to <code class="inline">assets/js/app.js</code>:</p>
 <pre data-language="elixir">import {Socket, Presence} from "phoenix"
 
-let socket = new Socket("/socket", {
-  params: {user_id: window.location.search.split("=")[1]}
-})
-
-let channel = socket.channel("room:lobby", {})
+let socket = new Socket("/socket", {params: {token: window.userToken}})
+let channel = socket.channel("room:lobby", {name: window.location.search.split("=")[1])
 let presence = new Presence(channel)
 
 function renderOnlineUsers(presence) {
@@ -99,7 +80,9 @@ channel.join()</pre>
 <p>We can ensure this is working by opening 3 browser tabs. If we navigate to <a href="http://localhost:4000/?name=Alice">http://localhost:4000/?name=Alice</a> on two browser tabs and <a href="http://localhost:4000/?name=Bob">http://localhost:4000/?name=Bob</a> then we should see:</p>
 <pre data-language="elixir">Alice (count: 2)
 Bob (count: 1)</pre>
-<p>If we close one of the Alice tabs, then the count should decrease to 1. If we close another tab, the user should disappear from the list entirely.</p> <div class="bottom-actions"> <div class="bottom-actions-item"> <a href="channels" class="bottom-actions-button" rel="prev"> <span class="subheader"> ← Previous Page </span> <span class="title"> Channels </span> </a> </div> <div class="bottom-actions-item"> <a href="testing" class="bottom-actions-button" rel="next"> <span class="subheader"> Next Page → </span> <span class="title"> Introduction to Testing </span> </a> </div> </div><div class="_attribution">
+<p>If we close one of the Alice tabs, then the count should decrease to 1. If we close another tab, the user should disappear from the list entirely.</p>
+<h2 id="making-it-safe" class="section-heading">  Making it safe </h2> <p>In our initial implementation, we are passing the name of the user as part of the URL. However, in many systems, you want to allow only logged in users to access the presence functionality. To do so, you should set up token authentication, <a href="channels#using-token-authentication">as detailed in the token authentication section of the channels guide</a>.</p>
+<p>With token authentication, you should access <code class="inline">socket.assigns.user_id</code>, set in <code class="inline">UserSocket</code>, instead of <code class="inline">socket.assigns.name</code> set from parameters.</p> <div class="bottom-actions"> <div class="bottom-actions-item"> <a href="channels" class="bottom-actions-button" rel="prev"> <span class="subheader"> ← Previous Page </span> <span class="title"> Channels </span> </a> </div> <div class="bottom-actions-item"> <a href="testing" class="bottom-actions-button" rel="next"> <span class="subheader"> Next Page → </span> <span class="title"> Introduction to Testing </span> </a> </div> </div><div class="_attribution">
   <p class="_attribution-p">
     <a href="https://hexdocs.pm/phoenix/presence.html" class="_attribution-link" target="_blank">https://hexdocs.pm/phoenix/presence.html</a>
   </p>

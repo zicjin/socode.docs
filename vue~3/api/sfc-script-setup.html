@@ -46,7 +46,7 @@ import MyComponent from './MyComponent.vue'
 &lt;template&gt;
   &lt;MyComponent /&gt;
 &lt;/template&gt;</pre> </div>
-<p>Think of <code>MyComponent</code> as being referenced as a variable. If you have used JSX, the mental model is similar here. The kebab-case equivalent <code>&lt;my-component&gt;</code> also works in the template - however PascalCase component tags are strongly recommended for consistency. It also helps differentiating from native custom elements.</p> <h3 id="dynamic-components"> Dynamic Components</h3> <p>Since components are referenced as variables instead of registered under string keys, we should use dynamic <code>:is</code> binding when using dynamic components inside <code>&lt;script setup&gt;</code>:</p> <div class="language-vue line-numbers-mode">
+<p>Think of <code>MyComponent</code> as being referenced as a variable. If you have used JSX, the mental model is similar here. The kebab-case equivalent <code>&lt;my-component&gt;</code> also works in the template - however PascalCase component tags are strongly recommended for consistency. It also helps differentiating from native custom elements.</p> <h3 id="dynamic-components"> Dynamic Components</h3> <p>Since components are referenced as variables instead of registered under string keys, you should use dynamic <code>:is</code> binding when using dynamic components inside <code>&lt;script setup&gt;</code>:</p> <div class="language-vue line-numbers-mode">
 <pre class="language-vue" data-language="javascript">&lt;script setup&gt;
 import Foo from './Foo.vue'
 import Bar from './Bar.vue'
@@ -68,8 +68,24 @@ import * as Form from './form-components'
     &lt;Form.Label&gt;label&lt;/Form.Label&gt;
   &lt;/Form.Input&gt;
 &lt;/template&gt;</pre> </div>
+<h2 id="using-custom-directives"> Using Custom Directives</h2> <p>Globally registered custom directives just work as expected, and local ones can be used directly in the template, much like we explained above for components.</p> <p>But there's one restriction to be aware of: You must name local custom directives according to the following schema: <code>vNameOfDirective</code> in order for them to be directly usable in the template.</p> <div class="language-html line-numbers-mode">
+<pre class="language-html" data-language="javascript">&lt;script setup&gt;
+const vMyDirective = {
+  beforeMount: (el) =&gt; {
+    // do something with the element
+  }
+}
+&lt;/script&gt;
+&lt;template&gt;
+  &lt;h1 v-my-directive&gt;This is a Heading&lt;/h1&gt;
+&lt;/template&gt;</pre> </div>
+<div class="language-html line-numbers-mode">
+<pre class="language-html" data-language="javascript">&lt;script setup&gt;
+  // imports also work, and can be renamed to fit the required naming schema
+  import { myDirective as vMyDirective } from './MyDirective.js'
+&lt;/script&gt;</pre> </div>
 <h2 id="defineprops-and-defineemits"> <code>defineProps</code> and <code>defineEmits</code>
-</h2> <p>To declare options like <code>props</code> and <code>emits</code> with full type inference support, we can use the <code>defineProps</code> and <code>defineEmits</code> APIs, which are automatically available inside <code>&lt;script setup&gt;</code>:</p> <div class="language-vue line-numbers-mode">
+</h2> <p>To declare <code>props</code> and <code>emits</code> in <code>&lt;script setup&gt;</code>, you must use the <code>defineProps</code> and <code>defineEmits</code> APIs, which provide full type inference support and are automatically available inside <code>&lt;script setup&gt;</code>:</p> <div class="language-vue line-numbers-mode">
 <pre class="language-vue" data-language="javascript">&lt;script setup&gt;
 const props = defineProps({
   foo: String
@@ -79,7 +95,7 @@ const emit = defineEmits(['change', 'delete'])
 // setup code
 &lt;/script&gt;</pre> </div>
 <ul>
-<li><p><code>defineProps</code> and <code>defineEmits</code> are <strong>compiler macros</strong> only usable inside <code>&lt;script setup&gt;</code>. They do not need to be imported, and are compiled away when <code>&lt;script setup&gt;</code> is processed.</p></li> <li><p><code>defineProps</code> accepts the same value as the <code>props</code> option, while <code>defineEmits</code> accepts the same value as the <code>emits</code> option.</p></li> <li><p><code>defineProps</code> and <code>defineEmits</code> provide proper type inference based on the options passed.</p></li> <li><p>The options passed to <code>defineProps</code> and <code>defineEmits</code> will be hoisted out of setup into module scope. Therefore, the options cannot reference local variables declared in setup scope. Doing so will result in a compile error. However, it <em>can</em> reference imported bindings since they are in the module scope as well.</p></li>
+<li><p><code>defineProps</code> and <code>defineEmits</code> are <strong>compiler macros</strong> only usable inside <code>&lt;script setup&gt;</code>. They do not need to be imported, and are compiled away when <code>&lt;script setup&gt;</code> is processed.</p></li> <li><p><code>defineProps</code> accepts the same value as the <a href="options-data#props"><code>props</code> option</a>, while <code>defineEmits</code> accepts the same value as the <a href="options-data#emits"><code>emits</code> option</a>.</p></li> <li><p><code>defineProps</code> and <code>defineEmits</code> provide proper type inference based on the options passed.</p></li> <li><p>The options passed to <code>defineProps</code> and <code>defineEmits</code> will be hoisted out of setup into module scope. Therefore, the options cannot reference local variables declared in setup scope. Doing so will result in a compile error. However, it <em>can</em> reference imported bindings since they are in the module scope as well.</p></li>
 </ul> <p>If you are using TypeScript, it is also possible to <a href="#typescript-only-features">declare props and emits using pure type annotations</a>.</p> <h2 id="defineexpose"> <code>defineExpose</code>
 </h2> <p>Components using <code>&lt;script setup&gt;</code> are <strong>closed by default</strong> - i.e. the public instance of the component, which is retrieved via template refs or <code>$parent</code> chains, will <strong>not</strong> expose any of the bindings declared inside <code>&lt;script setup&gt;</code>.</p> <p>To explicitly expose properties in a <code>&lt;script setup&gt;</code> component, use the <code>defineExpose</code> compiler macro:</p> <div class="language-vue line-numbers-mode">
 <pre class="language-vue" data-language="javascript">&lt;script setup&gt;
@@ -102,7 +118,7 @@ const slots = useSlots()
 const attrs = useAttrs()
 &lt;/script&gt;</pre> </div>
 <p><code>useSlots</code> and <code>useAttrs</code> are actual runtime functions that return the equivalent of <code>setupContext.slots</code> and <code>setupContext.attrs</code>. They can be used in normal composition API functions as well.</p> <h2 id="usage-alongside-normal-script"> Usage alongside normal <code>&lt;script&gt;</code>
-</h2> <p><code>&lt;script setup&gt;</code> can be used alongside normal <code>&lt;script&gt;</code>. A normal <code>&lt;script&gt;</code> may be needed in cases where we need to:</p> <ul>
+</h2> <p><code>&lt;script setup&gt;</code> can be used alongside normal <code>&lt;script&gt;</code>. A normal <code>&lt;script&gt;</code> may be needed in cases where you need to:</p> <ul>
 <li>Declare options that cannot be expressed in <code>&lt;script setup&gt;</code>, for example <code>inheritAttrs</code> or custom options enabled via plugins.</li> <li>Declaring named exports.</li> <li>Run side effects or create objects that should only execute once.</li>
 </ul> <div class="language-vue line-numbers-mode">
 <pre class="language-vue" data-language="javascript">&lt;script&gt;
@@ -119,7 +135,9 @@ export default {
 &lt;script setup&gt;
 // executed in setup() scope (for each instance)
 &lt;/script&gt;</pre> </div>
-<h2 id="top-level-await"> Top-level <code>await</code>
+<div class="custom-block warning">
+<strong class="custom-block-title">WARNING</strong> <p><code>render</code> function is not supported in this scenario. Please use one normal <code>&lt;script&gt;</code> with <code>setup</code> option instead.</p>
+</div> <h2 id="top-level-await"> Top-level <code>await</code>
 </h2> <p>Top-level <code>await</code> can be used inside <code>&lt;script setup&gt;</code>. The resulting code will be compiled as <code>async setup()</code>:</p> <div class="language-vue line-numbers-mode">
 <pre class="language-vue" data-language="javascript">&lt;script setup&gt;
 const post = await fetch(`/api/post/1`).then(r =&gt; r.json())
@@ -159,6 +177,6 @@ const props = withDefaults(defineProps&lt;Props&gt;(), {
 <p>This will be compiled to equivalent runtime props <code>default</code> options. In addition, the <code>withDefaults</code> helper provides type checks for the default values, and ensures the returned <code>props</code> type has the optional flags removed for properties that do have default values declared.</p> <h2 id="restriction-no-src-imports"> Restriction: No Src Imports</h2> <p>Due to the difference in module execution semantics, code inside <code>&lt;script setup&gt;</code> relies on the context of an SFC. When moved into external <code>.js</code> or <code>.ts</code> files, it may lead to confusion for both developers and tools. Therefore, <strong><code>&lt;script setup&gt;</code></strong> cannot be used with the <code>src</code> attribute.</p>
 </div>   <div class="_attribution">
   <p class="_attribution-p">
-    <a href="https://v3.vuejs.org/api/sfc-script-setup.html" class="_attribution-link" target="_blank">https://v3.vuejs.org/api/sfc-script-setup.html</a>
+    <a href="https://v3.vuejs.org/api/sfc-script-setup" class="_attribution-link" target="_blank">https://v3.vuejs.org/api/sfc-script-setup</a>
   </p>
 </div>

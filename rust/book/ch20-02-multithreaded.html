@@ -151,12 +151,8 @@ error[E0433]: failed to resolve: use of undeclared type `ThreadPool`
 10 |     let pool = ThreadPool::new(4);
    |                ^^^^^^^^^^ use of undeclared type `ThreadPool`
 
-error: aborting due to previous error
-
 For more information about this error, try `rustc --explain E0433`.
-error: could not compile `hello`
-
-To learn more, run the command again with --verbose.
+error: could not compile `hello` due to previous error
 </pre> <p>Great! This error tells us we need a <code>ThreadPool</code> type or module, so we’ll build one now. Our <code>ThreadPool</code> implementation will be independent of the kind of work our web server is doing. So, let’s switch the <code>hello</code> crate from a binary crate to a library crate to hold our <code>ThreadPool</code> implementation. After we change to a library crate, we could also use the separate thread pool library for any work we want to do using a thread pool, not just for serving web requests.</p> <p>Create a <em>src/lib.rs</em> that contains the following, which is the simplest definition of a <code>ThreadPool</code> struct that we can have for now:</p> <p><span class="filename">Filename: src/lib.rs</span></p> <pre data-language="rust">pub struct ThreadPool;
 </pre> <p>Then create a new directory, <em>src/bin</em>, and move the binary crate rooted in <em>src/main.rs</em> into <em>src/bin/main.rs</em>. Doing so will make the library crate the primary crate in the <em>hello</em> directory; we can still run the binary in <em>src/bin/main.rs</em> using <code>cargo run</code>. After moving the <em>main.rs</em> file, edit it to bring the library crate in and bring <code>ThreadPool</code> into scope by adding the following code to the top of <em>src/bin/main.rs</em>:</p> <p><span class="filename">Filename: src/bin/main.rs</span></p> <pre data-language="rust">use hello::ThreadPool;
 use std::fs;
@@ -215,12 +211,8 @@ error[E0599]: no function or associated item named `new` found for struct `Threa
 11 |     let pool = ThreadPool::new(4);
    |                            ^^^ function or associated item not found in `ThreadPool`
 
-error: aborting due to previous error
-
 For more information about this error, try `rustc --explain E0599`.
-error: could not compile `hello`
-
-To learn more, run the command again with --verbose.
+error: could not compile `hello` due to previous error
 </pre> <p>This error indicates that next we need to create an associated function named <code>new</code> for <code>ThreadPool</code>. We also know that <code>new</code> needs to have one parameter that can accept <code>4</code> as an argument and should return a <code>ThreadPool</code> instance. Let’s implement the simplest <code>new</code> function that will have those characteristics:</p> <p><span class="filename">Filename: src/lib.rs</span></p> <pre data-language="rust">pub struct ThreadPool;
 
 impl ThreadPool {
@@ -236,16 +228,13 @@ error[E0599]: no method named `execute` found for struct `ThreadPool` in the cur
 16 |         pool.execute(|| {
    |              ^^^^^^^ method not found in `ThreadPool`
 
-error: aborting due to previous error
-
 For more information about this error, try `rustc --explain E0599`.
-error: could not compile `hello`
-
-To learn more, run the command again with --verbose.
+error: could not compile `hello` due to previous error
 </pre> <p>Now the error occurs because we don’t have an <code>execute</code> method on <code>ThreadPool</code>. Recall from the <a href="#creating-a-similar-interface-for-a-finite-number-of-threads">“Creating a Similar Interface for a Finite Number of Threads”</a> section that we decided our thread pool should have an interface similar to <code>thread::spawn</code>. In addition, we’ll implement the <code>execute</code> function so it takes the closure it’s given and gives it to an idle thread in the pool to run.</p> <p>We’ll define the <code>execute</code> method on <code>ThreadPool</code> to take a closure as a parameter. Recall from the <a href="ch13-01-closures#storing-closures-using-generic-parameters-and-the-fn-traits">“Storing Closures Using Generic Parameters and the <code>Fn</code> Traits”</a> section in Chapter 13 that we can take closures as parameters with three different traits: <code>Fn</code>, <code>FnMut</code>, and <code>FnOnce</code>. We need to decide which kind of closure to use here. We know we’ll end up doing something similar to the standard library <code>thread::spawn</code> implementation, so we can look at what bounds the signature of <code>thread::spawn</code> has on its parameter. The documentation shows us the following:</p> <pre data-language="rust">pub fn spawn&lt;F, T&gt;(f: F) -&gt; JoinHandle&lt;T&gt;
     where
-        F: FnOnce() -&gt; T + Send + 'static,
-        T: Send + 'static
+        F: FnOnce() -&gt; T,
+        F: Send + 'static,
+        T: Send + 'static,
 </pre> <p>The <code>F</code> type parameter is the one we’re concerned with here; the <code>T</code> type parameter is related to the return value, and we’re not concerned with that. We can see that <code>spawn</code> uses <code>FnOnce</code> as the trait bound on <code>F</code>. This is probably what we want as well, because we’ll eventually pass the argument we get in <code>execute</code> to <code>spawn</code>. We can be further confident that <code>FnOnce</code> is the trait we want to use because the thread for running a request will only execute that request’s closure one time, which matches the <code>Once</code> in <code>FnOnce</code>.</p> <p>The <code>F</code> type parameter also has the trait bound <code>Send</code> and the lifetime bound <code>'static</code>, which are useful in our situation: we need <code>Send</code> to transfer the closure from one thread to another and <code>'static</code> because we don’t know how long the thread will take to execute. Let’s create an <code>execute</code> method on <code>ThreadPool</code> that will take a generic parameter of type <code>F</code> with these bounds:</p> <p><span class="filename">Filename: src/lib.rs</span></p> <pre data-language="rust">pub struct ThreadPool;
 
 impl ThreadPool {
@@ -291,8 +280,9 @@ impl ThreadPool {
 </pre> <p><span class="caption">Listing 20-13: Implementing <code>ThreadPool::new</code> to panic if <code>size</code> is zero</span></p> <p>We’ve added some documentation for our <code>ThreadPool</code> with doc comments. Note that we followed good documentation practices by adding a section that calls out the situations in which our function can panic, as discussed in Chapter 14. Try running <code>cargo doc --open</code> and clicking the <code>ThreadPool</code> struct to see what the generated docs for <code>new</code> look like!</p> <p>Instead of adding the <code>assert!</code> macro as we’ve done here, we could make <code>new</code> return a <code>Result</code> like we did with <code>Config::new</code> in the I/O project in Listing 12-9. But we’ve decided in this case that trying to create a thread pool without any threads should be an unrecoverable error. If you’re feeling ambitious, try to write a version of <code>new</code> with the following signature to compare both versions:</p> <pre data-language="rust">pub fn new(size: usize) -&gt; Result&lt;ThreadPool, PoolCreationError&gt; {
 </pre> <h4 id="creating-space-to-store-the-threads">Creating Space to Store the Threads</h4> <p>Now that we have a way to know we have a valid number of threads to store in the pool, we can create those threads and store them in the <code>ThreadPool</code> struct before returning it. But how do we “store” a thread? Let’s take another look at the <code>thread::spawn</code> signature:</p> <pre data-language="rust">pub fn spawn&lt;F, T&gt;(f: F) -&gt; JoinHandle&lt;T&gt;
     where
-        F: FnOnce() -&gt; T + Send + 'static,
-        T: Send + 'static
+        F: FnOnce() -&gt; T,
+        F: Send + 'static,
+        T: Send + 'static,
 </pre> <p>The <code>spawn</code> function returns a <code>JoinHandle&lt;T&gt;</code>, where <code>T</code> is the type that the closure returns. Let’s try using <code>JoinHandle</code> too and see what happens. In our case, the closures we’re passing to the thread pool will handle the connection and not return anything, so <code>T</code> will be the unit type <code>()</code>.</p> <p>The code in Listing 20-14 will compile but doesn’t create any threads yet. We’ve changed the definition of <code>ThreadPool</code> to hold a vector of <code>thread::JoinHandle&lt;()&gt;</code> instances, initialized the vector with a capacity of <code>size</code>, set up a <code>for</code> loop that will run some code to create the threads, and returned a <code>ThreadPool</code> instance containing them.</p> <p><span class="filename">Filename: src/lib.rs</span></p> <pre data-language="rust">use std::thread;
 
 pub struct ThreadPool {
@@ -498,12 +488,8 @@ error[E0382]: use of moved value: `receiver`
 27 |             workers.push(Worker::new(id, receiver));
    |                                          ^^^^^^^^ value moved here, in previous iteration of loop
 
-error: aborting due to previous error
-
 For more information about this error, try `rustc --explain E0382`.
-error: could not compile `hello`
-
-To learn more, run the command again with --verbose.
+error: could not compile `hello` due to previous error
 </pre> <p>The code is trying to pass <code>receiver</code> to multiple <code>Worker</code> instances. This won’t work, as you’ll recall from Chapter 16: the channel implementation that Rust provides is multiple <em>producer</em>, single <em>consumer</em>. This means we can’t just clone the consuming end of the channel to fix this code. Even if we could, that is not the technique we would want to use; instead, we want to distribute the jobs across threads by sharing the single <code>receiver</code> among all the workers.</p> <p>Additionally, taking a job off the channel queue involves mutating the <code>receiver</code>, so the threads need a safe way to share and modify <code>receiver</code>; otherwise, we might get race conditions (as covered in Chapter 16).</p> <p>Recall the thread-safe smart pointers discussed in Chapter 16: to share ownership across multiple threads and allow the threads to mutate the value, we need to use <code>Arc&lt;Mutex&lt;T&gt;&gt;</code>. The <code>Arc</code> type will let multiple workers own the receiver, and <code>Mutex</code> will ensure that only one worker gets a job from the receiver at a time. Listing 20-18 shows the changes we need to make.</p> <p><span class="filename">Filename: src/lib.rs</span></p> <pre data-language="rust">use std::sync::mpsc;
 use std::thread;
 use std::sync::Arc;

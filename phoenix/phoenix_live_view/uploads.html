@@ -1,8 +1,7 @@
-<h1>Uploads</h1>
-<p>LiveView supports interactive file uploads with progress for both direct to server uploads as well as direct-to-cloud <a href="uploads-external">external uploads</a> on the client.</p>
+<h1> <button class="settings display-settings">  <span class="sr-only">Settings</span> </button>  <span>Uploads</span> </h1> <p>LiveView supports interactive file uploads with progress for both direct to server uploads as well as direct-to-cloud <a href="uploads-external">external uploads</a> on the client.</p>
 <h3 id="built-in-features" class="section-heading">  Built-in Features </h3> <ul>
 <li><p>Accept specification - Define accepted file types, max number of entries, max file size, etc. When the client selects file(s), the file metadata is automatically validated against the specification. See <a href="phoenix.liveview#allow_upload/3"><code class="inline">Phoenix.LiveView.allow_upload/3</code></a>.</p></li>
-<li><p>Reactive entries - Uploads are populated in an <code class="inline">@uploads</code> assign in the socket. Entries automatically respond to progress, errors, cancelation, etc.</p></li>
+<li><p>Reactive entries - Uploads are populated in an <code class="inline">@uploads</code> assign in the socket. Entries automatically respond to progress, errors, cancellation, etc.</p></li>
 <li><p>Drag and drop - Use the <code class="inline">phx-drop-target</code> attribute to enable. See <a href="phoenix.liveview.helpers#live_file_input/2"><code class="inline">Phoenix.LiveView.Helpers.live_file_input/2</code></a>.</p></li>
 </ul>
 <h2 id="allow-uploads" class="section-heading">  Allow uploads </h2> <p>You enable an upload, typically on mount, via <a href="phoenix.liveview#allow_upload/3" title=""><code class="inline">allow_upload/3</code></a>:</p>
@@ -15,7 +14,7 @@ def mount(_params, _session, socket) do
 end</pre>
 <p>That's it for now! We will come back to the LiveView to implement some form- and upload-related callbacks later, but most of the functionality around uploads takes place in the template.</p>
 <h2 id="render-reactive-elements" class="section-heading">  Render reactive elements </h2> <p>Use the <a href="phoenix.liveview.helpers#live_file_input/2"><code class="inline">Phoenix.LiveView.Helpers.live_file_input/2</code></a> file input generator to render a file input for the upload:</p>
-<pre data-language="elixir"># lib/my_app_web/live/upload_live.html.leex
+<pre data-language="elixir"># lib/my_app_web/live/upload_live.html.heex
 
 &lt;form id="upload-form" phx-submit="save" phx-change="validate"&gt;
   &lt;%= live_file_input @uploads.avatar %&gt;
@@ -26,10 +25,10 @@ end</pre>
 <p>Reactive updates to the template will occur as the end-user interacts with the file input.</p>
 <h3 id="upload-entries" class="section-heading">  Upload entries </h3> <p>Uploads are populated in an <code class="inline">@uploads</code> assign in the socket. Each allowed upload contains a <em>list</em> of entries, irrespective of the <code class="inline">:max_entries</code> value in the <a href="phoenix.liveview#allow_upload/3" title=""><code class="inline">allow_upload/3</code></a> spec. These entry structs contain all the information about an upload, including progress, client file info, errors, etc.</p>
 <p>Let's look at an annotated example:</p>
-<pre data-language="elixir"># lib/my_app_web/live/upload_live.html.leex
+<pre data-language="elixir"># lib/my_app_web/live/upload_live.html.heex
 
 &lt;%# use phx-drop-target with the upload ref to enable file drag and drop %&gt;
-&lt;section phx-drop-target="&lt;%= @uploads.avatar.ref %&gt;"&gt;
+&lt;section phx-drop-target={@uploads.avatar.ref}&gt;
 
 &lt;%# render each avatar entry %&gt;
 &lt;%= for entry &lt;- @uploads.avatar.entries do %&gt;
@@ -42,10 +41,10 @@ end</pre>
     &lt;/figure&gt;
 
     &lt;%# entry.progress will update automatically for in-flight entries %&gt;
-    &lt;progress value="&lt;%= entry.progress %&gt;" max="100"&gt; &lt;%= entry.progress %&gt;% &lt;/progress&gt;
+    &lt;progress value={entry.progress} max="100"&gt; &lt;%= entry.progress %&gt;% &lt;/progress&gt;
 
     &lt;%# a regular click event whose handler will invoke Phoenix.LiveView.cancel_upload/3 %&gt;
-    &lt;button phx-click="cancel-upload" phx-value-ref="&lt;%= entry.ref %&gt;" aria-label="cancel"&gt;&amp;times;&lt;/button&gt;
+    &lt;button phx-click="cancel-upload" phx-value-ref={entry.ref} aria-label="cancel"&gt;&amp;times;&lt;/button&gt;
 
     &lt;%# Phoenix.LiveView.Helpers.upload_errors/2 returns a list of error atoms %&gt;
     &lt;%= for err &lt;- upload_errors(@uploads.avatar, entry) do %&gt;
@@ -53,6 +52,11 @@ end</pre>
     &lt;% end %&gt;
 
   &lt;/article&gt;
+&lt;% end %&gt;
+
+&lt;%# Phoenix.LiveView.Helpers.upload_errors/1 returns a list of error atoms %&gt;
+&lt;%= for err &lt;- upload_errors(@uploads.avatar) do %&gt;
+  &lt;p class="alert alert-danger"&gt;&lt;%= error_to_string(err) %&gt;&lt;/p&gt;
 &lt;% end %&gt;
 
 &lt;/section&gt;</pre>
@@ -65,8 +69,9 @@ def handle_event("validate", _params, socket) do
 end</pre>
 <p>Entries for files that do not match the <a href="phoenix.liveview#allow_upload/3" title=""><code class="inline">allow_upload/3</code></a> spec will contain errors. Use <a href="phoenix.liveview.helpers#upload_errors/2"><code class="inline">Phoenix.LiveView.Helpers.upload_errors/2</code></a> and your own helper function to render a friendly error message:</p>
 <pre data-language="elixir">def error_to_string(:too_large), do: "Too large"
-def error_to_string(:too_many_files), do: "You have selected too many files"
 def error_to_string(:not_accepted), do: "You have selected an unacceptable file type"</pre>
+<p>For error messages that affect all entries, use <a href="phoenix.liveview.helpers#upload_errors/1"><code class="inline">Phoenix.LiveView.Helpers.upload_errors/1</code></a>, and your own helper function to render a friendly error message:</p>
+<pre data-language="elixir">def error_to_string(:too_many_files), do: "You have selected too many files"</pre>
 <h3 id="cancel-an-entry" class="section-heading">  Cancel an entry </h3> <p>Upload entries may also be canceled, either programmatically or as a result of a user action. For instance, to handle the click event in the template above, you could do the following:</p>
 <pre data-language="elixir">@impl Phoenix.LiveView
 def handle_event("cancel-upload", %{"ref" =&gt; ref}, socket) do
@@ -79,8 +84,9 @@ def handle_event("save", _params, socket) do
   uploaded_files =
     consume_uploaded_entries(socket, :avatar, fn %{path: path}, _entry -&gt;
       dest = Path.join([:code.priv_dir(:my_app), "static", "uploads", Path.basename(path)])
+      # The `static/uploads` directory must exist for `File.cp!/2` to work.
       File.cp!(path, dest)
-      Routes.static_path(socket, "/uploads/#{Path.basename(dest)}")
+      {:ok, Routes.static_path(socket, "/uploads/#{Path.basename(dest)}")}
     end)
 
   {:noreply, update(socket, :uploaded_files, &amp;(&amp;1 ++ uploaded_files))}
@@ -116,7 +122,7 @@ defmodule MyAppWeb.UploadLive do
       consume_uploaded_entries(socket, :avatar, fn %{path: path}, _entry -&gt;
         dest = Path.join([:code.priv_dir(:my_app), "static", "uploads", Path.basename(path)])
         File.cp!(path, dest)
-        Routes.static_path(socket, "/uploads/#{Path.basename(dest)}")
+        {:ok, Routes.static_path(socket, "/uploads/#{Path.basename(dest)}")}
       end)
 
     {:noreply, update(socket, :uploaded_files, &amp;(&amp;1 ++ uploaded_files))}

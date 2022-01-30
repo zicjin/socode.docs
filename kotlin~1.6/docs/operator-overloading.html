@@ -1,0 +1,275 @@
+<h1 data-toc="operator-overloading" id="operator-overloading.md">Operator overloading</h1>
+<p id="2641e8e5">Kotlin allows you to provide custom implementations for the predefined set of operators on types. These operators have predefined symbolic representation (like <code class="code ">+</code> or <code class="code ">*</code>) and precedence. To implement an operator, provide a <a href="functions#member-functions" id="24e7403d">member function</a> or an <a href="extensions" id="c2f2cafe">extension function</a> with a specific name for the corresponding type. This type becomes the left-hand side type for binary operations and the argument type for the unary ones.</p>
+<p id="79c35ad0">To overload an operator, mark the corresponding function with the <code class="code ">operator</code> modifier:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">interface IndexedContainer { operator fun get(index: Int) } </pre>
+<p id="88621272">When <a href="inheritance#overriding-methods" id="a4dce0e3">overriding</a> your operator overloads, you can omit <code class="code ">operator</code>:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">class OrdersList: IndexedContainer { override fun get(index: Int) { /*...*/ } } </pre>
+<section class="chapter"><h2 id="unary-operations" data-toc="operator-overloading#unary-operations">Unary operations</h2>
+<section class="chapter"><h3 id="unary-prefix-operators" data-toc="operator-overloading#unary-prefix-operators">Unary prefix operators</h3>
+<div class="table-wrapper"><table class=" wide" id="b1b2e253">
+<thead><tr class="ijRowHead" id="3ed0567a">
+<th id="9f7d8967"><p>Expression</p></th>
+<th id="f6a696d0"><p>Translated to</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="1a1f67a3">
+<td id="fda07b13"><p><code class="code ">+a</code></p></td>
+<td id="8ef0cd0"><p><code class="code ">a.unaryPlus()</code></p></td>
+</tr>
+<tr class="" id="dc58b79b">
+<td id="1f241b0a"><p><code class="code ">-a</code></p></td>
+<td id="e4e93003"><p><code class="code ">a.unaryMinus()</code></p></td>
+</tr>
+<tr class="" id="27c47aed">
+<td id="a0b0d2aa"><p><code class="code ">!a</code></p></td>
+<td id="4f6216df"><p><code class="code ">a.not()</code></p></td>
+</tr>
+</tbody>
+</table></div>
+<p id="12f2eb30">This table says that when the compiler processes, for example, an expression <code class="code ">+a</code>, it performs the following steps:</p>
+<ul class="list _ul" id="1007407a">
+<li class="list__item" id="1e68ea3e"><p>Determines the type of <code class="code ">a</code>, let it be <code class="code ">T</code>.</p></li>
+<li class="list__item" id="74d6598b"><p>Looks up a function <code class="code ">unaryPlus()</code> with the <code class="code ">operator</code> modifier and no parameters for the receiver <code class="code ">T</code>, that means a member function or an extension function.</p></li>
+<li class="list__item" id="fa44c5a0"><p>If the function is absent or ambiguous, it is a compilation error.</p></li>
+<li class="list__item" id="24c9af0c"><p>If the function is present and its return type is <code class="code ">R</code>, the expression <code class="code ">+a</code> has type <code class="code ">R</code>.</p></li>
+</ul>
+<aside data-type="note" class="prompt" data-title="" id="ccc436a6"><p id="1deffbb0">These operations, as well as all the others, are optimized for <a href="basic-types" id="b58e338">basic types</a> and do not introduce overhead of function calls for them.</p></aside><p id="b429e375">As an example, here's how you can overload the unary minus operator:</p>
+<pre class="code-block" data-lang="kotlin" data-runnable="true" data-language="kotlin">data class Point(val x: Int, val y: Int) operator fun Point.unaryMinus() = Point(-x, -y) val point = Point(10, 20) fun main() { println(-point) // prints "Point(x=-10, y=-20)" } </pre></section><section class="chapter"><h3 id="increments-and-decrements" data-toc="operator-overloading#increments-and-decrements">Increments and decrements</h3>
+<div class="table-wrapper"><table class=" wide" id="9b23dd4c">
+<thead><tr class="ijRowHead" id="cb369eb2">
+<th id="45be2042"><p>Expression</p></th>
+<th id="7287edde"><p>Translated to</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="ec41278d">
+<td id="1c1269d2"><p><code class="code ">a++</code></p></td>
+<td id="99ed1dc5"><p><code class="code ">a.inc()</code> + see below</p></td>
+</tr>
+<tr class="" id="845581eb">
+<td id="a2ff466c"><p><code class="code ">a--</code></p></td>
+<td id="c0c45dcf"><p><code class="code ">a.dec()</code> + see below</p></td>
+</tr>
+</tbody>
+</table></div>
+<p id="9112bfec">The <code class="code ">inc()</code> and <code class="code ">dec()</code> functions must return a value, which will be assigned to the variable on which the <code class="code ">++</code> or <code class="code ">--</code> operation was used. They shouldn't mutate the object on which the <code class="code ">inc</code> or <code class="code ">dec</code> was invoked.</p>
+<p id="9d3d6e3a">The compiler performs the following steps for resolution of an operator in the <em id="e4c91a59" class="">postfix</em> form, for example <code class="code ">a++</code>:</p>
+<ul class="list _ul" id="61b41928">
+<li class="list__item" id="c708c7ec"><p>Determines the type of <code class="code ">a</code>, let it be <code class="code ">T</code>.</p></li>
+<li class="list__item" id="59db094f"><p>Looks up a function <code class="code ">inc()</code> with the <code class="code ">operator</code> modifier and no parameters, applicable to the receiver of type <code class="code ">T</code>.</p></li>
+<li class="list__item" id="c690b8f1"><p>Checks that the return type of the function is a subtype of <code class="code ">T</code>.</p></li>
+</ul>
+<p id="6c05b22d">The effect of computing the expression is:</p>
+<ul class="list _ul" id="e4fc529f">
+<li class="list__item" id="792114cd"><p>Store the initial value of <code class="code ">a</code> to a temporary storage <code class="code ">a0</code>.</p></li>
+<li class="list__item" id="d2e67198"><p>Assign the result of <code class="code ">a0.inc()</code> to <code class="code ">a</code>.</p></li>
+<li class="list__item" id="e505be8f"><p>Return <code class="code ">a0</code> as the result of the expression.</p></li>
+</ul>
+<p id="5bc06831">For <code class="code ">a--</code> the steps are completely analogous.</p>
+<p id="6d1a2234">For the <em id="293e6f11" class="">prefix</em> forms <code class="code ">++a</code> and <code class="code ">--a</code> resolution works the same way, and the effect is:</p>
+<ul class="list _ul" id="f11b2112">
+<li class="list__item" id="c610832e"><p>Assign the result of <code class="code ">a.inc()</code> to <code class="code ">a</code>.</p></li>
+<li class="list__item" id="3888f09a"><p>Return the new value of <code class="code ">a</code> as a result of the expression.</p></li>
+</ul></section></section><section class="chapter"><h2 id="binary-operations" data-toc="operator-overloading#binary-operations">Binary operations</h2>
+<section class="chapter"><h3 id="arithmetic-operators" data-toc="operator-overloading#arithmetic-operators">Arithmetic operators</h3>
+<div class="table-wrapper"><table class=" wide" id="f5c92ea5">
+<thead><tr class="ijRowHead" id="7eec70f1">
+<th id="cffc349e"><p>Expression</p></th>
+<th id="df870116"><p>Translated to</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="5d6366b6">
+<td id="b8204799"><p><code class="code ">a + b</code></p></td>
+<td id="11d14e45"><p><code class="code ">a.plus(b)</code></p></td>
+</tr>
+<tr class="" id="ff04c491">
+<td id="e9331c22"><p><code class="code ">a - b</code></p></td>
+<td id="701d0d37"><p><code class="code ">a.minus(b)</code></p></td>
+</tr>
+<tr class="" id="270bf84b">
+<td id="292f1c0e"><p><code class="code ">a * b</code></p></td>
+<td id="61ae1eef"><p><code class="code ">a.times(b)</code></p></td>
+</tr>
+<tr class="" id="8650db3a">
+<td id="fcba835e"><p><code class="code ">a / b</code></p></td>
+<td id="18945b9a"><p><code class="code ">a.div(b)</code></p></td>
+</tr>
+<tr class="" id="5a57caa6">
+<td id="2486d7a1"><p><code class="code ">a % b</code></p></td>
+<td id="780429ff"><p><code class="code ">a.rem(b)</code></p></td>
+</tr>
+<tr class="" id="d826552b">
+<td id="e0fa7daa"><p><code class="code ">a..b</code></p></td>
+<td id="112c6017"><p><code class="code ">a.rangeTo(b)</code></p></td>
+</tr>
+</tbody>
+</table></div>
+<p id="b12d8677">For the operations in this table, the compiler just resolves the expression in the <em id="d1324e98" class="">Translated to</em> column.</p>
+<p id="f4ccdeec">Below is an example <code class="code ">Counter</code> class that starts at a given value and can be incremented using the overloaded <code class="code ">+</code> operator:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">data class Counter(val dayIndex: Int) { operator fun plus(increment: Int): Counter { return Counter(dayIndex + increment) } } </pre></section><section class="chapter"><h3 id="in-operator" data-toc="operator-overloading#in-operator">in operator</h3>
+<div class="table-wrapper"><table class=" wide" id="588133d4">
+<thead><tr class="ijRowHead" id="5ae4563c">
+<th id="41f110eb"><p>Expression</p></th>
+<th id="99aff28c"><p>Translated to</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="913434d3">
+<td id="6b3194db"><p><code class="code ">a in b</code></p></td>
+<td id="411b6cf"><p><code class="code ">b.contains(a)</code></p></td>
+</tr>
+<tr class="" id="f84c5ab4">
+<td id="3f110bb3"><p><code class="code ">a !in b</code></p></td>
+<td id="81f4c60"><p><code class="code ">!b.contains(a)</code></p></td>
+</tr>
+</tbody>
+</table></div>
+<p id="85302467">For <code class="code ">in</code> and <code class="code ">!in</code> the procedure is the same, but the order of arguments is reversed.</p></section><section class="chapter"><h3 id="indexed-access-operator" data-toc="operator-overloading#indexed-access-operator">Indexed access operator</h3>
+<div class="table-wrapper"><table class=" wide" id="d1fd479e">
+<thead><tr class="ijRowHead" id="3c0cb055">
+<th id="4c891822"><p>Expression</p></th>
+<th id="fd67f06d"><p>Translated to</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="5895dbf4">
+<td id="e4803ad3"><p><code class="code ">a[i]</code></p></td>
+<td id="45fe3c09"><p><code class="code ">a.get(i)</code></p></td>
+</tr>
+<tr class="" id="4021b7d9">
+<td id="11e6add6"><p><code class="code ">a[i, j]</code></p></td>
+<td id="13cf96fc"><p><code class="code ">a.get(i, j)</code></p></td>
+</tr>
+<tr class="" id="3f816f4b">
+<td id="359e1e23"><p><code class="code ">a[i_1, ..., i_n]</code></p></td>
+<td id="f963474e"><p><code class="code ">a.get(i_1, ..., i_n)</code></p></td>
+</tr>
+<tr class="" id="363053a8">
+<td id="a386e5c3"><p><code class="code ">a[i] = b</code></p></td>
+<td id="14aecf82"><p><code class="code ">a.set(i, b)</code></p></td>
+</tr>
+<tr class="" id="d6a1bb30">
+<td id="3e11ec44"><p><code class="code ">a[i, j] = b</code></p></td>
+<td id="4556843c"><p><code class="code ">a.set(i, j, b)</code></p></td>
+</tr>
+<tr class="" id="8d05f8e1">
+<td id="9dfdd42"><p><code class="code ">a[i_1, ..., i_n] = b</code></p></td>
+<td id="270bdded"><p><code class="code ">a.set(i_1, ..., i_n, b)</code></p></td>
+</tr>
+</tbody>
+</table></div>
+<p id="5ab2eabf">Square brackets are translated to calls to <code class="code ">get</code> and <code class="code ">set</code> with appropriate numbers of arguments.</p></section><section class="chapter"><h3 id="invoke-operator" data-toc="operator-overloading#invoke-operator">invoke operator</h3>
+<div class="table-wrapper"><table class=" wide" id="43dae55d">
+<thead><tr class="ijRowHead" id="8862e13">
+<th id="5b13501"><p>Expression</p></th>
+<th id="ddce0fc4"><p>Translated to</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="1043128d">
+<td id="588f38f7"><p><code class="code ">a()</code></p></td>
+<td id="1d3df351"><p><code class="code ">a.invoke()</code></p></td>
+</tr>
+<tr class="" id="2c4503f3">
+<td id="9029a9ba"><p><code class="code ">a(i)</code></p></td>
+<td id="f5f87a15"><p><code class="code ">a.invoke(i)</code></p></td>
+</tr>
+<tr class="" id="e0c7d5be">
+<td id="58320f5"><p><code class="code ">a(i, j)</code></p></td>
+<td id="dc06e7d0"><p><code class="code ">a.invoke(i, j)</code></p></td>
+</tr>
+<tr class="" id="a9f3fe4c">
+<td id="62982c8b"><p><code class="code ">a(i_1, ..., i_n)</code></p></td>
+<td id="4f250ffd"><p><code class="code ">a.invoke(i_1, ..., i_n)</code></p></td>
+</tr>
+</tbody>
+</table></div>
+<p id="deca1951">Parentheses are translated to calls to <code class="code ">invoke</code> with appropriate number of arguments.</p></section><section class="chapter"><h3 id="augmented-assignments" data-toc="operator-overloading#augmented-assignments">Augmented assignments</h3>
+<div class="table-wrapper"><table class=" wide" id="4f4c43f3">
+<thead><tr class="ijRowHead" id="552b2d75">
+<th id="f53ebd94"><p>Expression</p></th>
+<th id="d9b2f2fe"><p>Translated to</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="6d07b09d">
+<td id="b5502b32"><p><code class="code ">a += b</code></p></td>
+<td id="e78baf0e"><p><code class="code ">a.plusAssign(b)</code></p></td>
+</tr>
+<tr class="" id="a71dfda6">
+<td id="d60c6459"><p><code class="code ">a -= b</code></p></td>
+<td id="8bb9f2bc"><p><code class="code ">a.minusAssign(b)</code></p></td>
+</tr>
+<tr class="" id="1c6a7fb4">
+<td id="9e81d593"><p><code class="code ">a *= b</code></p></td>
+<td id="d2a03d0e"><p><code class="code ">a.timesAssign(b)</code></p></td>
+</tr>
+<tr class="" id="b5b029ce">
+<td id="81bfcb1e"><p><code class="code ">a /= b</code></p></td>
+<td id="2f3215a4"><p><code class="code ">a.divAssign(b)</code></p></td>
+</tr>
+<tr class="" id="a508c83">
+<td id="1505f5ef"><p><code class="code ">a %= b</code></p></td>
+<td id="83987b24"><p><code class="code ">a.remAssign(b)</code></p></td>
+</tr>
+</tbody>
+</table></div>
+<p id="60a3139c">For the assignment operations, for example <code class="code ">a += b</code>, the compiler performs the following steps:</p>
+<ul class="list _ul" id="e598f7ad">
+<li class="list__item" id="88c177d6">
+<p>If the function from the right column is available: </p>
+<ul class="list _ul" id="c65f5d1e">
+<li class="list__item" id="f08dede6"><p>If the corresponding binary function (that means <code class="code ">plus()</code> for <code class="code ">plusAssign()</code>) is available too, <code class="code ">a</code> is a mutable variable, and the return type of <code class="code ">plus</code> is a subtype of the type of <code class="code ">a</code>, report an error (ambiguity).</p></li>
+<li class="list__item" id="a1a9bc25"><p>Make sure its return type is <code class="code ">Unit</code>, and report an error otherwise.</p></li>
+<li class="list__item" id="6d9aff06"><p>Generate code for <code class="code ">a.plusAssign(b)</code>.</p></li>
+</ul>
+</li>
+<li class="list__item" id="20d69481"><p>Otherwise, try to generate code for <code class="code ">a = a + b</code> (this includes a type check: the type of <code class="code ">a + b</code> must be a subtype of <code class="code ">a</code>).</p></li>
+</ul>
+<aside data-type="note" class="prompt" data-title="" id="299986e1"><p id="73b7a59f">Assignments are <em id="dca9d3ec" class="">NOT</em> expressions in Kotlin.</p></aside></section><section class="chapter"><h3 id="equality-and-inequality-operators" data-toc="operator-overloading#equality-and-inequality-operators">Equality and inequality operators</h3>
+<div class="table-wrapper"><table class=" wide" id="bf29d06b">
+<thead><tr class="ijRowHead" id="f90de7d0">
+<th id="203a37d8"><p>Expression</p></th>
+<th id="bb097f8"><p>Translated to</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="e185e1dd">
+<td id="4873f75f"><p><code class="code ">a == b</code></p></td>
+<td id="5f278f58"><p><code class="code ">a?.equals(b) ?: (b === null)</code></p></td>
+</tr>
+<tr class="" id="65b96b48">
+<td id="80d74922"><p><code class="code ">a != b</code></p></td>
+<td id="ee897ebe"><p><code class="code ">!(a?.equals(b) ?: (b === null))</code></p></td>
+</tr>
+</tbody>
+</table></div>
+<p id="4e9227d0">These operators only work with the function <a href="../api/latest/jvm/stdlib/kotlin/-any/equals" id="5853f10" data-external="true" rel="noopener noreferrer"><code class="code ">equals(other: Any?): Boolean</code></a>, which can be overridden to provide custom equality check implementation. Any other function with the same name (like <code class="code ">equals(other: Foo)</code>) will not be called.</p>
+<aside data-type="note" class="prompt" data-title="" id="52194a0a"><p id="2c4fd608"><code class="code ">===</code> and <code class="code ">!==</code> (identity checks) are not overloadable, so no conventions exist for them.</p></aside><p id="68af7845">The <code class="code ">==</code> operation is special: it is translated to a complex expression that screens for <code class="code ">null</code>'s. <code class="code ">null == null</code> is always true, and <code class="code ">x == null</code> for a non-null <code class="code ">x</code> is always false and won't invoke <code class="code ">x.equals()</code>.</p></section><section class="chapter"><h3 id="comparison-operators" data-toc="operator-overloading#comparison-operators">Comparison operators</h3>
+<div class="table-wrapper"><table class=" wide" id="6e7a4382">
+<thead><tr class="ijRowHead" id="46e2be2d">
+<th id="7d7c848b"><p>Expression</p></th>
+<th id="32d48b0d"><p>Translated to</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="4efa83db">
+<td id="78f69659"><p><code class="code ">a &gt; b</code></p></td>
+<td id="1d678aec"><p><code class="code ">a.compareTo(b) &gt; 0</code></p></td>
+</tr>
+<tr class="" id="4e81ae6b">
+<td id="75f8dd6e"><p><code class="code ">a &lt; b</code></p></td>
+<td id="9a4cb8e3"><p><code class="code ">a.compareTo(b) &lt; 0</code></p></td>
+</tr>
+<tr class="" id="53f14137">
+<td id="91e913ec"><p><code class="code ">a &gt;= b</code></p></td>
+<td id="11ecdc74"><p><code class="code ">a.compareTo(b) &gt;= 0</code></p></td>
+</tr>
+<tr class="" id="17950514">
+<td id="c52493fd"><p><code class="code ">a &lt;= b</code></p></td>
+<td id="5678eae1"><p><code class="code ">a.compareTo(b) &lt;= 0</code></p></td>
+</tr>
+</tbody>
+</table></div>
+<p id="6cdb59c3">All comparisons are translated into calls to <code class="code ">compareTo</code>, that is required to return <code class="code ">Int</code>.</p></section><section class="chapter"><h3 id="property-delegation-operators" data-toc="operator-overloading#property-delegation-operators">Property delegation operators</h3>
+<p id="83724384"><code class="code ">provideDelegate</code>, <code class="code ">getValue</code> and <code class="code ">setValue</code> operator functions are described in <a href="delegated-properties" id="67f3dada">Delegated properties</a>.</p></section></section><section class="chapter"><h2 id="infix-calls-for-named-functions" data-toc="operator-overloading#infix-calls-for-named-functions">Infix calls for named functions</h2>
+<p id="30ce3765">You can simulate custom infix operations by using <a href="functions#infix-notation" id="7bc6778b">infix function calls</a>.</p></section><div class="last-modified"> Last modified: 25 August 2021</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="inline-functions">Inline functions</a> <a class="navigation-links__next" href="type-safe-builders">Type-safe builders</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/operator-overloading.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/operator-overloading.html</a>
+  </p>
+</div>

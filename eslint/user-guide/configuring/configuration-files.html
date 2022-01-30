@@ -7,7 +7,7 @@
 <li><a href="#cascading-and-hierarchy">Cascading and Hierarchy</a></li>
 <li><a href="#extending-configuration-files">Extending Configuration Files</a></li>
 <li><a href="#configuration-based-on-glob-patterns">Configuration Based on Glob Patterns</a></li>
-<li><a href="#personal-configuration-files">Personal Configuration Files</a></li>
+<li><a href="#personal-configuration-files-deprecated">Personal Configuration Files</a></li>
 </ul>
 <h2 id="configuration-file-formats">Configuration File Formats</h2>
 <p>ESLint supports configuration files in several formats:</p>
@@ -34,11 +34,34 @@
 </ol>
 <h2 id="using-configuration-files">Using Configuration Files</h2>
 <p>There are two ways to use configuration files.</p>
-<p>The first way to use configuration files is via <code>.eslintrc.*</code> and <code>package.json</code> files. ESLint will automatically look for them in the directory of the file to be linted, and in successive parent directories all the way up to the root directory of the filesystem (unless <code>root: true</code> is specified). Configuration files can be useful when you want different configurations for different parts of a project or when you want others to be able to use ESLint directly without needing to remember to pass in the configuration file.</p>
+<p>The first way to use configuration files is via <code>.eslintrc.*</code> and <code>package.json</code> files. ESLint will automatically look for them in the directory of the file to be linted, and in successive parent directories all the way up to the root directory of the filesystem (<code>/</code>), the home directory of the current user (<code>~/</code>), or when <code>root: true</code> is specified. See <a href="#cascading-and-hierarchy">Cascading and Hierarchy</a> below for more details on this. Configuration files can be useful when you want different configurations for different parts of a project or when you want others to be able to use ESLint directly without needing to remember to pass in the configuration file.</p>
 <p>The second way to use configuration files is to save the file wherever you would like and pass its location to the CLI using the <code>--config</code> option, such as:</p>
 <pre><code>eslint -c myconfig.json myfiletotest.js
 </code></pre>
 <p>If you are using one configuration file and want ESLint to ignore any <code>.eslintrc.*</code> files, make sure to use <a href="../command-line-interface#--no-eslintrc"><code>--no-eslintrc</code></a> along with the <a href="../command-line-interface#-c---config"><code>-c</code></a> flag.</p>
+<p>Here's an example JSON configuration file that uses the <code>typescript-eslint</code> parser to support TypeScript syntax:</p>
+<pre data-language="json">{
+    "root": true,
+    "extends": [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/recommended"
+    ],
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": { "project": ["./tsconfig.json"] },
+    "plugins": [
+        "@typescript-eslint"
+    ],
+    "rules": {
+        "@typescript-eslint/strict-boolean-expressions": [
+            2,
+            {
+                "allowString" : false,
+                "allowNumber" : false
+            }
+        ]
+    },
+    "ignorePatterns": ["src/**/*.test.ts", "src/frontend/generated/*"]
+}</pre>
 <h3 id="comments-in-configuration-files">Comments in configuration files</h3>
 <p>Both the JSON and YAML configuration file formats support comments (package.json files should not include them). You can use JavaScript-style comments for JSON files and YAML-style comments for YAML files. ESLint safely ignores comments in configuration files. This allows your configuration files to be more human-friendly.</p>
 <p>For JavaScript-style comments:</p>
@@ -132,6 +155,7 @@ rules:
 </ol>
 </li>
 </ol>
+<p>Please note that the <a href="https://nodejs.org/api/os.html#os_os_homedir">home directory of the current user on your preferred operating system</a> (<code>~/</code>) is also considered a root directory in this context and searching for configuration files will stop there as well. And with the <a href="configuration-files#personal-configuration-files-deprecated">removal of support for Personal Configuration Files</a> from the 8.0.0 release forward, configuration files present in that directory will be ignored.</p>
 <h2 id="extending-configuration-files">Extending Configuration Files</h2>
 <p>A configuration file, once extended, can inherit all the traits of another configuration file (including rules, plugins, and language options) and modify all the options. As a result, there are three configurations, as defined below:</p>
 <ul>
@@ -167,11 +191,20 @@ rules:
 </li>
 </ul>
 </li>
+<li>override options for rules given as object from base configurations:<ul>
+<li>Base config: <code>"max-lines": ["error", { "max": 200, "skipBlankLines": true, "skipComments": true }]</code>
+</li>
+<li>Derived config: <code>"max-lines": ["error", { "max": 100 }]</code>
+</li>
+<li>Resulting actual config: <code>"max-lines": ["error", { "max": 100 }]</code> where <code>skipBlankLines</code> and <code>skipComments</code> default to <code>false</code>
+</li>
+</ul>
+</li>
 </ul>
 <h3 id="using-a-shareable-configuration-package">Using a shareable configuration package</h3>
 <p>A <a href="../../developer-guide/shareable-configs">sharable configuration</a> is an npm package that exports a configuration object. Make sure that you have installed the package in your project root directory, so that ESLint can require it.</p>
 <p>The <code>extends</code> property value can omit the <code>eslint-config-</code> prefix of the package name.</p>
-<p>The <code>eslint --init</code> command can create a configuration so you can extend a popular style guide (for example, <code>eslint-config-standard</code>).</p>
+<p>The <code>npm init @eslint/config</code> command can create a configuration so you can extend a popular style guide (for example, <code>eslint-config-standard</code>).</p>
 <p>Example of a configuration file in YAML format:</p>
 <pre data-language="yaml">extends: standard
 rules:
@@ -294,7 +327,7 @@ rules:
 <li>Override blocks can also specify patterns to exclude from matches. If a file matches any of the excluded patterns, the configuration won't apply.</li>
 </ul>
 <h3 id="relative-glob-patterns">Relative glob patterns</h3>
-<pre>project-root
+<pre data-language="pt">project-root
 ├── app
 │   ├── lib
 │   │   ├── foo.js

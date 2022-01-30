@@ -206,12 +206,8 @@ error[E0308]: mismatched types
   |                             expected struct `String`, found integer
   |                             help: try using a conversion method: `5.to_string()`
 
-error: aborting due to previous error
-
 For more information about this error, try `rustc --explain E0308`.
-error: could not compile `closure-example`
-
-To learn more, run the command again with --verbose.
+error: could not compile `closure-example` due to previous error
 </pre> <p>The first time we call <code>example_closure</code> with the <code>String</code> value, the compiler infers the type of <code>x</code> and the return type of the closure to be <code>String</code>. Those types are then locked into the closure in <code>example_closure</code>, and we get a type error if we try to use a different type with the same closure.</p> <h3 id="storing-closures-using-generic-parameters-and-the-fn-traits">Storing Closures Using Generic Parameters and the <code id="">Fn</code> Traits</h3> <p>Let’s return to our workout generation app. In Listing 13-6, our code was still calling the expensive calculation closure more times than it needed to. One option to solve this issue is to save the result of the expensive closure in a variable for reuse and use the variable in each place we need the result, instead of calling the closure again. However, this method could result in a lot of repeated code.</p> <p>Fortunately, another solution is available to us. We can create a struct that will hold the closure and the resulting value of calling the closure. The struct will execute the closure only if we need the resulting value, and it will cache the resulting value so the rest of our code doesn’t have to be responsible for saving and reusing the result. You may know this pattern as <em>memoization</em> or <em>lazy evaluation</em>.</p> <p>To make a struct that holds a closure, we need to specify the type of the closure, because a struct definition needs to know the types of each of its fields. Each closure instance has its own unique anonymous type: that is, even if two closures have the same signature, their types are still considered different. To define structs, enums, or function parameters that use closures, we use generics and trait bounds, as we discussed in Chapter 10.</p> <p>The <code>Fn</code> traits are provided by the standard library. All closures implement at least one of the traits: <code>Fn</code>, <code>FnMut</code>, or <code>FnOnce</code>. We’ll discuss the difference between these traits in the <a href="#capturing-the-environment-with-closures">“Capturing the Environment with Closures”</a> section; in this example, we can use the <code>Fn</code> trait.</p> <p>We add types to the <code>Fn</code> trait bound to represent the types of the parameters and return values the closures must have to match this trait bound. In this case, our closure has a parameter of type <code>u32</code> and returns a <code>u32</code>, so the trait bound we specify is <code>Fn(u32) -&gt; u32</code>.</p> <p>Listing 13-9 shows the definition of the <code>Cacher</code> struct that holds a closure and an optional result value.</p> <p><span class="filename">Filename: src/main.rs</span></p> <pre data-language="rust">struct Cacher&lt;T&gt;
 where
     T: Fn(u32) -&gt; u32,
@@ -363,7 +359,7 @@ mod tests {
 </pre> <p>This test creates a new <code>Cacher</code> instance with a closure that returns the value passed into it. We call the <code>value</code> method on this <code>Cacher</code> instance with an <code>arg</code> value of 1 and then an <code>arg</code> value of 2, and we expect the call to <code>value</code> with the <code>arg</code> value of 2 to return 2.</p> <p>Run this test with the <code>Cacher</code> implementation in Listing 13-9 and Listing 13-10, and the test will fail on the <code>assert_eq!</code> with this message:</p> <pre>$ cargo test
    Compiling cacher v0.1.0 (file:///projects/cacher)
     Finished test [unoptimized + debuginfo] target(s) in 0.72s
-     Running target/debug/deps/cacher-4116485fb32b3fff
+     Running unittests (target/debug/deps/cacher-074d7c200c000afa)
 
 running 1 test
 test tests::call_with_different_values ... FAILED
@@ -413,12 +409,8 @@ error[E0434]: can't capture dynamic environment in a fn item
   |
   = help: use the `|| { ... }` closure form instead
 
-error: aborting due to previous error
-
 For more information about this error, try `rustc --explain E0434`.
-error: could not compile `equal-to-x`
-
-To learn more, run the command again with --verbose.
+error: could not compile `equal-to-x` due to previous error
 </pre> <p>The compiler even reminds us that this only works with closures!</p> <p>When a closure captures a value from its environment, it uses memory to store the values for use in the closure body. This use of memory is overhead that we don’t want to pay in more common cases where we want to execute code that doesn’t capture its environment. Because functions are never allowed to capture their environment, defining and using functions will never incur this overhead.</p> <p>Closures can capture values from their environment in three ways, which directly map to the three ways a function can take a parameter: taking ownership, borrowing mutably, and borrowing immutably. These are encoded in the three <code>Fn</code> traits as follows:</p> <ul> <li>
 <code>FnOnce</code> consumes the variables it captures from its enclosing scope, known as the closure’s <em>environment</em>. To consume the captured variables, the closure must take ownership of these variables and move them into the closure when it is defined. The <code>Once</code> part of the name represents the fact that the closure can’t take ownership of the same variables more than once, so it can be called only once.</li> <li>
 <code>FnMut</code> can change the environment because it mutably borrows values.</li> <li>
@@ -449,12 +441,8 @@ error[E0382]: borrow of moved value: `x`
 6 |     println!("can't use x here: {:?}", x);
   |                                        ^ value borrowed here after move
 
-error: aborting due to previous error
-
 For more information about this error, try `rustc --explain E0382`.
-error: could not compile `equal-to-x`
-
-To learn more, run the command again with --verbose.
+error: could not compile `equal-to-x` due to previous error
 </pre> <p>The <code>x</code> value is moved into the closure when the closure is defined, because we added the <code>move</code> keyword. The closure then has ownership of <code>x</code>, and <code>main</code> isn’t allowed to use <code>x</code> anymore in the <code>println!</code> statement. Removing <code>println!</code> will fix this example.</p> <p>Most of the time when specifying one of the <code>Fn</code> trait bounds, you can start with <code>Fn</code> and the compiler will tell you if you need <code>FnMut</code> or <code>FnOnce</code> based on what happens in the closure body.</p> <p>To illustrate situations where closures that can capture their environment are useful as function parameters, let’s move on to our next topic: iterators.</p><div class="_attribution">
   <p class="_attribution-p">
     <a href="https://doc.rust-lang.org/book/ch13-01-closures.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/book/ch13-01-closures.html</a>

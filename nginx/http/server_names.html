@@ -4,6 +4,7 @@
 <li><a href="#regex_names">Regular expressions names</a></li>
 <li><a href="#miscellaneous_names">Miscellaneous names</a></li>
 <li><a href="#idn">Internationalized names</a></li>
+<li><a href="#virtual_server_selection">Virtual server selection</a></li>
 <li><a href="#optimization">Optimization</a></li>
 <li><a href="#compatibility">Compatibility</a></li>
 </ul>
@@ -128,6 +129,10 @@ server {
     ...
 }
 </pre>
+
+<h4 id="virtual_server_selection">Virtual server selection</h4>
+<p> First, a connection is created in a default server context. Then, the server name can be determined in the following request processing stages, each involved in server configuration selection: </p> <ul class="compact"> <li> <p> during SSL handshake, in advance, according to <a href="configuring_https_servers#sni">SNI</a> </p> </li> <li> <p> after processing the request line </p> </li> <li> <p> after processing the <code>Host</code> header field </p> </li> <li> <p> if the server name was not determined after processing the request line or from the <code>Host</code> header field, nginx will use the empty name as the server name. </p> </li> </ul>
+<p> At each of these stages, different server configurations can be applied. As such, certain directives should be specified with caution: </p> <ul class="compact"> <li> in case of the <a href="ngx_http_ssl_module#ssl_protocols">ssl_protocols</a> directive, the protocol list is set by the OpenSSL library before the server configuration could be applied according to the name requested through SNI, thus, protocols should be specified only for a default server; </li> <li> the <a href="ngx_http_core_module#client_header_buffer_size">client_header_buffer_size</a> and <a href="ngx_http_core_module#merge_slashes">merge_slashes</a> directives are involved before reading the request line, thus, such directives use a default server configuration or the server configuration chosen by SNI; </li> <li> in case of the <a href="ngx_http_core_module#ignore_invalid_headers">ignore_invalid_headers</a>, <a href="ngx_http_core_module#large_client_header_buffers">large_client_header_buffers</a>, and <a href="ngx_http_core_module#underscores_in_headers">underscores_in_headers</a> directives involved in processing request header fields, it additionally depends whether the server configuration was updated according to the request line or the <code>Host</code> header field; </li> <li> an error response will be handled with the <a href="ngx_http_core_module#error_page">error_page</a> directive in the server that currently fulfills the request. </li> </ul>
 
 <h4 id="optimization">Optimization</h4>
 <p> Exact names, wildcard names starting with an asterisk, and wildcard names ending with an asterisk are stored in three hash tables bound to the listen ports. The sizes of hash tables are optimized at the configuration phase so that a name can be found with the fewest CPU cache misses. The details of setting up hash tables are provided in a separate <a href="../hash">document</a>. </p>

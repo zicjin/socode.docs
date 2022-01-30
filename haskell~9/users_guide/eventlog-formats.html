@@ -134,8 +134,8 @@ Event :
 <th class="field-name">Field ThreadId:</th>
 <td class="field-body">thread id</td> </tr> <tr>
 <th class="field-name">Field String:</th>
-<td class="field-body">label</td> </tr>  </table> <p>The indicated thread has been given a label (e.g. with <a class="reference external" href="../libraries/base-4.15.0.0/control-concurrent#v:setThreadLabel">Control.Concurrent.setThreadLabel</a>).</p> </dd>
-</dl>   <h3 id="garbage-collector-events">15.2.4. Garbage collector events</h3> <dl class="event-type"> <dt id="event-type-GC_START">
+<td class="field-body">label</td> </tr>  </table> <p>The indicated thread has been given a label (e.g. with <a class="reference external" href="../libraries/base-4.16.0.0/ghc-conc#v:labelThread">GHC.Conc.labelThread</a>).</p> </dd>
+</dl>   <h3 id="gc-events">15.2.4. Garbage collector events</h3> <p id="garbage-collector-events">The following events mark various points of the lifecycle of a moving garbage collection.</p> <p>A typical garbage collection will look something like the following:</p> <ol class="arabic simple"> <li>A capability realizes that it needs a garbage collection (e.g. as a result of running out of nursery) and requests a garbage collection. This is marked by <a class="reference internal" href="#event-type-REQUEST_SEQ_GC"><code>REQUEST_SEQ_GC</code></a> or <a class="reference internal" href="#event-type-REQUEST_PAR_GC"><code>REQUEST_PAR_GC</code></a>.</li> <li>As other capabilities reach yield points and suspend execution they emit <a class="reference internal" href="#event-type-STOP_THREAD"><code>STOP_THREAD</code></a> events.</li> <li>When all capabilities have suspended execution, collection will begin, marked by a <a class="reference internal" href="#event-type-GC_START"><code>GC_START</code></a> event.</li> <li>As individual parallel GC threads commence with scavenging they will emit <a class="reference internal" href="#event-type-GC_WORK"><code>GC_WORK</code></a> events.</li> <li>If a parallel GC thread runs out of work it will emit a <a class="reference internal" href="#event-type-GC_IDLE"><code>GC_IDLE</code></a> event. If it is later handed more work it will emit another <a class="reference internal" href="#event-type-GC_WORK"><code>GC_WORK</code></a> event.</li> <li>Eventually when scavenging has finished a <a class="reference internal" href="#event-type-GC_DONE"><code>GC_DONE</code></a> event will be emitted by each GC thread.</li> <li>A bit of book-keeping is performed.</li> <li>A <a class="reference internal" href="#event-type-GC_END"><code>GC_END</code></a> event will be emitted marking the end of the GC cycle.</li> <li>A <a class="reference internal" href="#event-type-HEAP_SIZE"><code>HEAP_SIZE</code></a> event will be emitted giving the current size of the heap, in bytes, calculated by how many megablocks are allocated.</li> <li>A <a class="reference internal" href="#event-type-BLOCKS_SIZE"><code>BLOCKS_SIZE</code></a> event will be emitted giving the current size of the heap, in bytes, calculated by how many blocks are allocated.</li> <li>A <a class="reference internal" href="#event-type-GC_STATS_GHC"><code>GC_STATS_GHC</code></a> event will be emitted containing various details of the collection and heap state.</li> <li>In the case of a major collection, a <a class="reference internal" href="#event-type-HEAP_LIVE"><code>HEAP_LIVE</code></a> event will be emitted describing the current size of the live on-heap data.</li> <li>In the case of the <a class="reference internal" href="phases#ghc-flag--threaded"><code>-threaded</code></a> RTS, a <a class="reference internal" href="#event-type-SPARK_COUNTERS"><code>SPARK_COUNTERS</code></a> event will be emitted giving details on how many sparks have been created, evaluated, and GC’d.</li> <li>As mutator threads resume execution they will emit <a class="reference internal" href="#event-type-RUN_THREAD"><code>RUN_THREAD</code></a> events.</li> <li>A <a class="reference internal" href="#event-type-MEM_RETURN"><code>MEM_RETURN</code></a> event will be emitted containing details about currently live mblocks, how many we think we need and whether we could return excess to the OS.</li> </ol> <p>Note that in the case of the concurrent non-moving collector additional events will be emitted during the concurrent phase of collection. These are described in <a class="reference internal" href="#nonmoving-gc-events"><span class="std std-ref">Non-moving GC event output</span></a>.</p> <dl class="event-type"> <dt id="event-type-GC_START">
 <code>GC_START</code> </dt> <dd>
 <table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
 <th class="field-name">Tag:</th>
@@ -200,13 +200,13 @@ Event :
 <th class="field-name">Field Word64:</th>
 <td class="field-body">bytes of slop found</td> </tr> <tr>
 <th class="field-name">Field Word64:</th>
-<td class="field-body">TODO</td> </tr> <tr>
+<td class="field-body">bytes of fragmentation, the difference between total mblock size and total block size. When all mblocks are full of full blocks, this number is 0.</td> </tr> <tr>
 <th class="field-name">Field Word64:</th>
 <td class="field-body">number of parallel garbage collection threads</td> </tr> <tr>
 <th class="field-name">Field Word64:</th>
 <td class="field-body">maximum number of bytes copied by any single collector thread</td> </tr> <tr>
 <th class="field-name">Field Word64:</th>
-<td class="field-body">total bytes copied by all collector threads</td> </tr>  </table> <p>Report various information about the heap configuration. Typically produced during RTS initialization..</p> </dd>
+<td class="field-body">total bytes copied by all collector threads</td> </tr>  </table> <p>Report various information about a major collection.</p> </dd>
 </dl> <dl class="event-type"> <dt id="event-type-GC_GLOBAL_SYNC">
 <code>GC_GLOBAL_SYNC</code> </dt> <dd>
 <table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
@@ -214,6 +214,21 @@ Event :
 <td class="field-body">54</td> </tr> <tr>
 <th class="field-name">Length:</th>
 <td class="field-body">fixed</td> </tr>  </table> <p>TODO</p> </dd>
+</dl> <dl class="event-type"> <dt id="event-type-MEM_RETURN">
+<code>MEM_RETURN</code> </dt> <dd>
+<table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
+<th class="field-name">Tag:</th>
+<td class="field-body">90</td> </tr> <tr>
+<th class="field-name">Length:</th>
+<td class="field-body">fixed</td> </tr> <tr>
+<th class="field-name">Field CapSetId:</th>
+<td class="field-body">heap capability set</td> </tr> <tr>
+<th class="field-name">Field Word32:</th>
+<td class="field-body">currently allocated mblocks</td> </tr> <tr>
+<th class="field-name">Field Word32:</th>
+<td class="field-body">the number of mblocks we would like to retain</td> </tr> <tr>
+<th class="field-name">Field Word32:</th>
+<td class="field-body">the number of mblocks which we returned to the OS</td> </tr>  </table> <p>Report information about currently allocation megablocks and attempts made to return them to the operating system. If your heap is fragmented then the current value will be greater than needed value but returned will be less than the difference between the two.</p> </dd>
 </dl>   <h3 id="heap-events-and-statistics">15.2.5. Heap events and statistics</h3> <dl class="event-type"> <dt id="event-type-HEAP_ALLOCATED">
 <code>HEAP_ALLOCATED</code> </dt> <dd>
 <table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
@@ -235,7 +250,18 @@ Event :
 <th class="field-name">Field CapSetId:</th>
 <td class="field-body">heap capability set</td> </tr> <tr>
 <th class="field-name">Field Word64:</th>
-<td class="field-body">heap size in bytes</td> </tr>  </table> <p>Report the heap size.</p> </dd>
+<td class="field-body">heap size in bytes</td> </tr>  </table> <p>Report the heap size, calculated by the number of megablocks currently allocated.</p> </dd>
+</dl> <dl class="event-type"> <dt id="event-type-BLOCKS_SIZE">
+<code>BLOCKS_SIZE</code> </dt> <dd>
+<table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
+<th class="field-name">Tag:</th>
+<td class="field-body">91</td> </tr> <tr>
+<th class="field-name">Length:</th>
+<td class="field-body">fixed</td> </tr> <tr>
+<th class="field-name">Field CapSetId:</th>
+<td class="field-body">heap capability set</td> </tr> <tr>
+<th class="field-name">Field Word64:</th>
+<td class="field-body">heap size in bytes</td> </tr>  </table> <p>Report the heap size, calculated by the number of blocks currently allocated.</p> </dd>
 </dl> <dl class="event-type"> <dt id="event-type-HEAP_LIVE">
 <code>HEAP_LIVE</code> </dt> <dd>
 <table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
@@ -417,7 +443,7 @@ Event :
 <th class="field-name">Length:</th>
 <td class="field-body">variable</td> </tr> <tr>
 <th class="field-name">Field String:</th>
-<td class="field-body">message</td> </tr>  </table> <p>A user log message (from, e.g., <a class="reference external" href="../libraries/base-4.15.0.0/control-concurrent#v:traceEvent">Control.Concurrent.traceEvent</a>).</p> </dd>
+<td class="field-body">message</td> </tr>  </table> <p>A user log message (from, e.g., <a class="reference external" href="../libraries/base-4.16.0.0/control-concurrent#v:traceEvent">Control.Concurrent.traceEvent</a>).</p> </dd>
 </dl> <dl class="event-type"> <dt id="event-type-USER_MARKER">
 <code>USER_MARKER</code> </dt> <dd>
 <table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
@@ -426,7 +452,7 @@ Event :
 <th class="field-name">Length:</th>
 <td class="field-body">variable</td> </tr> <tr>
 <th class="field-name">Field String:</th>
-<td class="field-body">marker name</td> </tr>  </table> <p>A user marker (from <a class="reference external" href="../libraries/base-4.15.0.0/debug-trace#v:traceMarker">Debug.Trace.traceMarker</a>).</p> </dd>
+<td class="field-body">marker name</td> </tr>  </table> <p>A user marker (from <a class="reference external" href="../libraries/base-4.16.0.0/debug-trace#v:traceMarker">Debug.Trace.traceMarker</a>).</p> </dd>
 </dl>    <h2 id="heap-profiler-events">15.3. Heap profiler event log output</h2> <p id="heap-profiler-event-log-output">The heap profiler can produce output to GHC’s event log, allowing samples to be correlated with other event log events over the program’s lifecycle.</p> <p>This section defines the layout of these events. The <code>String</code> type below is defined to be a UTF-8 encoded NUL-terminated string.</p>  <h3 id="metadata-event-types">15.3.1. Metadata event types</h3>  <h4 id="beginning-of-sample-stream">15.3.1.1. Beginning of sample stream</h4> <p>A single fixed-width event emitted during program start-up describing the samples that follow.</p> <dl class="event-type"> <dt id="event-type-HEAP_PROF_BEGIN">
 <code>HEAP_PROF_BEGIN</code> </dt> <dd>
 <table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
@@ -497,7 +523,28 @@ Event :
 <th class="field-name">Field Word8:</th>
 <td class="field-body">
 <p class="first">flags:</p> <ul class="last simple"> <li>bit 0: is the cost-centre a CAF?</li> </ul> </td> </tr>  </table> </dd>
-</dl>   <h4 id="sample-event-types">15.3.1.3. Sample event types</h4> <p>A sample (consisting of a list of break-down classes, e.g. cost centres, and heap residency sizes), is to be encoded in the body of one or more events.</p> <p>We normally mark the beginning of a new sample with an <code>EVENT_HEAP_PROF_SAMPLE_BEGIN</code> event,</p> <dl class="event-type"> <dt id="event-type-HEAP_PROF_SAMPLE_BEGIN">
+</dl>   <h4 id="info-table-provenance-definitions">15.3.1.3. Info Table Provenance definitions</h4> <p>A message which describes an approximate source position for info tables. See <a class="reference internal" href="debug-info#ghc-flag--finfo-table-map"><code>-finfo-table-map</code></a> for more information.</p> <dl class="event-type"> <dt id="event-type-IPE">
+<code>IPE</code> </dt> <dd>
+<table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
+<th class="field-name">Tag:</th>
+<td class="field-body">169</td> </tr> <tr>
+<th class="field-name">Length:</th>
+<td class="field-body">fixed</td> </tr> <tr>
+<th class="field-name">Field Word64:</th>
+<td class="field-body">info table address</td> </tr> <tr>
+<th class="field-name">Field String:</th>
+<td class="field-body">table name</td> </tr> <tr>
+<th class="field-name">Field String:</th>
+<td class="field-body">closure type</td> </tr> <tr>
+<th class="field-name">Field String:</th>
+<td class="field-body">type</td> </tr> <tr>
+<th class="field-name">Field String:</th>
+<td class="field-body">source position label</td> </tr> <tr>
+<th class="field-name">Field String:</th>
+<td class="field-body">source position module</td> </tr> <tr>
+<th class="field-name">Field String:</th>
+<td class="field-body">source position location</td> </tr>  </table> </dd>
+</dl>   <h4 id="sample-event-types">15.3.1.4. Sample event types</h4> <p>A sample (consisting of a list of break-down classes, e.g. cost centres, and heap residency sizes), is to be encoded in the body of one or more events.</p> <p>We normally mark the beginning of a new sample with an <code>EVENT_HEAP_PROF_SAMPLE_BEGIN</code> event,</p> <dl class="event-type"> <dt id="event-type-HEAP_PROF_SAMPLE_BEGIN">
 <code>HEAP_PROF_SAMPLE_BEGIN</code> </dt> <dd>
 <table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
 <th class="field-name">Length:</th>
@@ -524,7 +571,7 @@ Event :
 <td class="field-body">fixed</td> </tr> <tr>
 <th class="field-name">Field Word64:</th>
 <td class="field-body">sample number</td> </tr>  </table> <p>Marks the end of a heap profile sample.</p> </dd>
-</dl>   <h4 id="cost-centre-break-down">15.3.1.4. Cost-centre break-down</h4> <dl class="docutils"> <dt>A variable-length packet encoding a heap profile sample broken down by,</dt> <dd>
+</dl>   <h4 id="cost-centre-break-down">15.3.1.5. Cost-centre break-down</h4> <dl class="docutils"> <dt>A variable-length packet encoding a heap profile sample broken down by,</dt> <dd>
 <ul class="first last simple"> <li>cost-centre (<a class="reference internal" href="profiling#rts-flag--hc"><code>-hc</code></a>)</li> </ul> </dd> </dl> <dl class="event-type"> <dt id="event-type-HEAP_PROF_SAMPLE_COST_CENTRE">
 <code>HEAP_PROF_SAMPLE_COST_CENTRE</code> </dt> <dd>
 <table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
@@ -540,7 +587,7 @@ Event :
 <td class="field-body">stack depth</td> </tr> <tr>
 <th class="field-name">Field Word32[]:</th>
 <td class="field-body">cost centre stack starting with inner-most (cost centre numbers)</td> </tr>  </table> </dd>
-</dl>   <h4 id="string-break-down">15.3.1.5. String break-down</h4> <p>A variable-length event encoding a heap sample broken down by,</p>  <ul class="simple"> <li>type description (<a class="reference internal" href="profiling#rts-flag--hy"><code>-hy</code></a>)</li> <li>closure description (<a class="reference internal" href="profiling#rts-flag--hd"><code>-hd</code></a>)</li> <li>module (<a class="reference internal" href="profiling#rts-flag--hm"><code>-hm</code></a>)</li> </ul>  <dl class="event-type"> <dt id="event-type-HEAP_PROF_SAMPLE_STRING">
+</dl>   <h4 id="string-break-down">15.3.1.6. String break-down</h4> <p>A variable-length event encoding a heap sample broken down by,</p>  <ul class="simple"> <li>type description (<a class="reference internal" href="profiling#rts-flag--hy"><code>-hy</code></a>)</li> <li>closure description (<a class="reference internal" href="profiling#rts-flag--hd"><code>-hd</code></a>)</li> <li>module (<a class="reference internal" href="profiling#rts-flag--hm"><code>-hm</code></a>)</li> </ul>  <dl class="event-type"> <dt id="event-type-HEAP_PROF_SAMPLE_STRING">
 <code>HEAP_PROF_SAMPLE_STRING</code> </dt> <dd>
 <table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
 <th class="field-name">Tag:</th>
@@ -582,7 +629,7 @@ Event :
 <table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
 <th class="field-name">Tag:</th>
 <td class="field-body">166</td> </tr>  </table> <p>TODO</p> </dd>
-</dl>   <h2 id="nonmoving-gc-events">15.6. Non-moving GC event output</h2> <p id="non-moving-gc-event-output">These events mark various stages of the <a class="reference internal" href="runtime_control#rts-flag---nonmoving-gc"><code>non-moving collection</code></a> lifecycle. These are enabled with the <code>+RTS -lg</code> event-set.</p> <dl class="event-type"> <dt id="event-type-CONC_MARK_BEGIN">
+</dl>   <h2 id="nonmoving-gc-events">15.6. Non-moving GC event output</h2> <p id="non-moving-gc-event-output">These events mark various stages of the <a class="reference internal" href="runtime_control#rts-flag---nonmoving-gc"><code>non-moving collection</code></a> lifecycle. These are enabled with the <code>+RTS -lg</code> event-set.</p> <p>A typical non-moving collection cycle will look something like the following:</p> <ol class="arabic simple"> <li>The preparatory phase of collection will emit the usual events associated with a moving collection. See <a class="reference internal" href="#gc-events"><span class="std std-ref">Garbage collector events</span></a> for details.</li> <li>The concurrent write barrier is enabled and the concurrent mark thread is started. From this point forward mutator threads may emit <a class="reference internal" href="#event-type-CONC_UPD_REM_SET_FLUSH"><code>CONC_UPD_REM_SET_FLUSH</code></a> events, indicating that they have flushed their capability-local update remembered sets.</li> <li>Concurrent marking begins, denoted by a <a class="reference internal" href="#event-type-CONC_MARK_BEGIN"><code>CONC_MARK_BEGIN</code></a> event.</li> <li>When the mark queue is depleted a <a class="reference internal" href="#event-type-CONC_MARK_END"><code>CONC_MARK_END</code></a> is emitted.</li> <li>If necessary (e.g. due to weak pointer marking), the marking process will continue, returning to step (3) above.</li> <li>When the collector has done as much concurrent marking as it can it will enter the post-mark synchronization phase of collection, denoted by a <a class="reference internal" href="#event-type-CONC_SYNC_BEGIN"><code>CONC_SYNC_BEGIN</code></a> event.</li> <li>Mutator threads will suspend execution and, if necessary, flush their update remembered sets (indicated by <a class="reference internal" href="#event-type-CONC_UPD_REM_SET_FLUSH"><code>CONC_UPD_REM_SET_FLUSH</code></a> events).</li> <li>The collector will do any final marking necessary (indicated by <a class="reference internal" href="#event-type-CONC_MARK_BEGIN"><code>CONC_MARK_BEGIN</code></a> and <a class="reference internal" href="#event-type-CONC_MARK_END"><code>CONC_MARK_END</code></a> events).</li> <li>The collector will do a small amount of sweeping, disable the write barrier, emit a <a class="reference internal" href="#event-type-CONC_SYNC_END"><code>CONC_SYNC_END</code></a> event, and allow mutators to resume</li> <li>The collector will begin the concurrent sweep phase, indicated by a <a class="reference internal" href="#event-type-CONC_SWEEP_BEGIN"><code>CONC_SWEEP_BEGIN</code></a> event.</li> <li>Once sweeping has concluded a <a class="reference internal" href="#event-type-CONC_SWEEP_END"><code>CONC_SWEEP_END</code></a> event will be emitted and the concurrent collector thread will terminate.</li> <li>A <a class="reference internal" href="#event-type-NONMOVING_HEAP_CENSUS"><code>NONMOVING_HEAP_CENSUS</code></a> event will be emitted describing the fragmentation state of the non-moving heap.</li> </ol> <dl class="event-type"> <dt id="event-type-CONC_MARK_BEGIN">
 <code>CONC_MARK_BEGIN</code> </dt> <dd>
 <table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
 <th class="field-name">Tag:</th>
@@ -631,7 +678,7 @@ Event :
 <td class="field-body">206</td> </tr> <tr>
 <th class="field-name">Length:</th>
 <td class="field-body">fixed</td> </tr>  </table> <p>Marks a capability flushing its local update remembered set accumulator.</p> </dd>
-</dl>  <h3 id="non-moving-heap-census">15.6.1. Non-moving heap census</h3> <p>The non-moving heap census events (enabled with the <code>+RTS -ln</code> event-set) are intended to provide insight into fragmentation of the non-moving heap.</p> <dl class="event-type"> <dt id="event-type-NONMOVING_HEAP_CENSUS">
+</dl>  <h3 id="non-moving-heap-census">15.6.1. Non-moving heap census</h3> <p>The non-moving heap census events (enabled with the <a class="reference internal" href="#"><code>+RTS -ln</code></a> event-set) are intended to provide insight into fragmentation of the non-moving heap.</p> <dl class="event-type"> <dt id="event-type-NONMOVING_HEAP_CENSUS">
 <code>NONMOVING_HEAP_CENSUS</code> </dt> <dd>
 <table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
 <th class="field-name">Tag:</th>
@@ -646,8 +693,45 @@ Event :
 <td class="field-body">number of filled segments.</td> </tr> <tr>
 <th class="field-name">Field Word32:</th>
 <td class="field-body">number of live blocks.</td> </tr>  </table> <p>Describes the occupancy of the <em>blk_sz</em> sub-heap.</p> </dd>
+</dl>   <h3 id="ticky-counters">15.6.2. Ticky counters</h3> <p>Programs compiled with <a class="reference internal" href="profiling#ghc-flag--ticky"><code>-ticky</code></a> and <a class="reference internal" href="phases#ghc-flag--eventlog"><code>-eventlog</code></a> and invoked with <a class="reference internal" href="#"><code>+RTS -lT</code></a> will emit periodic samples of the ticky entry counters to the eventlog.</p> <dl class="event-type"> <dt id="event-type-TICKY_COUNTER_DEF">
+<code>TICKY_COUNTER_DEF</code> </dt> <dd>
+<table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
+<th class="field-name">Tag:</th>
+<td class="field-body">210</td> </tr> <tr>
+<th class="field-name">Length:</th>
+<td class="field-body">variable</td> </tr> <tr>
+<th class="field-name">Field Word64:</th>
+<td class="field-body">counter ID</td> </tr> <tr>
+<th class="field-name">Field Word16:</th>
+<td class="field-body">arity/field count</td> </tr> <tr>
+<th class="field-name">Field String:</th>
+<td class="field-body">argument kinds. This is the same as the synonymous field in the textual ticky summary.</td> </tr> <tr>
+<th class="field-name">Field String:</th>
+<td class="field-body">counter name</td> </tr>  </table> <p>Defines a ticky counter.</p> </dd>
+</dl> <dl class="event-type"> <dt id="event-type-TICKY_COUNTER_BEGIN_SAMPLE">
+<code>TICKY_COUNTER_BEGIN_SAMPLE</code> </dt> <dd>
+<table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
+<th class="field-name">Tag:</th>
+<td class="field-body">212</td> </tr> <tr>
+<th class="field-name">Length:</th>
+<td class="field-body">fixed</td> </tr>  </table> <p>Denotes the beginning of an atomic set of ticky-ticky profiler counter samples.</p> </dd>
+</dl> <dl class="event-type"> <dt id="event-type-TICKY_COUNTER_SAMPLE">
+<code>TICKY_COUNTER_SAMPLE</code> </dt> <dd>
+<table class="docutils field-list" frame="void" rules="none"> <col class="field-name"> <col class="field-body">  <tr>
+<th class="field-name">Tag:</th>
+<td class="field-body">211</td> </tr> <tr>
+<th class="field-name">Length:</th>
+<td class="field-body">fixed</td> </tr> <tr>
+<th class="field-name">Field Word64:</th>
+<td class="field-body">counter ID</td> </tr> <tr>
+<th class="field-name">Field Word64:</th>
+<td class="field-body">number of times closures of this type has been entered.</td> </tr> <tr>
+<th class="field-name">Field Word64:</th>
+<td class="field-body">number of allocations (words)</td> </tr> <tr>
+<th class="field-name">Field Word64:</th>
+<td class="field-body">number of times this has been allocated (words). Only produced for modules compiled with <a class="reference internal" href="profiling#ghc-flag--ticky-allocd"><code>-ticky-allocd</code></a>.</td> </tr>  </table> <p>Records the number of “ticks” recorded by a ticky-ticky counter single the last sample.</p> </dd>
 </dl>    </div> </div><div class="_attribution">
   <p class="_attribution-p">
-    <a href="https://downloads.haskell.org/~ghc/9.0.1/docs/html/users_guide/eventlog-formats.html" class="_attribution-link" target="_blank">https://downloads.haskell.org/~ghc/9.0.1/docs/html/users_guide/eventlog-formats.html</a>
+    <a href="https://downloads.haskell.org/~ghc/9.2.1/docs/html/users_guide/eventlog-formats.html" class="_attribution-link" target="_blank">https://downloads.haskell.org/~ghc/9.2.1/docs/html/users_guide/eventlog-formats.html</a>
   </p>
 </div>

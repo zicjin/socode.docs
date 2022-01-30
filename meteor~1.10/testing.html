@@ -4,12 +4,12 @@
 <p><strong>Acceptance test</strong>: If you want to write a test that can be run against any running version of your app and verifies at the browser level that the right things happen when you push the right buttons, then you are writing an acceptance test (sometimes called “end to end test”). Such tests typically try to hook into the application as little as possible, beyond perhaps setting up the right data to run a test against.</p> </li> <li>
 <p><strong>Load test</strong>: Finally you may wish to test that your application works under typical load or see how much load it can handle before it falls over. This is called a load test or stress test. Such tests can be challenging to set up and typically aren’t run often but are very important for confidence before a big production launch.</p> </li> </ul> <h3 id="challenges-with-meteor">Challenges of testing in Meteor</h3> <p>In most ways, testing a Meteor app is no different from testing any other full stack JavaScript application. However, compared to more traditional backend or front-end focused frameworks, two factors can make testing a little more challenging:</p> <ul> <li>
 <p><strong>Client/server data</strong>: Meteor’s data system makes it possible to bridge the client-server gap and often allows you to build your application without thinking about how data moves around. It becomes critical to test that your code does actually work correctly across that gap. In traditional frameworks where you spend a lot of time thinking about interfaces between client and server you can often get away with testing both sides of the interface in isolation, but Meteor’s <a href="#test-modes">full app test mode</a> makes it possible to write <a href="#full-app-integration-test">integration tests</a> that cover the full stack. Another challenge here is creating test data in the client context; we’ll discuss ways to do this in the <a href="#generating-test-data">section on generating test data</a> below.</p> </li> <li>
-<p><strong>Reactivity</strong>: Meteor’s reactivity system is “eventually consistent” in the sense that when you change a reactive input to the system, you’ll see the user interface change to reflect this some time later. This can be a challenge when testing, but there are some ways to wait until those changes happen to verify the results, for example <code>Tracker.afterFlush()</code>.</p> </li> </ul> <h2 id="test-modes">The 'meteor test' command</h2> <p>The primary way to test your application in Meteor is the <code>meteor test</code> command.</p> <p>This loads your application in a special “test mode”. What this does is:</p> <ol> <li>
-<em>Doesn’t</em> eagerly load <em>any</em> of our application code as Meteor normally would.</li> <li>
+<p><strong>Reactivity</strong>: Meteor’s reactivity system is “eventually consistent” in the sense that when you change a reactive input to the system, you’ll see the user interface change to reflect this some time later. This can be a challenge when testing, but there are some ways to wait until those changes happen to verify the results, for example <code>Tracker.afterFlush()</code>.</p> </li> </ul> <h2 id="test-modes">The 'meteor test' command</h2> <p>The primary way to test your application in Meteor is the <code>meteor test</code> command.</p> <p>This loads your application in a special “test mode”. What this does is:</p> <ul> <li>
+<em>Doesn’t</em> eagerly load <em>any</em> of our application code as Meteor normally would.<ul> <li><em>This is a highly important note as Meteor wouldn’t know of any methods/collections/publications unless you import them in your test files.</em></li> </ul> </li> <li>
 <em>Does</em> eagerly load any file in our application (including in <code>imports/</code> folders) that look like <code>*.test[s].*</code>, or <code>*.spec[s].*</code>
-</li> <li>Sets the <code>Meteor.isTest</code> flag to be true.</li> <li>Starts up the test driver package (<a href="#driver-packages">see below</a>).</li> </ol> <blockquote> <p>The <a href="build-tool#what-it-does">Meteor build tool</a> and the <code>meteor test</code> command ignore any files located in any <code>tests/</code> directory. This allows you to put tests in this directory that you can run using a test runner outside of Meteor’s built-in test tools and still not have those files loaded in your application. See Meteor’s <a href="structure#load-order">default file load order</a> rules.</p> </blockquote> <p>What this means is that you can write tests in files with a certain filename pattern and know they’ll not be included in normal builds of your app. When your app runs in test mode, those files will be loaded (and nothing else will), and they can import the modules you want to test. As we’ll see this is ideal for <a href="#unit-testing">unit tests</a> and <a href="#simple-integration-test">simple integration tests</a>.</p> <p>Additionally, Meteor offers a “full application” test mode. You can run this with <code>meteor test --full-app</code>.</p> <p>This is similar to test mode, with key differences:</p> <ol> <li>It loads test files matching <code>*.app-test[s].*</code> and <code>*.app-spec[s].*</code>.</li> <li>It <strong>does</strong> eagerly load our application code as Meteor normally would.</li> <li>Sets the <code>Meteor.isAppTest</code> flag to be true (instead of the <code>Meteor.isTest</code> flag).</li> </ol> <p>This means that the entirety of your application (including for instance the web server and client side router) is loaded and will run as normal. This enables you to write much more <a href="#full-app-integration-test">complex integration tests</a> and also load additional files for <a href="#acceptance-testing">acceptance tests</a>.</p> <p>Note that there is another test command in the Meteor tool; <code>meteor test-packages</code> is a way of testing Atmosphere packages, which is discussed in the <a href="https://guide.meteor.com/writing-packages.html#testing">Writing Packages article</a>.</p> <h3 id="driver-packages">Driver packages</h3> <p>When you run a <code>meteor test</code> command, you must provide a <code>--driver-package</code> argument. A test driver is a mini-application that runs in place of your app and runs each of your defined tests, whilst reporting the results in some kind of user interface.</p> <p>There are two main kinds of test driver packages:</p> <ul> <li>
+</li> <li>Sets the <code>Meteor.isTest</code> flag to be true.</li> <li>Starts up the test driver package (<a href="#driver-packages">see below</a>).</li> </ul> <blockquote> <p>The <a href="build-tool#what-it-does">Meteor build tool</a> and the <code>meteor test</code> command ignore any files located in any <code>tests/</code> directory. This allows you to put tests in this directory that you can run using a test runner outside of Meteor’s built-in test tools and still not have those files loaded in your application. See Meteor’s <a href="structure#load-order">default file load order</a> rules.</p> </blockquote> <p>What this means is that you can write tests in files with a certain filename pattern and know they’ll not be included in normal builds of your app. When your app runs in test mode, those files will be loaded (and nothing else will), and they can import the modules you want to test. As we’ll see this is ideal for <a href="#unit-testing">unit tests</a> and <a href="#simple-integration-test">simple integration tests</a>.</p> <p>Additionally, Meteor offers a “full application” test mode. You can run this with <code>meteor test --full-app</code>.</p> <p>This is similar to test mode, with key differences:</p> <ol> <li>It loads test files matching <code>*.app-test[s].*</code> and <code>*.app-spec[s].*</code>.</li> <li>It <strong>does</strong> eagerly load our application code as Meteor normally would.</li> <li>Sets the <code>Meteor.isAppTest</code> flag to be true (instead of the <code>Meteor.isTest</code> flag).</li> </ol> <p>This means that the entirety of your application (including for instance the web server and client side router) is loaded and will run as normal. This enables you to write much more <a href="#full-app-integration-test">complex integration tests</a> and also load additional files for <a href="#acceptance-testing">acceptance tests</a>.</p> <p>Note that there is another test command in the Meteor tool; <code>meteor test-packages</code> is a way of testing Atmosphere packages, which is discussed in the <a href="https://guide.meteor.com/writing-packages.html#testing">Writing Packages article</a>.</p> <h3 id="driver-packages">Driver packages</h3> <p>When you run a <code>meteor test</code> command, you must provide a <code>--driver-package</code> argument. A test driver is a mini-application that runs in place of your app and runs each of your defined tests, whilst reporting the results in some kind of user interface.</p> <p>There are two main kinds of test driver packages:</p> <ul> <li>
 <strong>Web reporters</strong>: Meteor applications that display a special test reporting web UI that you can view the test results in.</li> </ul> <img src="https://guide.meteor.com/images/mocha-test-results.png"> <ul> <li>
-<strong>Console reporters</strong>: These run completely on the command-line and are primary used for automated testing like <a href="#ci">continuous integration</a>.</li> </ul> <h3 id="mocha">Recommended: Mocha</h3> <p>In this article, we’ll use the popular <a href="https://mochajs.org" target="_blank" rel="noopener">Mocha</a> test runner alongside the <a href="http://chaijs.com" target="_blank" rel="noopener">Chai</a> assertion library to test our application. In order to write and run tests in Mocha, we need to add an appropriate test driver package.</p> <p>There are several options. Choose the ones that makes sense for your app. You may depend on more than one and set up different test commands for different situations.</p> <ul> <li>
+<strong>Console reporters</strong>: These run completely on the command-line and are primary used for automated testing like <a href="#ci">continuous integration</a>.</li> </ul> <h3 id="mocha">Recommended: Mocha</h3> <p>In this article, we’ll use the popular <a href="https://mochajs.org" target="_blank" rel="noopener">Mocha</a> test runner. And you can pair it with any assertion library you want like<a href="http://chaijs.com" target="_blank" rel="noopener">Chai</a> or <a href="https://jestjs.io/docs/expect" target="_blank" rel="noopener">expect</a>. In order to write and run tests in Mocha, we need to add an appropriate test driver package.</p> <p>There are several options. Choose the ones that makes sense for your app. You may depend on more than one and set up different test commands for different situations.</p> <ul> <li>
 <a href="https://atmospherejs.com/meteortesting/mocha" target="_blank" rel="noopener">meteortesting:mocha</a> Runs client and/or server package or app tests and reports all results in the server console. Supports various browsers for running client tests, including PhantomJS, Selenium ChromeDriver, and Electron. Can be used for running tests on a CI server. Has a watch mode.</li> </ul> <p>These packages don’t do anything in development or production mode. They declare themselves <code>testOnly</code> so they are not even loaded outside of testing. But when our app is run in <a href="#test-modes">test mode</a>, the test driver package takes over, executing test code on both the client and server, and rendering results to the browser.</p> <p>Here’s how we can add the <a href="https://atmospherejs.com/meteortesting/mocha" target="_blank" rel="noopener"><code>meteortesting:mocha</code></a> package to our app:</p>  <pre class="line-numbers" style><code class="language-bash">meteor add meteortesting:mocha
 </code></pre> <h2 id="test-files">Test Files</h2> <p>Test files themselves (for example a file named <code>todos-item.test.js</code> or <code>routing.app-specs.coffee</code>) can register themselves to be run by the test driver in the usual way for that testing library. For Mocha, that’s by using <code>describe</code> and <code>it</code>:</p>  <pre class="line-numbers" style><code class="language-js">describe('my module', function () {
   it('does something that should be tested', function () {
@@ -17,29 +17,49 @@
     // in the correct mode
   })
 })
-</code></pre> <p>Note that arrow function use with Mocha <a href="http://mochajs.org/#arrow-functions" target="_blank" rel="noopener">is discouraged</a>.</p> <h2 id="test-data">Test data</h2> <p>When your app is run in test mode, it is initialized with a clean test database.</p> <p>If you are running a test that relies on using the database, and specifically the content of the database, you’ll need to perform some <em>setup</em> steps in your test to ensure the database is in the state you expect. There are some tools you can use to do this.</p> <p>To ensure the database is clean, the <a href="https://atmospherejs.com/xolvio/cleaner" target="_blank" rel="noopener"><code>xolvio:cleaner</code></a> package is useful. You can use it to reset the database in a <code>beforeEach</code> block:</p>  <pre class="line-numbers" style><code class="language-js">import { resetDatabase } from 'meteor/xolvio:cleaner';
+</code></pre> <p>Note that arrow function use with Mocha <a href="http://mochajs.org/#arrow-functions" target="_blank" rel="noopener">is discouraged</a>.</p> <h2 id="test-data">Test data</h2> <p>When your app is run in test mode, it is initialized with a clean test database.</p> <p>If you are running a test that relies on using the database, and specifically the content of the database, you’ll need to perform some <em>setup</em> steps in your test to ensure the database is in the state you expect.</p>  <pre class="line-numbers" style><code class="language-js">import { Meteor } from 'meteor/meteor';
+import expect from 'expect';
+
+import { Notes } from './notes';
+
+ describe('notes', function () {
+   const noteOne = {
+     _id: 'testNote1',
+     title: 'Groceries',
+     body: 'Milk, Eggs and Oatmeal'
+   };
+
+   beforeEach(function () {
+     Notes.remove({});
+     Notes.insert(noteOne);
+   });
+    ...
+</code></pre> <p>You can also use <a href="https://atmospherejs.com/xolvio/cleaner" target="_blank" rel="noopener"><code>xolvio:cleaner</code></a> which is useful for resetting the entire database if you wish to do so. You can use it to reset the database in a <code>beforeEach</code> block:</p>  <pre class="line-numbers" style><code class="language-js">import { resetDatabase } from 'meteor/xolvio:cleaner';
 
 describe('my module', function () {
   beforeEach(function () {
     resetDatabase();
   });
 });
-</code></pre> <p>This technique will only work on the server. If you need to reset the database from a client test, you can use a method to do so:</p>  <pre class="line-numbers" style><code class="language-js">import { resetDatabase } from 'meteor/xolvio:cleaner';
+</code></pre> <p>This technique will only work on the server. If you need to reset the database from a client test, <a href="https://github.com/xolvio/cleaner" target="_blank" rel="noopener"><code>xolvio:cleaner</code></a> provides you with a built-in method called <a href="https://github.com/xolvio/cleaner/blob/master/cleaner.js#L30" target="_blank" rel="noopener"><code>xolvio:cleaner/resetDatabase</code></a>:</p>  <pre class="line-numbers" style><code class="language-js">describe('my module', function (done) {
+  beforeEach(function (done) {
+    // We need to wait until the method call is done before moving on, so we
+    // use Mocha's async mechanism (calling a done callback)
+    Meteor.call('xolvio:cleaner/resetDatabase', done);
+  });
+});
+</code></pre> <p>You can also invoke <code>resetDatabase</code> in your methods in case you wanted to apply custom code before or after:</p>  <pre class="line-numbers" style><code class="language-js">import { resetDatabase } from 'meteor/xolvio:cleaner';
 
 // NOTE: Before writing a method like this you'll want to double check
 // that this file is only going to be loaded in test mode!!
 Meteor.methods({
-  'test.resetDatabase': () =&gt; resetDatabase(),
+  'test.resetDatabase': () =&gt; {
+    // custom code goes here... 
+    resetDatabase()
+    // or here
+  }
 });
-
-describe('my module', function (done) {
-  beforeEach(function (done) {
-    // We need to wait until the method call is done before moving on, so we
-    // use Mocha's async mechanism (calling a done callback)
-    Meteor.call('test.resetDatabase', done);
-  });
-});
-</code></pre> <p>As we’ve placed the code above in a test file, it <em>will not</em> load in normal development or production mode (which would be an incredibly bad thing!). If you create a Atmosphere package with a similar feature, you should mark it as <code>testOnly</code> and it will similarly only load in test mode.</p> <h3 id="generating-test-data">Generating test data</h3> <p>Often it’s sensible to create a set of data to run your test against. You can use standard <code>insert()</code> calls against your collections to do this, but often it’s easier to create <em>factories</em> which help encode random test data. A great package to use to do this is <a href="https://atmospherejs.com/dburles/factory" target="_blank" rel="noopener"><code>dburles:factory</code></a>.</p> <p>In the <a href="https://github.com/meteor/todos" target="_blank" rel="noopener">Todos</a> example app, we define a factory to describe how to create a test todo item, using the <a href="https://www.npmjs.com/package/faker" target="_blank" rel="noopener"><code>faker</code></a> npm package:</p>  <pre class="line-numbers" style><code class="language-js">import faker from 'faker';
+</code></pre> <p>As we’ve placed the code above in a test file, it <em>will not</em> load in normal development or production mode (which would be an incredibly bad thing!). If you create a Atmosphere package with a similar feature, you should mark it as <code>testOnly</code> and it will similarly only load in test mode.</p> <h3 id="generating-test-data">Generating test data</h3> <p>Often it’s sensible to create a set of data to run your test against. You can use standard <code>insert()</code> calls against your collections to do this, but often it’s easier to create <em>factories</em> which help encode random test data. A great package to use to do this is <a href="https://atmospherejs.com/dburles/factory" target="_blank" rel="noopener"><code>dburles:factory</code></a>.</p> <p>In the <a href="https://github.com/meteor/todos" target="_blank" rel="noopener">Todos</a> example app, we define a factory to describe how to create a test todo item, using the <a href="https://www.npmjs.com/package/@faker-js/faker" target="_blank" rel="noopener"><code>faker</code></a> npm package:</p>  <pre class="line-numbers" style><code class="language-js">import faker from '@faker-js/faker';
 
 Factory.define('todo', Todos, {
   listId: () =&gt; Factory.get('list'),
@@ -63,7 +83,7 @@ Todos.insert({ a: 'document' });
 
 // Restore the `Todos` collection
 StubCollections.restore();
-</code></pre> <p>In a Mocha test, it makes sense to use <code>stub-collections</code> in a <code>beforeEach</code>/<code>afterEach</code> block.</p> <h2 id="unit-testing">Unit testing</h2> <p>Unit testing is the process of isolating a section of code and then testing that the internals of that section work as you expect. As <a href="structure">we’ve split our code base up into ES2015 modules</a> it’s natural to test those modules one at a time.</p> <p>By isolating a module and testing its internal functionality, we can write tests that are <em>fast</em> and <em>accurate</em>—they can quickly tell you where a problem in your application lies. Note however that incomplete unit tests can often hide bugs because of the way they stub out dependencies. For that reason it’s useful to combine unit tests with slower (and perhaps less commonly run) integration and acceptance tests.</p> <h3 id="simple-blaze-unit-test">A simple Blaze unit test</h3> <p>In the <a href="https://github.com/meteor/todos" target="_blank" rel="noopener">Todos</a> example app, thanks to the fact that we’ve split our User Interface into <a href="ui-ux#components">smart and reusable components</a>, it’s natural to want to unit test some of our reusable components (we’ll see below how to <a href="#simple-integration-test">integration test</a> our smart components).</p> <p>To do so, we’ll use a very simple test helper that renders a Blaze component off-screen with a given data context. As we place it in <code>imports</code>, it won’t load in our app by in normal mode (as it’s not required anywhere).</p> <p><a href="https://github.com/meteor/todos/blob/master/imports/ui/test-helpers.js" target="_blank" rel="noopener"><code>imports/ui/test-helpers.js</code></a>:</p>  <pre class="line-numbers" style><code class="language-js">import { _ } from 'meteor/underscore';
+</code></pre> <p>In a Mocha test, it makes sense to use <code>stub-collections</code> in a <code>beforeEach</code>/<code>afterEach</code> block.</p> <h2 id="unit-testing">Unit testing</h2> <p>Unit testing is the process of isolating a section of code and then testing that the internals of that section work as you expect. As <a href="structure">we’ve split our code base up into ES2015 modules</a> it’s natural to test those modules one at a time.</p> <p>By isolating a module and testing its internal functionality, we can write tests that are <em>fast</em> and <em>accurate</em>—they can quickly tell you where a problem in your application lies. Note however that incomplete unit tests can often hide bugs because of the way they stub out dependencies. For that reason it’s useful to combine unit tests with slower (and perhaps less commonly run) integration and acceptance tests.</p> <h3 id="simple-blaze-unit-test">A simple Blaze unit test</h3> <p>In the <a href="https://github.com/meteor/todos" target="_blank" rel="noopener">Todos</a> example app, thanks to the fact that we’ve split our User Interface into <a href="ui-ux#components">smart and reusable components</a>, it’s natural to want to unit test some of our reusable components (we’ll see below how to <a href="#simple-integration-test">integration test</a> our smart components).</p> <p>To do so, we’ll use a very simple test helper that renders a Blaze component off-screen with a given data context. As we place it in <code>imports</code>, it won’t load in our app by in normal mode (as it’s not required anywhere).</p> <p><a href="https://github.com/meteor/todos/blob/master/imports/ui/test-helpers.js" target="_blank" rel="noopener"><code>imports/ui/test-helpers.js</code></a>:</p>  <pre class="line-numbers" style><code class="language-js">import isString from 'lodash.isstring';
 import { Template } from 'meteor/templating';
 import { Blaze } from 'meteor/blaze';
 import { Tracker } from 'meteor/tracker';
@@ -80,7 +100,7 @@ const withDiv = function withDiv(callback) {
 
 export const withRenderedTemplate = function withRenderedTemplate(template, data, callback) {
   withDiv((el) =&gt; {
-    const ourTemplate = _.isString(template) ? Template[template] : template;
+    const ourTemplate = isString(template) ? Template[template] : template;
     Blaze.renderWithData(ourTemplate, data, el);
     Tracker.flush();
     callback(el);
@@ -92,7 +112,7 @@ export const withRenderedTemplate = function withRenderedTemplate(template, data
 import { Factory } from 'meteor/dburles:factory';
 import chai from 'chai';
 import { Template } from 'meteor/templating';
-import { $ } from 'meteor/jquery';
+import $ from 'jquery';
 import { Todos } from '../../../api/todos/todos';
 
 
@@ -190,24 +210,179 @@ meteor test --driver-package meteortesting:mocha --port 3100
 </code></pre> <p>Then you can open two browser windows to see the app in action while also ensuring that you don’t break any tests as you make changes.</p> <h3 id="isolation-techniques">Isolation techniques</h3> <p>In the <a href="#simple-blaze-unit-test">unit tests above</a> we saw a very limited example of how to isolate a module from the larger app. This is critical for proper unit testing. Some other utilities and techniques include:</p> <ul> <li>
 <p>The <a href="https://atmospherejs.com/velocity/meteor-stubs" target="_blank" rel="noopener"><code>velocity:meteor-stubs</code></a> package, which creates simple stubs for most Meteor core objects.</p> </li> <li>
 <p>Alternatively, you can also use tools like <a href="http://sinonjs.org" target="_blank" rel="noopener">Sinon</a> to stub things directly, as we’ll see for example in our <a href="#simple-integration-test">simple integration test</a>.</p> </li> <li>
-<p>The <a href="https://atmospherejs.com/hwillson/stub-collections" target="_blank" rel="noopener"><code>hwillson:stub-collections</code></a> package we mentioned <a href="#mocking-the-database">above</a>.</p> </li> </ul> <p>There’s a lot of scope for better isolation and testing utilities.</p> <h4 id="testing-publications">Testing publications</h4> <p>Using the <a href="https://atmospherejs.com/johanbrook/publication-collector" target="_blank" rel="noopener"><code>johanbrook:publication-collector</code></a> package, you’re able to test individual publication’s output without needing to create a traditional subscription:</p>  <pre class="line-numbers" style><code class="language-js">describe('lists.public', function () {
-  it('sends all public lists', function (done) {
+<p>The <a href="https://atmospherejs.com/hwillson/stub-collections" target="_blank" rel="noopener"><code>hwillson:stub-collections</code></a> package we mentioned <a href="#mocking-the-database">above</a>.</p> </li> </ul> <p>There’s a lot of scope for better isolation and testing utilities.</p> <h4 id="testing-publications">Testing publications</h4> <p>Let’s take this simple publication for example:</p>  <pre class="line-numbers" style><code class="language-js">// server/publications/notes
+ Meteor.publish('user.notes', function () {
+    return Notes.find({ userId: this.userId });
+  });
+</code></pre> <p>We access Meteor publications using <code>Meteor.server.publish_handlers</code>, then use <code>.apply</code> to provide the needed parameters for the publication and test what it returns. </p>  <pre class="line-numbers" style><code class="language-js">import { Meteor } from 'meteor/meteor';
+import expect from 'expect';
+
+import { Notes } from './notes';
+
+ describe('notes', function () {
+   const noteOne = {
+     _id: 'testNote1',
+     title: 'Groceries',
+     body: 'Milk, Eggs and Oatmeal'
+     userId: 'userId1'
+   };
+
+   beforeEach(function () {
+     Notes.remove({});
+     Notes.insert(noteOne);
+   });
+
+ it('should return a users notes', function () {
+      const res = Meteor.server.publish_handlers['user.notes'].apply({ userId: noteOne.userId });
+      const notes = res.fetch();
+
+      expect(notes.length).toBe(1);
+      expect(notes[0]).toEqual(noteOne);
+    });
+
+  it('should return no notes for user that has none', function () {
+      const res = Meteor.server.publish_handlers.notes.apply({ userId: 'testid' });
+      const notes = res.fetch();
+
+      expect(notes.length).toBe(0);
+    });  
+ });
+</code></pre> <p>A useful package for testing publications is <a href="https://atmospherejs.com/johanbrook/publication-collector" target="_blank" rel="noopener"><code>johanbrook:publication-collector</code></a>, it allows you to test individual publication’s output without needing to create a traditional subscription:</p>  <pre class="line-numbers" style><code class="language-js">describe('notes', function () {
+  it('should return a users notes', function (done) {
     // Set a user id that will be provided to the publish function as `this.userId`,
     // in case you want to test authentication.
-    const collector = new PublicationCollector({userId: 'some-id'});
+    const collector = new PublicationCollector({userId: noteOne.userId});
 
     // Collect the data published from the `lists.public` publication.
-    collector.collect('lists.public', (collections) =&gt; {
+    collector.collect('user.notes', (collections) =&gt; {
       // `collections` is a dictionary with collection names as keys,
       // and their published documents as values in an array.
       // Here, documents from the collection 'Lists' are published.
       chai.assert.typeOf(collections.Lists, 'array');
-      chai.assert.equal(collections.Lists.length, 3);
+      chai.assert.equal(collections.Lists.length, 1);
       done();
     });
   });
 });
-</code></pre> <p>Note that user documents – ones that you would normally query with <code>Meteor.users.find()</code> – will be available as the key <code>users</code> on the dictionary passed from a <code>PublicationCollector.collect()</code> call. See the <a href="https://github.com/johanbrook/meteor-publication-collector/blob/master/tests/publication-collector.test.js" target="_blank" rel="noopener">tests</a> in the package for more details.</p> <h2 id="integration-testing">Integration testing</h2> <p>An integration test is a test that crosses module boundaries. In the simplest case, this means something very similar to a unit test, where you perform your isolation around multiple modules, creating a non-singular “system under test”.</p> <p>Although conceptually different to unit tests, such tests typically do not need to be run any differently to unit tests and can use the same <a href="#running-unit-tests"><code>meteor test</code> mode</a> and <a href="#isolation-techniques">isolation techniques</a> as we use for unit tests.</p> <p>However, an integration test that crosses the client-server boundary of a Meteor application (where the modules under test cross that boundary) requires a different testing infrastructure, namely Meteor’s “full app” testing mode.</p> <p>Let’s take a look at example of both kinds of tests.</p> <h3 id="simple-integration-test">Simple integration test</h3> <p>Our reusable components were a natural fit for a unit test; similarly our smart components tend to require an integration test to really be exercised properly, as the job of a smart component is to bring data together and supply it to a reusable component.</p> <p>In the <a href="https://github.com/meteor/todos" target="_blank" rel="noopener">Todos</a> example app, we have an integration test for the <code>Lists_show_page</code> smart component. This test ensures that when the correct data is present in the database, the template renders correctly – that it is gathering the correct data as we expect. It isolates the rendering tree from the more complex data subscription part of the Meteor stack. If we wanted to test that the subscription side of things was working in concert with the smart component, we’d need to write a <a href="#full-app-integration-test">full app integration test</a>.</p> <p><a href="https://github.com/meteor/todos/blob/master/imports/ui/components/client/todos-item.tests.js" target="_blank" rel="noopener"><code>imports/ui/components/client/todos-item.tests.js</code></a>:</p>  <pre class="line-numbers" style><code class="language-js">/* eslint-env mocha */
+</code></pre> <p>Note that user documents – ones that you would normally query with <code>Meteor.users.find()</code> – will be available as the key <code>users</code> on the dictionary passed from a <code>PublicationCollector.collect()</code> call. See the <a href="https://github.com/johanbrook/meteor-publication-collector/blob/master/tests/publication-collector.test.js" target="_blank" rel="noopener">tests</a> in the package for more details.</p> <h4 id="testing-methods">Testing methods</h4> <p>We can also access methods using <code>Meteor.server.method_handlers</code> and apply the same principles. Take note of how we can use <code>sinon.fake()</code> to mock <code>this.unblock()</code>. </p>  <pre class="line-numbers" style><code class="language-js">Meteor.methods({
+  'notes.insert'(title, body) {
+    if (!this.userId || Meteor.users.findOne({ _id: this.userId })) {
+      throw new Meteor.Error('not-authorized', 'You have to be authorized');
+    }
+
+    check(title, String);
+    check(body, String);
+
+    this.unblock();
+
+    return Notes.insert({
+      title,
+      body,
+      userId: this.userId
+    });
+  },
+  'notes.remove'(_id) {
+    if (!this.userId || Meteor.users.findOne({ _id: this.userId })) {
+      throw new Meteor.Error('not-authorized', 'You have to be authorized');
+    }
+
+    check(_id, String);
+
+    Notes.remove({ _id, userId: this.userId });
+  },
+  'notes.update'(_id, {title, body}) {
+    if (!this.userId || Meteor.users.findOne({ _id: this.userId })) {
+      throw new Meteor.Error('not-authorized', 'You have to be authorized');
+    }
+
+    check(_id, String);
+    check(title, String);
+    check(body, String);
+
+    Notes.update({
+      _id,
+      userId: this.userId
+    }, {
+      $set: {
+        title,
+        body
+      }
+    });
+  }
+});
+</code></pre>  <pre class="line-numbers" style><code class="language-js">
+describe('notes', function () {
+    const noteOne = {
+      _id: 'testNote1',
+      title: 'Groceries',
+      body: 'Milk, Eggs and Oatmeal'
+      userId: 'testUserId1'
+    };
+    beforeEach(function () {
+      Notes.remove({});
+    });
+
+    it('should insert new note', function () {
+      const _id = Meteor.server.method_handlers['notes.insert'].apply({ userId: noteOne.userId, unblock: sinon.fake() }. [title: noteOne.title, body: noteOne.body]);
+
+      expect(Notes.findOne({ _id })).toMatchObject(
+			expect.objectContaining(noteOne)
+		);
+    });
+
+    it('should not insert note if not authenticated', function () {
+      expect(() =&gt; {
+        Meteor.server.method_handlers['notes.insert']();
+      }).toThrow();
+    });
+
+    it('should remove note', function () {
+      Meteor.server.method_handlers['notes.remove'].apply({ userId: noteOne.userId }, [noteOne._id]);
+
+      expect(Notes.findOne({ _id: noteOne._id})).toNotExist();
+    });
+
+    it('should not remove note if invalid _id', function () {
+      expect(() =&gt; {
+        Meteor.server.method_handlers['notes.remove'].apply({ userId: noteOne.userId});
+      }).toThrow();
+    });
+
+    it('should update note', function () {
+      const title = 'To Buy';
+      const beef = 'Beef, Salmon'
+
+      Meteor.server.method_handlers['notes.update'].apply({
+        userId: noteOne.userId
+      }, [
+        noteOne._id,
+        {title, body}
+      ]);
+
+      const note = Notes.findOne(noteOne._id);
+
+      expect(note).toInclude({
+        title,
+        body
+      });
+    });
+
+    it('should not update note if user was not creator', function () {
+      const title = 'This is an updated title';
+
+      Meteor.server.method_handlers['notes.update'].apply({
+        userId: 'testid'
+      }, [
+        noteOne._id,
+        { title }
+      ]);
+
+      const note = Notes.findOne(noteOne._id);
+
+      expect(note).toInclude(noteOne);
+    });
+});
+</code></pre> <p>These examples are heavily inspired by <a href="https://github.com/andrewjmead/notes-meteor-course" target="_blank" rel="noopener">Andrew Mead example app</a>.</p> <h2 id="integration-testing">Integration testing</h2> <p>An integration test is a test that crosses module boundaries. In the simplest case, this means something very similar to a unit test, where you perform your isolation around multiple modules, creating a non-singular “system under test”.</p> <p>Although conceptually different to unit tests, such tests typically do not need to be run any differently to unit tests and can use the same <a href="#running-unit-tests"><code>meteor test</code> mode</a> and <a href="#isolation-techniques">isolation techniques</a> as we use for unit tests.</p> <p>However, an integration test that crosses the client-server boundary of a Meteor application (where the modules under test cross that boundary) requires a different testing infrastructure, namely Meteor’s “full app” testing mode.</p> <p>Let’s take a look at example of both kinds of tests.</p> <h3 id="simple-integration-test">Simple integration test</h3> <p>Our reusable components were a natural fit for a unit test; similarly our smart components tend to require an integration test to really be exercised properly, as the job of a smart component is to bring data together and supply it to a reusable component.</p> <p>In the <a href="https://github.com/meteor/todos" target="_blank" rel="noopener">Todos</a> example app, we have an integration test for the <code>Lists_show_page</code> smart component. This test ensures that when the correct data is present in the database, the template renders correctly – that it is gathering the correct data as we expect. It isolates the rendering tree from the more complex data subscription part of the Meteor stack. If we wanted to test that the subscription side of things was working in concert with the smart component, we’d need to write a <a href="#full-app-integration-test">full app integration test</a>.</p> <p><a href="https://github.com/meteor/todos/blob/master/imports/ui/components/client/todos-item.tests.js" target="_blank" rel="noopener"><code>imports/ui/components/client/todos-item.tests.js</code></a>:</p>  <pre class="line-numbers" style><code class="language-js">/* eslint-env mocha */
 /* eslint-disable func-names, prefer-arrow-callback */
 
 import { Meteor } from 'meteor/meteor';
@@ -216,8 +391,7 @@ import { Random } from 'meteor/random';
 import chai from 'chai';
 import StubCollections from 'meteor/hwillson:stub-collections';
 import { Template } from 'meteor/templating';
-import { _ } from 'meteor/underscore';
-import { $ } from 'meteor/jquery';
+import $ from 'jquery';
 import { FlowRouter } from 'meteor/ostrio:flow-router-extra';
 import sinon from 'sinon';
 
@@ -237,7 +411,7 @@ describe('Lists_show_page', function () {
     sinon.stub(Meteor, 'subscribe').returns.({
       subscriptionId: 0,
       ready: () =&gt; true,
-    }));
+    });
   });
 
   afterEach(function () {
@@ -250,7 +424,7 @@ describe('Lists_show_page', function () {
   it('renders correctly with simple data', function () {
     Factory.create('list', { _id: listId });
     const timestamp = new Date();
-    const todos = _.times(3, i =&gt; Factory.create('todo', {
+    const todos = [...Array(3).keys()].forEach(i =&gt; Factory.create('todo', {
       listId,
       createdAt: new Date(timestamp - (3 - i)),
     }));
@@ -274,7 +448,7 @@ import { FlowRouter } from 'meteor/ostrio:flow-router-extra';
 import { assert } from 'chai';
 
 import { Promise } from 'meteor/promise';
-import { $ } from 'meteor/jquery';
+import $ from 'jquery';
 
 import { denodeify } from '../../utils/denodeify';
 import { generateData } from './../../api/generate-data.app-tests.js';
@@ -335,13 +509,12 @@ import { Meteor } from 'meteor/meteor';
 import { Factory } from 'meteor/dburles:factory';
 import { resetDatabase } from 'meteor/xolvio:cleaner';
 import { Random } from 'meteor/random';
-import { _ } from 'meteor/underscore';
 
 import { denodeify } from '../utils/denodeify';
 
 const createList = (userId) =&gt; {
   const list = Factory.create('list', { userId });
-  _.times(3, () =&gt; Factory.create('todo', { listId: list._id }));
+  [...Array(3).keys()].forEach(() =&gt; Factory.create('todo', { listId: list._id }));
   return list;
 };
 
@@ -352,10 +525,10 @@ Meteor.methods({
     resetDatabase();
 
     // create 3 public lists
-    _.times(3, () =&gt; createList());
+    [...Array(3).keys()].forEach(() =&gt; createList());
 
     // create 3 private lists
-    _.times(3, () =&gt; createList(Random.id()));
+    [...Array(3).keys()].forEach(() =&gt; createList(Random.id()));
   },
 });
 
@@ -372,44 +545,50 @@ if (Meteor.isClient) {
 }
 
 export { generateData };
-</code></pre> <p>Note that we’ve exported a client-side symbol <code>generateData</code> which is a promisified version of the method call, which makes it simpler to use this sequentially in tests.</p> <p>Also of note is the way we use a second DDP connection to the server in order to send these test “control” method calls.</p> <h2 id="acceptance-testing">Acceptance testing</h2> <p>Acceptance testing is the process of taking an unmodified version of our application and testing it from the “outside” to make sure it behaves in a way we expect. Typically if an app passes acceptance tests, we have done our job properly from a product perspective.</p> <p>As acceptance tests test the behavior of the application in a full browser context in a generic way, there are a range of tools that you can use to specify and run such tests. In this guide we’ll demonstrate using <a href="https://chimp.readme.io" target="_blank" rel="noopener">Chimp</a>, an acceptance testing tool with a few neat Meteor-specific features that makes it easy to use.</p> <p>Chimp requires node version 4 or 5. You can check your node version by running:</p>  <pre class="line-numbers" style><code class="language-sh">node -v
-</code></pre> <p>You can install version 4 from <a href="https://nodejs.org/en/download/" target="_blank" rel="noopener">nodejs.org</a> or version 5 with <code>brew install node</code>. Then we can install the Chimp tool globally using:</p>  <pre class="line-numbers" style><code class="language-sh">npm install --global chimp
-</code></pre> <blockquote> <p>Note that you can also install Chimp as a <code>devDependency</code> in your <code>package.json</code> but you may run into problems deploying your application as it includes binary dependencies. You can avoid such problems by running <code>meteor npm prune</code> to remove non-production dependencies before deploying.</p> </blockquote> <p>Chimp has a variety of options for setting it up, but we can add some npm scripts which will run the currently tests we define in Chimp’s two main modes. We can add them to our <code>package.json</code>:</p>  <pre class="line-numbers" style><code class="language-json">{
-  "scripts": {
-    "chimp-watch": "chimp --ddp=http://localhost:3000 --watch --mocha --path=tests",
-    "chimp-test": "chimp --mocha --path=tests"
-  }
+</code></pre> <p>Note that we’ve exported a client-side symbol <code>generateData</code> which is a promisified version of the method call, which makes it simpler to use this sequentially in tests.</p> <p>Also of note is the way we use a second DDP connection to the server in order to send these test “control” method calls.</p> <h2 id="acceptance-testing">Acceptance testing</h2> <p>Acceptance testing is the process of taking an unmodified version of our application and testing it from the “outside” to make sure it behaves in a way we expect. Typically if an app passes acceptance tests, we have done our job properly from a product perspective.</p> <p>As acceptance tests test the behavior of the application in a full browser context in a generic way, there are a range of tools that you can use to specify and run such tests. In this guide we’ll demonstrate using <a href="https://www.cypress.io/" target="_blank" rel="noopener">Cypress</a>, an acceptance testing tool with a few neat Meteor-specific features that makes it easy to use.</p> <p>Install Cypress as a dev dependency:</p>  <pre class="line-numbers" style><code class="language-bash">cd /your/project/path
+meteor npm install cypress --save-dev
+</code></pre> <p>Designate a special directory for cypress test to avoid Meteor eagerly loading it:</p>  <pre class="line-numbers" style><code class="language-bash">mkdir tests
+mv cypress/ tests/cypress
+</code></pre> <p>Create <code>cypress.json</code> file at the root of your project to config Cypress: </p>  <pre class="line-numbers" style><code class="language-json">{
+  "fixturesFolder": "tests/cypress/fixtures",
+  "integrationFolder": "tests/cypress/integration",
+  "pluginsFile": "tests/cypress/plugins/index.js",
+  "screenshotsFolder": "tests/cypress/screenshots",
+  "supportFile": "tests/cypress/support/index.js",
+  "videosFolder": "tests/cypress/videos"
 }
-</code></pre> <p>Chimp will now look in the <code>tests/</code> directory (otherwise ignored by the Meteor tool) for files in which you define acceptance tests. In the <a href="https://github.com/meteor/todos" target="_blank" rel="noopener">Todos</a> example app, we define a simple test that ensures we can click the “create list” button.</p> <p><a href="https://github.com/meteor/todos/blob/master/tests/lists.js" target="_blank" rel="noopener"><code>tests/lists.js</code></a>:</p>  <pre class="line-numbers" style><code class="language-js">/* eslint-env mocha */
-/* eslint-disable func-names, prefer-arrow-callback */
-
-// These are Chimp globals
-/* globals browser assert server */
-
-function countLists() {
-  browser.waitForExist('.list-todo');
-  const elements = browser.elements('.list-todo');
-  return elements.value.length;
-};
-
-describe('list ui', function () {
-  beforeEach(function () {
-    browser.url('http://localhost:3000');
-    server.call('generateFixtures');
+</code></pre> <p>Add commands to your <code>package.json</code></p>  <pre class="line-numbers" style><code class="language-js"> "scripts": {
+    "cypress:gui": "cypress open",
+    "cypress:headless": "cypress run"
+  },
+</code></pre> <p>Now, let’s create a simple test by adding a new file called <code>signup_tests.js</code> in the <code>tests/cypress/integration/</code> directory.</p>  <pre class="line-numbers" style><code class="language-js">describe("sign-up", () =&gt; {
+  beforeEach(() =&gt; {
+    cy.visit("http://localhost:3000/");
   });
 
-  it('can create a list @watch', function () {
-    const initialCount = countLists();
+  it("should create and log the new user", () =&gt; {
+    cy.contains("Register").click();
+    cy.get("input#at-field-email").type("jean-peter.mac.calloway@gmail.com");
+    cy.get("input#at-field-password").type("awesome-password");
+    cy.get("input#at-field-password_again").type("awesome-password");
+    // I added a name field on meteor user accounts system
+    cy.get("input#at-field-name").type("Jean-Peter");
+    cy.get("button#at-btn").click();
 
-    browser.click('.js-new-list');
+    cy.url().should("eq", "http://localhost:3000/board");
 
-    assert.equal(countLists(), initialCount + 1);
+    cy.window().then(win =&gt; {
+      // this allows accessing the window object within the browser
+      const user = win.Meteor.user();
+      expect(user).to.exist;
+      expect(user.profile.name).to.equal("Jean-Peter");
+      expect(user.emails[0].address).to.equal(
+        "jean-peter.mac.calloway@gmail.com"
+      );
+    });
   });
 });
-</code></pre> <h3 id="running-acceptance-tests">Running acceptance tests</h3> <p>To run acceptance tests, we need to start our Meteor app as usual, and point Chimp at it.</p> <p>In one terminal, we can do:</p>  <pre class="line-numbers" style><code class="language-bash">meteor
-</code></pre> <p>In another:</p>  <pre class="line-numbers" style><code class="language-bash">meteor npm run chimp-watch
-</code></pre> <p>The <code>chimp-watch</code> command will then run the test in a browser, and continue to re-run it as we change the test or the application. (Note that the test assumes we are running the app on port <code>3000</code>).</p> <p>Thus it’s a good way to develop the test—this is why chimp has a feature where we mark tests with a <code>@watch</code> in the name to call out the tests we want to work on (running our entire acceptance test suite can be time consuming in a large application).</p> <p>The <code>chimp-test</code> command will run all of the tests <em>once only</em> and is good for testing that our suite passes, either as a manual step, or as part of a <a href="#ci">continuous integration</a> process.</p> <h3 id="creating-acceptance-test-data">Creating data</h3> <p>Although we can run the acceptance test against our “pure” Meteor app, as we’ve done above, it often makes sense to start our meteor server with a special test driver, <code>tmeasday:acceptance-test-driver</code>. (You’ll need to <code>meteor add</code> it to your app):</p>  <pre class="line-numbers" style><code class="language-txt">meteor test --full-app --driver-package tmeasday:acceptance-test-driver
-</code></pre> <p>The advantage of running our acceptance test suite pointed at an app that runs in full app test mode is that all of the <a href="#creating-integration-test-data">data generating methods</a> that we’ve created remain available. Otherwise the <code>acceptance-test-driver</code> does nothing.</p> <p>In Chimp tests, you have a DDP connection to the server available on the <code>server</code> variable. You can thus use <code>server.call()</code> (which is wrapped to be synchronous in Chimp tests) to call these methods. This is a convenient way to share data preparation code between acceptance and integration tests.</p> <h2 id="ci">Continuous Integration</h2> <p>Continuous integration testing is the process of running tests on every commit of your project.</p> <p>There are two principal ways to do it: on the developer’s machine before allowing them to push code to the central repository, and on a dedicated CI server after each push. Both techniques are useful, and both require running tests in a commandline-only fashion.</p> <h3 id="command-line">Command line</h3> <p>We’ve seen one example of running tests on the command line, using our <code>meteor npm run chimp-test</code> mode.</p> <p>We can also use a command-line driver for Mocha <a href="https://atmospherejs.com/meteortesting/mocha" target="_blank" rel="noopener"><code>meteortesting:mocha</code></a> to run our standard tests on the command line.</p> <p>Adding and using the package is straightforward:</p>  <pre class="line-numbers" style><code class="language-bash">meteor add meteortesting:mocha
+</code></pre> <p>This is example is sampled from <a href="https://dev.to/splitified/test-your-meteor-app-with-docker-jenkins-and-cypress-part-1-12om" target="_blank" rel="noopener">Jean-Denis Gallego post</a>. You may also check out this <a href="https://blog.meteor.com/testing-a-meteor-app-with-cypress-bfb3d3c6ed6f?gi=4f799b6211b7" target="_blank" rel="noopener">entry</a> on Meteor blog and <a href="https://marmelab.com/blog/2019/02/28/cypress-on-meteor.html" target="_blank" rel="noopener">marmelab</a> article for more information.</p> <h2 id="ci">Continuous Integration</h2> <p>Continuous integration testing is the process of running tests on every commit of your project.</p> <p>There are two principal ways to do it: on the developer’s machine before allowing them to push code to the central repository, and on a dedicated CI server after each push. Both techniques are useful, and both require running tests in a commandline-only fashion.</p> <h3 id="command-line">Command line</h3> <p>We’ve seen one example of running tests on the command line, using our <code>meteor npm run cypress:headless</code> mode.</p> <p>We can also use a command-line driver for Mocha <a href="https://atmospherejs.com/meteortesting/mocha" target="_blank" rel="noopener"><code>meteortesting:mocha</code></a> to run our standard tests on the command line.</p> <p>Adding and using the package is straightforward:</p>  <pre class="line-numbers" style><code class="language-bash">meteor add meteortesting:mocha
 meteor test --once --driver-package meteortesting:mocha
 </code></pre> <p>(The <code>--once</code> argument ensures the Meteor process stops once the test is done).</p> <p>We can also add that command to our <code>package.json</code> as a <code>test</code> script:</p>  <pre class="line-numbers" style><code class="language-json">{
   "scripts": {

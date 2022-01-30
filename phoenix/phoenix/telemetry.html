@@ -4,12 +4,12 @@
 <p>As you follow along with this guide, we will introduce you to the core concepts of Telemetry, you will initialize a reporter to capture your application's events as they occur, and we will guide you through the steps to properly instrument your own functions using <code class="inline">:telemetry</code>. Let's take a closer look at how Telemetry works in your application.</p>
 <h2 id="overview" class="section-heading">  Overview </h2> <p>The <code class="inline">[:telemetry]</code> library allows you to emit events at various stages of an application's lifecycle. You can then respond to these events by, among other things, aggregating them as metrics and sending the metrics data to a reporting destination.</p>
 <p>Telemetry stores events by their name in an ETS table, along with the handler for each event. Then, when a given event is executed, Telemetry looks up its handler and invokes it.</p>
-<p>Phoenix's Telemetry tooling provides you with a supervisor that uses <a href="https://hexdocs.pm/telemetry_metrics/Telemetry.Metrics.html"><code class="inline">Telemetry.Metrics</code></a> to define the list of Telemetry events to handle and how to handle those events, i.e. how to structure them as a certain type of metric. This supervisor works together with Telemetry reporters to respond to the specified Telemetry events by aggregating them as the appropriate metric and sending them to the correct reporting destination.</p>
+<p>Phoenix's Telemetry tooling provides you with a supervisor that uses <a href="https://hexdocs.pm/telemetry_metrics/0.6.1/Telemetry.Metrics.html"><code class="inline">Telemetry.Metrics</code></a> to define the list of Telemetry events to handle and how to handle those events, i.e. how to structure them as a certain type of metric. This supervisor works together with Telemetry reporters to respond to the specified Telemetry events by aggregating them as the appropriate metric and sending them to the correct reporting destination.</p>
 <h2 id="the-telemetry-supervisor" class="section-heading">  The Telemetry supervisor </h2> <p>Since v1.5, new Phoenix applications are generated with a Telemetry supervisor. This module is responsible for managing the lifecycle of your Telemetry processes. It also defines a <code class="inline">metrics/0</code> function, which returns a list of <a href="https://hexdocs.pm/telemetry_metrics"><code class="inline">Telemetry.Metrics</code></a> that you define for your application.</p>
-<p>By default, the supervisor also starts <a href="http://hexdocs.pm/telemetry_poller"><code class="inline">:telemetry_poller</code></a>. By simply adding <code class="inline">:telemetry_poller</code> as a dependency, you can receive VM-related events on a specified interval.</p>
+<p>By default, the supervisor also starts <a href="https://hexdocs.pm/telemetry_poller"><code class="inline">:telemetry_poller</code></a>. By simply adding <code class="inline">:telemetry_poller</code> as a dependency, you can receive VM-related events on a specified interval.</p>
 <p>If you are coming from an older version of Phoenix, install the <code class="inline">:telemetry_metrics</code> and <code class="inline">:telemetry_poller</code> packages:</p>
-<pre data-language="elixir">{:telemetry_metrics, "~&gt; 0.4"},
-{:telemetry_poller, "~&gt; 0.4"}</pre>
+<pre data-language="elixir">{:telemetry_metrics, "~&gt; 0.6"},
+{:telemetry_poller, "~&gt; 1.0"}</pre>
 <p>and create your Telemetry supervisor at <code class="inline">lib/my_app_web/telemetry.ex</code>:</p>
 <pre data-language="elixir"># lib/my_app_web/telemetry.ex
 defmodule MyAppWeb.Telemetry do
@@ -64,34 +64,34 @@ end</pre>
   MyAppWeb.Endpoint,
   ...
 ]</pre>
-<h2 id="telemetry-events" class="section-heading">  Telemetry Events </h2> <p>Many Elixir libraries (including Phoenix) are already using the <a href="http://hexdocs.pm/telemetry"><code class="inline">:telemetry</code></a> package as a way to give users more insight into the behavior of their applications, by emitting events at key moments in the application lifecycle.</p>
+<h2 id="telemetry-events" class="section-heading">  Telemetry Events </h2> <p>Many Elixir libraries (including Phoenix) are already using the <a href="https://hexdocs.pm/telemetry"><code class="inline">:telemetry</code></a> package as a way to give users more insight into the behavior of their applications, by emitting events at key moments in the application lifecycle.</p>
 <p>A Telemetry event is made up of the following:</p>
 <ul>
 <li><p><code class="inline">name</code> - A string (e.g. <code class="inline">"my_app.worker.stop"</code>) or a list of atoms that uniquely identifies the event.</p></li>
 <li><p><code class="inline">measurements</code> - A map of atom keys (e.g. <code class="inline">:duration</code>) and numeric values.</p></li>
-<li><p><code class="inline">metadata</code> - A map of key/value pairs that can be used for tagging metrics.</p></li>
+<li><p><code class="inline">metadata</code> - A map of key-value pairs that can be used for tagging metrics.</p></li>
 </ul>
 <h3 id="a-phoenix-example" class="section-heading">  A Phoenix Example </h3> <p>Here is an example of an event from your endpoint:</p>
 <ul><li>
-<code class="inline">[:phoenix, :endpoint, :stop]</code> - dispatched by <a href="../plug/plug.telemetry"><code class="inline">Plug.Telemetry</code></a>, one of the default plugs in your endpoint, whenever the response is sent<ul>
+<code class="inline">[:phoenix, :endpoint, :stop]</code> - dispatched by <a href="../plug/1.12.1/plug.telemetry"><code class="inline">Plug.Telemetry</code></a>, one of the default plugs in your endpoint, whenever the response is sent<ul>
 <li>Measurement: <code class="inline">%{duration: native_time}</code>
 </li>
 <li>Metadata: <code class="inline">%{conn: Plug.Conn.t}</code>
 </li>
 </ul>
 </li></ul>
-<p>This means that after each request, <a href="../plug/plug"><code class="inline">Plug</code></a>, via <code class="inline">:telemetry</code>, will emit a "stop" event, with a measurement of how long it took to get the response:</p>
+<p>This means that after each request, <a href="../plug/1.12.1/plug"><code class="inline">Plug</code></a>, via <code class="inline">:telemetry</code>, will emit a "stop" event, with a measurement of how long it took to get the response:</p>
 <pre data-language="elixir">:telemetry.execute([:phoenix, :endpoint, :stop], %{duration: duration}, %{conn: conn})</pre>
 <h3 id="phoenix-telemetry-events" class="section-heading">  Phoenix Telemetry Events </h3> <p>A full list of all Phoenix telemetry events can be found in <a href="phoenix.logger"><code class="inline">Phoenix.Logger</code></a></p>
 <h2 id="metrics" class="section-heading">  Metrics </h2> <blockquote>
 <p>Metrics are aggregations of Telemetry events with a specific name, providing a view of the system's behaviour over time.</p>
-<p>&amp;#x2015; <a href="https://hexdocs.pm/telemetry_metrics/Telemetry.Metrics.html"><code class="inline">Telemetry.Metrics</code></a></p>
+<p>― <a href="https://hexdocs.pm/telemetry_metrics/0.6.1/Telemetry.Metrics.html"><code class="inline">Telemetry.Metrics</code></a></p>
 </blockquote>
 <p>The Telemetry.Metrics package provides a common interface for defining metrics. It exposes a set of <a href="https://hexdocs.pm/telemetry_metrics/Telemetry.Metrics.html#module-metrics">five metric type functions</a> that are responsible for structuring a given Telemetry event as a particular measurement.</p>
 <p>The package does not perform any aggregation of the measurements itself. Instead, it provides a reporter with the Telemetry event-as-measurement definition and the reporter uses that definition to perform aggregations and report them.</p>
 <p>We will discuss reporters in the next section.</p>
 <p>Let's take a look at some examples.</p>
-<p>Using <a href="https://hexdocs.pm/telemetry_metrics/Telemetry.Metrics.html"><code class="inline">Telemetry.Metrics</code></a>, you can define a counter metric, which counts how many HTTP requests were completed:</p>
+<p>Using <a href="https://hexdocs.pm/telemetry_metrics/0.6.1/Telemetry.Metrics.html"><code class="inline">Telemetry.Metrics</code></a>, you can define a counter metric, which counts how many HTTP requests were completed:</p>
 <pre data-language="elixir">Telemetry.Metrics.counter("phoenix.endpoint.stop.duration")</pre>
 <p>or you could use a distribution metric to see how many requests were completed in particular time buckets:</p>
 <pre data-language="elixir">Telemetry.Metrics.distribution("phoenix.endpoint.stop.duration", buckets: [100, 200, 300])</pre>
@@ -100,39 +100,39 @@ end</pre>
 <h3 id="an-ecto-example" class="section-heading">  An Ecto Example </h3> <p>Like Phoenix, Ecto ships with built-in Telemetry events. This means that you can gain introspection into your web and database layers using the same tools.</p>
 <p>Here is an example of a Telemetry event executed by Ecto when an Ecto repository starts:</p>
 <ul><li>
-<code class="inline">[:ecto, :repo, :init]</code> - dispatched by <code class="inline">Ecto.Repo.Supervisor</code><ul>
+<code class="inline">[:ecto, :repo, :init]</code> - dispatched by <a href="../ecto/3.7.0/ecto.repo"><code class="inline">Ecto.Repo</code></a><ul>
 <li>Measurement: <code class="inline">%{system_time: native_time}</code>
 </li>
 <li>Metadata: <code class="inline">%{repo: Ecto.Repo, opts: Keyword.t()}</code>
 </li>
 </ul>
 </li></ul>
-<p>This means that whenever the <code class="inline">Ecto.Repo.Supervisor</code> starts, it will emit an event, via <code class="inline">:telemetry</code>, with a measurement of the time at start-up.</p>
+<p>This means that whenever the <a href="../ecto/3.7.0/ecto.repo"><code class="inline">Ecto.Repo</code></a> starts, it will emit an event, via <code class="inline">:telemetry</code>, with a measurement of the time at start-up.</p>
 <pre data-language="elixir">:telemetry.execute([:ecto, :repo, :init], %{system_time: System.system_time()}, %{repo: repo, opts: opts})</pre>
 <p>Additional Telemetry events are executed by Ecto adapters.</p>
-<p>One such adapter-specific event is the <code class="inline">[:my_app, :repo, :query]</code> event. For instance, if you want to graph query execution time, you can use the <a href="https://hexdocs.pm/telemetry_metrics/Telemetry.Metrics.html#summary/2"><code class="inline">Telemetry.Metrics.summary/2</code></a> function to instruct your reporter to calculate statistics of the <code class="inline">[:my_app, :repo, :query]</code> event, like maximum, mean, percentiles etc.:</p>
+<p>One such adapter-specific event is the <code class="inline">[:my_app, :repo, :query]</code> event. For instance, if you want to graph query execution time, you can use the <a href="https://hexdocs.pm/telemetry_metrics/0.6.1/Telemetry.Metrics.html#summary/2"><code class="inline">Telemetry.Metrics.summary/2</code></a> function to instruct your reporter to calculate statistics of the <code class="inline">[:my_app, :repo, :query]</code> event, like maximum, mean, percentiles etc.:</p>
 <pre data-language="elixir">Telemetry.Metrics.summary("my_app.repo.query.query_time",
   unit: {:native, :millisecond}
 )</pre>
-<p>Or you could use the <a href="https://hexdocs.pm/telemetry_metrics/Telemetry.Metrics.html#distribution/2"><code class="inline">Telemetry.Metrics.distribution/2</code></a> function to define a histogram for another adapter-specific event: <code class="inline">[:my_app, :repo, :query, :queue_time]</code>, thus visualizing how long queries spend queued:</p>
+<p>Or you could use the <a href="https://hexdocs.pm/telemetry_metrics/0.6.1/Telemetry.Metrics.html#distribution/2"><code class="inline">Telemetry.Metrics.distribution/2</code></a> function to define a histogram for another adapter-specific event: <code class="inline">[:my_app, :repo, :query, :queue_time]</code>, thus visualizing how long queries spend queued:</p>
 <pre data-language="elixir">Telemetry.Metrics.distribution("my_app.repo.query.queue_time",
   unit: {:native, :millisecond},
   buckets: [10, 50, 100]
 )</pre>
 <blockquote><p>You can learn more about Ecto Telemetry in the "Telemetry Events" section of the <a href="../ecto/ecto.repo"><code class="inline">Ecto.Repo</code></a> module documentation.</p></blockquote>
 <p>So far we have seen some of the Telemetry events common to Phoenix applications, along with some examples of their various measurements and metadata. With all of this data just waiting to be consumed, let's talk about reporters.</p>
-<h2 id="reporters" class="section-heading">  Reporters </h2> <p>Reporters subscribe to Telemetry events using the common interface provided by <a href="https://hexdocs.pm/telemetry_metrics/Telemetry.Metrics.html"><code class="inline">Telemetry.Metrics</code></a>. They then aggregate the measurements (data) into metrics to provide meaningful information about your application.</p>
-<p>For example, if the following <a href="https://hexdocs.pm/telemetry_metrics/Telemetry.Metrics.html#summary/2"><code class="inline">Telemetry.Metrics.summary/2</code></a> call is added to the <code class="inline">metrics/0</code> function of your Telemetry supervisor:</p>
+<h2 id="reporters" class="section-heading">  Reporters </h2> <p>Reporters subscribe to Telemetry events using the common interface provided by <a href="https://hexdocs.pm/telemetry_metrics/0.6.1/Telemetry.Metrics.html"><code class="inline">Telemetry.Metrics</code></a>. They then aggregate the measurements (data) into metrics to provide meaningful information about your application.</p>
+<p>For example, if the following <a href="https://hexdocs.pm/telemetry_metrics/0.6.1/Telemetry.Metrics.html#summary/2"><code class="inline">Telemetry.Metrics.summary/2</code></a> call is added to the <code class="inline">metrics/0</code> function of your Telemetry supervisor:</p>
 <pre data-language="elixir">summary("phoenix.endpoint.stop.duration",
   unit: {:native, :millisecond}
 )</pre>
 <p>Then the reporter will attach a listener for the <code class="inline">"phoenix.endpoint.stop.duration"</code> event and will respond to this event by calculating a summary metric with the given event metadata and reporting on that metric to the appropriate source.</p>
 <h3 id="phoenix-livedashboard" class="section-heading">  Phoenix.LiveDashboard </h3> <p>For developers interested in real-time visualizations for their Telemetry metrics, you may be interested in installing <a href="https://hexdocs.pm/phoenix_live_dashboard"><code class="inline">LiveDashboard</code></a>. LiveDashboard acts as a Telemetry.Metrics reporter to render your data as beautiful, real-time charts on the dashboard.</p>
-<h3 id="telemetry-metrics-consolereporter" class="section-heading">  Telemetry.Metrics.ConsoleReporter </h3> <p><a href="https://hexdocs.pm/telemetry_metrics/Telemetry.Metrics.html"><code class="inline">Telemetry.Metrics</code></a> ships with a <code class="inline">ConsoleReporter</code> that can be used to print events and metrics to the terminal. You can use this reporter to experiment with the metrics discussed in this guide.</p>
+<h3 id="telemetry-metrics-consolereporter" class="section-heading">  Telemetry.Metrics.ConsoleReporter </h3> <p><a href="https://hexdocs.pm/telemetry_metrics/0.6.1/Telemetry.Metrics.html"><code class="inline">Telemetry.Metrics</code></a> ships with a <code class="inline">ConsoleReporter</code> that can be used to print events and metrics to the terminal. You can use this reporter to experiment with the metrics discussed in this guide.</p>
 <p>Uncomment or add the following to this list of children in your Telemetry supervision tree (usually in <code class="inline">lib/my_app_web/telemetry.ex</code>):</p>
 <pre data-language="elixir">{Telemetry.Metrics.ConsoleReporter, metrics: metrics()}</pre>
 <blockquote><p>There are numerous reporters available, for services like StatsD, Prometheus, and more. You can find them by searching for "telemetry_metrics" on <a href="https://hex.pm/packages?search=telemetry_metrics">hex.pm</a>.</p></blockquote>
-<h2 id="phoenix-metrics" class="section-heading">  Phoenix Metrics </h2> <p>Earlier we looked at the "stop" event emitted by <a href="../plug/plug.telemetry"><code class="inline">Plug.Telemetry</code></a>, and used it to count the number of HTTP requests. In reality, it's only somewhat helpful to be able to see just the total number of requests. What if you wanted to see the number of requests per route, or per route <em>and</em> method?</p>
+<h2 id="phoenix-metrics" class="section-heading">  Phoenix Metrics </h2> <p>Earlier we looked at the "stop" event emitted by <a href="../plug/1.12.1/plug.telemetry"><code class="inline">Plug.Telemetry</code></a>, and used it to count the number of HTTP requests. In reality, it's only somewhat helpful to be able to see just the total number of requests. What if you wanted to see the number of requests per route, or per route <em>and</em> method?</p>
 <p>Let's take a look at another event emitted during the HTTP request lifecycle, this time from <a href="phoenix.router"><code class="inline">Phoenix.Router</code></a>:</p>
 <ul><li>
 <code class="inline">[:phoenix, :router_dispatch, :stop]</code> - dispatched by Phoenix.Router after successfully dispatching to a matched route<ul>
@@ -155,13 +155,13 @@ def metrics do
 end</pre>
 <p>Restart your server, and then make requests to a page or two. In your terminal, you should see the ConsoleReporter print logs for the Telemetry events it received as a result of the metrics definitions you provided.</p>
 <p>The log line for each request contains the specific route for that request. This is due to specifying the <code class="inline">:tags</code> option for the summary metric, which takes care of our first requirement; we can use <code class="inline">:tags</code> to group metrics by route. Note that reporters will necessarily handle tags differently depending on the underlying service in use.</p>
-<p>Looking more closely at the Router "stop" event, you can see that the <a href="../plug/plug.conn"><code class="inline">Plug.Conn</code></a> struct representing the request is present in the metadata, but how do you access the properties in <code class="inline">conn</code>?</p>
-<p>Fortunately, <a href="https://hexdocs.pm/telemetry_metrics/Telemetry.Metrics.html"><code class="inline">Telemetry.Metrics</code></a> provides the following options to help you classify your events:</p>
+<p>Looking more closely at the Router "stop" event, you can see that the <a href="../plug/1.12.1/plug.conn"><code class="inline">Plug.Conn</code></a> struct representing the request is present in the metadata, but how do you access the properties in <code class="inline">conn</code>?</p>
+<p>Fortunately, <a href="https://hexdocs.pm/telemetry_metrics/0.6.1/Telemetry.Metrics.html"><code class="inline">Telemetry.Metrics</code></a> provides the following options to help you classify your events:</p>
 <ul>
 <li><p><code class="inline">:tags</code> - A list of metadata keys for grouping;</p></li>
 <li><p><code class="inline">:tag_values</code> - A function which transforms the metadata into the desired shape; Note that this function is called for each event, so it's important to keep it fast if the rate of events is high.</p></li>
 </ul>
-<blockquote><p>Learn about all the available metrics options in the <a href="https://hexdocs.pm/telemetry_metrics/Telemetry.Metrics.html"><code class="inline">Telemetry.Metrics</code></a> module documentation.</p></blockquote>
+<blockquote><p>Learn about all the available metrics options in the <a href="https://hexdocs.pm/telemetry_metrics/0.6.1/Telemetry.Metrics.html"><code class="inline">Telemetry.Metrics</code></a> module documentation.</p></blockquote>
 <p>Let's find out how to extract more tags from events that include a <code class="inline">conn</code> in their metadata.</p>
 <h3 id="extracting-tag-values-from-plug-conn" class="section-heading">  Extracting tag values from Plug.Conn </h3> <p>Let's add another metric for the route event, this time to group by route and method:</p>
 <pre data-language="elixir">summary("phoenix.router_dispatch.stop.duration",
@@ -170,13 +170,13 @@ end</pre>
   unit: {:native, :millisecond}
 )</pre>
 <p>We've introduced the <code class="inline">:tag_values</code> option here, because we need to perform a transformation on the event metadata in order to get to the values we need.</p>
-<p>Add the following private function to your Telemetry module to lift the <code class="inline">:method</code> value from the <a href="../plug/plug.conn"><code class="inline">Plug.Conn</code></a> struct:</p>
+<p>Add the following private function to your Telemetry module to lift the <code class="inline">:method</code> value from the <a href="../plug/1.12.1/plug.conn"><code class="inline">Plug.Conn</code></a> struct:</p>
 <pre data-language="elixir"># lib/my_app_web/telemetry.ex
 defp get_and_put_http_method(%{conn: %{method: method}} = metadata) do
   Map.put(metadata, :method, method)
 end</pre>
 <p>Restart your server and make some more requests. You should begin to see logs with tags for both the HTTP method and the route.</p>
-<p>Note the <code class="inline">:tags</code> and <code class="inline">:tag_values</code> options can be applied to all <a href="https://hexdocs.pm/telemetry_metrics/Telemetry.Metrics.html"><code class="inline">Telemetry.Metrics</code></a> types.</p>
+<p>Note the <code class="inline">:tags</code> and <code class="inline">:tag_values</code> options can be applied to all <a href="https://hexdocs.pm/telemetry_metrics/0.6.1/Telemetry.Metrics.html"><code class="inline">Telemetry.Metrics</code></a> types.</p>
 <h3 id="renaming-value-labels-using-tag-values" class="section-heading">  Renaming value labels using tag values </h3> <p>Sometimes when displaying a metric, the value label may need to be transformed to improve readability. Take for example the following metric that displays the duration of the each LiveView's <code class="inline">mount/3</code> callback by <code class="inline">connected?</code> status.</p>
 <pre data-language="elixir">summary("phoenix.live_view.mount.stop.duration",
   unit: {:native, :millisecond},
@@ -203,7 +203,7 @@ defp get_connection_status(%{connected?: true}), do: "Connected"
 defp get_connection_status(%{connected?: false}), do: "Disconnected"</pre>
 <p>Now the value label will be rendered like <code class="inline">"Phoenix.LiveDashboard.MetricsLive Connected"</code>.</p>
 <p>Hopefully, this gives you some inspiration on how to use the <code class="inline">:tag_values</code> option. Just remember to keep this function fast since it is called on every event.</p>
-<h2 id="periodic-measurements" class="section-heading">  Periodic measurements </h2> <p>You might want to periodically measure key values within your application. Fortunately the <a href="http://hexdocs.pm/telemetry_poller"><code class="inline">:telemetry_poller</code></a> package provides a mechanism for custom measurements, which is useful for retrieving process information or for performing custom measurements periodically.</p>
+<h2 id="periodic-measurements" class="section-heading">  Periodic measurements </h2> <p>You might want to periodically measure key-value pairs within your application. Fortunately the <a href="https://hexdocs.pm/telemetry_poller"><code class="inline">:telemetry_poller</code></a> package provides a mechanism for custom measurements, which is useful for retrieving process information or for performing custom measurements periodically.</p>
 <p>Add the following to the list in your Telemetry supervisor's <code class="inline">periodic_measurements/0</code> function, which is a private function that returns a list of measurements to take on a specified interval.</p>
 <pre data-language="elixir"># lib/my_app_web/telemetry.ex
 defp periodic_measurements do
@@ -240,7 +240,8 @@ end</pre>
 <p>Library authors are actively encouraged to send a PR adding their own (in alphabetical order, please):</p>
 <ul>
 <li>
-<a href="https://hexdocs.pm/absinthe">Absinthe</a> - Coming Soon!</li>
+<a href="https://hexdocs.pm/absinthe">Absinthe</a> - <a href="https://hexdocs.pm/absinthe/telemetry.html">Events</a>
+</li>
 <li>
 <a href="https://hexdocs.pm/broadway">Broadway</a> - <a href="https://hexdocs.pm/broadway/Broadway.html#module-telemetry">Events</a>
 </li>
@@ -378,7 +379,7 @@ children = [
   {MyApp.MyServer, fn -&gt; "Hello, world!" end},
 ]</pre>
 <p>Now start an IEx session and call the server:</p>
-<pre data-language="elixir">iex(1)&gt; MyApp.MyServer.call!</pre>
+<pre data-language="elixir">iex&gt; MyApp.MyServer.call!</pre>
 <p>and you should see something like the following output:</p>
 <pre data-language="elixir">[Telemetry.Metrics.ConsoleReporter] Got new event!
 Event name: my_app.my_server.call.stop
@@ -389,7 +390,7 @@ Metric measurement: #Function&lt;2.111777250/1 in Telemetry.Metrics.maybe_conver
 With value: 0.004 millisecond
 Tag values: %{}
 
-"Hello, world!"</pre> <div class="bottom-actions"> <div class="bottom-actions-item"> <a href="mix_tasks" class="bottom-actions-button" rel="prev"> <span class="subheader"> ← Previous Page </span> <span class="title"> Mix Tasks </span> </a> </div> <div class="bottom-actions-item"> <a href="channels" class="bottom-actions-button" rel="next"> <span class="subheader"> Next Page → </span> <span class="title"> Channels </span> </a> </div> </div><div class="_attribution">
+"Hello, world!"</pre> <div class="bottom-actions"> <div class="bottom-actions-item"> <a href="mix_tasks" class="bottom-actions-button" rel="prev"> <span class="subheader"> ← Previous Page </span> <span class="title"> Mix tasks </span> </a> </div> <div class="bottom-actions-item"> <a href="asset_management" class="bottom-actions-button" rel="next"> <span class="subheader"> Next Page → </span> <span class="title"> Asset Management </span> </a> </div> </div><div class="_attribution">
   <p class="_attribution-p">
     <a href="https://hexdocs.pm/phoenix/telemetry.html" class="_attribution-link" target="_blank">https://hexdocs.pm/phoenix/telemetry.html</a>
   </p>

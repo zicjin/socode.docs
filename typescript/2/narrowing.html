@@ -2,15 +2,15 @@
 <p>Imagine we have a function called <code>padLeft</code>.</p> <pre data-language="ts">function padLeft(padding: number | string, input: string): string {
   throw new Error("Not implemented yet!");
 }</pre> <p>If <code>padding</code> is a <code>number</code>, it will treat that as the number of spaces we want to prepend to <code>input</code>. If <code>padding</code> is a <code>string</code>, it should just prepend <code>padding</code> to <code>input</code>. Let’s try to implement the logic for when <code>padLeft</code> is passed a <code>number</code> for <code>padding</code>.</p> <pre data-language="ts">function padLeft(padding: number | string, input: string) {
-  return new Array(padding + 1).join(" ") + input;
-}</pre> <p>Uh-oh, we’re getting an error on <code>padding + 1</code>. TypeScript is warning us that adding a <code>number</code> to a <code>number | string</code> might not give us what we want, and it’s right. In other words, we haven’t explicitly checked if <code>padding</code> is a <code>number</code> first, nor are we handling the case where it’s a <code>string</code>, so let’s do exactly that.</p> <pre data-language="ts">function padLeft(padding: number | string, input: string) {
+  return " ".repeat(padding) + input;
+}</pre> <p>Uh-oh, we’re getting an error on <code>padding</code>. TypeScript is warning us that adding a <code>number | string</code> to a <code>number</code> might not give us what we want, and it’s right. In other words, we haven’t explicitly checked if <code>padding</code> is a <code>number</code> first, nor are we handling the case where it’s a <code>string</code>, so let’s do exactly that.</p> <pre data-language="ts">function padLeft(padding: number | string, input: string) {
   if (typeof padding === "number") {
-    return new Array(padding + 1).join(" ") + input;
+    return " ".repeat(padding) + input;
   }
   return padding + input;
 }</pre> <p>If this mostly looks like uninteresting JavaScript code, that’s sort of the point. Apart from the annotations we put in place, this TypeScript code looks like JavaScript. The idea is that TypeScript’s type system aims to make it as easy as possible to write typical JavaScript code without bending over backwards to get type safety.</p> <p>While it might not look like much, there’s actually a lot going under the covers here. Much like how TypeScript analyzes runtime values using static types, it overlays type analysis on JavaScript’s runtime control flow constructs like <code>if/else</code>, conditional ternaries, loops, truthiness checks, etc., which can all affect those types.</p> <p>Within our <code>if</code> check, TypeScript sees <code>typeof padding === "number"</code> and understands that as a special form of code called a <em>type guard</em>. TypeScript follows possible paths of execution that our programs can take to analyze the most specific possible type of a value at a given position. It looks at these special checks (called <em>type guards</em>) and assignments, and the process of refining types to more specific types than declared is called <em>narrowing</em>. In many editors we can observe these types as they change, and we’ll even do so in our examples.</p> <pre data-language="ts">function padLeft(padding: number | string, input: string) {
   if (typeof padding === "number") {
-    return new Array(padding + 1).join(" ") + input;
+    return " ".repeat(padding) + input;
   }
   return padding + input;
 }</pre> <p>There are a couple of different constructs TypeScript understands for narrowing.</p> <h2 id="typeof-type-guards" style="position:relative;">
@@ -33,7 +33,7 @@
 <code>""</code> (the empty string)</li> <li>
 <code>0n</code> (the <code>bigint</code> version of zero)</li> <li><code>null</code></li> <li><code>undefined</code></li> </ul> <p>all coerce to <code>false</code>, and other values get coerced <code>true</code>. You can always coerce values to <code>boolean</code>s by running them through the <code>Boolean</code> function, or by using the shorter double-Boolean negation. (The latter has the advantage that TypeScript infers a narrow literal boolean type <code>true</code>, while inferring the first as type <code>boolean</code>.)</p> <pre data-language="ts">// both of these result in 'true'
 Boolean("hello"); // type: boolean, value: true
-!!"world";        // type: true,    value: true</pre> <p>It’s fairly popular to leverage this behavior, especially for guarding against values like <code>null</code> or <code>undefined</code>. As an example, let’s try using it for our <code>printAll</code> function.</p> <pre data-language="ts">function printAll(strs: string | string[] | null) {
+!!"world"; // type: true,    value: true</pre> <p>It’s fairly popular to leverage this behavior, especially for guarding against values like <code>null</code> or <code>undefined</code>. As an example, let’s try using it for our <code>printAll</code> function.</p> <pre data-language="ts">function printAll(strs: string | string[] | null) {
   if (strs &amp;&amp; typeof strs === "object") {
     for (const s of strs) {
       console.log(s);
@@ -95,7 +95,7 @@ function multiplyValue(container: Container, factor: number) {
     // Now we can safely multiply 'container.value'.
     container.value *= factor;
   }
-}</pre> <h2 id="the-in-operator-narrowing" style="position:relative;">The <code>in</code> operator narrowing</h2> <p>Javascript has an operator for determining if an object has a property with a name: the <code>in</code> operator. TypeScript takes this into account as a way to narrow down potential types.</p> <p>For example, with the code: <code>"value" in x</code>. where <code>"value"</code> is a string literal and <code>x</code> is a union type. The “true” branch narrows <code>x</code>’s types which have either an optional or required property <code>value</code>, and the “false” branch narrows to types which have an optional or missing property <code>value</code>.</p> <pre data-language="ts">type Fish = { swim: () =&gt; void };
+}</pre> <h2 id="the-in-operator-narrowing" style="position:relative;">The <code>in</code> operator narrowing</h2> <p>JavaScript has an operator for determining if an object has a property with a name: the <code>in</code> operator. TypeScript takes this into account as a way to narrow down potential types.</p> <p>For example, with the code: <code>"value" in x</code>. where <code>"value"</code> is a string literal and <code>x</code> is a union type. The “true” branch narrows <code>x</code>’s types which have either an optional or required property <code>value</code>, and the “false” branch narrows to types which have an optional or missing property <code>value</code>.</p> <pre data-language="ts">type Fish = { swim: () =&gt; void };
 type Bird = { fly: () =&gt; void };
  
 function move(animal: Fish | Bird) {
@@ -104,15 +104,15 @@ function move(animal: Fish | Bird) {
   }
  
   return animal.fly();
-}</pre> <p>To re-iterate optional properties will exist in both sides for narrowing, for example a human could both swim and fly (with the right equipment) and thus should show up in both sides of the <code>in</code> check:</p> <pre data-language="ts">type Fish = { swim: () =&gt; void };
+}</pre> <p>To reiterate optional properties will exist in both sides for narrowing, for example a human could both swim and fly (with the right equipment) and thus should show up in both sides of the <code>in</code> check:</p>  <pre data-language="ts">type Fish = { swim: () =&gt; void };
 type Bird = { fly: () =&gt; void };
-type Human = {  swim?: () =&gt; void, fly?: () =&gt; void };
+type Human = { swim?: () =&gt; void; fly?: () =&gt; void };
  
 function move(animal: Fish | Bird | Human) {
-  if ("swim" in animal) { 
-    animal
+  if ("swim" in animal) {
+    animal;
   } else {
-    animal
+    animal;
   }
 }</pre> <h2 id="instanceof-narrowing" style="position:relative;">
 <code>instanceof</code> narrowing</h2> <p>JavaScript has an operator for checking whether or not a value is an “instance” of another value. More specifically, in JavaScript <code>x instanceof Foo</code> checks whether the <em>prototype chain</em> of <code>x</code> contains <code>Foo.prototype</code>. While we won’t dive deep here, and you’ll see more of this when we get into classes, they can still be useful for most values that can be constructed with <code>new</code>. As you might have guessed, <code>instanceof</code> is also a type guard, and TypeScript narrows in branches guarded by <code>instanceof</code>s.</p> <pre data-language="ts">function logValue(x: Date | string) {
@@ -135,7 +135,7 @@ x = true;
  
 console.log(x);</pre> <h2 id="control-flow-analysis" style="position:relative;">Control flow analysis</h2> <p>Up until this point, we’ve gone through some basic examples of how TypeScript narrows within specific branches. But there’s a bit more going on than just walking up from every variable and looking for type guards in <code>if</code>s, <code>while</code>s, conditionals, etc. For example</p> <pre data-language="ts">function padLeft(padding: number | string, input: string) {
   if (typeof padding === "number") {
-    return new Array(padding + 1).join(" ") + input;
+    return " ".repeat(padding) + input;
   }
   return padding + input;
 }</pre> <p><code>padLeft</code> returns from within its first <code>if</code> block. TypeScript was able to analyze this code and see that the rest of the body (<code>return padding + input;</code>) is <em>unreachable</em> in the case where <code>padding</code> is a <code>number</code>. As a result, it was able to remove <code>number</code> from the type of <code>padding</code> (narrowing from <code>string | number</code> to <code>string</code>) for the rest of the function.</p> <p>This analysis of code based on reachability is called <em>control flow analysis</em>, and TypeScript uses this flow analysis to narrow types as it encounters type guards and assignments. When a variable is analyzed, control flow can split off and re-merge over and over again, and that variable can be observed to have a different type at each point.</p> <pre data-language="ts">function example() {
@@ -183,7 +183,7 @@ const underWater3: Fish[] = zoo.filter((pet): pet is Fish =&gt; {
   }
 }</pre> <p>We can write a <code>getArea</code> function that applies the right logic based on if it’s dealing with a circle or square. We’ll first try dealing with circles.</p> <pre data-language="ts">function getArea(shape: Shape) {
   return Math.PI * shape.radius ** 2;
-}</pre>  <p>Under <code>strictNullChecks</code> that gives us an error - which is appropriate since <code>radius</code> might not be defined. But what if we perform the appropriate checks on the <code>kind</code> property?</p> <pre data-language="ts">function getArea(shape: Shape) {
+}</pre>  <p>Under <a href="https://www.typescriptlang.org/tsconfig#strictNullChecks"><code>strictNullChecks</code></a> that gives us an error - which is appropriate since <code>radius</code> might not be defined. But what if we perform the appropriate checks on the <code>kind</code> property?</p> <pre data-language="ts">function getArea(shape: Shape) {
   if (shape.kind === "circle") {
     return Math.PI * shape.radius ** 2;
   }
@@ -191,7 +191,7 @@ const underWater3: Fish[] = zoo.filter((pet): pet is Fish =&gt; {
   if (shape.kind === "circle") {
     return Math.PI * shape.radius! ** 2;
   }
-}</pre> <p>But this doesn’t feel ideal. We had to shout a bit at the type-checker with those non-null assertions (<code>!</code>) to convince it that <code>shape.radius</code> was defined, but those assertions are error-prone if we start to move code around. Additionally, outside of <code>strictNullChecks</code> we’re able to accidentally access any of those fields anyway (since optional properties are just assumed to always be present when reading them). We can definitely do better.</p> <p>The problem with this encoding of <code>Shape</code> is that the type-checker doesn’t have any way to know whether or not <code>radius</code> or <code>sideLength</code> are present based on the <code>kind</code> property. We need to communicate what <em>we</em> know to the type checker. With that in mind, let’s take another swing at defining <code>Shape</code>.</p> <pre data-language="ts">interface Circle {
+}</pre> <p>But this doesn’t feel ideal. We had to shout a bit at the type-checker with those non-null assertions (<code>!</code>) to convince it that <code>shape.radius</code> was defined, but those assertions are error-prone if we start to move code around. Additionally, outside of <a href="https://www.typescriptlang.org/tsconfig#strictNullChecks"><code>strictNullChecks</code></a> we’re able to accidentally access any of those fields anyway (since optional properties are just assumed to always be present when reading them). We can definitely do better.</p> <p>The problem with this encoding of <code>Shape</code> is that the type-checker doesn’t have any way to know whether or not <code>radius</code> or <code>sideLength</code> are present based on the <code>kind</code> property. We need to communicate what <em>we</em> know to the type checker. With that in mind, let’s take another swing at defining <code>Shape</code>.</p> <pre data-language="ts">interface Circle {
   kind: "circle";
   radius: number;
 }
@@ -203,7 +203,7 @@ interface Square {
  
 type Shape = Circle | Square;</pre> <p>Here, we’ve properly separated <code>Shape</code> out into two types with different values for the <code>kind</code> property, but <code>radius</code> and <code>sideLength</code> are declared as required properties in their respective types.</p> <p>Let’s see what happens here when we try to access the <code>radius</code> of a <code>Shape</code>.</p> <pre data-language="ts">function getArea(shape: Shape) {
   return Math.PI * shape.radius ** 2;
-}</pre> <p>Like with our first definition of <code>Shape</code>, this is still an error. When <code>radius</code> was optional, we got an error (only in <code>strictNullChecks</code>) because TypeScript couldn’t tell whether the property was present. Now that <code>Shape</code> is a union, TypeScript is telling us that <code>shape</code> might be a <code>Square</code>, and <code>Square</code>s don’t have <code>radius</code> defined on them! Both interpretations are correct, but only does our new encoding of <code>Shape</code> still cause an error outside of <code>strictNullChecks</code>.</p> <p>But what if we tried checking the <code>kind</code> property again?</p> <pre data-language="ts">function getArea(shape: Shape) {
+}</pre> <p>Like with our first definition of <code>Shape</code>, this is still an error. When <code>radius</code> was optional, we got an error (only in <a href="https://www.typescriptlang.org/tsconfig#strictNullChecks"><code>strictNullChecks</code></a>) because TypeScript couldn’t tell whether the property was present. Now that <code>Shape</code> is a union, TypeScript is telling us that <code>shape</code> might be a <code>Square</code>, and <code>Square</code>s don’t have <code>radius</code> defined on them! Both interpretations are correct, but only does our new encoding of <code>Shape</code> still cause an error outside of <a href="https://www.typescriptlang.org/tsconfig#strictNullChecks"><code>strictNullChecks</code></a>.</p> <p>But what if we tried checking the <code>kind</code> property again?</p> <pre data-language="ts">function getArea(shape: Shape) {
   if (shape.kind === "circle") {
     return Math.PI * shape.radius ** 2;
   }

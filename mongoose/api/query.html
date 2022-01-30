@@ -139,6 +139,16 @@ query.circle(<span class="hljs-string">'loc'</span>, area);
 query.where(<span class="hljs-string">'loc'</span>).within().circle(area)
 <span class="hljs-comment">// alternatively</span>
 query.circle(<span class="hljs-string">'loc'</span>, area);</pre> </div>
+<h3 id="query_Query-clone">Query.prototype.clone()</h3>
+<h5>Returns:</h5>
+<ul><li>
+<span class="method-type">«Query»</span> copy </li></ul>
+<div>
+<p>Make a copy of this query so you can re-execute it.</p> <h4>Example:</h4> <pre data-language="javascript"><span class="hljs-keyword">const</span> q = Book.findOne({ <span class="hljs-attr">title</span>: <span class="hljs-string">'Casino Royale'</span> });
+<span class="hljs-keyword">await</span> q.exec();
+<span class="hljs-keyword">await</span> q.exec(); <span class="hljs-comment">// Throws an error because you can't execute a query twice</span>
+
+<span class="hljs-keyword">await</span> q.clone().exec(); <span class="hljs-comment">// Works</span></pre> </div>
 <h3 id="query_Query-collation">Query.prototype.collation()</h3>
 <h5>Parameters</h5>
 <ul class="params"><li class="param">value <span class="method-type">«Object»</span> </li></ul>
@@ -176,6 +186,7 @@ query.where(<span class="hljs-string">'color'</span>, <span class="hljs-string">
 <h5>Parameters</h5>
 <ul class="params">
 <li class="param">[filter] <span class="method-type">«Object»</span> mongodb selector </li>
+<li class="param">[options] <span class="method-type">«Object»</span> </li>
 <li class="param">[callback] <span class="method-type">«Function»</span> optional params are (error, count) </li>
 </ul>
 <h5>Returns:</h5>
@@ -222,12 +233,10 @@ cursor.next(<span class="hljs-function"><span class="hljs-keyword">function</spa
 <span class="hljs-comment">// Because `.next()` returns a promise, you can use co</span>
 <span class="hljs-comment">// to easily iterate through all documents without loading them</span>
 <span class="hljs-comment">// all into memory.</span>
-co(<span class="hljs-function"><span class="hljs-keyword">function</span>*() </span>{
-  <span class="hljs-keyword">const</span> cursor = Thing.find({ <span class="hljs-attr">name</span>: <span class="hljs-regexp">/^hello/</span> }).cursor();
-  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> doc = <span class="hljs-keyword">yield</span> cursor.next(); doc != <span class="hljs-literal">null</span>; doc = <span class="hljs-keyword">yield</span> cursor.next()) {
-    <span class="hljs-built_in">console</span>.log(doc);
-  }
-});</pre> <h4>Valid options</h4> <ul> <li>
+<span class="hljs-keyword">const</span> cursor = Thing.find({ <span class="hljs-attr">name</span>: <span class="hljs-regexp">/^hello/</span> }).cursor();
+<span class="hljs-keyword">for</span> (<span class="hljs-keyword">let</span> doc = <span class="hljs-keyword">await</span> cursor.next(); doc != <span class="hljs-literal">null</span>; doc = <span class="hljs-keyword">await</span> cursor.next()) {
+  <span class="hljs-built_in">console</span>.log(doc);
+}</pre> <h4>Valid options</h4> <ul> <li>
 <code>transform</code>: optional function which accepts a mongoose document. The return value of the function will be emitted on <code>data</code> and returned by <code>.next()</code>.</li> </ul> </div>
 <h3 id="query_Query-deleteMany">Query.prototype.deleteMany()</h3>
 <h5>Parameters</h5>
@@ -496,7 +505,6 @@ A.where().findOneAndRemove()           <span class="hljs-comment">// returns Que
 <ul style="margin-top: 0.5em"><li>[options.lean] <span class="method-type">«Object»</span> if truthy, mongoose will return the document as a plain JavaScript object rather than a mongoose document. See <a href="https://mongoosejs.com/docs/api.html#query_Query-lean"><code>Query.lean()</code></a> and <a href="../tutorials/lean">the Mongoose lean tutorial</a>. </li></ul>
 <ul style="margin-top: 0.5em"><li>[options.session=null] <span class="method-type">«ClientSession»</span> The session associated with this query. See <a href="../transactions">transactions docs</a>. </li></ul>
 <ul style="margin-top: 0.5em"><li>[options.strict] <span class="method-type">«Boolean|String»</span> overwrites the schema's <a href="http://mongoosejs.com/docs/guide.html#strict">strict mode option</a> </li></ul>
-<ul style="margin-top: 0.5em"><li>[options.omitUndefined=false] <span class="method-type">«Boolean»</span> If true, delete any properties whose value is <code>undefined</code> when casting an update. In other words, if this is set, Mongoose will delete <code>baz</code> from the update in <code>Model.updateOne({}, { foo: 'bar', baz: undefined })</code> before sending the update to the server. </li></ul>
 <ul style="margin-top: 0.5em"><li>[options.timestamps=null] <span class="method-type">«Boolean»</span> If set to <code>false</code> and <a href="../guide#timestamps">schema-level timestamps</a> are enabled, skip timestamps for this update. Note that this allows you to overwrite timestamps. Does nothing if schema-level timestamps are not set. </li></ul>
 <ul style="margin-top: 0.5em"><li>[options.returnOriginal=null] <span class="method-type">«Boolean»</span> An alias for the <code>new</code> option. <code>returnOriginal: false</code> is equivalent to <code>new: true</code>. </li></ul>
 <li class="param">[callback] <span class="method-type">«Function»</span> optional params are (error, document) </li>
@@ -532,7 +540,6 @@ A.where().findOneAndReplace(); <span class="hljs-comment">// returns Query</span
 <ul style="margin-top: 0.5em"><li>[options.lean] <span class="method-type">«Object»</span> if truthy, mongoose will return the document as a plain JavaScript object rather than a mongoose document. See <a href="https://mongoosejs.com/docs/api.html#query_Query-lean"><code>Query.lean()</code></a> and <a href="../tutorials/lean">the Mongoose lean tutorial</a>. </li></ul>
 <ul style="margin-top: 0.5em"><li>[options.session=null] <span class="method-type">«ClientSession»</span> The session associated with this query. See <a href="../transactions">transactions docs</a>. </li></ul>
 <ul style="margin-top: 0.5em"><li>[options.strict] <span class="method-type">«Boolean|String»</span> overwrites the schema's <a href="http://mongoosejs.com/docs/guide.html#strict">strict mode option</a> </li></ul>
-<ul style="margin-top: 0.5em"><li>[options.omitUndefined=false] <span class="method-type">«Boolean»</span> If true, delete any properties whose value is <code>undefined</code> when casting an update. In other words, if this is set, Mongoose will delete <code>baz</code> from the update in <code>Model.updateOne({}, { foo: 'bar', baz: undefined })</code> before sending the update to the server. </li></ul>
 <ul style="margin-top: 0.5em"><li>[options.timestamps=null] <span class="method-type">«Boolean»</span> If set to <code>false</code> and <a href="../guide#timestamps">schema-level timestamps</a> are enabled, skip timestamps for this update. Note that this allows you to overwrite timestamps. Does nothing if schema-level timestamps are not set. </li></ul>
 <ul style="margin-top: 0.5em"><li>[options.returnOriginal=null] <span class="method-type">«Boolean»</span> An alias for the <code>new</code> option. <code>returnOriginal: false</code> is equivalent to <code>new: true</code>. </li></ul>
 <li class="param">[callback] <span class="method-type">«Function»</span> optional params are (error, doc), <em>unless</em> <code>rawResult</code> is used, in which case params are (error, writeOpResult) </li>
@@ -549,10 +556,9 @@ A.where().findOneAndReplace(); <span class="hljs-comment">// returns Query</span
 <code>sort</code>: if multiple docs are found by the conditions, sets the sort order to choose which doc to update</li> <li>
 <code>maxTimeMS</code>: puts a time limit on the query - requires mongodb &gt;= 2.6.0</li> <li>
 <code>runValidators</code>: if true, runs <a href="../validation#update-validators">update validators</a> on this command. Update validators validate the update operation against the model's schema.</li> <li>
-<code>setDefaultsOnInsert</code>: if this and <code>upsert</code> are true, mongoose will apply the <a href="http://mongoosejs.com/docs/defaults.html">defaults</a> specified in the model's schema if a new document is created. This option only works on MongoDB &gt;= 2.4 because it relies on <a href="https://docs.mongodb.org/v2.4/reference/operator/update/setOnInsert/">MongoDB's <code>$setOnInsert</code> operator</a>.</li> <li>
+<code>setDefaultsOnInsert</code>: <code>true</code> by default. If <code>setDefaultsOnInsert</code> and <code>upsert</code> are true, mongoose will apply the <a href="http://mongoosejs.com/docs/defaults.html">defaults</a> specified in the model's schema if a new document is created.</li> <li>
 <code>rawResult</code>: if true, returns the <a href="http://mongodb.github.io/node-mongodb-native/2.0/api/Collection.html#findAndModify">raw result from the MongoDB driver</a>
-</li> <li>
-<code>context</code> (string) if set to 'query' and <code>runValidators</code> is on, <code>this</code> will refer to the query in custom validator functions that update validation runs. Does nothing if <code>runValidators</code> is false.</li> </ul> <h4>Callback Signature</h4> <pre data-language="javascript"><span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">error, doc</span>) </span>{
+</li> </ul> <h4>Callback Signature</h4> <pre data-language="javascript"><span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">error, doc</span>) </span>{
   <span class="hljs-comment">// error: any errors that occurred</span>
   <span class="hljs-comment">// doc: the document before updates are applied if `new: false`, or after updates if `new = true`</span>
 }</pre> <h4>Examples</h4> <pre data-language="javascript">query.findOneAndUpdate(conditions, update, options, callback) <span class="hljs-comment">// executes</span>
@@ -733,20 +739,6 @@ docs[<span class="hljs-number">0</span>] <span class="hljs-keyword">instanceof</
 </ul>
 <div>
 <p>Specifies a <code>$lte</code> query condition.</p> <p>When called with one argument, the most recent path passed to <code>where()</code> is used.</p> </div>
-<h3 id="query_Query-map">Query.prototype.map()</h3>
-<h5>Parameters</h5>
-<ul class="params"><li class="param">fn <span class="method-type">«Function»</span> function to run to transform the query result </li></ul>
-<h5>Returns:</h5>
-<ul><li>
-<span class="method-type">«Query»</span> this </li></ul>
-<div>
-<p>Runs a function <code>fn</code> and treats the return value of <code>fn</code> as the new value for the query to resolve to.</p> <p>Any functions you pass to <code>map()</code> will run <strong>after</strong> any post hooks.</p> <h4>Example:</h4> <pre data-language="javascript"><span class="hljs-keyword">const</span> res = <span class="hljs-keyword">await</span> MyModel.findOne().map(<span class="hljs-function"><span class="hljs-params">res</span> =&gt;</span> {
-  <span class="hljs-comment">// Sets a `loadedAt` property on the doc that tells you the time the</span>
-  <span class="hljs-comment">// document was loaded.</span>
-  <span class="hljs-keyword">return</span> res == <span class="hljs-literal">null</span> ?
-    res :
-    <span class="hljs-built_in">Object</span>.assign(res, { <span class="hljs-attr">loadedAt</span>: <span class="hljs-keyword">new</span> <span class="hljs-built_in">Date</span>() });
-});</pre> </div>
 <h3 id="query_Query-maxDistance">Query.prototype.maxDistance()</h3>
 <h5>Parameters</h5>
 <ul class="params">
@@ -797,6 +789,12 @@ Product.find().mod(<span class="hljs-string">'inventory'</span>, [<span class="h
 Product.find().where(<span class="hljs-string">'inventory'</span>).mod([<span class="hljs-number">2</span>, <span class="hljs-number">1</span>]);
 <span class="hljs-comment">// This syntax is a little strange, but supported.</span>
 Product.find().where(<span class="hljs-string">'inventory'</span>).mod(<span class="hljs-number">2</span>, <span class="hljs-number">1</span>);</pre> </div>
+<h3 id="query_Query-model">Query.prototype.model</h3>
+<h5>Type:</h5>
+<ul><li><span class="method-type">«property»</span></li></ul>
+<div>
+<p>The model this query is associated with.</p> <h4>Example:</h4> <pre data-language="javascript"><span class="hljs-keyword">const</span> q = MyModel.find();
+q.model === MyModel; <span class="hljs-comment">// true</span></pre> </div>
 <h3 id="query_Query-mongooseOptions">Query.prototype.mongooseOptions()</h3>
 <h5>Parameters</h5>
 <ul class="params"><li class="param">options <span class="method-type">«Object»</span> if specified, overwrites the current options </li></ul>
@@ -810,9 +808,6 @@ Product.find().where(<span class="hljs-string">'inventory'</span>).mod(<span cla
 <code>lean</code>: if truthy, Mongoose will not <a href="https://mongoosejs.com/docs/api.html#model_Model.hydrate">hydrate</a> any documents that are returned from this query. See <a href="https://mongoosejs.com/docs/api.html#query_Query-lean"><code>Query.prototype.lean()</code></a> for more information.</li> <li>
 <code>strict</code>: controls how Mongoose handles keys that aren't in the schema for updates. This option is <code>true</code> by default, which means Mongoose will silently strip any paths in the update that aren't in the schema. See the <a href="../guide#strict"><code>strict</code> mode docs</a> for more information.</li> <li>
 <code>strictQuery</code>: controls how Mongoose handles keys that aren't in the schema for the query <code>filter</code>. This option is <code>false</code> by default for backwards compatibility, which means Mongoose will allow <code>Model.find({ foo: 'bar' })</code> even if <code>foo</code> is not in the schema. See the <a href="../guide#strictQuery"><code>strictQuery</code> docs</a> for more information.</li> <li>
-<code>useFindAndModify</code>: used to work around the <a href="../deprecations#findandmodify"><code>findAndModify()</code> deprecation warning</a>
-</li> <li>
-<code>omitUndefined</code>: delete any properties whose value is <code>undefined</code> when casting an update. In other words, if this is set, Mongoose will delete <code>baz</code> from the update in <code>Model.updateOne({}, { foo: 'bar', baz: undefined })</code> before sending the update to the server.</li> <li>
 <code>nearSphere</code>: use <code>$nearSphere</code> instead of <code>near()</code>. See the <a href="https://mongoosejs.com/docs/api.html#query_Query-nearSphere"><code>Query.prototype.nearSphere()</code> docs</a>
 </li> </ul> <p>Mongoose maintains a separate object for internal options because Mongoose sends <code>Query.prototype.options</code> to the MongoDB server, and the above options are not relevant for the MongoDB server.</p> </div>
 <h3 id="query_Query-ne">Query.prototype.ne()</h3>
@@ -1090,7 +1085,6 @@ Character.exec();</pre> </div>
 <li class="param">[doc] <span class="method-type">«Object»</span> the update command </li>
 <li class="param">[options] <span class="method-type">«Object»</span> </li>
 <ul style="margin-top: 0.5em"><li>[options.multipleCastError] <span class="method-type">«Boolean»</span> by default, mongoose only returns the first error that occurred in casting the query. Turn on this option to aggregate all the cast errors. </li></ul>
-<ul style="margin-top: 0.5em"><li>[options.omitUndefined=false] <span class="method-type">«Boolean»</span> If true, delete any properties whose value is <code>undefined</code> when casting an update. In other words, if this is set, Mongoose will delete <code>baz</code> from the update in <code>Model.updateOne({}, { foo: 'bar', baz: undefined })</code> before sending the update to the server. </li></ul>
 <ul style="margin-top: 0.5em"><li>[options.strict] <span class="method-type">«Boolean|String»</span> overwrites the schema's <a href="http://mongoosejs.com/docs/guide.html#strict">strict mode option</a> </li></ul>
 <ul style="margin-top: 0.5em"><li>[options.upsert=false] <span class="method-type">«Boolean»</span> if true, and no documents found, insert a new document </li></ul>
 <ul style="margin-top: 0.5em"><li>[options.writeConcern=null] <span class="method-type">«Object»</span> sets the <a href="https://docs.mongodb.com/manual/reference/write-concern/">write concern</a> for replica sets. Overrides the <a href="../guide#writeConcern">schema-level write concern</a> </li></ul>
@@ -1132,7 +1126,11 @@ query.select(<span class="hljs-string">'+foo'</span>); <span class="hljs-comment
 <span class="hljs-comment">// or you may use object notation, useful when</span>
 <span class="hljs-comment">// you have keys already prefixed with a "-"</span>
 query.select({ <span class="hljs-attr">a</span>: <span class="hljs-number">1</span>, <span class="hljs-attr">b</span>: <span class="hljs-number">1</span> });
-query.select({ <span class="hljs-attr">c</span>: <span class="hljs-number">0</span>, <span class="hljs-attr">d</span>: <span class="hljs-number">0</span> });</pre> </div>
+query.select({ <span class="hljs-attr">c</span>: <span class="hljs-number">0</span>, <span class="hljs-attr">d</span>: <span class="hljs-number">0</span> });
+
+Additional calls to select can override the previous selection:
+query.select({ <span class="hljs-attr">a</span>: <span class="hljs-number">1</span>, <span class="hljs-attr">b</span>: <span class="hljs-number">1</span> }).select({ <span class="hljs-attr">b</span>: <span class="hljs-number">0</span> }); <span class="hljs-comment">// selection is now { a: 1 }</span>
+query.select({ <span class="hljs-attr">a</span>: <span class="hljs-number">0</span>, <span class="hljs-attr">b</span>: <span class="hljs-number">0</span> }).select({ <span class="hljs-attr">b</span>: <span class="hljs-number">1</span> }); <span class="hljs-comment">// selection is now { a: 0 }</span></pre> </div>
 <h3 id="query_Query-selected">Query.prototype.selected()</h3>
 <h5>Returns:</h5>
 <ul><li>
@@ -1186,7 +1184,7 @@ query.selectedInclusively() <span class="hljs-comment">// true</span></pre> </di
 <span class="method-type">«Query»</span> this </li></ul>
 <div>
 <p>Sets query options. Some options only make sense for certain operations.</p> <h4>Options:</h4> <p>The following options are only for <code>find()</code>:</p> <ul> <li><a href="http://www.mongodb.org/display/DOCS/Tailable+Cursors">tailable</a></li> <li><a href="http://www.mongodb.org/display/DOCS/Advanced+Queries#AdvancedQueries-%7B%7Bsort()%7D%7D">sort</a></li> <li><a href="http://www.mongodb.org/display/DOCS/Advanced+Queries#AdvancedQueries-%7B%7Blimit%28%29%7D%7D">limit</a></li> <li><a href="http://www.mongodb.org/display/DOCS/Advanced+Queries#AdvancedQueries-%7B%7Bskip%28%29%7D%7D">skip</a></li> <li><a href="https://docs.mongodb.com/manual/reference/method/cursor.allowDiskUse/">allowDiskUse</a></li> <li><a href="http://www.mongodb.org/display/DOCS/Advanced+Queries#AdvancedQueries-%7B%7BbatchSize%28%29%7D%7D">batchSize</a></li> <li><a href="http://docs.mongodb.org/manual/applications/replication/#read-preference">readPreference</a></li> <li><a href="http://www.mongodb.org/display/DOCS/Advanced+Queries#AdvancedQueries-%24hint">hint</a></li> <li><a href="http://www.mongodb.org/display/DOCS/Advanced+Queries#AdvancedQueries-%24comment">comment</a></li> <li><a href="http://www.mongodb.org/display/DOCS/Advanced+Queries#AdvancedQueries-%7B%7Bsnapshot%28%29%7D%7D">snapshot</a></li> <li><a href="https://docs.mongodb.org/v3.2/reference/operator/meta/maxScan/#metaOp._S_maxScan">maxscan</a></li> </ul> <p>The following options are only for write operations: <code>update()</code>, <code>updateOne()</code>, <code>updateMany()</code>, <code>replaceOne()</code>, <code>findOneAndUpdate()</code>, and <code>findByIdAndUpdate()</code>:</p> <ul> <li><a href="https://docs.mongodb.com/manual/reference/method/db.collection.update/">upsert</a></li> <li><a href="https://docs.mongodb.com/manual/reference/method/db.collection.update/">writeConcern</a></li> <li>
-<a href="../guide#timestamps">timestamps</a>: If <code>timestamps</code> is set in the schema, set this option to <code>false</code> to skip timestamps for that particular update. Has no effect if <code>timestamps</code> is not enabled in the schema options.</li> <li>omitUndefined: delete any properties whose value is <code>undefined</code> when casting an update. In other words, if this is set, Mongoose will delete <code>baz</code> from the update in <code>Model.updateOne({}, { foo: 'bar', baz: undefined })</code> before sending the update to the server.</li> <li>overwriteDiscriminatorKey: allow setting the discriminator key in the update. Will use the correct discriminator schema if the update changes the discriminator key.</li> <li>overwrite: replace the entire document</li> </ul> <p>The following options are only for <code>find()</code>, <code>findOne()</code>, <code>findById()</code>, <code>findOneAndUpdate()</code>, and <code>findByIdAndUpdate()</code>:</p> <ul> <li><a href="api#query_Query-lean">lean</a></li> <li><a href="../populate">populate</a></li> <li><a href="query#query_Query-projection">projection</a></li> <li>sanitizeProjection</li> </ul> <p>The following options are only for all operations <strong>except</strong> <code>update()</code>, <code>updateOne()</code>, <code>updateMany()</code>, <code>remove()</code>, <code>deleteOne()</code>, and <code>deleteMany()</code>:</p> <ul> <li><a href="https://docs.mongodb.com/manual/reference/operator/meta/maxTimeMS/">maxTimeMS</a></li> </ul> <p>The following options are for <code>findOneAndUpdate()</code> and <code>findOneAndRemove()</code></p> <ul> <li><a href="../deprecations#findandmodify">useFindAndModify</a></li> <li>rawResult</li> </ul> <h2>The following options are for all operations</h2> <ul> <li><a href="https://docs.mongodb.com/manual/reference/collation/">collation</a></li> <li><a href="https://docs.mongodb.com/manual/reference/server-sessions/">session</a></li> <li><a href="https://docs.mongodb.com/manual/reference/method/cursor.explain/">explain</a></li> </ul> </div>
+<a href="../guide#timestamps">timestamps</a>: If <code>timestamps</code> is set in the schema, set this option to <code>false</code> to skip timestamps for that particular update. Has no effect if <code>timestamps</code> is not enabled in the schema options.</li> <li>overwriteDiscriminatorKey: allow setting the discriminator key in the update. Will use the correct discriminator schema if the update changes the discriminator key.</li> </ul> <p>The following options are only for <code>find()</code>, <code>findOne()</code>, <code>findById()</code>, <code>findOneAndUpdate()</code>, and <code>findByIdAndUpdate()</code>:</p> <ul> <li><a href="api#query_Query-lean">lean</a></li> <li><a href="../populate">populate</a></li> <li><a href="query#query_Query-projection">projection</a></li> <li>sanitizeProjection</li> </ul> <p>The following options are only for all operations <strong>except</strong> <code>update()</code>, <code>updateOne()</code>, <code>updateMany()</code>, <code>remove()</code>, <code>deleteOne()</code>, and <code>deleteMany()</code>:</p> <ul> <li><a href="https://docs.mongodb.com/manual/reference/operator/meta/maxTimeMS/">maxTimeMS</a></li> </ul> <p>The following options are for <code>findOneAndUpdate()</code> and <code>findOneAndRemove()</code></p> <ul> <li>rawResult</li> </ul> <h2>The following options are for all operations</h2> <ul> <li><a href="../guide#strict">strict</a></li> <li><a href="https://docs.mongodb.com/manual/reference/collation/">collation</a></li> <li><a href="https://docs.mongodb.com/manual/reference/server-sessions/">session</a></li> <li><a href="https://docs.mongodb.com/manual/reference/method/cursor.explain/">explain</a></li> </ul> </div>
 <h3 id="query_Query-setQuery">Query.prototype.setQuery()</h3>
 <h5>Parameters</h5>
 <ul class="params"><li class="param">new <span class="method-type">«Object»</span> query conditions </li></ul>
@@ -1216,12 +1214,9 @@ query.getUpdate(); <span class="hljs-comment">// { $set: { b: 6 } }</span></pre>
 <li class="param">val <span class="method-type">«Number»</span> </li>
 </ul>
 <div>
-<p>Specifies a <code>$size</code> query condition.</p> <p>When called with one argument, the most recent path passed to <code>where()</code> is used.</p> <h4>Example</h4> <pre data-language="javascript">MyModel.where(<span class="hljs-string">'tags'</span>).size(<span class="hljs-number">0</span>).exec(<span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params">err, docs</span>) </span>{
-  <span class="hljs-keyword">if</span> (err) <span class="hljs-keyword">return</span> handleError(err);
-
-  assert(<span class="hljs-built_in">Array</span>.isArray(docs));
-  <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'documents with 0 tags'</span>, docs);
-})</pre> </div>
+<p>Specifies a <code>$size</code> query condition.</p> <p>When called with one argument, the most recent path passed to <code>where()</code> is used.</p> <h4>Example</h4> <pre data-language="javascript"><span class="hljs-keyword">const</span> docs = <span class="hljs-keyword">await</span> MyModel.where(<span class="hljs-string">'tags'</span>).size(<span class="hljs-number">0</span>).exec();
+assert(<span class="hljs-built_in">Array</span>.isArray(docs));
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'documents with 0 tags'</span>, docs);</pre> </div>
 <h3 id="query_Query-skip">Query.prototype.skip()</h3>
 <h5>Parameters</h5>
 <ul class="params"><li class="param">val <span class="method-type">«Number»</span> </li></ul>
@@ -1277,13 +1272,16 @@ query.sort(<span class="hljs-string">'field -test'</span>);</pre> <h4>Note</h4> 
 <ul class="params">
 <li class="param">bool <span class="method-type">«Boolean»</span> defaults to true </li>
 <li class="param">[opts] <span class="method-type">«Object»</span> options to set </li>
-<ul style="margin-top: 0.5em"><li>[opts.numberOfRetries] <span class="method-type">«Number»</span> if cursor is exhausted, retry this many times before giving up </li></ul>
-<ul style="margin-top: 0.5em"><li>[opts.tailableRetryInterval] <span class="method-type">«Number»</span> if cursor is exhausted, wait this many milliseconds before retrying </li></ul>
+<ul style="margin-top: 0.5em"><li>[opts.awaitData] <span class="method-type">«Boolean»</span> false by default. Set to true to keep the cursor open even if there's no data. </li></ul>
+<ul style="margin-top: 0.5em"><li>[opts.maxAwaitTimeMS] <span class="method-type">«Number»</span> the maximum amount of time for the server to wait on new documents to satisfy a tailable cursor query. Requires <code>tailable</code> and <code>awaitData</code> to be true </li></ul>
 </ul>
 <div>
-<p>Sets the tailable option (for use with capped collections).</p> <h4>Example</h4> <pre data-language="javascript">query.tailable() <span class="hljs-comment">// true</span>
-query.tailable(<span class="hljs-literal">true</span>)
-query.tailable(<span class="hljs-literal">false</span>)</pre> <h4>Note</h4> <p>Cannot be used with <code>distinct()</code></p> </div>
+<p>Sets the tailable option (for use with capped collections).</p> <h4>Example</h4> <pre data-language="javascript">query.tailable(); <span class="hljs-comment">// true</span>
+query.tailable(<span class="hljs-literal">true</span>);
+query.tailable(<span class="hljs-literal">false</span>);
+
+<span class="hljs-comment">// Set both `tailable` and `awaitData` options</span>
+query.tailable({ <span class="hljs-attr">awaitData</span>: <span class="hljs-literal">true</span> });</pre> <h4>Note</h4> <p>Cannot be used with <code>distinct()</code></p> </div>
 <h3 id="query_Query-then">Query.prototype.then()</h3>
 <h5>Parameters</h5>
 <ul class="params">
@@ -1328,6 +1326,20 @@ Adventure.prototype.startsWith = <span class="hljs-function"><span class="hljs-k
   }
 })
 Adventure().highlyRated.startsWith(<span class="hljs-string">'Life'</span>).exec(callback)</pre> </div>
+<h3 id="query_Query-transform">Query.prototype.transform()</h3>
+<h5>Parameters</h5>
+<ul class="params"><li class="param">fn <span class="method-type">«Function»</span> function to run to transform the query result </li></ul>
+<h5>Returns:</h5>
+<ul><li>
+<span class="method-type">«Query»</span> this </li></ul>
+<div>
+<p>Runs a function <code>fn</code> and treats the return value of <code>fn</code> as the new value for the query to resolve to.</p> <p>Any functions you pass to <code>transform()</code> will run <strong>after</strong> any post hooks.</p> <h4>Example:</h4> <pre data-language="javascript"><span class="hljs-keyword">const</span> res = <span class="hljs-keyword">await</span> MyModel.findOne().transform(<span class="hljs-function"><span class="hljs-params">res</span> =&gt;</span> {
+  <span class="hljs-comment">// Sets a `loadedAt` property on the doc that tells you the time the</span>
+  <span class="hljs-comment">// document was loaded.</span>
+  <span class="hljs-keyword">return</span> res == <span class="hljs-literal">null</span> ?
+    res :
+    <span class="hljs-built_in">Object</span>.assign(res, { <span class="hljs-attr">loadedAt</span>: <span class="hljs-keyword">new</span> <span class="hljs-built_in">Date</span>() });
+});</pre> </div>
 <h3 id="query_Query-update">Query.prototype.update()</h3>
 <h5>Parameters</h5>
 <ul class="params">
@@ -1335,7 +1347,6 @@ Adventure().highlyRated.startsWith(<span class="hljs-string">'Life'</span>).exec
 <li class="param">[doc] <span class="method-type">«Object»</span> the update command </li>
 <li class="param">[options] <span class="method-type">«Object»</span> </li>
 <ul style="margin-top: 0.5em"><li>[options.multipleCastError] <span class="method-type">«Boolean»</span> by default, mongoose only returns the first error that occurred in casting the query. Turn on this option to aggregate all the cast errors. </li></ul>
-<ul style="margin-top: 0.5em"><li>[options.omitUndefined=false] <span class="method-type">«Boolean»</span> If true, delete any properties whose value is <code>undefined</code> when casting an update. In other words, if this is set, Mongoose will delete <code>baz</code> from the update in <code>Model.updateOne({}, { foo: 'bar', baz: undefined })</code> before sending the update to the server. </li></ul>
 <ul style="margin-top: 0.5em"><li>[options.strict] <span class="method-type">«Boolean|String»</span> overwrites the schema's <a href="http://mongoosejs.com/docs/guide.html#strict">strict mode option</a> </li></ul>
 <ul style="margin-top: 0.5em"><li>[options.upsert=false] <span class="method-type">«Boolean»</span> if true, and no documents found, insert a new document </li></ul>
 <ul style="margin-top: 0.5em"><li>[options.writeConcern=null] <span class="method-type">«Object»</span> sets the <a href="https://docs.mongodb.com/manual/reference/write-concern/">write concern</a> for replica sets. Overrides the <a href="../guide#writeConcern">schema-level write concern</a> </li></ul>
@@ -1353,11 +1364,9 @@ Adventure().highlyRated.startsWith(<span class="hljs-string">'Life'</span>).exec
 Model.where({ <span class="hljs-attr">_id</span>: id }).update({ <span class="hljs-attr">$set</span>: { <span class="hljs-attr">title</span>: <span class="hljs-string">'words'</span> }})</pre> <h4>Valid options:</h4> <ul> <li>
 <code>upsert</code> (boolean) whether to create the doc if it doesn't match (false)</li> <li>
 <code>multi</code> (boolean) whether multiple documents should be updated (false)</li> <li>
-<code>runValidators</code>: if true, runs <a href="../validation#update-validators">update validators</a> on this command. Update validators validate the update operation against the model's schema.</li> <li>
-<code>setDefaultsOnInsert</code>: if this and <code>upsert</code> are true, mongoose will apply the <a href="http://mongoosejs.com/docs/defaults.html">defaults</a> specified in the model's schema if a new document is created. This option only works on MongoDB &gt;= 2.4 because it relies on <a href="https://docs.mongodb.org/v2.4/reference/operator/update/setOnInsert/">MongoDB's <code>$setOnInsert</code> operator</a>.</li> <li>
-<code>strict</code> (boolean) overrides the <code>strict</code> option for this update</li> <li>
-<code>overwrite</code> (boolean) disables update-only mode, allowing you to overwrite the doc (false)</li> <li>
-<code>context</code> (string) if set to 'query' and <code>runValidators</code> is on, <code>this</code> will refer to the query in custom validator functions that update validation runs. Does nothing if <code>runValidators</code> is false.</li> <li><code>read</code></li> <li><code>writeConcern</code></li> </ul> <h4>Note</h4> <p>Passing an empty object <code>{}</code> as the doc will result in a no-op unless the <code>overwrite</code> option is passed. Without the <code>overwrite</code> option set, the update operation will be ignored and the callback executed without sending the command to MongoDB so as to prevent accidently overwritting documents in the collection.</p> <h4>Note</h4> <p>The operation is only executed when a callback is passed. To force execution without a callback, we must first call update() and then execute it by using the <code>exec()</code> method.</p> <pre data-language="javascript">const q = Model.where({ _id: id });
+<code>runValidators</code> (boolean) if true, runs <a href="../validation#update-validators">update validators</a> on this command. Update validators validate the update operation against the model's schema.</li> <li>
+<code>setDefaultsOnInsert</code> (boolean) <code>true</code> by default. If <code>setDefaultsOnInsert</code> and <code>upsert</code> are true, mongoose will apply the <a href="http://mongoosejs.com/docs/defaults.html">defaults</a> specified in the model's schema if a new document is created.</li> <li>
+<code>strict</code> (boolean) overrides the <code>strict</code> option for this update</li> <li><code>read</code></li> <li><code>writeConcern</code></li> </ul> <h4>Note</h4> <p>Passing an empty object <code>{}</code> as the doc will result in a no-op. The update operation will be ignored and the callback executed without sending the command to MongoDB.</p> <h4>Note</h4> <p>The operation is only executed when a callback is passed. To force execution without a callback, we must first call update() and then execute it by using the <code>exec()</code> method.</p> <pre data-language="javascript">const q = Model.where({ _id: id });
 q.update({ $set: { name: 'bob' }}).update(); // not executed
 
 q.update({ $set: { name: 'bob' }}).exec(); // executed
@@ -1365,16 +1374,6 @@ q.update({ $set: { name: 'bob' }}).exec(); // executed
 // keys that are not [atomic](<a href="https://docs.mongodb.com/manual/tutorial/model-data-for-atomic-operations/#pattern">https://docs.mongodb.com/manual/tutorial/model-data-for-atomic-operations/#pattern</a>) ops become `$set`.
 // this executes the same command as the previous example.
 q.update({ name: 'bob' }).exec();
-
-// overwriting with empty docs
-const q = Model.where({ _id: id }).setOptions({ overwrite: true })
-q.update({ }, callback); // executes
-
-// multi update with overwrite to empty doc
-const q = Model.where({ _id: id });
-q.setOptions({ multi: true, overwrite: true })
-q.update({ });
-q.update(callback); // executed
 
 // multi updates
 Model.where()
@@ -1404,7 +1403,6 @@ update()</pre> </div>
 <li class="param">[update] <span class="method-type">«Object|Array»</span> the update command </li>
 <li class="param">[options] <span class="method-type">«Object»</span> </li>
 <ul style="margin-top: 0.5em"><li>[options.multipleCastError] <span class="method-type">«Boolean»</span> by default, mongoose only returns the first error that occurred in casting the query. Turn on this option to aggregate all the cast errors. </li></ul>
-<ul style="margin-top: 0.5em"><li>[options.omitUndefined=false] <span class="method-type">«Boolean»</span> If true, delete any properties whose value is <code>undefined</code> when casting an update. In other words, if this is set, Mongoose will delete <code>baz</code> from the update in <code>Model.updateOne({}, { foo: 'bar', baz: undefined })</code> before sending the update to the server. </li></ul>
 <ul style="margin-top: 0.5em"><li>[options.strict] <span class="method-type">«Boolean|String»</span> overwrites the schema's <a href="http://mongoosejs.com/docs/guide.html#strict">strict mode option</a> </li></ul>
 <ul style="margin-top: 0.5em"><li>[options.upsert=false] <span class="method-type">«Boolean»</span> if true, and no documents found, insert a new document </li></ul>
 <ul style="margin-top: 0.5em"><li>[options.writeConcern=null] <span class="method-type">«Object»</span> sets the <a href="https://docs.mongodb.com/manual/reference/write-concern/">write concern</a> for replica sets. Overrides the <a href="../guide#writeConcern">schema-level write concern</a> </li></ul>
@@ -1425,7 +1423,6 @@ res.nModified; <span class="hljs-comment">// Number of documents modified</span>
 <li class="param">[update] <span class="method-type">«Object|Array»</span> the update command </li>
 <li class="param">[options] <span class="method-type">«Object»</span> </li>
 <ul style="margin-top: 0.5em"><li>[options.multipleCastError] <span class="method-type">«Boolean»</span> by default, mongoose only returns the first error that occurred in casting the query. Turn on this option to aggregate all the cast errors. </li></ul>
-<ul style="margin-top: 0.5em"><li>[options.omitUndefined=false] <span class="method-type">«Boolean»</span> If true, delete any properties whose value is <code>undefined</code> when casting an update. In other words, if this is set, Mongoose will delete <code>baz</code> from the update in <code>Model.updateOne({}, { foo: 'bar', baz: undefined })</code> before sending the update to the server. </li></ul>
 <ul style="margin-top: 0.5em"><li>[options.strict] <span class="method-type">«Boolean|String»</span> overwrites the schema's <a href="http://mongoosejs.com/docs/guide.html#strict">strict mode option</a> </li></ul>
 <ul style="margin-top: 0.5em"><li>[options.upsert=false] <span class="method-type">«Boolean»</span> if true, and no documents found, insert a new document </li></ul>
 <ul style="margin-top: 0.5em"><li>[options.writeConcern=null] <span class="method-type">«Object»</span> sets the <a href="https://docs.mongodb.com/manual/reference/write-concern/">write concern</a> for replica sets. Overrides the <a href="../guide#writeConcern">schema-level write concern</a> </li></ul>
@@ -1436,7 +1433,7 @@ res.nModified; <span class="hljs-comment">// Number of documents modified</span>
 <ul><li>
 <span class="method-type">«Query»</span> this </li></ul>
 <div>
-<p>Declare and/or execute this query as an updateOne() operation. Same as <code>update()</code>, except it does not support the <code>multi</code> or <code>overwrite</code> options.</p> <ul> <li>MongoDB will update <em>only</em> the first document that matches <code>filter</code> regardless of the value of the <code>multi</code> option.</li> <li>Use <code>replaceOne()</code> if you want to overwrite an entire document rather than using <a href="https://docs.mongodb.com/manual/tutorial/model-data-for-atomic-operations/#pattern">atomic</a> operators like <code>$set</code>.</li> </ul> <p><strong>Note</strong> updateOne will <em>not</em> fire update middleware. Use <code>pre('updateOne')</code> and <code>post('updateOne')</code> instead.</p> <h4>Example:</h4> <pre data-language="javascript"><span class="hljs-keyword">const</span> res = <span class="hljs-keyword">await</span> Person.updateOne({ <span class="hljs-attr">name</span>: <span class="hljs-string">'Jean-Luc Picard'</span> }, { <span class="hljs-attr">ship</span>: <span class="hljs-string">'USS Enterprise'</span> });
+<p>Declare and/or execute this query as an updateOne() operation. Same as <code>update()</code>, except it does not support the <code>multi</code> option.</p> <ul> <li>MongoDB will update <em>only</em> the first document that matches <code>filter</code> regardless of the value of the <code>multi</code> option.</li> <li>Use <code>replaceOne()</code> if you want to overwrite an entire document rather than using <a href="https://docs.mongodb.com/manual/tutorial/model-data-for-atomic-operations/#pattern">atomic</a> operators like <code>$set</code>.</li> </ul> <p><strong>Note</strong> updateOne will <em>not</em> fire update middleware. Use <code>pre('updateOne')</code> and <code>post('updateOne')</code> instead.</p> <h4>Example:</h4> <pre data-language="javascript"><span class="hljs-keyword">const</span> res = <span class="hljs-keyword">await</span> Person.updateOne({ <span class="hljs-attr">name</span>: <span class="hljs-string">'Jean-Luc Picard'</span> }, { <span class="hljs-attr">ship</span>: <span class="hljs-string">'USS Enterprise'</span> });
 res.n; <span class="hljs-comment">// Number of documents matched</span>
 res.nModified; <span class="hljs-comment">// Number of documents modified</span></pre> <p>This function triggers the following middleware.</p> <ul> <li><code>updateOne()</code></li> </ul> </div>
 <h3 id="query_Query-use$geoWithin">Query.prototype.use$geoWithin</h3>

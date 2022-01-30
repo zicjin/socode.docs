@@ -1,5 +1,4 @@
-<h1>Bindings</h1>
-<p>Phoenix supports DOM element bindings for client-server interaction. For example, to react to a click on a button, you would render the element:</p>
+<h1> <button class="settings display-settings">  <span class="sr-only">Settings</span> </button>  <span>Bindings</span> </h1> <p>Phoenix supports DOM element bindings for client-server interaction. For example, to react to a click on a button, you would render the element:</p>
 <pre data-language="elixir">&lt;button phx-click="inc_temperature"&gt;+&lt;/button&gt;</pre>
 <p>Then on the server, all LiveView bindings are handled with the <code class="inline">handle_event</code> callback, for example:</p>
 <pre data-language="elixir">def handle_event("inc_temperature", _value, socket) do
@@ -19,11 +18,17 @@ end</pre>
 <tr>
 <td style="text-align: left;"><a href="#click-events">Click Events</a></td>
 <td style="text-align: left;">
-<code class="inline">phx-click</code>, <code class="inline">phx-capture-click</code>
+<code class="inline">phx-click</code>, <code class="inline">phx-click-away</code>
 </td>
 </tr>
 <tr>
-<td style="text-align: left;"><a href="#focus-and-blur-events">Focus/Blur Events</a></td>
+<td style="text-align: left;"><a href="form-bindings">Form Events</a></td>
+<td style="text-align: left;">
+<code class="inline">phx-change</code>, <code class="inline">phx-submit</code>, <code class="inline">phx-feedback-for</code>, <code class="inline">phx-disable-with</code>, <code class="inline">phx-trigger-action</code>, <code class="inline">phx-auto-recover</code>
+</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="#focus-and-blur-events">Focus Events</a></td>
 <td style="text-align: left;">
 <code class="inline">phx-blur</code>, <code class="inline">phx-focus</code>, <code class="inline">phx-window-blur</code>, <code class="inline">phx-window-focus</code>
 </td>
@@ -35,10 +40,14 @@ end</pre>
 </td>
 </tr>
 <tr>
-<td style="text-align: left;"><a href="form-bindings">Form Events</a></td>
+<td style="text-align: left;"><a href="dom-patching">DOM Patching</a></td>
 <td style="text-align: left;">
-<code class="inline">phx-change</code>, <code class="inline">phx-submit</code>, <code class="inline">phx-feedback-for</code>, <code class="inline">phx-disable-with</code>, <code class="inline">phx-trigger-action</code>, <code class="inline">phx-auto-recover</code>
+<code class="inline">phx-update</code>, <code class="inline">phx-remove</code>
 </td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="js-interop#client-hooks">JS Interop</a></td>
+<td style="text-align: left;"><code class="inline">phx-hook</code></td>
 </tr>
 <tr>
 <td style="text-align: left;"><a href="#rate-limiting-events-with-debounce-and-throttle">Rate Limiting</a></td>
@@ -47,17 +56,17 @@ end</pre>
 </td>
 </tr>
 <tr>
-<td style="text-align: left;"><a href="dom-patching">DOM Patching</a></td>
-<td style="text-align: left;"><code class="inline">phx-update</code></td>
-</tr>
-<tr>
-<td style="text-align: left;"><a href="js-interop#client-hooks">JS Interop</a></td>
-<td style="text-align: left;"><code class="inline">phx-hook</code></td>
+<td style="text-align: left;"><a href="#">Static tracking</a></td>
+<td style="text-align: left;"><code class="inline">phx-track-static</code></td>
 </tr>
 </tbody>
 </table>
 <h2 id="click-events" class="section-heading">  Click Events </h2> <p>The <code class="inline">phx-click</code> binding is used to send click events to the server. When any client event, such as a <code class="inline">phx-click</code> click is pushed, the value sent to the server will be chosen with the following priority:</p>
 <ul>
+<li>
+<p>The <code class="inline">:value</code> specified in <a href="phoenix.liveview.js#push/3"><code class="inline">Phoenix.LiveView.JS.push/3</code></a>, such as:</p>
+<pre data-language="elixir">&lt;div phx-click={JS.push("inc", value: %{myvar1: @val1})}&gt;</pre>
+</li>
 <li>
 <p>Any number of optional <code class="inline">phx-value-</code> prefixed attributes, such as:</p>
 <pre data-language="elixir">&lt;div phx-click="inc" phx-value-myvar1="val1" phx-value-myvar2="val2"&gt;</pre>
@@ -66,7 +75,7 @@ end</pre>
 <p>If the <code class="inline">phx-value-</code> prefix is used, the server payload will also contain a <code class="inline">"value"</code> if the element's value attribute exists.</p>
 </li>
 <li>
-<p>When receiving a map on the server, the payload will also include user defined metadata of the client event, or an empty map if none is set. For example, the following <code class="inline">LiveSocket</code> client option would send the coordinates and <code class="inline">altKey</code> information for all clicks:</p>
+<p>The payload will also include any additional user defined metadata of the client event. For example, the following <code class="inline">LiveSocket</code> client option would send the coordinates and <code class="inline">altKey</code> information for all clicks:</p>
 <pre data-language="elixir">let liveSocket = new LiveSocket("/live", Socket, {
   params: {_csrf_token: csrfToken},
   metadata: {
@@ -81,7 +90,7 @@ end</pre>
 })</pre>
 </li>
 </ul>
-<p>The <code class="inline">phx-capture-click</code> event is just like <code class="inline">phx-click</code>, but instead of the click event being dispatched to the closest <code class="inline">phx-click</code> element as it bubbles up through the DOM, the event is dispatched as it propagates from the top of the DOM tree down to the target element. This is useful when wanting to bind click events without receiving bubbled events from child UI elements. Since capturing happens before bubbling, this can also be important for preparing or preventing behaviour that will be applied during the bubbling phase.</p>
+<p>The <code class="inline">phx-click-away</code> event is fired when a click event happens outside of the element. This is useful for hiding toggled containers like drop-downs.</p>
 <h2 id="focus-and-blur-events" class="section-heading">  Focus and Blur Events </h2> <p>Focus and blur events may be bound to DOM elements that emit such events, using the <code class="inline">phx-blur</code>, and <code class="inline">phx-focus</code> bindings, for example:</p>
 <pre data-language="elixir">&lt;input name="email" phx-focus="myfocus" phx-blur="myblur"/&gt;</pre>
 <p>To detect when the page itself has received focus or blur, <code class="inline">phx-window-focus</code> and <code class="inline">phx-window-blur</code> may be specified. These window level events may also be necessary if the element in consideration (most often a <code class="inline">div</code> with no tabindex) cannot receive focus. Like other bindings, <code class="inline">phx-value-*</code> can be provided on the bound element, and those values will be sent as part of the payload. For example:</p>
@@ -91,13 +100,6 @@ end</pre>
     phx-value-page="123"&gt;
   ...
 &lt;/div&gt;</pre>
-<p>The following window-level bindings are supported:</p>
-<ul>
-<li><code class="inline">phx-window-focus</code></li>
-<li><code class="inline">phx-window-blur</code></li>
-<li><code class="inline">phx-window-keydown</code></li>
-<li><code class="inline">phx-window-keyup</code></li>
-</ul>
 <h2 id="key-events" class="section-heading">  Key Events </h2> <p>The <code class="inline">onkeydown</code>, and <code class="inline">onkeyup</code> events are supported via the <code class="inline">phx-keydown</code>, and <code class="inline">phx-keyup</code> bindings. Each binding supports a <code class="inline">phx-key</code> attribute, which triggers the event for the specific key press. If no <code class="inline">phx-key</code> is provided, the event is triggered for any key press. When pushed, the value sent to the server will contain the <code class="inline">"key"</code> that was pressed, plus any user-defined metadata. For example, pressing the Escape key looks like this:</p>
 <pre data-language="elixir">%{"key" =&gt; "Escape"}</pre>
 <p>To capture additional user-defined metadata, the <code class="inline">metadata</code> option for keydown events may be provided to the <code class="inline">LiveSocket</code> constructor. For example:</p>
@@ -116,7 +118,7 @@ end</pre>
 <p>To determine which key has been pressed you should use <code class="inline">key</code> value. The available options can be found on <a href="https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values">MDN</a> or via the <a href="https://w3c.github.io/uievents/tools/key-event-viewer.html">Key Event Viewer</a>.</p>
 <p>By default, the bound element will be the event listener, but a window-level binding may be provided via <code class="inline">phx-window-keydown</code> or <code class="inline">phx-window-keyup</code>, for example:</p>
 <pre data-language="elixir">def render(assigns) do
-  ~L"""
+  ~H"""
   &lt;div id="thermostat" phx-window-keyup="update_temp"&gt;
     Current temperature: &lt;%= @temperature %&gt;
   &lt;/div&gt;
@@ -158,13 +160,100 @@ end</pre>
 <li><p>When a <code class="inline">phx-submit</code>, or a <code class="inline">phx-change</code> for a different input is triggered, any current debounce or throttle timers are reset for existing inputs.</p></li>
 <li><p>A <code class="inline">phx-keydown</code> binding is only throttled for key repeats. Unique keypresses back-to-back will dispatch the pressed key events.</p></li>
 </ul>
+<h2 id="js-commands" class="section-heading">  JS Commands </h2> <p>LiveView bindings support a JavaScript command interface via the <a href="phoenix.liveview.js"><code class="inline">Phoenix.LiveView.JS</code></a> module, which allows you to specify utility operations that execute on the client when firing <code class="inline">phx-</code> binding events, such as <code class="inline">phx-click</code>, <code class="inline">phx-change</code>, etc. Commands compose together to allow you to push events, add classes to elements, transition elements in and out, and more. See the <a href="phoenix.liveview.js"><code class="inline">Phoenix.LiveView.JS</code></a> documentation for full usage.</p>
+<p>For a small example of what's possible, imagine you want to show and hide a modal on the page without needing to make the round trip to the server to render the content:</p>
+<pre data-language="elixir">&lt;div id="modal" class="modal"&gt;
+  My Modal
+&lt;/div&gt;
+
+&lt;button phx-click={JS.show(to: "#modal", transition: "fade-in")}&gt;
+  show modal
+&lt;/button&gt;
+
+&lt;button phx-click={JS.hide(to: "#modal", transition: "fade-out")}&gt;
+  hide modal
+&lt;/button&gt;
+
+&lt;button phx-click={JS.toggle(to: "#modal", in: "fade-in", out: "fade-out")}&gt;
+  toggle modal
+&lt;/button&gt;</pre>
+<p>Or if your UI library relies on classes to perform the showing or hiding:</p>
+<pre data-language="elixir">&lt;div id="modal" class="modal"&gt;
+  My Modal
+&lt;/div&gt;
+
+&lt;button phx-click={JS.add_class("show", to: "#modal", transition: "fade-in")}&gt;
+  show modal
+&lt;/button&gt;
+
+&lt;button phx-click={JS.remove_class("show", to: "#modal", transition: "fade-out")}&gt;
+  hide modal
+&lt;/button&gt;</pre>
+<p>Commands compose together. For example, you can push an event to the server and immediately hide the modal on the client:</p>
+<pre data-language="elixir">&lt;div id="modal" class="modal"&gt;
+  My Modal
+&lt;/div&gt;
+
+&lt;button phx-click={JS.push("modal-closed") |&gt; JS.remove_class("show", to: "#modal", transition: "fade-out")}&gt;
+  hide modal
+&lt;/button&gt;</pre>
+<p>It is also useful to extract commands into their own functions:</p>
+<pre data-language="elixir">alias Phoenix.LiveView.JS
+
+def hide_modal(js \\ %JS{}, selector) do
+  js
+  |&gt; JS.push("modal-closed")
+  |&gt; JS.remove_class("show", to: selector, transition: "fade-out")
+end</pre>
+<pre data-language="elixir">&lt;button phx-click={hide_modal("#modal")}&gt;hide modal&lt;/button&gt;</pre>
+<p>The <a href="phoenix.liveview.js#push/3"><code class="inline">Phoenix.LiveView.JS.push/3</code></a> command is particularly powerful in allowing you to customize the event being pushed to the server. For example, imagine you start with a familiar <code class="inline">phx-click</code> which pushes a message to the server when clicked:</p>
+<pre data-language="elixir">&lt;button phx-click="clicked"&gt;click&lt;/button&gt;</pre>
+<p>Now imagine you want to customize what happens when the <code class="inline">"clicked"</code> event is pushed, such as which component should be targeted, which element should receive css loading state classes, etc. This can be accomplished with options on the JS push command. For example:</p>
+<pre data-language="elixir">&lt;button phx-click={JS.push("clicked", target: @myself, loading: ".container")}&gt;click&lt;/button&gt;</pre>
+<p>See <a href="phoenix.liveview.js#push/3"><code class="inline">Phoenix.LiveView.JS.push/3</code></a> for all supported options.</p>
 <h2 id="liveview-specific-events" class="section-heading">  LiveView Specific Events </h2> <p>The <code class="inline">lv:</code> event prefix supports LiveView specific features that are handled by LiveView without calling the user's <code class="inline">handle_event/3</code> callbacks. Today, the following events are supported:</p>
 <ul><li>
 <code class="inline">lv:clear-flash</code> – clears the flash when sent to the server. If a <code class="inline">phx-value-key</code> is provided, the specific key will be removed from the flash.</li></ul>
 <p>For example:</p>
 <pre data-language="elixir">&lt;p class="alert" phx-click="lv:clear-flash" phx-value-key="info"&gt;
   &lt;%= live_flash(@flash, :info) %&gt;
-&lt;/p&gt;</pre> <div class="bottom-actions"> <div class="bottom-actions-item"> <a href="using-gettext" class="bottom-actions-button" rel="prev"> <span class="subheader"> ← Previous Page </span> <span class="title"> Using Gettext for internationalization </span> </a> </div> <div class="bottom-actions-item"> <a href="form-bindings" class="bottom-actions-button" rel="next"> <span class="subheader"> Next Page → </span> <span class="title"> Form bindings </span> </a> </div> </div><div class="_attribution">
+&lt;/p&gt;</pre>
+<h2 id="loading-states-and-errors" class="section-heading">  Loading states and errors </h2> <p>All <code class="inline">phx-</code> event bindings apply their own css classes when pushed. For example the following markup:</p>
+<pre data-language="elixir">&lt;button phx-click="clicked" phx-window-keydown="key"&gt;...&lt;/button&gt;</pre>
+<p>On click, would receive the <code class="inline">phx-click-loading</code> class, and on keydown would receive the <code class="inline">phx-keydown-loading</code> class. The css loading classes are maintained until an acknowledgement is received on the client for the pushed event.</p>
+<p>In the case of forms, when a <code class="inline">phx-change</code> is sent to the server, the input element which emitted the change receives the <code class="inline">phx-change-loading</code> class, along with the parent form tag. The following events receive css loading classes:</p>
+<ul>
+<li>
+<code class="inline">phx-click</code> - <code class="inline">phx-click-loading</code>
+</li>
+<li>
+<code class="inline">phx-change</code> - <code class="inline">phx-change-loading</code>
+</li>
+<li>
+<code class="inline">phx-submit</code> - <code class="inline">phx-submit-loading</code>
+</li>
+<li>
+<code class="inline">phx-focus</code> - <code class="inline">phx-focus-loading</code>
+</li>
+<li>
+<code class="inline">phx-blur</code> - <code class="inline">phx-blur-loading</code>
+</li>
+<li>
+<code class="inline">phx-window-keydown</code> - <code class="inline">phx-keydown-loading</code>
+</li>
+<li>
+<code class="inline">phx-window-keyup</code> - <code class="inline">phx-keyup-loading</code>
+</li>
+</ul>
+<p>Additionally, the following classes are applied to the LiveView's parent container:</p>
+<ul>
+<li>
+<code class="inline">"phx-connected"</code> - applied when the view has connected to the server</li>
+<li>
+<code class="inline">"phx-loading"</code> - applied when the view is not connected to the server</li>
+<li>
+<code class="inline">"phx-error"</code> - applied when an error occurs on the server. Note, this class will be applied in conjunction with <code class="inline">"phx-loading"</code> if connection to the server is lost.</li>
+</ul> <div class="bottom-actions"> <div class="bottom-actions-item"> <a href="using-gettext" class="bottom-actions-button" rel="prev"> <span class="subheader"> ← Previous Page </span> <span class="title"> Using Gettext for internationalization </span> </a> </div> <div class="bottom-actions-item"> <a href="form-bindings" class="bottom-actions-button" rel="next"> <span class="subheader"> Next Page → </span> <span class="title"> Form bindings </span> </a> </div> </div><div class="_attribution">
   <p class="_attribution-p">
     <a href="https://hexdocs.pm/phoenix_live_view/bindings.html" class="_attribution-link" target="_blank">https://hexdocs.pm/phoenix_live_view/bindings.html</a>
   </p>

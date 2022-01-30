@@ -3,11 +3,7 @@
     Continue(C),
     Break(B),
 }</pre>
-<div class="item-info"><div class="stab unstable"><details><summary><span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>control_flow_enum</code> <a href="https://github.com/rust-lang/rust/issues/75744">#75744</a>)</summary><p>new API</p> </details></div></div>
-<details class="rustdoc-toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock">
-<p>Used to tell an operation whether it should exit early or go on as usual.</p> <p>This is used when exposing things (like graph traversals or visitors) where you want the user to be able to choose whether to exit early. Having the enum makes it clearer – no more wondering “wait, what did <code>false</code> mean again?” – and allows including a value.</p> <h2 id="examples" class="section-header">Examples</h2> <p>Early-exiting from <a href="../iter/trait.iterator#method.try_for_each" title="Iterator::try_for_each"><code>Iterator::try_for_each</code></a>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
-#![feature(control_flow_enum)]
-use std::ops::ControlFlow;
+<p>Used to tell an operation whether it should exit early or go on as usual.</p> <p>This is used when exposing things (like graph traversals or visitors) where you want the user to be able to choose whether to exit early. Having the enum makes it clearer – no more wondering “wait, what did <code>false</code> mean again?” – and allows including a value.</p> <p>Similar to <a href="../option/enum.option" title="Option"><code>Option</code></a> and <a href="../result/enum.result" title="Result"><code>Result</code></a>, this enum can be used with the <code>?</code> operator to return immediately if the <a href="enum.controlflow#variant.Break"><code>Break</code></a> variant is present or otherwise continue normally with the value inside the <a href="enum.controlflow#variant.Continue"><code>Continue</code></a> variant.</p> <h3 id="examples" class="section-header">Examples</h3> <p>Early-exiting from <a href="../iter/trait.iterator#method.try_for_each" title="Iterator::try_for_each"><code>Iterator::try_for_each</code></a>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::ops::ControlFlow;
 
 let r = (2..100).try_for_each(|x| {
     if 403 % x == 0 {
@@ -16,9 +12,7 @@ let r = (2..100).try_for_each(|x| {
 
     ControlFlow::Continue(())
 });
-assert_eq!(r, ControlFlow::Break(13));</pre></div> <p>A basic tree traversal:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
-#![feature(control_flow_enum)]
-use std::ops::ControlFlow;
+assert_eq!(r, ControlFlow::Break(13));</pre></div> <p>A basic tree traversal:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::ops::ControlFlow;
 
 pub struct TreeNode&lt;T&gt; {
     value: T,
@@ -27,76 +21,107 @@ pub struct TreeNode&lt;T&gt; {
 }
 
 impl&lt;T&gt; TreeNode&lt;T&gt; {
-    pub fn traverse_inorder&lt;B&gt;(&amp;self, mut f: impl FnMut(&amp;T) -&gt; ControlFlow&lt;B&gt;) -&gt; ControlFlow&lt;B&gt; {
+    pub fn traverse_inorder&lt;B&gt;(&amp;self, f: &amp;mut impl FnMut(&amp;T) -&gt; ControlFlow&lt;B&gt;) -&gt; ControlFlow&lt;B&gt; {
         if let Some(left) = &amp;self.left {
-            left.traverse_inorder(&amp;mut f)?;
+            left.traverse_inorder(f)?;
         }
         f(&amp;self.value)?;
         if let Some(right) = &amp;self.right {
-            right.traverse_inorder(&amp;mut f)?;
+            right.traverse_inorder(f)?;
         }
         ControlFlow::Continue(())
     }
-}</pre></div> </div></details><h2 id="variants" class="variants small-section-header"> Variants</h2> <div id="variant.Continue" class="variant small-section-header">
-<code>Continue(C)</code>
+    fn leaf(value: T) -&gt; Option&lt;Box&lt;TreeNode&lt;T&gt;&gt;&gt; {
+        Some(Box::new(Self { value, left: None, right: None }))
+    }
+}
+
+let node = TreeNode {
+    value: 0,
+    left: TreeNode::leaf(1),
+    right: Some(Box::new(TreeNode {
+        value: -1,
+        left: TreeNode::leaf(5),
+        right: TreeNode::leaf(2),
+    }))
+};
+let mut sum = 0;
+
+let res = node.traverse_inorder(&amp;mut |val| {
+    if *val &lt; 0 {
+        ControlFlow::Break(*val)
+    } else {
+        sum += *val;
+        ControlFlow::Continue(())
+    }
+});
+assert_eq!(res, ControlFlow::Break(-1));
+assert_eq!(sum, 6);</pre></div> <h2 id="variants" class="variants small-section-header">Variants</h2>
+<h3 id="variant.Continue" class="variant small-section-header"><code>Continue(C)</code></h3>
+<div class="sub-variant" id="variant.Continue.fields">
+<h4>Tuple Fields</h4>
+<div class="sub-variant-field"><span id="variant.Continue.field.0" class="variant small-section-header"><code>0: C</code></span></div>
 </div>
-<div class="item-info"><div class="stab unstable"><details><summary><span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>control_flow_enum</code> <a href="https://github.com/rust-lang/rust/issues/75744">#75744</a>)</summary><p>new API</p> </details></div></div>
-<p>Move on to the next phase of the operation as normal.</p> <div id="variant.Break" class="variant small-section-header">
-<code>Break(B)</code>
+<p>Move on to the next phase of the operation as normal.</p> <h3 id="variant.Break" class="variant small-section-header"><code>Break(B)</code></h3>
+<div class="sub-variant" id="variant.Break.fields">
+<h4>Tuple Fields</h4>
+<div class="sub-variant-field"><span id="variant.Break.field.0" class="variant small-section-header"><code>0: B</code></span></div>
 </div>
-<div class="item-info"><div class="stab unstable"><details><summary><span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>control_flow_enum</code> <a href="https://github.com/rust-lang/rust/issues/75744">#75744</a>)</summary><p>new API</p> </details></div></div>
 <p>Exit the operation without running subsequent phases.</p> <h2 id="implementations" class="small-section-header">Implementations</h2>
-<details class="rustdoc-toggle implementors-toggle" open><summary><div id="impl" class="impl has-srclink">
+<summary><div id="impl" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#126-195" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;B, C&gt; ControlFlow&lt;B, C&gt;</h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#116-185" title="goto source code">[src]</a>
-</div></summary><div class="impl-items">
-<details class="rustdoc-toggle method-toggle" open><summary><div id="method.is_break" class="method has-srclink">
+</div></summary><summary><div id="method.is_break" class="method has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#140" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn is_break(&amp;self) -&gt; bool</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#130" title="goto source code">[src]</a>
 </div>
-<div class="item-info"><div class="stab unstable"><details><summary><span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>control_flow_enum</code> <a href="https://github.com/rust-lang/rust/issues/75744">#75744</a>)</summary><p>new API</p> </details></div></div></summary><div class="docblock">
-<p>Returns <code>true</code> if this is a <code>Break</code> variant.</p> <h2 id="examples-1" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
-#![feature(control_flow_enum)]
+<div class="item-info"><div class="stab unstable">
+<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>control_flow_enum</code> <a href="https://github.com/rust-lang/rust/issues/75744">#75744</a>)</div></div></summary><div class="docblock">
+<p>Returns <code>true</code> if this is a <code>Break</code> variant.</p> <h5 id="examples-1" class="section-header">Examples</h5> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">#![feature(control_flow_enum)]
 use std::ops::ControlFlow;
 
 assert!(ControlFlow::&lt;i32, String&gt;::Break(3).is_break());
-assert!(!ControlFlow::&lt;String, i32&gt;::Continue(3).is_break());</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.is_continue" class="method has-srclink">
+assert!(!ControlFlow::&lt;String, i32&gt;::Continue(3).is_break());</pre></div> </div>
+<summary><div id="method.is_continue" class="method has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#157" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn is_continue(&amp;self) -&gt; bool</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#147" title="goto source code">[src]</a>
 </div>
-<div class="item-info"><div class="stab unstable"><details><summary><span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>control_flow_enum</code> <a href="https://github.com/rust-lang/rust/issues/75744">#75744</a>)</summary><p>new API</p> </details></div></div></summary><div class="docblock">
-<p>Returns <code>true</code> if this is a <code>Continue</code> variant.</p> <h2 id="examples-2" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
-#![feature(control_flow_enum)]
+<div class="item-info"><div class="stab unstable">
+<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>control_flow_enum</code> <a href="https://github.com/rust-lang/rust/issues/75744">#75744</a>)</div></div></summary><div class="docblock">
+<p>Returns <code>true</code> if this is a <code>Continue</code> variant.</p> <h5 id="examples-2" class="section-header">Examples</h5> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">#![feature(control_flow_enum)]
 use std::ops::ControlFlow;
 
 assert!(!ControlFlow::&lt;i32, String&gt;::Break(3).is_continue());
-assert!(ControlFlow::&lt;String, i32&gt;::Continue(3).is_continue());</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.break_value" class="method has-srclink">
+assert!(ControlFlow::&lt;String, i32&gt;::Continue(3).is_continue());</pre></div> </div>
+<summary><div id="method.break_value" class="method has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#175" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn break_value(self) -&gt; Option&lt;B&gt;</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#165" title="goto source code">[src]</a>
 </div>
-<div class="item-info"><div class="stab unstable"><details><summary><span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>control_flow_enum</code> <a href="https://github.com/rust-lang/rust/issues/75744">#75744</a>)</summary><p>new API</p> </details></div></div></summary><div class="docblock">
-<p>Converts the <code>ControlFlow</code> into an <code>Option</code> which is <code>Some</code> if the <code>ControlFlow</code> was <code>Break</code> and <code>None</code> otherwise.</p> <h2 id="examples-3" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
-#![feature(control_flow_enum)]
+<div class="item-info"><div class="stab unstable">
+<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>control_flow_enum</code> <a href="https://github.com/rust-lang/rust/issues/75744">#75744</a>)</div></div></summary><div class="docblock">
+<p>Converts the <code>ControlFlow</code> into an <code>Option</code> which is <code>Some</code> if the <code>ControlFlow</code> was <code>Break</code> and <code>None</code> otherwise.</p> <h5 id="examples-3" class="section-header">Examples</h5> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">#![feature(control_flow_enum)]
 use std::ops::ControlFlow;
 
 assert_eq!(ControlFlow::&lt;i32, String&gt;::Break(3).break_value(), Some(3));
-assert_eq!(ControlFlow::&lt;String, i32&gt;::Continue(3).break_value(), None);</pre></div> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.map_break" class="method has-srclink">
+assert_eq!(ControlFlow::&lt;String, i32&gt;::Continue(3).break_value(), None);</pre></div> </div>
+<summary><div id="method.map_break" class="method has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#186-188" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn map_break&lt;T, F&gt;(self, f: F) -&gt; ControlFlow&lt;T, C&gt; <span class="where fmt-newline">where<br> F: <a class="trait" href="trait.fnonce" title="trait std::ops::FnOnce">FnOnce</a>(B) -&gt; T, </span>
 </h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#176-178" title="goto source code">[src]</a>
 </div>
-<div class="item-info"><div class="stab unstable"><details><summary><span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>control_flow_enum</code> <a href="https://github.com/rust-lang/rust/issues/75744">#75744</a>)</summary><p>new API</p> </details></div></div></summary><div class="docblock">
-<p>Maps <code>ControlFlow&lt;B, C&gt;</code> to <code>ControlFlow&lt;T, C&gt;</code> by applying a function to the break value in case it exists.</p> </div></details>
-</div></details><details class="rustdoc-toggle implementors-toggle" open><summary><div id="impl-1" class="impl has-srclink">
+<div class="item-info"><div class="stab unstable">
+<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>control_flow_enum</code> <a href="https://github.com/rust-lang/rust/issues/75744">#75744</a>)</div></div></summary><div class="docblock">
+<p>Maps <code>ControlFlow&lt;B, C&gt;</code> to <code>ControlFlow&lt;T, C&gt;</code> by applying a function to the break value in case it exists.</p> </div>
+<summary><div id="impl-1" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#220-240" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;B&gt; ControlFlow&lt;B, ()&gt;</h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#232-252" title="goto source code">[src]</a>
-</div></summary><div class="impl-items"><details class="rustdoc-toggle" open><summary><div id="associatedconstant.CONTINUE" class="associatedconstant has-srclink">
-<h4 class="code-header">pub const <b>CONTINUE</b>: ControlFlow&lt;B, ()&gt;</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#251" title="goto source code">[src]</a>
+</div></summary><summary><div id="associatedconstant.CONTINUE" class="associatedconstant has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#239" title="goto source code">[src]</a></div>
+<h4 class="code-header">pub const CONTINUE: ControlFlow&lt;B, ()&gt;</h4>
 </div>
-<div class="item-info"><div class="stab unstable"><details><summary><span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>control_flow_enum</code> <a href="https://github.com/rust-lang/rust/issues/75744">#75744</a>)</summary><p>new API</p> </details></div></div></summary><div class="docblock">
-<p>It’s frequently the case that there’s no value needed with <code>Continue</code>, so this provides a way to avoid typing <code>(())</code>, if you prefer it.</p> <h2 id="examples-4" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
-#![feature(control_flow_enum)]
+<div class="item-info"><div class="stab unstable">
+<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>control_flow_enum</code> <a href="https://github.com/rust-lang/rust/issues/75744">#75744</a>)</div></div></summary><div class="docblock">
+<p>It’s frequently the case that there’s no value needed with <code>Continue</code>, so this provides a way to avoid typing <code>(())</code>, if you prefer it.</p> <h5 id="examples-4" class="section-header">Examples</h5> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">#![feature(control_flow_enum)]
 use std::ops::ControlFlow;
 
 let mut partial_sum = 0;
@@ -105,16 +130,17 @@ let last_used = (1..10).chain(20..25).try_for_each(|x| {
     if partial_sum &gt; 100 { ControlFlow::Break(x) }
     else { ControlFlow::CONTINUE }
 });
-assert_eq!(last_used.break_value(), Some(22));</pre></div> </div></details></div></details><details class="rustdoc-toggle implementors-toggle" open><summary><div id="impl-2" class="impl has-srclink">
+assert_eq!(last_used.break_value(), Some(22));</pre></div> </div>
+<summary><div id="impl-2" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#242-261" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;C&gt; ControlFlow&lt;(), C&gt;</h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#254-273" title="goto source code">[src]</a>
-</div></summary><div class="impl-items"><details class="rustdoc-toggle" open><summary><div id="associatedconstant.BREAK" class="associatedconstant has-srclink">
-<h4 class="code-header">pub const <b>BREAK</b>: ControlFlow&lt;(), C&gt;</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#272" title="goto source code">[src]</a>
+</div></summary><summary><div id="associatedconstant.BREAK" class="associatedconstant has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#260" title="goto source code">[src]</a></div>
+<h4 class="code-header">pub const BREAK: ControlFlow&lt;(), C&gt;</h4>
 </div>
-<div class="item-info"><div class="stab unstable"><details><summary><span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>control_flow_enum</code> <a href="https://github.com/rust-lang/rust/issues/75744">#75744</a>)</summary><p>new API</p> </details></div></div></summary><div class="docblock">
-<p>APIs like <code>try_for_each</code> don’t need values with <code>Break</code>, so this provides a way to avoid typing <code>(())</code>, if you prefer it.</p> <h2 id="examples-5" class="section-header">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">
-#![feature(control_flow_enum)]
+<div class="item-info"><div class="stab unstable">
+<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>control_flow_enum</code> <a href="https://github.com/rust-lang/rust/issues/75744">#75744</a>)</div></div></summary><div class="docblock">
+<p>APIs like <code>try_for_each</code> don’t need values with <code>Break</code>, so this provides a way to avoid typing <code>(())</code>, if you prefer it.</p> <h5 id="examples-5" class="section-header">Examples</h5> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">#![feature(control_flow_enum)]
 use std::ops::ControlFlow;
 
 let mut partial_sum = 0;
@@ -122,209 +148,243 @@ let mut partial_sum = 0;
     if partial_sum &gt; 100 { ControlFlow::BREAK }
     else { partial_sum += x; ControlFlow::CONTINUE }
 });
-assert_eq!(partial_sum, 108);</pre></div> </div></details></div></details><h2 id="trait-implementations" class="small-section-header">Trait Implementations</h2>
+assert_eq!(partial_sum, 108);</pre></div> </div>
+<h2 id="trait-implementations" class="small-section-header">Trait Implementations</h2>
 <div id="trait-implementations-list">
-<details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Clone" class="impl has-srclink">
-<h3 class="code-header in-band">impl&lt;B, C&gt; Clone for ControlFlow&lt;B, C&gt; <span class="where fmt-newline">where<br> C: <a class="trait" href="../clone/trait.clone" title="trait std::clone::Clone">Clone</a>,<br> B: <a class="trait" href="../clone/trait.clone" title="trait std::clone::Clone">Clone</a>, </span>
+<summary><div id="impl-Clone" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#82" title="goto source code">[src]</a></div>
+<h3 class="code-header in-band">impl&lt;B, C&gt; Clone for ControlFlow&lt;B, C&gt; <span class="where fmt-newline">where<br> B: <a class="trait" href="../clone/trait.clone" title="trait std::clone::Clone">Clone</a>,<br> C: <a class="trait" href="../clone/trait.clone" title="trait std::clone::Clone">Clone</a>, </span>
 </h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#52" title="goto source code">[src]</a>
 </div></summary><div class="impl-items">
-<details class="rustdoc-toggle method-toggle" open><summary><div id="method.clone" class="method trait-impl has-srclink">
+<summary><div id="method.clone" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#82" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn clone(&amp;self) -&gt; ControlFlow&lt;B, C&gt;</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#52" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>Returns a copy of the value. <a href="../clone/trait.clone#tymethod.clone">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.clone_from" class="method trait-impl has-srclink">
+<p>Returns a copy of the value. <a href="../clone/trait.clone#tymethod.clone">Read more</a></p> </div>
+<summary><div id="method.clone_from" class="method trait-impl has-srclink">
+<div class="rightside">
+<a class="srclink" href="https://doc.rust-lang.org/src/core/clone.rs.html#130" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.0.0">1.0.0</span>
+</div>
 <h4 class="code-header">fn clone_from(&amp;mut self, source: &amp;Self)</h4>
-<span class="since" title="Stable since Rust version 1.0.0">1.0.0</span><a class="srclink" href="https://doc.rust-lang.org/src/core/clone.rs.html#130" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>Performs copy-assignment from <code>source</code>. <a href="../clone/trait.clone#method.clone_from">Read more</a></p> </div></details>
-</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Debug" class="impl has-srclink">
-<h3 class="code-header in-band">impl&lt;B, C&gt; Debug for ControlFlow&lt;B, C&gt; <span class="where fmt-newline">where<br> C: <a class="trait" href="../fmt/trait.debug" title="trait std::fmt::Debug">Debug</a>,<br> B: <a class="trait" href="../fmt/trait.debug" title="trait std::fmt::Debug">Debug</a>, </span>
+<p>Performs copy-assignment from <code>source</code>. <a href="../clone/trait.clone#method.clone_from">Read more</a></p> </div>
+</div>
+<summary><div id="impl-Debug" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#82" title="goto source code">[src]</a></div>
+<h3 class="code-header in-band">impl&lt;B, C&gt; Debug for ControlFlow&lt;B, C&gt; <span class="where fmt-newline">where<br> B: <a class="trait" href="../fmt/trait.debug" title="trait std::fmt::Debug">Debug</a>,<br> C: <a class="trait" href="../fmt/trait.debug" title="trait std::fmt::Debug">Debug</a>, </span>
 </h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#52" title="goto source code">[src]</a>
-</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.fmt" class="method trait-impl has-srclink">
+</div></summary><div class="impl-items">
+<summary><div id="method.fmt" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#82" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn fmt(&amp;self, f: &amp;mut Formatter&lt;'_&gt;) -&gt; Result&lt;(), Error&gt;</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#52" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>Formats the value using the given formatter. <a href="../fmt/trait.debug#tymethod.fmt">Read more</a></p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-FromResidual%3C%3CControlFlow%3CB%2C%20C%3E%20as%20Try%3E%3A%3AResidual%3E" class="impl has-srclink">
+<p>Formats the value using the given formatter. <a href="../fmt/trait.debug#tymethod.fmt">Read more</a></p> </div>
+</div>
+<summary><div id="impl-FromResidual%3C%3CControlFlow%3CB%2C%20C%3E%20as%20Try%3E%3A%3AResidual%3E" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#117-124" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;B, C&gt; FromResidual&lt;&lt;ControlFlow&lt;B, C&gt; as Try&gt;::Residual&gt; for ControlFlow&lt;B, C&gt;</h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#107-114" title="goto source code">[src]</a>
-</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.from_residual" class="method trait-impl has-srclink">
+</div></summary><div class="impl-items">
+<summary><div id="method.from_residual" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#119" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn from_residual(residual: ControlFlow&lt;B, Infallible&gt;) -&gt; ControlFlow&lt;B, C&gt;</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#109" title="goto source code">[src]</a>
 </div></summary><div class="item-info"><div class="stab unstable">
 <span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>try_trait_v2</code> <a href="https://github.com/rust-lang/rust/issues/84277">#84277</a>)</div></div>
 <div class="docblock">
-<p>Constructs the type from a compatible <code>Residual</code> type. <a href="trait.fromresidual#tymethod.from_residual">Read more</a></p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-PartialEq%3CControlFlow%3CB%2C%20C%3E%3E" class="impl has-srclink">
-<h3 class="code-header in-band">impl&lt;B, C&gt; PartialEq&lt;ControlFlow&lt;B, C&gt;&gt; for ControlFlow&lt;B, C&gt; <span class="where fmt-newline">where<br> C: <a class="trait" href="../cmp/trait.partialeq" title="trait std::cmp::PartialEq">PartialEq</a>&lt;C&gt;,<br> B: <a class="trait" href="../cmp/trait.partialeq" title="trait std::cmp::PartialEq">PartialEq</a>&lt;B&gt;, </span>
+<p>Constructs the type from a compatible <code>Residual</code> type. <a href="trait.fromresidual#tymethod.from_residual">Read more</a></p> </div>
+</div>
+<summary><div id="impl-PartialEq%3CControlFlow%3CB%2C%20C%3E%3E" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#82" title="goto source code">[src]</a></div>
+<h3 class="code-header in-band">impl&lt;B, C&gt; PartialEq&lt;ControlFlow&lt;B, C&gt;&gt; for ControlFlow&lt;B, C&gt; <span class="where fmt-newline">where<br> B: <a class="trait" href="../cmp/trait.partialeq" title="trait std::cmp::PartialEq">PartialEq</a>&lt;B&gt;,<br> C: <a class="trait" href="../cmp/trait.partialeq" title="trait std::cmp::PartialEq">PartialEq</a>&lt;C&gt;, </span>
 </h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#52" title="goto source code">[src]</a>
 </div></summary><div class="impl-items">
-<details class="rustdoc-toggle method-toggle" open><summary><div id="method.eq" class="method trait-impl has-srclink">
+<summary><div id="method.eq" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#82" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn eq(&amp;self, other: &amp;ControlFlow&lt;B, C&gt;) -&gt; bool</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#52" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>This method tests for <code>self</code> and <code>other</code> values to be equal, and is used by <code>==</code>. <a href="../cmp/trait.partialeq#tymethod.eq">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.ne" class="method trait-impl has-srclink">
+<p>This method tests for <code>self</code> and <code>other</code> values to be equal, and is used by <code>==</code>. <a href="../cmp/trait.partialeq#tymethod.eq">Read more</a></p> </div>
+<summary><div id="method.ne" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#82" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn ne(&amp;self, other: &amp;ControlFlow&lt;B, C&gt;) -&gt; bool</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#52" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>This method tests for <code>!=</code>.</p> </div></details>
-</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Try" class="impl has-srclink">
+<p>This method tests for <code>!=</code>.</p> </div>
+</div>
+<summary><div id="impl-Try" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#98-114" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;B, C&gt; Try for ControlFlow&lt;B, C&gt;</h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#88-104" title="goto source code">[src]</a>
 </div></summary><div class="impl-items">
-<details class="rustdoc-toggle" open><summary><div id="associatedtype.Output" class="type trait-impl has-srclink">
+<summary><div id="associatedtype.Output" class="type trait-impl has-srclink">
 <h4 class="code-header">type Output = C</h4>
-
 </div></summary><div class="item-info"><div class="stab unstable">
 <span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>try_trait_v2</code> <a href="https://github.com/rust-lang/rust/issues/84277">#84277</a>)</div></div>
 <div class="docblock">
-<p>The type of the value produced by <code>?</code> when <em>not</em> short-circuiting.</p> </div></details><details class="rustdoc-toggle" open><summary><div id="associatedtype.Residual" class="type trait-impl has-srclink">
+<p>The type of the value produced by <code>?</code> when <em>not</em> short-circuiting.</p> </div>
+<summary><div id="associatedtype.Residual" class="type trait-impl has-srclink">
 <h4 class="code-header">type Residual = ControlFlow&lt;B, Infallible&gt;</h4>
-
 </div></summary><div class="item-info"><div class="stab unstable">
 <span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>try_trait_v2</code> <a href="https://github.com/rust-lang/rust/issues/84277">#84277</a>)</div></div>
 <div class="docblock">
-<p>The type of the value passed to <a href="trait.fromresidual#tymethod.from_residual" title="FromResidual::from_residual"><code>FromResidual::from_residual</code></a> as part of <code>?</code> when short-circuiting. <a href="trait.try#associatedtype.Residual">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.from_output" class="method trait-impl has-srclink">
+<p>The type of the value passed to <a href="trait.fromresidual#tymethod.from_residual" title="FromResidual::from_residual"><code>FromResidual::from_residual</code></a> as part of <code>?</code> when short-circuiting. <a href="trait.try#associatedtype.Residual">Read more</a></p> </div>
+<summary><div id="method.from_output" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#103" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn from_output(<br> output: &lt;ControlFlow&lt;B, C&gt; as Try&gt;::Output<br>) -&gt; ControlFlow&lt;B, C&gt;</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#93" title="goto source code">[src]</a>
 </div></summary><div class="item-info"><div class="stab unstable">
 <span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>try_trait_v2</code> <a href="https://github.com/rust-lang/rust/issues/84277">#84277</a>)</div></div>
 <div class="docblock">
-<p>Constructs the type from its <code>Output</code> type. <a href="trait.try#tymethod.from_output">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.branch" class="method trait-impl has-srclink">
+<p>Constructs the type from its <code>Output</code> type. <a href="trait.try#tymethod.from_output">Read more</a></p> </div>
+<summary><div id="method.branch" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#108" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn branch(<br> self<br>) -&gt; ControlFlow&lt;&lt;ControlFlow&lt;B, C&gt; as Try&gt;::Residual, &lt;ControlFlow&lt;B, C&gt; as Try&gt;::Output&gt;</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#98" title="goto source code">[src]</a>
 </div></summary><div class="item-info"><div class="stab unstable">
 <span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>try_trait_v2</code> <a href="https://github.com/rust-lang/rust/issues/84277">#84277</a>)</div></div>
 <div class="docblock">
-<p>Used in <code>?</code> to decide whether the operator should produce a value (because this returned <a href="enum.controlflow#variant.Continue" title="ControlFlow::Continue"><code>ControlFlow::Continue</code></a>) or propagate a value back to the caller (because this returned <a href="enum.controlflow#variant.Break" title="ControlFlow::Break"><code>ControlFlow::Break</code></a>). <a href="trait.try#tymethod.branch">Read more</a></p> </div></details>
-</div></details><div id="impl-Copy" class="impl has-srclink">
-<h3 class="code-header in-band">impl&lt;B, C&gt; Copy for ControlFlow&lt;B, C&gt; <span class="where fmt-newline">where<br> C: <a class="trait" href="../marker/trait.copy" title="trait std::marker::Copy">Copy</a>,<br> B: <a class="trait" href="../marker/trait.copy" title="trait std::marker::Copy">Copy</a>, </span>
+<p>Used in <code>?</code> to decide whether the operator should produce a value (because this returned <a href="enum.controlflow#variant.Continue" title="ControlFlow::Continue"><code>ControlFlow::Continue</code></a>) or propagate a value back to the caller (because this returned <a href="enum.controlflow#variant.Break" title="ControlFlow::Break"><code>ControlFlow::Break</code></a>). <a href="trait.try#tymethod.branch">Read more</a></p> </div>
+</div>
+<div id="impl-Copy" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#82" title="goto source code">[src]</a></div>
+<h3 class="code-header in-band">impl&lt;B, C&gt; Copy for ControlFlow&lt;B, C&gt; <span class="where fmt-newline">where<br> B: <a class="trait" href="../marker/trait.copy" title="trait std::marker::Copy">Copy</a>,<br> C: <a class="trait" href="../marker/trait.copy" title="trait std::marker::Copy">Copy</a>, </span>
 </h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#52" title="goto source code">[src]</a>
 </div>
 <div id="impl-StructuralPartialEq" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#82" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;B, C&gt; StructuralPartialEq for ControlFlow&lt;B, C&gt;</h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/ops/control_flow.rs.html#52" title="goto source code">[src]</a>
 </div>
 </div>
 <h2 id="synthetic-implementations" class="small-section-header">Auto Trait Implementations</h2>
 <div id="synthetic-implementations-list">
 <div id="impl-RefUnwindSafe" class="impl has-srclink">
+
 <h3 class="code-header in-band">impl&lt;B, C&gt; RefUnwindSafe for ControlFlow&lt;B, C&gt; <span class="where fmt-newline">where<br> B: <a class="trait" href="../panic/trait.refunwindsafe" title="trait std::panic::RefUnwindSafe">RefUnwindSafe</a>,<br> C: <a class="trait" href="../panic/trait.refunwindsafe" title="trait std::panic::RefUnwindSafe">RefUnwindSafe</a>, </span>
 </h3>
-
 </div>
 <div id="impl-Send" class="impl has-srclink">
+
 <h3 class="code-header in-band">impl&lt;B, C&gt; Send for ControlFlow&lt;B, C&gt; <span class="where fmt-newline">where<br> B: <a class="trait" href="../marker/trait.send" title="trait std::marker::Send">Send</a>,<br> C: <a class="trait" href="../marker/trait.send" title="trait std::marker::Send">Send</a>, </span>
 </h3>
-
 </div>
 <div id="impl-Sync" class="impl has-srclink">
+
 <h3 class="code-header in-band">impl&lt;B, C&gt; Sync for ControlFlow&lt;B, C&gt; <span class="where fmt-newline">where<br> B: <a class="trait" href="../marker/trait.sync" title="trait std::marker::Sync">Sync</a>,<br> C: <a class="trait" href="../marker/trait.sync" title="trait std::marker::Sync">Sync</a>, </span>
 </h3>
-
 </div>
 <div id="impl-Unpin" class="impl has-srclink">
+
 <h3 class="code-header in-band">impl&lt;B, C&gt; Unpin for ControlFlow&lt;B, C&gt; <span class="where fmt-newline">where<br> B: <a class="trait" href="../marker/trait.unpin" title="trait std::marker::Unpin">Unpin</a>,<br> C: <a class="trait" href="../marker/trait.unpin" title="trait std::marker::Unpin">Unpin</a>, </span>
 </h3>
-
 </div>
 <div id="impl-UnwindSafe" class="impl has-srclink">
+
 <h3 class="code-header in-band">impl&lt;B, C&gt; UnwindSafe for ControlFlow&lt;B, C&gt; <span class="where fmt-newline">where<br> B: <a class="trait" href="../panic/trait.unwindsafe" title="trait std::panic::UnwindSafe">UnwindSafe</a>,<br> C: <a class="trait" href="../panic/trait.unwindsafe" title="trait std::panic::UnwindSafe">UnwindSafe</a>, </span>
 </h3>
-
 </div>
 </div>
 <h2 id="blanket-implementations" class="small-section-header">Blanket Implementations</h2>
 <div id="blanket-implementations-list">
-<details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Any" class="impl has-srclink">
+<summary><div id="impl-Any" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#132-136" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;T&gt; Any for T <span class="where fmt-newline">where<br> T: 'static + ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
 </h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#131-135" title="goto source code">[src]</a>
-</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.type_id" class="method trait-impl has-srclink">
+</div></summary><div class="impl-items">
+<summary><div id="method.type_id" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#133" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn type_id(&amp;self) -&gt; TypeId</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#132" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>Gets the <code>TypeId</code> of <code>self</code>. <a href="../any/trait.any#tymethod.type_id">Read more</a></p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Borrow%3CT%3E" class="impl has-srclink">
+<p>Gets the <code>TypeId</code> of <code>self</code>. <a href="../any/trait.any#tymethod.type_id">Read more</a></p> </div>
+</div>
+<summary><div id="impl-Borrow%3CT%3E" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#208-213" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;T&gt; Borrow&lt;T&gt; for T <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
 </h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#208-213" title="goto source code">[src]</a>
-</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.borrow" class="method trait-impl has-srclink">
+</div></summary><div class="impl-items">
+<summary><div id="method.borrow" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#210" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn borrow(&amp;self) -&gt; &amp;T</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#210" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>Immutably borrows from an owned value. <a href="../borrow/trait.borrow#tymethod.borrow">Read more</a></p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-BorrowMut%3CT%3E" class="impl has-srclink">
+<p>Immutably borrows from an owned value. <a href="../borrow/trait.borrow#tymethod.borrow">Read more</a></p> </div>
+</div>
+<summary><div id="impl-BorrowMut%3CT%3E" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#216-220" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;T&gt; BorrowMut&lt;T&gt; for T <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
 </h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#216-220" title="goto source code">[src]</a>
-</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.borrow_mut" class="method trait-impl has-srclink">
+</div></summary><div class="impl-items">
+<summary><div id="method.borrow_mut" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#217" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn borrow_mut(&amp;mut self) -&gt; &amp;mut T</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#217" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>Mutably borrows from an owned value. <a href="../borrow/trait.borrowmut#tymethod.borrow_mut">Read more</a></p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-From%3CT%3E" class="impl has-srclink">
+<p>Mutably borrows from an owned value. <a href="../borrow/trait.borrowmut#tymethod.borrow_mut">Read more</a></p> </div>
+</div>
+<summary><div id="impl-From%3CT%3E" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#549-553" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;T&gt; From&lt;T&gt; for T</h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#544-548" title="goto source code">[src]</a>
-</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.from" class="method trait-impl has-srclink">
+</div></summary><div class="impl-items">
+<summary><div id="method.from" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#550" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn from(t: T) -&gt; T</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#545" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>Performs the conversion.</p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-Into%3CU%3E" class="impl has-srclink">
+<p>Performs the conversion.</p> </div>
+</div>
+<summary><div id="impl-Into%3CU%3E" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#537-544" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;T, U&gt; Into&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.from" title="trait std::convert::From">From</a>&lt;T&gt;, </span>
 </h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#533-540" title="goto source code">[src]</a>
-</div></summary><div class="impl-items"><details class="rustdoc-toggle method-toggle" open><summary><div id="method.into" class="method trait-impl has-srclink">
+</div></summary><div class="impl-items">
+<summary><div id="method.into" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#541" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn into(self) -&gt; U</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#537" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>Performs the conversion.</p> </div></details></div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-ToOwned" class="impl has-srclink">
+<p>Performs the conversion.</p> </div>
+</div>
+<summary><div id="impl-ToOwned" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/alloc/borrow.rs.html#84-96" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;T&gt; ToOwned for T <span class="where fmt-newline">where<br> T: <a class="trait" href="../clone/trait.clone" title="trait std::clone::Clone">Clone</a>, </span>
 </h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/alloc/borrow.rs.html#84-96" title="goto source code">[src]</a>
 </div></summary><div class="impl-items">
-<details class="rustdoc-toggle" open><summary><div id="associatedtype.Owned" class="type trait-impl has-srclink">
+<summary><div id="associatedtype.Owned" class="type trait-impl has-srclink">
 <h4 class="code-header">type Owned = T</h4>
-
 </div></summary><div class="docblock">
-<p>The resulting type after obtaining ownership.</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.to_owned" class="method trait-impl has-srclink">
+<p>The resulting type after obtaining ownership.</p> </div>
+<summary><div id="method.to_owned" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/alloc/borrow.rs.html#89" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn to_owned(&amp;self) -&gt; T</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/alloc/borrow.rs.html#89" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>Creates owned data from borrowed data, usually by cloning. <a href="../borrow/trait.toowned#tymethod.to_owned">Read more</a></p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.clone_into" class="method trait-impl has-srclink">
+<p>Creates owned data from borrowed data, usually by cloning. <a href="../borrow/trait.toowned#tymethod.to_owned">Read more</a></p> </div>
+<summary><div id="method.clone_into" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/alloc/borrow.rs.html#93" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn clone_into(&amp;self, target: &amp;mut T)</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/alloc/borrow.rs.html#93" title="goto source code">[src]</a>
-</div></summary><div class="item-info"><div class="stab unstable"><details><summary><span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>toowned_clone_into</code> <a href="https://github.com/rust-lang/rust/issues/41263">#41263</a>)</summary><p>recently added</p> </details></div></div>
+</div></summary><div class="item-info"><div class="stab unstable">
+<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>toowned_clone_into</code> <a href="https://github.com/rust-lang/rust/issues/41263">#41263</a>)</div></div>
 <div class="docblock">
-<p>Uses borrowed data to replace owned data, usually by cloning. <a href="../borrow/trait.toowned#method.clone_into">Read more</a></p> </div></details>
-</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-TryFrom%3CU%3E" class="impl has-srclink">
+<p>Uses borrowed data to replace owned data, usually by cloning. <a href="../borrow/trait.toowned#method.clone_into">Read more</a></p> </div>
+</div>
+<summary><div id="impl-TryFrom%3CU%3E" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#587-596" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;T, U&gt; TryFrom&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.into" title="trait std::convert::Into">Into</a>&lt;T&gt;, </span>
 </h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#581-590" title="goto source code">[src]</a>
 </div></summary><div class="impl-items">
-<details class="rustdoc-toggle" open><summary><div id="associatedtype.Error" class="type trait-impl has-srclink">
+<summary><div id="associatedtype.Error" class="type trait-impl has-srclink">
 <h4 class="code-header">type Error = Infallible</h4>
-
 </div></summary><div class="docblock">
-<p>The type returned in the event of a conversion error.</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.try_from" class="method trait-impl has-srclink">
+<p>The type returned in the event of a conversion error.</p> </div>
+<summary><div id="method.try_from" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#593" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn try_from(value: U) -&gt; Result&lt;T, &lt;T as TryFrom&lt;U&gt;&gt;::Error&gt;</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#587" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>Performs the conversion.</p> </div></details>
-</div></details><details class="rustdoc-toggle implementors-toggle"><summary><div id="impl-TryInto%3CU%3E" class="impl has-srclink">
+<p>Performs the conversion.</p> </div>
+</div>
+<summary><div id="impl-TryInto%3CU%3E" class="impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#573-582" title="goto source code">[src]</a></div>
 <h3 class="code-header in-band">impl&lt;T, U&gt; TryInto&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.tryfrom" title="trait std::convert::TryFrom">TryFrom</a>&lt;T&gt;, </span>
 </h3>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#567-576" title="goto source code">[src]</a>
 </div></summary><div class="impl-items">
-<details class="rustdoc-toggle" open><summary><div id="associatedtype.Error-1" class="type trait-impl has-srclink">
+<summary><div id="associatedtype.Error-1" class="type trait-impl has-srclink">
 <h4 class="code-header">type Error = &lt;U as TryFrom&lt;T&gt;&gt;::Error</h4>
-
 </div></summary><div class="docblock">
-<p>The type returned in the event of a conversion error.</p> </div></details><details class="rustdoc-toggle method-toggle" open><summary><div id="method.try_into" class="method trait-impl has-srclink">
+<p>The type returned in the event of a conversion error.</p> </div>
+<summary><div id="method.try_into" class="method trait-impl has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#579" title="goto source code">[src]</a></div>
 <h4 class="code-header">pub fn try_into(self) -&gt; Result&lt;U, &lt;U as TryFrom&lt;T&gt;&gt;::Error&gt;</h4>
-<a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#573" title="goto source code">[src]</a>
 </div></summary><div class="docblock">
-<p>Performs the conversion.</p> </div></details>
-</div></details>
+<p>Performs the conversion.</p> </div>
+</div>
 </div><div class="_attribution">
   <p class="_attribution-p">
     <a href="https://doc.rust-lang.org/std/ops/enum.ControlFlow.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/std/ops/enum.ControlFlow.html</a>

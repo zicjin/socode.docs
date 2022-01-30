@@ -1,0 +1,65 @@
+<h1 id="community-mongodb-mongodb-lookup-info-from-mongodb">community.mongodb.mongodb – lookup info from MongoDB</h1> <div class="admonition note"> <p class="admonition-title">Note</p> <p>This plugin is part of the <a class="reference external" href="https://galaxy.ansible.com/community/mongodb">community.mongodb collection</a> (version 1.3.2).</p> <p>You might already have this collection installed if you are using the <code>ansible</code> package. It is not included in <code>ansible-core</code>. To check whether it is installed, run <code>ansible-galaxy collection list</code>.</p> <p>To install it, use: <code>ansible-galaxy collection install community.mongodb</code>.</p> <p>To use it in a playbook, specify: <code>community.mongodb.mongodb</code>.</p> </div> <div class="versionadded"> <p><span class="versionmodified added">New in version 1.0.0: </span>of community.mongodb</p> </div>  <ul class="simple"> <li><a class="reference internal" href="#synopsis" id="id1">Synopsis</a></li> <li><a class="reference internal" href="#requirements" id="id2">Requirements</a></li> <li><a class="reference internal" href="#parameters" id="id3">Parameters</a></li> <li><a class="reference internal" href="#notes" id="id4">Notes</a></li> <li><a class="reference internal" href="#examples" id="id5">Examples</a></li> <li><a class="reference internal" href="#return-values" id="id6">Return Values</a></li> </ul>   <h2 id="synopsis">Synopsis</h2> <ul class="simple"> <li>The <code>MongoDB</code> lookup runs the <em>find()</em> command on a given <em>collection</em> on a given <em>MongoDB</em> server.</li> <li>The result is a list of jsons, so slightly different from what PyMongo returns. In particular, <em>timestamps</em> are converted to epoch integers.</li> </ul>   <h2 id="requirements">Requirements</h2> <p>The below requirements are needed on the local controller node that executes this lookup.</p> <ul class="simple"> <li>pymongo &gt;= 2.4 (python library)</li> </ul>   <h2 id="parameters">Parameters</h2> <table class="documentation-table"> <tr> <th colspan="1">Parameter</th> <th>Choices/Defaults</th> <th>Configuration</th> <th width="100%">Comments</th> </tr> <tr> <td colspan="1">  <b>collection</b>  <div> <span>string</span> / <span>required</span> </div> </td> <td> </td> <td> </td> <td> <div>Name of the collection which the query will be made</div> </td> </tr> <tr> <td colspan="1">  <b>connect_string</b>  <div> <span>string</span> </div> </td> <td> <b>Default:</b><br><div>"mongodb://localhost/"</div> </td> <td> </td> <td> <div>Can be any valid MongoDB connection string, supporting authentication, replica sets, etc.</div> <div>More info at <a href="https://docs.mongodb.org/manual/reference/connection-string/">https://docs.mongodb.org/manual/reference/connection-string/</a>
+</div> </td> </tr> <tr> <td colspan="1">  <b>database</b>  <div> <span>string</span> / <span>required</span> </div> </td> <td> </td> <td> </td> <td> <div>Name of the database which the query will be made</div> </td> </tr> <tr> <td colspan="1">  <b>extra_connection_parameters</b>  <div> <span>dictionary</span> </div> </td> <td> <b>Default:</b><br><div>"{}"</div> </td> <td> </td> <td> <div>Extra connection parameters that to be sent to pymongo.MongoClient</div> <div>Check the example to see how to connect to mongo using an SSL certificate.</div> <div>All possible parameters are here: <a href="https://api.mongodb.com/python/current/api/pymongo/mongo_client.html#pymongo.mongo_client.MongoClient">https://api.mongodb.com/python/current/api/pymongo/mongo_client.html#pymongo.mongo_client.MongoClient</a>
+</div> </td> </tr> <tr> <td colspan="1">  <b>filter</b>  <div> <span>dictionary</span> </div> </td> <td> <b>Default:</b><br><div>"{}"</div> </td> <td> </td> <td> <div>Criteria of the output</div> </td> </tr> <tr> <td colspan="1">  <b>limit</b>  <div> <span>integer</span> </div> </td> <td> </td> <td> </td> <td> <div>How many results should be shown</div> </td> </tr> <tr> <td colspan="1">  <b>projection</b>  <div> <span>dictionary</span> </div> </td> <td> <b>Default:</b><br><div>"{}"</div> </td> <td> </td> <td> <div>Fields you want returned</div> </td> </tr> <tr> <td colspan="1">  <b>skip</b>  <div> <span>integer</span> </div> </td> <td> </td> <td> </td> <td> <div>How many results should be skipped</div> </td> </tr> <tr> <td colspan="1">  <b>sort</b>  <div> <span>list</span> / <span>elements=string</span> </div> </td> <td> <b>Default:</b><br><div>"[]"</div> </td> <td> </td> <td> <div>Sorting rules.</div> <div>Please use the strings <code>ASCENDING</code> and <code>DESCENDING</code> to set the order.</div> <div>Check the example for more information.</div> </td> </tr> </table> <br>  <h2 id="notes">Notes</h2> <div class="admonition note"> <p class="admonition-title">Note</p> <ul class="simple"> <li>Please check <a class="reference external" href="https://api.mongodb.org/python/current/api/pymongo/collection.html?highlight=find#pymongo.collection.Collection.find">https://api.mongodb.org/python/current/api/pymongo/collection.html?highlight=find#pymongo.collection.Collection.find</a> for more details.</li> </ul> </div>   <h2 id="examples">Examples</h2> <pre data-language="yaml+jinja">- hosts: localhost
+  gather_facts: false
+  vars:
+    mongodb_parameters:
+      #mandatory parameters
+      database: 'local'
+      collection: "startup_log"
+      #optional
+      connection_string: "mongodb://localhost/"
+      # connection_string: "mongodb://username:password@my.server.com:27017/"
+      # extra_connection_parameters: { "ssl" : True , "ssl_certfile": /etc/self_signed_certificate.pem" }
+      #optional query  parameters, we accept any parameter from the normal mongodb query.
+      # filter:  { "hostname": "u18" }
+      projection: { "pid": True    , "_id" : False , "hostname" : True }
+      skip: 0
+      limit: 1
+      sort:  [ [ "startTime" , "ASCENDING" ] , [ "age", "DESCENDING" ] ]
+  tasks:
+    - debug: msg="The PID from MongoDB is {{ lookup('mongodb', mongodb_parameters ).pid }}"
+
+    - debug: msg="The HostName from the MongoDB server is {{ lookup('mongodb', mongodb_parameters ).hostname }}"
+
+    - debug: msg="Mongo DB is stored at {{ lookup('mongodb', mongodb_parameters_inline )}}"
+      vars:
+        mongodb_parameters_inline:
+          database: 'local'
+          collection: "startup_log"
+          connection_string: "mongodb://localhost/"
+          limit: 1
+          projection: { "cmdline.storage": True }
+
+      # lookup syntax, does the same as below
+    - debug: msg="The hostname is {{ item.hostname }} and the pid is {{ item.pid }}"
+      loop: "{{ lookup('mongodb', mongodb_parameters, wantlist=True) }}"
+
+      # query syntax, does the same as above
+    - debug: msg="The hostname is {{ item.hostname }} and the pid is {{ item.pid }}"
+      loop: "{{ query('mongodb', mongodb_parameters) }}"
+
+    - name: "Raw output from the mongodb lookup (a json with pid and hostname )"
+      debug: msg="{{ lookup('mongodb', mongodb_parameters) }}"
+
+    - name: "Yet another mongodb query, now with the parameters on the task itself"
+      debug: msg="pid={{item.pid}} hostname={{item.hostname}} version={{ item.buildinfo.version }}"
+      with_mongodb:
+        - database: 'local'
+          collection: "startup_log"
+          connection_string: "mongodb://localhost/"
+          limit: 1
+          projection: { "pid": True    , "hostname": True , "buildinfo.version": True }
+
+    # Please notice this specific query may result more than one result. This is expected
+    - name: "Shows the whole output from mongodb"
+      debug: msg="{{ item }}"
+      with_mongodb:
+        - database: 'local'
+          collection: "startup_log"
+          connection_string: "mongodb://localhost/"
+</pre>   <h2 id="return-values">Return Values</h2> <p>Common return values are documented <a class="reference internal" href="../../../reference_appendices/common_return_values#common-return-values"><span class="std std-ref">here</span></a>, the following are the fields unique to this lookup:</p> <table class="documentation-table"> <tr> <th colspan="1">Key</th> <th>Returned</th> <th width="100%">Description</th> </tr> <tr> <td colspan="1">  <b>_list_of_jsons</b>  <div> <span>list</span> / <span>elements=string</span> </div> </td> <td>success</td> <td> <div>a list of JSONs with the results of the MongoDB query.</div> <br> </td> </tr> </table> <br><br> <h3 id="authors">Authors</h3> <ul class="simple"> <li>Marcos Diez &lt;marcos (at) unitron.com.br&gt;</li> </ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://docs.ansible.com/ansible/latest/collections/community/mongodb/mongodb_lookup.html" class="_attribution-link" target="_blank">https://docs.ansible.com/ansible/latest/collections/community/mongodb/mongodb_lookup.html</a>
+  </p>
+</div>

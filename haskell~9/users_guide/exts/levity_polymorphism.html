@@ -1,15 +1,19 @@
 <h1 id="runtime-rep">6.4.12. Levity polymorphism</h1>
 <div class="_sphinx"> <div itemprop="articleBody">   <p id="levity-polymorphism">In order to allow full flexibility in how kinds are used, it is necessary to use the kind system to differentiate between boxed, lifted types (normal, everyday types like <code>Int</code> and <code>[Bool]</code>) and unboxed, primitive types (<a class="reference internal" href="primitives#primitives"><span class="std std-ref">Unboxed types and primitive operations</span></a>) like <code>Int#</code>. We thus have so-called levity polymorphism.</p> <p>Here are the key definitions, all available from <code>GHC.Exts</code>:</p> <pre data-language="haskell">TYPE :: RuntimeRep -&gt; Type   -- highly magical, built into GHC
 
-data RuntimeRep = LiftedRep     -- for things like `Int`
-                | UnliftedRep   -- for things like `Array#`
-                | IntRep        -- for `Int#`
+data Levity = Lifted    -- for things like `Int`
+            | Unlifted  -- for things like `Array#`
+
+data RuntimeRep = BoxedRep Levity  -- for anything represented by a GC-managed pointer
+                | IntRep           -- for `Int#`
                 | TupleRep [RuntimeRep]  -- unboxed tuples, indexed by the representations of the elements
                 | SumRep [RuntimeRep]    -- unboxed sums, indexed by the representations of the disjuncts
                 | ...
 
+type LiftedRep = BoxedRep Lifted
+
 type Type = TYPE LiftedRep    -- Type is just an ordinary type synonym
-</pre> <p>The idea is that we have a new fundamental type constant <code>TYPE</code>, which is parameterised by a <code>RuntimeRep</code>. We thus get <code>Int# :: TYPE 'IntRep</code> and <code>Bool :: TYPE 'LiftedRep</code>. Anything with a type of the form <code>TYPE x</code> can appear to either side of a function arrow <code>-&gt;</code>. We can thus say that <code>-&gt;</code> has type <code>TYPE r1 -&gt; TYPE r2 -&gt; TYPE 'LiftedRep</code>. The result is always lifted because all functions are lifted in GHC.</p>  <h2 id="levity-polymorphic-restrictions">6.4.12.1. No levity-polymorphic variables or arguments</h2> <p id="no-levity-polymorphic-variables-or-arguments">If GHC didn’t have to compile programs that run in the real world, that would be the end of the story. But representation polymorphism can cause quite a bit of trouble for GHC’s code generator. Consider</p> <pre data-language="haskell">bad :: forall (r1 :: RuntimeRep) (r2 :: RuntimeRep)
+</pre> <p>The idea is that we have a new fundamental type constant <code>TYPE</code>, which is parameterised by a <code>RuntimeRep</code>. We thus get <code>Int# :: TYPE 'IntRep</code> and <code>Bool :: TYPE LiftedRep</code>. Anything with a type of the form <code>TYPE x</code> can appear to either side of a function arrow <code>-&gt;</code>. We can thus say that <code>-&gt;</code> has type <code>TYPE r1 -&gt; TYPE r2 -&gt; TYPE LiftedRep</code>. The result is always lifted because all functions are lifted in GHC.</p>  <h2 id="levity-polymorphic-restrictions">6.4.12.1. No levity-polymorphic variables or arguments</h2> <p id="no-levity-polymorphic-variables-or-arguments">If GHC didn’t have to compile programs that run in the real world, that would be the end of the story. But representation polymorphism can cause quite a bit of trouble for GHC’s code generator. Consider</p> <pre data-language="haskell">bad :: forall (r1 :: RuntimeRep) (r2 :: RuntimeRep)
               (a :: TYPE r1) (b :: TYPE r2).
        (a -&gt; b) -&gt; a -&gt; b
 bad f x = f x
@@ -22,8 +26,8 @@ error :: forall (r :: RuntimeRep) (a :: TYPE r).
          HasCallStack =&gt; String -&gt; a
 </pre> <p>These functions do not bind a levity-polymorphic variable, and so are accepted. Their polymorphism allows users to use these to conveniently stub out functions that return unboxed types.</p>   <h2 id="id1">6.4.12.3. Printing levity-polymorphic types</h2> <dl class="ghc-flag" id="printing-levity-polymorphic-types"> <dt id="ghc-flag--fprint-explicit-runtime-reps">
 <code>-fprint-explicit-runtime-reps</code> </dt> <dd>
-<p>Print <code>RuntimeRep</code> parameters as they appear; otherwise, they are defaulted to <code>'LiftedRep</code>.</p> </dd>
-</dl> <p>Most GHC users will not need to worry about levity polymorphism or unboxed types. For these users, seeing the levity polymorphism in the type of <code>$</code> is unhelpful. And thus, by default, it is suppressed, by supposing all type variables of type <code>RuntimeRep</code> to be <code>'LiftedRep</code> when printing, and printing <code>TYPE 'LiftedRep</code> as <code>Type</code> (or <code>*</code> when <a class="reference internal" href="poly_kinds#extension-StarIsType"><code>StarIsType</code></a> is on).</p> <p>Should you wish to see levity polymorphism in your types, enable the flag <a class="reference internal" href="#ghc-flag--fprint-explicit-runtime-reps"><code>-fprint-explicit-runtime-reps</code></a>. For example,</p>  <pre data-language="none">ghci&gt; :t ($)
+<p>Print <code>RuntimeRep</code> parameters as they appear; otherwise, they are defaulted to <code>LiftedRep</code>.</p> </dd>
+</dl> <p>Most GHC users will not need to worry about levity polymorphism or unboxed types. For these users, seeing the levity polymorphism in the type of <code>$</code> is unhelpful. And thus, by default, it is suppressed, by supposing all type variables of type <code>RuntimeRep</code> to be <code>LiftedRep</code> when printing, and printing <code>TYPE LiftedRep</code> as <code>Type</code> (or <code>*</code> when <a class="reference internal" href="poly_kinds#extension-StarIsType"><code>StarIsType</code></a> is on).</p> <p>Should you wish to see levity polymorphism in your types, enable the flag <a class="reference internal" href="#ghc-flag--fprint-explicit-runtime-reps"><code>-fprint-explicit-runtime-reps</code></a>. For example,</p>  <pre data-language="none">ghci&gt; :t ($)
 ($) :: (a -&gt; b) -&gt; a -&gt; b
 ghci&gt; :set -fprint-explicit-runtime-reps
 ghci&gt; :t ($)
@@ -32,6 +36,6 @@ ghci&gt; :t ($)
      (a -&gt; b) -&gt; a -&gt; b
 </pre>    </div> </div><div class="_attribution">
   <p class="_attribution-p">
-    <a href="https://downloads.haskell.org/~ghc/9.0.1/docs/html/users_guide/exts/levity_polymorphism.html" class="_attribution-link" target="_blank">https://downloads.haskell.org/~ghc/9.0.1/docs/html/users_guide/exts/levity_polymorphism.html</a>
+    <a href="https://downloads.haskell.org/~ghc/9.2.1/docs/html/users_guide/exts/levity_polymorphism.html" class="_attribution-link" target="_blank">https://downloads.haskell.org/~ghc/9.2.1/docs/html/users_guide/exts/levity_polymorphism.html</a>
   </p>
 </div>

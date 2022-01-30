@@ -68,7 +68,7 @@ end</pre>
   %Tag{}
   |&gt; Ecto.Changeset.change(name: name)
   |&gt; Ecto.Changeset.unique_constraint(:name)
-  |&gt; Repo.insert
+  |&gt; Repo.insert()
   |&gt; case do
     {:ok, tag} -&gt; tag
     {:error, _} -&gt; Repo.get_by!(MyApp.Tag, name: name)
@@ -153,18 +153,26 @@ end</pre>
       NaiveDateTime.utc_now()
       |&gt; NaiveDateTime.truncate(:second)
 
+    placeholders = %{timestamp: timestamp}
+
     maps =
       Enum.map(names, &amp;%{
         name: &amp;1,
-        inserted_at: timestamp,
-        updated_at: timestamp
+        inserted_at: {:placeholder, :timestamp},
+        updated_at: {:placeholder, :timestamp}
       })
 
-    Repo.insert_all MyApp.Tag, maps, on_conflict: :nothing
-    Repo.all from t in MyApp.Tag, where: t.name in ^names
+    Repo.insert_all(
+      MyApp.Tag,
+      maps,
+      placeholders: placeholders,
+      on_conflict: :nothing
+    )
+
+    Repo.all(from t in MyApp.Tag, where: t.name in ^names)
   end
 end</pre>
-<p>Instead of attempting to get and insert each tag individually, the code above works on all tags at once, first by building a list of maps which is given to <code class="inline">insert_all</code> and then by looking up all tags with the existing names. Therefore, regardless of how many tags are sent, we will perform only 2 queries (unless no tag is sent, in which we return an empty list back promptly). This solution is only possible thanks to the <code class="inline">:on_conflict</code> option, which guarantees <code class="inline">insert_all</code> won't fail in case a unique index is violated, such as from duplicate tag names. Remember, <code class="inline">insert_all</code> won't autogenerate values like timestamps. That's why we must include <code class="inline">inserted_at</code> and <code class="inline">updated_at</code> manually.</p>
+<p>Instead of getting and inserting each tag individually, the code above works on all tags at once, first by building a list of maps which is given to <code class="inline">insert_all</code>. Then we look up all tags with the given names. Regardless of how many tags are sent, we will perform only 2 queries - unless no tag is sent, in which we return an empty list back promptly. This solution is only possible thanks to the <code class="inline">:on_conflict</code> option, which guarantees <code class="inline">insert_all</code> won't fail in case a unique index is violated, such as from duplicate tag names. Remember, <code class="inline">insert_all</code> won't autogenerate values like timestamps. That's why we define a timestamp placeholder and reuse it across <code class="inline">inserted_at</code> and <code class="inline">updated_at</code> fields.</p>
 <p>Finally, keep in mind that we haven't used transactions in any of the examples so far. That decision was deliberate as we relied on the fact that getting or inserting tags is an idempotent operation, i.e. we can repeat it many times for a given input and it will always give us the same result back. Therefore, even if we fail to introduce the post to the database due to a validation error, the user will be free to resubmit the form and we will just attempt to get or insert the same tags once again. The downside of this approach is that tags will be created even if creating the post fails, which means some tags may not have posts associated to them. In case that's not desired, the whole operation could be wrapped in a transaction or modeled with <a href="ecto.multi"><code class="inline">Ecto.Multi</code></a>.</p> <div class="bottom-actions"> <div class="bottom-actions-item"> <a href="composable-transactions-with-multi" class="bottom-actions-button" rel="prev"> <span class="subheader"> ← Previous Page </span> <span class="title"> Composable transactions with Multi </span> </a> </div> <div class="bottom-actions-item"> <a href="data-mapping-and-validation" class="bottom-actions-button" rel="next"> <span class="subheader"> Next Page → </span> <span class="title"> Data mapping and validation </span> </a> </div> </div><div class="_attribution">
   <p class="_attribution-p">
     <a href="https://hexdocs.pm/ecto/constraints-and-upserts.html" class="_attribution-link" target="_blank">https://hexdocs.pm/ecto/constraints-and-upserts.html</a>

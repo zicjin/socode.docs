@@ -1,4 +1,4 @@
-<p class="_links"><a href="../dart-js_util/dart-js_util-library" class="_links-link">dart:js_util</a></p> <h1>promiseToFuture&lt;<wbr>T&gt;</wbr> function  </h1> <section class="multi-line-signature"> <a href="../dart-async/future-class">Future</a>&lt;<wbr>T&gt;</wbr> promiseToFuture &lt;<wbr>T&gt;(<wbr><ol class="parameter-list">
+<p class="_links"><a href="../dart-js_util/dart-js_util-library" class="_links-link">dart:js_util</a></p> <h1>promiseToFuture&lt;<wbr>T&gt;</wbr> function  </h1> <section class="multi-line-signature"> <a href="../dart-async/future-class">Future</a>&lt;<wbr>T&gt;</wbr> promiseToFuture&lt;<wbr>T&gt;(<wbr><ol class="parameter-list">
 <li>
 <a href="../dart-core/object-class">Object</a> jsPromise</li> </ol>) </wbr></wbr></section>  <p>Converts a JavaScript Promise to a Dart <a href="../dart-async/future-class">Future</a>.</p> <pre class="language-dart" data-language="dart">@JS()
 external Promise&lt;num&gt; get threePromise; // Resolves to 3
@@ -9,13 +9,22 @@ final three = await threeFuture; // == 3</pre>   <h2 id="source">Implementation<
   final completer = Completer&lt;T&gt;();
 
   final success = convertDartClosureToJS((r) =&gt; completer.complete(r), 1);
-  final error = convertDartClosureToJS((e) =&gt; completer.completeError(e), 1);
+  final error = convertDartClosureToJS((e) {
+    // Note that `completeError` expects a non-nullable error regardless of
+    // whether null-safety is enabled, so a `NullRejectionException` is always
+    // provided if the error is `null` or `undefined`.
+    if (e == null) {
+      return completer.completeError(
+          NullRejectionException._(JS('bool', '# === undefined', e)));
+    }
+    return completer.completeError(e);
+  }, 1);
 
   JS('', '#.then(#, #)', jsPromise, success, error);
   return completer.future;
 }</pre><div class="_attribution">
   <p class="_attribution-p">
     &copy; 2012 the Dart project authors<br>Licensed under the Creative Commons Attribution-ShareAlike License v4.0.<br>
-    <a href="https://api.dart.dev/stable/2.13.0/dart-js_util/promiseToFuture.html" class="_attribution-link">https://api.dart.dev/stable/2.13.0/dart-js_util/promiseToFuture.html</a>
+    <a href="https://api.dart.dev/stable/2.15.1/dart-js_util/promiseToFuture.html" class="_attribution-link">https://api.dart.dev/stable/2.15.1/dart-js_util/promiseToFuture.html</a>
   </p>
 </div>

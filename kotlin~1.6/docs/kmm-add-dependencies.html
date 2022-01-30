@@ -1,0 +1,173 @@
+<h1 data-toc="kmm-add-dependencies" id="kmm-add-dependencies.md">Add dependencies to KMM modules</h1>
+<p id="b426d29d">Every application requires a set of libraries in order to operate successfully. A KMM application can depend on multiplatform libraries that work on both iOS and Android, and it can depend on platform-specific iOS and Android libraries.</p>
+<p id="8dc06b94">Here you can learn how to add:</p>
+<ul class="list _ul" id="6e83b550">
+<li class="list__item" id="fef1b677"><p><a href="#multiplatform-libraries" id="9e6edd3b">Multiplatform dependencies</a></p></li>
+<li class="list__item" id="fda48903"><p><a href="#ios-dependencies" id="5fbebc7b">iOS dependencies</a></p></li>
+<li class="list__item" id="c104aa6e"><p><a href="#android-dependencies" id="82dfbb3">Android dependencies</a></p></li>
+</ul>
+<section class="chapter"><h2 id="multiplatform-libraries" data-toc="kmm-add-dependencies#multiplatform-libraries">Multiplatform libraries</h2>
+<p id="63325033">You can add dependencies on libraries that have adopted Kotlin Multiplatform technology, such as <a href="https://github.com/Kotlin/kotlinx.coroutines" id="b1b5d887" data-external="true" rel="noopener noreferrer">kotlinx.coroutines</a> and <a href="https://github.com/cashapp/sqldelight" id="8f66b471" data-external="true" rel="noopener noreferrer">SQLDelight</a>. The authors of these libraries usually provide guides for adding their dependencies to your project.</p>
+<aside data-type="note" class="prompt" data-title="" id="d0b5ec9d"><p id="91138a0e">When using a multiplatform library that does not have <a href="mpp-share-on-platforms#share-code-on-similar-platforms" id="65b57bd0">hierarchical structure support</a> in a multiplatform project that does, you won't be able to use IDE features, such as code completion and highlighting, for the shared iOS source set.</p>
+<p id="cbf84fde">This is a <a href="https://youtrack.jetbrains.com/issue/KT-40975" id="ea7b4c93" data-external="true" rel="noopener noreferrer">known issue</a>, and we are working on resolving it. In the meantime, you can use <a href="#workaround-to-enable-ide-support-for-the-shared-ios-source-set" id="640c283c">this workaround</a>.</p></aside><p id="ee2b7e12">This page covers basic dependency use cases:</p>
+<ul class="list _ul" id="b93f53e5">
+<li class="list__item" id="7dc3cb26"><p><a href="#dependency-on-the-kotlin-standard-library" id="96de7cca">On the Kotlin standard library</a></p></li>
+<li class="list__item" id="b55650fd"><p><a href="#dependency-on-a-library-shared-for-all-source-sets" id="5fd0f0cc">On a library shared for all source sets</a></p></li>
+<li class="list__item" id="f1514dda"><p><a href="#dependency-on-a-library-used-in-specific-source-sets" id="b6307fe4">On a library used in specific source sets</a></p></li>
+<li class="list__item" id="c1bdd5fd"><p><a href="#dependency-on-another-multiplatform-project" id="add2abc0">On another multiplatform project</a></p></li>
+</ul>
+<p id="6a461cdb">Learn more about <a href="gradle#configuring-dependencies" id="308edf88">configuring dependencies</a>.</p>
+<p id="bfbcf612">Check out this <a href="https://libs.kmp.icerock.dev/" id="13d1e154" data-external="true" rel="noopener noreferrer">community-maintained list of Kotlin Multiplatform libraries</a>.</p>
+<section class="chapter"><h3 id="dependency-on-the-kotlin-standard-library" data-toc="kmm-add-dependencies#dependency-on-the-kotlin-standard-library">Dependency on the Kotlin standard library</h3>
+<p id="e8836ea5">The Kotlin standard library is added automatically to all multiplatform projects, you don’t have to do anything manually.</p></section><section class="chapter"><h3 id="dependency-on-a-library-shared-for-all-source-sets" data-toc="kmm-add-dependencies#dependency-on-a-library-shared-for-all-source-sets">Dependency on a library shared for all source sets</h3>
+<p id="f6a35292">If you want to use a library from all source sets, you can add it only to the common source set. The Kotlin Multiplatform Mobile plugin will add the corresponding parts to any other source sets automatically.</p>
+<div class="tabs" id="3d500f2f" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="f5ca4fbb" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code-block" data-lang="kotlin" data-title="Kotlin" data-language="kotlin">kotlin { sourceSets["commonMain"].dependencies { implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0") } sourceSets["androidMain"].dependencies { //dependency to platform part of kotlinx.coroutines will be added automatically } } </pre></div>
+<div class="tabs__content" data-gtm="tab" id="a88143c0" data-sync-tabs="groovy" data-title="Groovy"><pre class="code-block" data-lang="groovy" data-title="Groovy" data-language="groovy">kotlin { sourceSets { commonMain { dependencies { implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0' } } androidMain { dependencies { //dependency to platform part of kotlinx.coroutines will be added automatically } } } } </pre></div>
+</div></section><section class="chapter"><h3 id="dependency-on-a-library-used-in-specific-source-sets" data-toc="kmm-add-dependencies#dependency-on-a-library-used-in-specific-source-sets">Dependency on a library used in specific source sets</h3>
+<p id="7ee0e952">If you want to use a multiplatform library just for specific source sets, you can add it exclusively to them. The specified library declarations will then be available only in those source sets.</p>
+<aside data-type="note" class="prompt" data-title="" id="a3bfb8cd"><p id="8563aa8b">Don't use a platform-specific name in such cases, like SQLDelight <code class="code ">native-driver</code> in the example below. Find the exact name in the library’s documentation.</p></aside><div class="tabs" id="27407353" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="2b128840" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code-block" data-lang="kotlin" data-title="Kotlin" data-language="kotlin">kotlin { sourceSets["commonMain"].dependencies { //kotlinx.coroutines will be available in all source sets implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0") } sourceSets["androidMain"].dependencies { } sourceSets["iosX64Main"].dependencies { //SQLDelight will be available only in the iOS source set, but not in Android or common implementation("com.squareup.sqldelight:native-driver:1.4.1) } } </pre></div>
+<div class="tabs__content" data-gtm="tab" id="fe777118" data-sync-tabs="groovy" data-title="Groovy"><pre class="code-block" data-lang="groovy" data-title="Groovy" data-language="groovy">kotlin { sourceSets { commonMain { dependencies { // kotlinx.coroutines will be available in all source sets implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0' } } androidMain { dependencies { } } iosMain { dependencies { // SQLDelight will be available only in the iOS source set, but not in Android or common implementation 'com.squareup.sqldelight:native-driver:1.4.1' } } } } </pre></div>
+</div></section><section class="chapter"><h3 id="dependency-on-another-multiplatform-project" data-toc="kmm-add-dependencies#dependency-on-another-multiplatform-project">Dependency on another multiplatform project</h3>
+<p id="9b4b47ac">You can connect one multiplatform project to another as a dependency. To do this, simply add a project dependency to the source set that needs it. If you want to use a dependency in all source sets, add it to the common one. In this case, other source sets will get their versions automatically.</p>
+<div class="tabs" id="1125c225" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="5eb60b1d" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code-block" data-lang="kotlin" data-title="Kotlin" data-language="kotlin">kotlin { sourceSets["commonMain"].dependencies { implementation(project(":some-other-multiplatform-module")) } sourceSets["androidMain"].dependencies { //platform part of :some-other-multiplatform-module will be added automatically } } </pre></div>
+<div class="tabs__content" data-gtm="tab" id="fe584b2a" data-sync-tabs="groovy" data-title="Groovy"><pre class="code-block" data-lang="groovy" data-title="Groovy" data-language="groovy">kotlin { sourceSets { commonMain { dependencies { implementation project(':some-other-multiplatform-module') } } androidMain { dependencies { //platform part of :some-other-multiplatform-module will be added automatically } } } } </pre></div>
+</div></section></section><section class="chapter"><h2 id="ios-dependencies" data-toc="kmm-add-dependencies#ios-dependencies">iOS dependencies</h2>
+<p id="e7ed2815">Apple SDK dependencies (such as Foundation or Core Bluetooth) are available as a set of prebuilt libraries in Kotlin Multiplatform Mobile projects. They do not require any additional configuration.</p>
+<p id="6aaf71da">You can also reuse other libraries and frameworks from the iOS ecosystem in your iOS source sets. Kotlin supports interoperability with Objective-C dependencies and Swift dependencies if their APIs are exported to Objective-C with the <code class="code ">@objc</code> attribute. Pure Swift dependencies are not yet supported.</p>
+<p id="d44cf816">Integration with the CocoaPods dependency manager is also supported with the same limitation – you cannot use pure Swift pods.</p>
+<p id="e6bc2aef">We recommend <a href="#with-cocoapods" id="b3bd1b18">using CocoaPods</a> to handle iOS dependencies in Kotlin Multiplatform Mobile (KMM) projects. <a href="#without-cocoapods" id="e6dde6cf">Manage dependencies manually</a> only if you want to tune the interop process specifically or if you have some other strong reason to do so.</p>
+<aside data-type="note" class="prompt" data-title="" id="4d9a9e7e"><p id="ad823593">When using third-party iOS libraries in multiplatform projects with <a href="mpp-share-on-platforms#share-code-on-similar-platforms" id="3de7514c">hierarchical structure support</a>, for example with the <code class="code ">ios()</code><a href="mpp-share-on-platforms#use-target-shortcuts" id="fddc6944">target shortcut</a>, you won't be able to use IDE features, such as code completion and highlighting, for the shared iOS source set.</p>
+<p id="6449cf23">This is a <a href="https://youtrack.jetbrains.com/issue/KT-40975" id="3013286a" data-external="true" rel="noopener noreferrer">known issue</a>, and we are working on resolving it. In the meantime, you can use <a href="#workaround-to-enable-ide-support-for-the-shared-ios-source-set" id="8a8a3770">this workaround</a>.</p>
+<p id="e022ab94">This issue doesn't apply to <a href="native-platform-libs" id="fe6c884e">platform libraries</a> supported out of the box.</p></aside><section class="chapter"><h3 id="with-cocoapods" data-toc="kmm-add-dependencies#with-cocoapods">With CocoaPods</h3>
+<ol class="list _decimal" id="803042ef">
+<li class="list__item" id="f3065b5d"><p id="9ab94a47">Perform <a href="native-cocoapods#set-up-the-environment-to-work-with-cocoapods" id="ba27ec21">initial CocoaPods integration setup</a>.</p></li>
+<li class="list__item" id="553b90a1">
+<p id="7cfa2d5d">Add a dependency on a Pod library from the CocoaPods repository that you want to use by including the <code class="code ">pod()</code> function call in <code class="code ">build.gradle.kts</code> (<code class="code ">build.gradle</code>) of your project.</p>
+<div class="tabs" id="79780aaa" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="17f6b783" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code-block" data-lang="kotlin" data-title="Kotlin" data-language="kotlin">kotlin { cocoapods { //.. pod("AFNetworking") { version = "~&gt; 4.0.1" } } } </pre></div>
+<div class="tabs__content" data-gtm="tab" id="a79f88c3" data-sync-tabs="groovy" data-title="Groovy"><pre class="code-block" data-lang="groovy" data-title="Groovy" data-language="groovy"> kotlin { cocoapods { //.. pod('AFNetworking') { version = '~&gt; 4.0.1' } } } </pre></div>
+</div>
+<p id="a74523aa">You can add the following dependencies on a Pod library:</p>
+<ul class="list _ul" id="de2848d7">
+<li class="list__item" id="1e67093c"><p><a href="native-cocoapods-libraries#from-the-cocoapods-repository" id="fee5c7c4">From the CocoaPods repository</a></p></li>
+<li class="list__item" id="3e34fa58"><p><a href="native-cocoapods-libraries#on-a-locally-stored-library" id="6a046f6f">On a locally stored library</a></p></li>
+<li class="list__item" id="dcf6fa1b"><p><a href="native-cocoapods-libraries#from-a-custom-git-repository" id="cb908da2">From a custom Git repository</a></p></li>
+<li class="list__item" id="71a1d5d"><p><a href="native-cocoapods-libraries#from-a-zip-tar-or-jar-archive" id="f17eda68">From an archive</a></p></li>
+<li class="list__item" id="2fb89d1a"><p><a href="native-cocoapods-libraries#from-a-custom-podspec-repository" id="1e2fc174">From a custom Podspec repository</a></p></li>
+<li class="list__item" id="b52d4abc"><p><a href="native-cocoapods-libraries#with-custom-cinterop-options" id="2a424b66">With custom cinterop options</a></p></li>
+<li class="list__item" id="ad0570a7"><p><a href="native-cocoapods-libraries#on-a-static-pod-library" id="95aeb7aa">On a static Pod library</a></p></li>
+</ul>
+</li>
+<li class="list__item" id="7dc7267a"><p id="b48e2bca">Re-import the project.</p></li>
+</ol>
+<p id="7c407fd7">To use the dependency in your Kotlin code, import the package <code class="code ">cocoapods.&lt;library-name&gt;</code>. For the example above, it's:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">import cocoapods.AFNetworking.* </pre></section><section class="chapter"><h3 id="without-cocoapods" data-toc="kmm-add-dependencies#without-cocoapods">Without CocoaPods</h3>
+<p id="4dae433">If you don’t want to use CocoaPods, you can use the cinterop tool to create Kotlin bindings for Objective-C or Swift declarations. This will allow you to call them from Kotlin code. To do this:</p>
+<ol class="list _decimal" id="9d203d9a">
+<li class="list__item" id="bde30ba7"><p>Download your dependency.</p></li>
+<li class="list__item" id="1bf28704"><p>Build it to get its binaries.</p></li>
+<li class="list__item" id="4aeda847"><p>Create a special <code class="code ">.def</code> file that describes this dependency to cinterop.</p></li>
+<li class="list__item" id="849336aa"><p>Adjust your build script to generate bindings during the build.</p></li>
+</ol>
+<p id="3d9563eb">The steps differ a bit for <a href="#add-a-library-without-cocoapods" id="4476bab2">libraries</a> and <a href="#add-a-framework-without-cocoapods" id="86669db">frameworks</a>, but the idea remains the same.</p>
+<section class="chapter"><h4 id="add-a-library-without-cocoapods" data-toc="kmm-add-dependencies#add-a-library-without-cocoapods">Add a library without CocoaPods</h4>
+<ol class="list _decimal" id="45bf078c">
+<li class="list__item" id="f6abe7d2"><p id="81816d6e">Download the library source code and place it somewhere where you can reference it from your project.</p></li>
+<li class="list__item" id="96f2e7d6"><p id="8885a34">Build a library (library authors usually provide a guide on how to do this) and get a path to the binaries.</p></li>
+<li class="list__item" id="64ea8805"><p id="27ad6245">In your project, create a <code class="code ">.def</code> file, for example <code class="code ">DateTools.def</code>.</p></li>
+<li class="list__item" id="d2601910"><p id="9a9ccf93">Add a first string to this file: <code class="code ">language = Objective-C</code>. If you want to use a pure C dependency, omit the language property.</p></li>
+<li class="list__item" id="2d1b2b5b">
+<p id="9bba7d4d">Provide values for two mandatory properties:</p>
+<ul class="list _ul" id="847bcd50">
+<li class="list__item" id="1a9df965"><p><code class="code ">headers</code> describes which headers will be processed by cinterop.</p></li>
+<li class="list__item" id="c50f28be"><p><code class="code ">package</code> sets the name of the package these declarations should be put into.</p></li>
+</ul>
+<p id="834af18d">For example:</p>
+<pre class="code-block" data-lang="none" data-disable-link-processing="true" data-language="none">headers = DateTools.h package = DateTools </pre>
+</li>
+<li class="list__item" id="78878e1c">
+<p id="e287a9be">Add information about interoperability with this library to the build script:</p>
+<ul class="list _ul" id="9f76eb7f">
+<li class="list__item" id="35edeb39"><p>Pass the path to the <code class="code ">.def</code> file. This path can be omitted if your <code class="code ">.def</code> file has the same name as cinterop and is placed in the <code class="code ">src/nativeInterop/cinterop/</code> directory.</p></li>
+<li class="list__item" id="83a6c6da"><p>Tell cinterop where to look for header files using the <code class="code ">includeDirs</code> option.</p></li>
+<li class="list__item" id="92c1cd7a"><p>Configure linking to library binaries.</p></li>
+</ul>
+<div class="tabs" id="58b6ef8a" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="d59d7c81" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code-block" data-lang="kotlin" data-title="Kotlin" data-language="kotlin">kotlin { iosX64() { compilations.getByName("main") { val DateTools by cinterops.creating { // Path to .def file defFile("src/nativeInterop/cinterop/DateTools.def") // Directories for header search (an analogue of the -I&lt;path&gt; compiler option) includeDirs("include/this/directory", "path/to/another/directory") } val anotherInterop by cinterops.creating { /* ... */ } } binaries.all { // Linker options required to link to the library. linkerOpts("-L/path/to/library/binaries", "-lbinaryname") } } } </pre></div>
+<div class="tabs__content" data-gtm="tab" id="6b98c331" data-sync-tabs="groovy" data-title="Groovy"><pre class="code-block" data-lang="groovy" data-title="Groovy" data-language="groovy">kotlin { iosX64 { compilations.main { cinterops { DateTools { // Path to .def file defFile("src/nativeInterop/cinterop/DateTools.def") // Directories for header search (an analogue of the -I&lt;path&gt; compiler option) includeDirs("include/this/directory", "path/to/another/directory") } anotherInterop { /* ... */ } } } binaries.all { // Linker options required to link to the library. linkerOpts "-L/path/to/library/binaries", "-lbinaryname" } } } </pre></div>
+</div>
+</li>
+<li class="list__item" id="efded055"><p id="2147361a">Build the project.</p></li>
+</ol>
+<p id="cb39b2f7">Now you can use this dependency in your Kotlin code. To do that, import the package you’ve set up in the <code class="code ">package</code> property in the <code class="code ">.def</code> file. For the example above, this will be:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">import DateTools.* </pre></section><section class="chapter"><h4 id="add-a-framework-without-cocoapods" data-toc="kmm-add-dependencies#add-a-framework-without-cocoapods">Add a framework without CocoaPods</h4>
+<ol class="list _decimal" id="7c17c95d">
+<li class="list__item" id="45d97c6d"><p id="dae1a6b7">Download the framework source code and place it somewhere that you can reference it from your project.</p></li>
+<li class="list__item" id="f39197e0"><p id="163405a9">Build the framework (framework authors usually provide a guide on how to do this) and get a path to the binaries.</p></li>
+<li class="list__item" id="cf54b7ce"><p id="c08a9296">In your project, create a <code class="code ">.def</code> file, for example <code class="code ">MyFramework.def</code>.</p></li>
+<li class="list__item" id="9220b7bb"><p id="7b9996cb">Add the first string to this file: <code class="code ">language = Objective-C</code>. If you want to use a pure C dependency, omit the language property.</p></li>
+<li class="list__item" id="73d63e8a">
+<p id="49c20c78">Provide values for these two mandatory properties:</p>
+<ul class="list _ul" id="2515571a">
+<li class="list__item" id="58fb049c"><p><code class="code ">modules</code> – the name of the framework that should be processed by the cinterop.</p></li>
+<li class="list__item" id="d77489da"><p><code class="code ">package</code> – the name of the package these declarations should be put into. For example:</p></li>
+</ul>
+<pre class="code-block" data-lang="none" data-disable-link-processing="true" data-language="none">modules = MyFramework package = MyFramework </pre>
+</li>
+<li class="list__item" id="65f95096">
+<p id="9310a8f6">Add information about interoperability with the framework to the build script:</p>
+<ul class="list _ul" id="ad3f4228">
+<li class="list__item" id="2953ca40"><p>Pass the path to the .def file. This path can be omitted if your <code class="code ">.def</code> file has the same name as the cinterop and is placed in the <code class="code ">src/nativeInterop/cinterop/</code> directory.</p></li>
+<li class="list__item" id="ae9446b1"><p>Pass the framework name to the compiler and linker using the <code class="code ">-framework</code> option. Pass the path to the framework sources and binaries to the compiler and linker using the <code class="code ">-F</code> option.</p></li>
+</ul>
+<div class="tabs" id="dfddbc01" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="2bc64f3" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code-block" data-lang="kotlin" data-title="Kotlin" data-language="kotlin">kotlin { iosX64() { compilations.getByName("main") { val DateTools by cinterops.creating { // Path to .def file defFile("src/nativeInterop/cinterop/DateTools.def") compilerOpts("-framework", "MyFramework", "-F/path/to/framework/" } val anotherInterop by cinterops.creating { /* ... */ } } binaries.all { // Tell the linker where the framework is located. linkerOpts("-framework", "MyFramework", "-F/path/to/framework/") } } } </pre></div>
+<div class="tabs__content" data-gtm="tab" id="67c3400c" data-sync-tabs="groovy" data-title="Groovy"><pre class="code-block" data-lang="groovy" data-title="Groovy" data-language="groovy">kotlin { iosX64 { compilations.main { cinterops { DateTools { // Path to .def file defFile("src/nativeInterop/cinterop/MyFramework.def") compilerOpts("-framework", "MyFramework", "-F/path/to/framework/") } anotherInterop { /* ... */ } } } binaries.all { // Tell the linker where the framework is located. linkerOpts("-framework", "MyFramework", "-F/path/to/framework/") } } } </pre></div>
+</div>
+</li>
+<li class="list__item" id="34f2590f"><p id="da1dc55c">Build the project.</p></li>
+</ol>
+<p id="6c78a939">Now you can use this dependency in your Kotlin code. To do this, import the package you’ve set up in the package property in the <code class="code ">.def</code> file. For the example above, this will be:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">import MyFramework.* </pre>
+<p id="e2c90d01">Learn more about <a href="native-objc-interop" id="56f1e98e">Objective-C and Swift interop</a> and <a href="mpp-dsl-reference#cinterops" id="4323e607">configuring cinterop from Gradle</a>.</p></section></section><section class="chapter"><div class="collapse">
+<div class="collapse__title"><h3 id="workaround-to-enable-ide-support-for-the-shared-ios-source-set" data-toc="kmm-add-dependencies#workaround-to-enable-ide-support-for-the-shared-ios-source-set">Workaround to enable IDE support for the shared iOS source set</h3></div>
+<div class="collapse__content">
+<p id="c4b26b38">Due to a <a href="https://youtrack.jetbrains.com/issue/KT-40975" id="8a53095e" data-external="true" rel="noopener noreferrer">known issue</a>, you won't be able to use IDE features, such as code completion and highlighting, for the shared iOS source set in a multiplatform project with <a href="mpp-share-on-platforms#share-code-on-similar-platforms" id="c3bb285f">hierarchical structure support</a> if your project depends on:</p>
+<ul class="list _ul" id="bab046ad">
+<li class="list__item" id="61ddfe53"><p>Multiplatform libraries that don't support the hierarchical structure.</p></li>
+<li class="list__item" id="96c6efb0"><p>Third-party iOS libraries, with the exception of <a href="native-platform-libs" id="40f6cd68">platform libraries</a> supported out of the box.</p></li>
+</ul>
+<p id="816d1d98">This issue applies only to the shared iOS source set. The IDE will correctly support the rest of the code.</p>
+<aside data-type="note" class="prompt" data-title="" id="2aac45ec"><p id="2de2bd12">All projects created with the KMM Project Wizard support the hierarchical structure, which means this issue affects them.</p></aside><p id="94a1bacd">To enable IDE support in these cases, you can work around the issue by adding the following code to <code class="code ">build.gradle.(kts)</code> in the <code class="code ">shared</code> directory of your project:</p>
+<div class="tabs" id="f7e74b57" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="8d52a35b" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code-block" data-lang="kotlin" data-title="Kotlin" data-language="kotlin">val iosTarget: (String, KotlinNativeTarget.() -&gt; Unit) -&gt; KotlinNativeTarget = if (System.getenv("SDK_NAME")?.startsWith("iphoneos") == true) ::iosArm64 else ::iosX64 iosTarget("ios") </pre></div>
+<div class="tabs__content" data-gtm="tab" id="2c04bdd0" data-sync-tabs="groovy" data-title="Groovy"><pre class="code-block" data-lang="groovy" data-title="Groovy" data-language="groovy">def iosTarget if (System.getenv("SDK_NAME")?.startsWith("iphoneos")) { iosTarget = kotlin.&amp;iosArm64 } else { iosTarget = kotlin.&amp;iosX64 } </pre></div>
+</div>
+<p id="4fa20113">In this code sample, the configuration of iOS targets depends on the environment variable <code class="code ">SDK_NAME</code>, which is managed by Xcode. For each build, you'll have only one iOS target, named <code class="code ">ios</code>, that uses the <code class="code ">iosMain</code> source set. There will be no hierarchy of the <code class="code ">iosMain</code>, <code class="code ">iosArm64</code>, and <code class="code ">iosX64</code> source sets.</p>
+<aside data-type="note" class="prompt" data-title="" id="4a81c4aa"><p id="da7970c9">This is a temporary workaround. If you are a library author, we recommend that you <a href="migrating-multiplatform-project-to-14#migrate-to-the-hierarchical-project-structure" id="88b72e3b">migrate to the hierarchical structure</a> as soon as possible.</p>
+<p id="1a3a9258">With this workaround, Kotlin Multiplatform tooling analyzes your code against only the one native target that is active during the current build. This might lead to various errors during the complete build with all targets, and errors are more likely if your project contains other native targets in addition to the iOS ones.</p></aside>
+</div>
+</div></section></section><section class="chapter"><h2 id="android-dependencies" data-toc="kmm-add-dependencies#android-dependencies">Android dependencies</h2>
+<p id="212aa2ac">The workflow for adding Android-specific dependencies to a KMM module is the same as it is for pure Android projects: add a line to your Gradle build script declaring the dependency you need and import the project. You’ll then be able to use this dependency in your Kotlin code.</p>
+<p id="47517f85">We recommend adding Android dependencies to KMM projects by adding them to a specific Android source set:</p>
+<div class="tabs" id="eef0af2c" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="e42ba5d0" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code-block" data-lang="kotlin" data-title="Kotlin" data-language="kotlin">sourceSets["androidMain"].dependencies { implementation("com.example.android:app-magic:12.3") } </pre></div>
+<div class="tabs__content" data-gtm="tab" id="cdd1841a" data-sync-tabs="groovy" data-title="Groovy"><pre class="code-block" data-lang="groovy" data-title="Groovy" data-language="groovy">sourceSets { androidMain { dependencies { implementation 'com.example.android:app-magic:12.3' } } } </pre></div>
+</div>
+<p id="fe305a4e">Moving what was a top-level dependency in an Android project to a specific source set in a KMM project might be difficult if the top-level dependency had a non-trivial configuration name. For example, to move а <code class="code ">debugImplementation</code> dependency from the top level of an Android project, you’ll need to add an implementation dependency to the source set named <code class="code ">androidDebug</code>. To minimize the effort you have to put in to deal with migration problems like this, you can add a <code class="code ">dependencies</code> block inside the <code class="code ">android</code> block:</p>
+<div class="tabs" id="58e7dbc9" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="a594d5" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code-block" data-lang="kotlin" data-title="Kotlin" data-language="kotlin">android { ... dependencies { implementation("com.example.android:app-magic:12.3") } } </pre></div>
+<div class="tabs__content" data-gtm="tab" id="38b6a527" data-sync-tabs="groovy" data-title="Groovy"><pre class="code-block" data-lang="groovy" data-title="Groovy" data-language="groovy">android { ... dependencies { implementation 'com.example.android:app-magic:12.3' } } </pre></div>
+</div>
+<p id="f070e2a2">Dependencies declared here will be treated exactly the same as dependencies from the top-level block, but declaring them this way will also separate Android dependencies visually in your build script and make it less confusing.</p>
+<p id="ee630954">Putting dependencies into a standalone <code class="code ">dependencies</code> block at the end of the script, in a way that is idiomatic to Android projects, is also supported. However, we strongly recommend <b id="57ea86e6" class="">against</b> doing this because configuring a build script with Android dependencies in the top-level block and other target dependencies in each source set is likely to cause confusion.</p>
+<p id="b71318ba">Learn more about <a href="https://developer.android.com/studio/build/dependencies" id="444177a8" data-external="true" rel="noopener noreferrer">adding dependencies in Android documentation</a>.</p></section><div class="last-modified"> Last modified: 20 January 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="kmm-connect-to-platform-specific-apis">Connect to platform-specific APIs</a> <a class="navigation-links__next" href="kmm-configure-sqldelight-for-data-storage">Configure SQLDelight for data storage</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/kmm-add-dependencies.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/kmm-add-dependencies.html</a>
+  </p>
+</div>

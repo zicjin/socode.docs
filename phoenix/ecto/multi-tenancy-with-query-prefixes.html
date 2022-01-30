@@ -48,7 +48,8 @@ $ mix ecto.migrate
 $ iex -S mix
 Interactive Elixir - press Ctrl+C to exit
 iex(1)&gt; MyApp.Repo.all MyApp.Sample
-[]</pre>
+[]
+</pre>
 <p>We haven't done anything unusual so far. We created our database instance, made it up to date by running migrations and then successfully made a query against the "samples" table, which returned an empty list.</p>
 <p>By default, connections to Postgres' databases run on the "public" prefix. When we run migrations and queries, they are all running against the "public" prefix. However imagine your application has a requirement to run on a particular prefix in production, let's call it "connection_prefix".</p>
 <p>Luckily Postgres allows us to change the prefix our database connections run on by setting the "schema search path". The best moment to change the search path is right after we setup the database connection, ensuring all of our queries will run on that particular prefix, throughout the connection life-cycle.</p>
@@ -67,19 +68,23 @@ config :my_app, MyApp.Repo,
 Interactive Elixir - press Ctrl+C to exit
 iex(1)&gt; MyApp.Repo.all MyApp.Sample
 ** (Postgrex.Error) ERROR (undefined_table):
-   relation "samples" does not exist</pre>
+   relation "samples" does not exist
+</pre>
 <p>Our previously successful query now fails because there is no table "samples" under the new prefix. Let's try to fix that by running migrations:</p>
 <pre data-language="elixir">$ mix ecto.migrate
 ** (Postgrex.Error) ERROR (invalid_schema_name):
-   no schema has been selected to create in</pre>
+   no schema has been selected to create in
+</pre>
 <p>Oops. Now migration says there is no such schema name. That's because Postgres automatically creates the "public" prefix every time we create a new database. If we want to use a different prefix, we must explicitly create it on the database we are running on:</p>
-<pre data-language="elixir">$ psql -d demo_dev -c "CREATE SCHEMA connection_prefix"</pre>
+<pre data-language="elixir">$ psql -d demo_dev -c "CREATE SCHEMA connection_prefix"
+</pre>
 <p>Now we are ready to migrate and run our queries:</p>
 <pre data-language="elixir">$ mix ecto.migrate
 $ iex -S mix
 Interactive Elixir - press Ctrl+C to exit
 iex(1)&gt; MyApp.Repo.all MyApp.Sample
-[]</pre>
+[]
+</pre>
 <p>Data in different prefixes are isolated. Writing to the "samples" table in one prefix cannot be accessed by the other unless we change the prefix in the connection or use the Ecto conveniences we will discuss next.</p>
 <h2 id="schema-prefixes" class="section-heading">  Schema prefixes </h2> <p>Ecto also allows you to set a particular schema to run on a specific prefix. Imagine you are building a multi-tenant application. Each client data belongs to a particular prefix, such as "client_foo", "client_bar" and so forth. Yet your application may still rely on a set of tables that are shared across all clients. One of such tables may be exactly the table that maps the Client ID to its database prefix. Let's assume we want to store this data in a prefix named "main":</p>
 <pre data-language="elixir">defmodule MyApp.Mapping do
@@ -142,7 +147,8 @@ iex(14)&gt; Ecto.get_meta(sample, :prefix)
 $ mix ecto.migrate --prefix "prefix_2"
 $ mix ecto.migrate --prefix "prefix_3"
 ...
-$ mix ecto.migrate --prefix "prefix_128"</pre>
+$ mix ecto.migrate --prefix "prefix_128"
+</pre>
 <p>The other approach is by changing each desired migration to run across multiple prefixes. For example:</p>
 <pre data-language="elixir">defmodule MyApp.Repo.Migrations.CreateSample do
   use Ecto.Migration

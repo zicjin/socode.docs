@@ -1,13 +1,7 @@
-<h1>Form bindings</h1>
-<h2 id="a-note-about-form-helpers" class="section-heading">  A note about form helpers </h2> <p>LiveView works with the existing <a href="../phoenix_html/2.14.2/phoenix.html"><code class="inline">Phoenix.HTML</code></a> form helpers. If you want to use helpers such as <a href="../phoenix_html/2.14.2/phoenix.html.form#form_for/3"><code class="inline">form_for/3</code></a>, <a href="../phoenix_html/2.14.2/phoenix.html.form#text_input/2"><code class="inline">text_input/2</code></a>, etc. be sure to <code class="inline">use Phoenix.HTML</code> at the top of your LiveView.</p>
-<h4>Using <code class="inline">mix phx.new --live</code>
-</h4>
-<p>When you create your app using with <code class="inline">mix phx.new --live</code>, <a href="../phoenix_html/2.14.2/phoenix.html"><code class="inline">Phoenix.HTML</code></a> is included automatically when you <code class="inline">use MyAppWeb, :live_view</code> or <code class="inline">use MyAppWeb, :live_component</code> in your modules.</p>
-<p>Using the generated <code class="inline">:live_view</code> and <code class="inline">:live_component</code> helpers will also <code class="inline">import MyAppWeb.ErrorHelpers</code>, a generated module where <code class="inline">error_tag/2</code> resides (usually located at <code class="inline">lib/my_app_web/views/error_helpers.ex</code>).</p>
-<p>Since <code class="inline">ErrorHelpers</code> is generated into your app, it is yours to modify– you may add additional helper functions here, such as those recommended when rendering feedback for <a href="phoenix.liveview.helpers#upload_errors/2"><code class="inline">upload_errors/1,2</code></a>.</p>
-<h3 id="pitfalls-with-input-names" class="section-heading">  Pitfalls with input names </h3> <p>Naming things is hard. It can be especially painful when the name you choose creates problems in your code. HTML forms suffer from this issue. The names applied to form elements <em>will shadow any of the form's built-in properties</em>, so avoid choosing a name like <code class="inline">id</code> for one of your form fields, as it will lead unexpected behaviour with form events.</p>
+<h1> <button class="settings display-settings">  <span class="sr-only">Settings</span> </button>  <span>Form bindings</span> </h1> <h2 id="a-note-about-form-helpers" class="section-heading">  A note about form helpers </h2> <p>LiveView works with the existing <a href="../phoenix_html/3.1.0/phoenix.html"><code class="inline">Phoenix.HTML</code></a> form helpers. If you want to use helpers such as <a href="../phoenix_html/3.1.0/phoenix.html.form#text_input/2"><code class="inline">text_input/2</code></a>, etc. be sure to <code class="inline">use Phoenix.HTML</code> at the top of your LiveView. If your application was generated with Phoenix v1.6, then <a href="mix.tasks.phx.new"><code class="inline">mix phx.new</code></a> automatically uses <a href="../phoenix_html/3.1.0/phoenix.html"><code class="inline">Phoenix.HTML</code></a> when you <code class="inline">use MyAppWeb, :live_view</code> or <code class="inline">use MyAppWeb, :live_component</code> in your modules.</p>
+<p>Using the generated <code class="inline">:live_view</code> and <code class="inline">:live_component</code> helpers will also <code class="inline">import MyAppWeb.ErrorHelpers</code>, a module generated as part of your application where <code class="inline">error_tag/2</code> resides (usually located at <code class="inline">lib/my_app_web/views/error_helpers.ex</code>). You are welcome to change the <code class="inline">ErrorHelpers</code> module as you prefer.</p>
 <h2 id="form-events" class="section-heading">  Form Events </h2> <p>To handle form changes and submissions, use the <code class="inline">phx-change</code> and <code class="inline">phx-submit</code> events. In general, it is preferred to handle input changes at the form level, where all form fields are passed to the LiveView's callback given any single input change. For example, to handle real-time form validation and saving, your template would use both <code class="inline">phx_change</code> and <code class="inline">phx_submit</code> bindings:</p>
-<pre data-language="elixir">&lt;%= f = form_for @changeset, "#", [phx_change: :validate, phx_submit: :save] %&gt;
+<pre data-language="elixir">&lt;.form let={f} for={@changeset} phx-change="validate" phx-submit="save"&gt;
   &lt;%= label f, :username %&gt;
   &lt;%= text_input f, :username %&gt;
   &lt;%= error_tag f, :username %&gt;
@@ -17,7 +11,7 @@
   &lt;%= error_tag f, :email %&gt;
 
   &lt;%= submit "Save" %&gt;
-&lt;/form&gt;</pre>
+&lt;/.form&gt;</pre>
 <p>Next, your LiveView picks up the events in <code class="inline">handle_event</code> callbacks:</p>
 <pre data-language="elixir">def render(assigns) ...
 
@@ -66,24 +60,25 @@ end</pre>
 }</pre>
 <h2 id="number-inputs" class="section-heading">  Number inputs </h2> <p>Number inputs are a special case in LiveView forms. On programmatic updates, some browsers will clear invalid inputs. So LiveView will not send change events from the client when an input is invalid, instead allowing the browser's native validation UI to drive user interaction. Once the input becomes valid, change and submit events will be sent normally.</p>
 <pre data-language="elixir">&lt;input type="number"&gt;</pre>
-<p>This is known to have a plethora of problems including accessibility, large numbers are converted to exponential notation and scrolling can accidentally increase or decrease the number.</p>
-<p>As of early 2020, the following avoids these pitfalls and will likely serve your application's needs and users much better. According to <a href="https://caniuse.com/#search=inputmode,">https://caniuse.com/#search=inputmode,</a> the following is supported by 90% of the global mobile market with Firefox yet to implement.</p>
+<p>This is known to have a plethora of problems including accessibility, large numbers are converted to exponential notation, and scrolling can accidentally increase or decrease the number.</p>
+<p>One alternative is the <code class="inline">inputmode</code> attribute, which may serve your application's needs and users much better. According to <a href="https://caniuse.com/#search=inputmode">Can I Use?</a>, the following is supported by 86% of the global market (as of Sep 2021):</p>
 <pre data-language="elixir">&lt;input type="text" inputmode="numeric" pattern="[0-9]*"&gt;</pre>
-<h2 id="password-inputs" class="section-heading">  Password inputs </h2> <p>Password inputs are also special cased in <a href="../phoenix_html/2.14.2/phoenix.html"><code class="inline">Phoenix.HTML</code></a>. For security reasons, password field values are not reused when rendering a password input tag. This requires explicitly setting the <code class="inline">:value</code> in your markup, for example:</p>
+<h2 id="password-inputs" class="section-heading">  Password inputs </h2> <p>Password inputs are also special cased in <a href="../phoenix_html/3.1.0/phoenix.html"><code class="inline">Phoenix.HTML</code></a>. For security reasons, password field values are not reused when rendering a password input tag. This requires explicitly setting the <code class="inline">:value</code> in your markup, for example:</p>
 <pre data-language="elixir">&lt;%= password_input f, :password, value: input_value(f, :password) %&gt;
 &lt;%= password_input f, :password_confirmation, value: input_value(f, :password_confirmation) %&gt;
 &lt;%= error_tag f, :password %&gt;
 &lt;%= error_tag f, :password_confirmation %&gt;</pre>
 <h2 id="file-inputs" class="section-heading">  File inputs </h2> <p>LiveView forms support <a href="uploads">reactive file inputs</a>, including drag and drop support via the <code class="inline">phx-drop-target</code> attribute:</p>
-<pre data-language="elixir">&lt;div class="container" phx-drop-target="&lt;%= @uploads.avatar.ref %&gt;"&gt;
+<pre data-language="elixir">&lt;div class="container" phx-drop-target={@uploads.avatar.ref}&gt;
     ...
     &lt;%= live_file_input @uploads.avatar %&gt;
 &lt;/div&gt;</pre>
 <p>See <a href="phoenix.liveview.helpers#live_file_input/2"><code class="inline">Phoenix.LiveView.Helpers.live_file_input/2</code></a> for more.</p>
 <h2 id="submitting-the-form-action-over-http" class="section-heading">  Submitting the form action over HTTP </h2> <p>The <code class="inline">phx-trigger-action</code> attribute can be added to a form to trigger a standard form submit on DOM patch to the URL specified in the form's standard <code class="inline">action</code> attribute. This is useful to perform pre-final validation of a LiveView form submit before posting to a controller route for operations that require Plug session mutation. For example, in your LiveView template you can annotate the <code class="inline">phx-trigger-action</code> with a boolean assign:</p>
-<pre data-language="elixir">&lt;%= f = form_for @changeset, Routes.reset_password_path(@socket, :create),
-  phx_submit: :save,
-  phx_trigger_action: @trigger_submit %&gt;</pre>
+<pre data-language="elixir">&lt;.form let={f} for={@changeset}
+  action={Routes.reset_password_path(@socket, :create)}
+  phx-submit="save",
+  phx-trigger-action={@trigger_submit}&gt;</pre>
 <p>Then in your LiveView, you can toggle the assign to trigger the form with the current fields on next render:</p>
 <pre data-language="elixir">def handle_event("save", params, socket) do
   case validate_change_password(socket.assigns.user, params) do

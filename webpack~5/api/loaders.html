@@ -2,7 +2,7 @@
 <p>A loader is a JavaScript module that exports a function. The <a href="https://github.com/webpack/loader-runner">loader runner</a> calls this function and passes the result of the previous loader or the resource file into it. The <code>this</code> context of the function is filled-in by webpack and the <a href="https://github.com/webpack/loader-runner">loader runner</a> with some useful methods that allow the loader (among other things) to change its invocation style to async, or get query parameters.</p>
 <p>The first loader is passed one argument: the content of the resource file. The compiler expects a result from the last loader. The result should be a <code>String</code> or a <code>Buffer</code> (which is converted to a string), representing the JavaScript source code of the module. An optional SourceMap result (as a JSON object) may also be passed.</p>
 <p>A single result can be returned in <a href="#synchronous-loaders">sync mode</a>. For multiple results the <code>this.callback()</code> must be called. In <a href="#asynchronous-loaders">async mode</a> <code>this.async()</code> must be called to indicate that the <a href="https://github.com/webpack/loader-runner">loader runner</a> should wait for an asynchronous result. It returns <code>this.callback()</code>. Then the loader must return <code>undefined</code> and call that callback.</p>
-<pre data-language="js">/**
+<pre class="hljs language-js" data-language="js">/**
  *
  * @param {string|Buffer} content Content of the resource file
  * @param {object} [map] SourceMap data consumable by https://github.com/mozilla/source-map
@@ -18,12 +18,12 @@ function webpackLoader(content, map, meta) {
 </h3>
 <p>Either <code>return</code> or <code>this.callback</code> can be used to return the transformed <code>content</code> synchronously:</p>
 <p><strong>sync-loader.js</strong></p>
-<pre data-language="js">module.exports = function (content, map, meta) {
+<pre class="hljs language-javascript" data-language="js">module.exports = function (content, map, meta) {
   return someSyncOperation(content);
 };</pre>
 <p>The <code>this.callback</code> method is more flexible as it allows multiple arguments to be passed as opposed to only the <code>content</code>.</p>
 <p><strong>sync-loader-with-multiple-results.js</strong></p>
-<pre data-language="js">module.exports = function (content, map, meta) {
+<pre class="hljs language-javascript" data-language="js">module.exports = function (content, map, meta) {
   this.callback(null, someSyncOperation(content), map, meta);
   return; // always return undefined when calling callback()
 };</pre>
@@ -31,7 +31,7 @@ function webpackLoader(content, map, meta) {
 </h3>
 <p>For asynchronous loaders, <a href="#thisasync"><code>this.async</code></a> is used to retrieve the <code>callback</code> function:</p>
 <p><strong>async-loader.js</strong></p>
-<pre data-language="js">module.exports = function (content, map, meta) {
+<pre class="hljs language-javascript" data-language="js">module.exports = function (content, map, meta) {
   var callback = this.async();
   someAsyncOperation(content, function (err, result) {
     if (err) return callback(err);
@@ -39,7 +39,7 @@ function webpackLoader(content, map, meta) {
   });
 };</pre>
 <p><strong>async-loader-with-multiple-results.js</strong></p>
-<pre data-language="js">module.exports = function (content, map, meta) {
+<pre class="hljs language-javascript" data-language="js">module.exports = function (content, map, meta) {
   var callback = this.async();
   someAsyncOperation(content, function (err, result, sourceMaps, meta) {
     if (err) return callback(err);
@@ -51,7 +51,7 @@ function webpackLoader(content, map, meta) {
 </h3>
 <p>By default, the resource file is converted to a UTF-8 string and passed to the loader. By setting the <code>raw</code> flag to <code>true</code>, the loader will receive the raw <code>Buffer</code>. Every loader is allowed to deliver its result as a <code>String</code> or as a <code>Buffer</code>. The compiler converts them between loaders.</p>
 <p><strong>raw-loader.js</strong></p>
-<pre data-language="js">module.exports = function (content) {
+<pre class="hljs language-javascript" data-language="js">module.exports = function (content) {
   assert(content instanceof Buffer);
   return someSyncOperation(content);
   // return value can be a `Buffer` too
@@ -63,7 +63,7 @@ module.exports.raw = true;</pre>
 <p>Loaders are <strong>always</strong> called from right to left. There are some instances where the loader only cares about the <strong>metadata</strong> behind a request and can ignore the results of the previous loader. The <code>pitch</code> method on loaders is called from <strong>left to right</strong> before the loaders are actually executed (from right to left).</p>
 <aside class="tip"><h6 class="tip__prefix">tip</h6>
 <p>Loaders may be added inline in requests and disabled via inline prefixes, which will impact the order in which they are "pitched" and executed. See <a href="../configuration/module#ruleenforce"><code>Rule.enforce</code></a> for more details.</p></aside><p>For the following configuration of <a href="../configuration/module#ruleuse"><code>use</code></a>:</p>
-<pre data-language="js">module.exports = {
+<pre class="hljs language-javascript" data-language="js">module.exports = {
   //...
   module: {
     rules: [
@@ -75,7 +75,7 @@ module.exports.raw = true;</pre>
   },
 };</pre>
 <p>These steps would occur:</p>
-<pre data-language="js">|- a-loader `pitch`
+<pre class="hljs language-diff" data-language="js">|- a-loader `pitch`
   |- b-loader `pitch`
     |- c-loader `pitch`
       |- requested module is picked up as a dependency
@@ -84,7 +84,7 @@ module.exports.raw = true;</pre>
 |- a-loader normal execution</pre>
 <p>So why might a loader take advantage of the "pitching" phase?</p>
 <p>First, the <code>data</code> passed to the <code>pitch</code> method is exposed in the execution phase as well under <code>this.data</code> and could be useful for capturing and sharing information from earlier in the cycle.</p>
-<pre data-language="js">module.exports = function (content) {
+<pre class="hljs language-javascript" data-language="js">module.exports = function (content) {
   return someSyncOperation(content, this.data.value);
 };
 
@@ -92,7 +92,7 @@ module.exports.pitch = function (remainingRequest, precedingRequest, data) {
   data.value = 42;
 };</pre>
 <p>Second, if a loader delivers a result in the <code>pitch</code> method, the process turns around and skips the remaining loaders. In our example above, if the <code>b-loader</code>s <code>pitch</code> method returned something:</p>
-<pre data-language="js">module.exports = function (content) {
+<pre class="hljs language-javascript" data-language="js">module.exports = function (content) {
   return someSyncOperation(content);
 };
 
@@ -106,7 +106,7 @@ module.exports.pitch = function (remainingRequest, precedingRequest, data) {
   }
 };</pre>
 <p>The steps above would be shortened to:</p>
-<pre data-language="js">|- a-loader `pitch`
+<pre class="hljs language-diff" data-language="js">|- a-loader `pitch`
   |- b-loader `pitch` returns a module
 |- a-loader normal execution</pre>
 <h2 id="the-loader-context">The Loader Context
@@ -116,34 +116,29 @@ module.exports.pitch = function (remainingRequest, precedingRequest, data) {
 </h3>
 <p>Given the following example, this require call is used:</p>
 <p>In <code>/abc/file.js</code>:</p>
-<pre data-language="js">require('./loader1?xyz!loader2!./resource?rrr');</pre>
-<h3 id="thisaddcontextdependency">
-<code>this.addContextDependency</code>
+<pre class="hljs language-javascript" data-language="js">require('./loader1?xyz!loader2!./resource?rrr');</pre>
+<h3 id="thisaddcontextdependency">this.addContextDependency
 </h3>
-<pre data-language="js">addContextDependency(directory: string)</pre>
+<pre class="hljs language-typescript" data-language="js">addContextDependency(directory: string)</pre>
 <p>Add a directory as dependency of the loader result.</p>
-<h3 id="thisadddependency">
-<code>this.addDependency</code>
+<h3 id="thisadddependency">this.addDependency
 </h3>
-<pre data-language="js">addDependency(file: string)
+<pre class="hljs language-typescript" data-language="js">addDependency(file: string)
 dependency(file: string) // shortcut</pre>
 <p>Add a file as dependency of the loader result in order to make them watchable. For example, <a href="https://github.com/webpack-contrib/sass-loader"><code>sass-loader</code></a>, <a href="https://github.com/webpack-contrib/less-loader"><code>less-loader</code></a> uses this to recompile whenever any imported <code>css</code> file changes.</p>
-<h3 id="thisasync">
-<code>this.async</code>
+<h3 id="thisasync">this.async
 </h3>
 <p>Tells the <a href="https://github.com/webpack/loader-runner">loader-runner</a> that the loader intends to call back asynchronously. Returns <code>this.callback</code>.</p>
-<h3 id="thiscacheable">
-<code>this.cacheable</code>
+<h3 id="thiscacheable">this.cacheable
 </h3>
 <p>A function that sets the cacheable flag:</p>
-<pre data-language="js">cacheable(flag = true: boolean)</pre>
+<pre class="hljs language-typescript" data-language="js">cacheable(flag = true: boolean)</pre>
 <p>By default, loader results are flagged as cacheable. Call this method passing <code>false</code> to make the loader's result not cacheable.</p>
 <p>A cacheable loader must have a deterministic result when inputs and dependencies haven't changed. This means the loader shouldn't have dependencies other than those specified with <code>this.addDependency</code>.</p>
-<h3 id="thiscallback">
-<code>this.callback</code>
+<h3 id="thiscallback">this.callback
 </h3>
 <p>A function that can be called synchronously or asynchronously in order to return multiple results. The expected arguments are:</p>
-<pre data-language="js">this.callback(
+<pre class="hljs language-ts" data-language="js">this.callback(
   err: Error | null,
   content: string | Buffer,
   sourceMap?: SourceMap,
@@ -158,58 +153,49 @@ dependency(file: string) // shortcut</pre>
 </ol>
 <aside class="tip"><h6 class="tip__prefix">tip</h6>
 <p>It can be useful to pass an abstract syntax tree (AST), like <a href="https://github.com/estree/estree"><code>ESTree</code></a>, as the fourth argument (<code>meta</code>) to speed up the build time if you want to share common ASTs between loaders.</p></aside><p>In case this function is called, you should return undefined to avoid ambiguous loader results.</p>
-<h3 id="thiscleardependencies">
-<code>this.clearDependencies</code>
+<h3 id="thiscleardependencies">this.clearDependencies
 </h3>
-<pre data-language="js">clearDependencies();</pre>
+<pre class="hljs language-typescript" data-language="js">clearDependencies();</pre>
 <p>Remove all dependencies of the loader result, even initial dependencies and those of other loaders. Consider using <code>pitch</code>.</p>
-<h3 id="thiscontext">
-<code>this.context</code>
+<h3 id="thiscontext">this.context
 </h3>
 <p><strong>The directory of the module.</strong> Can be used as a context for resolving other stuff.</p>
 <p>In <a href="#example-for-the-loader-context">the example</a>: <code>/abc</code> because <code>resource.js</code> is in this directory</p>
-<h3 id="thisdata">
-<code>this.data</code>
+<h3 id="thisdata">this.data
 </h3>
 <p>A data object shared between the pitch and the normal phase.</p>
-<h3 id="thisemiterror">
-<code>this.emitError</code>
+<h3 id="thisemiterror">this.emitError
 </h3>
-<pre data-language="js">emitError(error: Error)</pre>
+<pre class="hljs language-typescript" data-language="js">emitError(error: Error)</pre>
 <p>Emit an error that also can be displayed in the output.</p>
-<pre data-language="js">ERROR in ./src/lib.js (./src/loader.js!./src/lib.js)
+<pre class="hljs language-bash" data-language="js">ERROR in ./src/lib.js (./src/loader.js!./src/lib.js)
 Module Error (from ./src/loader.js):
 Here is an Error!
  @ ./src/index.js 1:0-25</pre>
 <aside class="tip"><h6 class="tip__prefix">tip</h6>
-<p>Unlike throwing an Error directly, it will NOT interrupt the compilation process of the current module.</p></aside><h3 id="thisemitfile">
-<code>this.emitFile</code>
+<p>Unlike throwing an Error directly, it will NOT interrupt the compilation process of the current module.</p></aside><h3 id="thisemitfile">this.emitFile
 </h3>
-<pre data-language="js">emitFile(name: string, content: Buffer|string, sourceMap: {...})</pre>
+<pre class="hljs language-typescript" data-language="js">emitFile(name: string, content: Buffer|string, sourceMap: {...})</pre>
 <p>Emit a file. This is webpack-specific.</p>
-<h3 id="thisemitwarning">
-<code>this.emitWarning</code>
+<h3 id="thisemitwarning">this.emitWarning
 </h3>
-<pre data-language="js">emitWarning(warning: Error)</pre>
+<pre class="hljs language-typescript" data-language="js">emitWarning(warning: Error)</pre>
 <p>Emit a warning that will be displayed in the output like the following:</p>
-<pre data-language="js">WARNING in ./src/lib.js (./src/loader.js!./src/lib.js)
+<pre class="hljs language-bash" data-language="js">WARNING in ./src/lib.js (./src/loader.js!./src/lib.js)
 Module Warning (from ./src/loader.js):
 Here is a Warning!
  @ ./src/index.js 1:0-25</pre>
 <aside class="tip"><h6 class="tip__prefix">tip</h6>
-<p>Note that the warnings will not be displayed if <code>stats.warnings</code> is set to <code>false</code>, or some other omit setting is used to <code>stats</code> such as <code>none</code> or <code>errors-only</code>. See the <a href="../configuration/stats#stats-presets">stats presets configuration</a>.</p></aside><h3 id="thisfs">
-<code>this.fs</code>
+<p>Note that the warnings will not be displayed if <code>stats.warnings</code> is set to <code>false</code>, or some other omit setting is used to <code>stats</code> such as <code>none</code> or <code>errors-only</code>. See the <a href="../configuration/stats#stats-presets">stats presets configuration</a>.</p></aside><h3 id="thisfs">this.fs
 </h3>
 <p>Access to the <code>compilation</code>'s <code>inputFileSystem</code> property.</p>
-<h3 id="thisgetoptionsschema">
-<code>this.getOptions(schema)</code>
+<h3 id="thisgetoptionsschema">this.getOptions(schema)
 </h3>
 <p>Extracts given loader options. Optionally, accepts JSON schema as an argument.</p>
 <aside class="tip"><h6 class="tip__prefix">tip</h6>
-<p>Since webpack 5, <code>this.getOptions</code> is available in loader context. It substitutes <code>getOptions</code> method from <a href="https://github.com/webpack/loader-utils#getoptions">loader-utils</a>.</p></aside><h3 id="thisgetresolve">
-<code>this.getResolve</code>
+<p>Since webpack 5, <code>this.getOptions</code> is available in loader context. It substitutes <code>getOptions</code> method from <a href="https://github.com/webpack/loader-utils#getoptions">loader-utils</a>.</p></aside><h3 id="thisgetresolve">this.getResolve
 </h3>
-<pre data-language="js">getResolve(options: ResolveOptions): resolve
+<pre class="hljs language-typescript" data-language="js">getResolve(options: ResolveOptions): resolve
 
 resolve(context: string, request: string, callback: function(err, result: string))
 resolve(context: string, request: string): Promise&lt;string&gt;</pre>
@@ -217,18 +203,17 @@ resolve(context: string, request: string): Promise&lt;string&gt;</pre>
 <p>Any options under webpack <a href="../configuration/resolve#resolve"><code>resolve</code> options</a> are possible. They are merged with the configured <code>resolve</code> options. Note that <code>"..."</code> can be used in arrays to extend the value from <code>resolve</code> options, e.g. <code>{ extensions: [".sass", "..."] }</code>.</p>
 <p><code>options.dependencyType</code> is an additional option. It allows us to specify the type of dependency, which is used to resolve <code>byDependency</code> from the <code>resolve</code> options.</p>
 <p>All dependencies of the resolving operation are automatically added as dependencies to the current module.</p>
-<h3 id="thishot">
-<code>this.hot</code>
+<h3 id="thishot">this.hot
 </h3>
 <p>Information about HMR for loaders.</p>
-<pre data-language="js">module.exports = function (source) {
+<pre class="hljs language-javascript" data-language="js">module.exports = function (source) {
   console.log(this.hot); // true if HMR is enabled via --hot flag or webpack configuration
   return source;
 };</pre>
 <h3 id="thisimportmodule">this.importModule
 </h3>
 <span class="badge">5.32.0+</span><p><code>this.importModule(request, options, [callback]): Promise</code></p>
-<p>An alternative lightweight solution for the child compiler to compile and execute a request at build time. It can be enabled with the <a href="../configuration/experiments#experimentsexecutemodule"><code>experiments.executeModule</code></a>.</p>
+<p>An alternative lightweight solution for the child compiler to compile and execute a request at build time.</p>
 <ul>
 <li>
 <code>request</code>: the request string to load the module from</li>
@@ -241,10 +226,10 @@ resolve(context: string, request: string): Promise&lt;string&gt;</pre>
 </ul>
 </li>
 <li>
-<code>callback</code>: an optional function returning the exports. <code>importModule</code> will return a Promise if no callback is provided.</li>
+<code>callback</code>: an optional Node.js style callback returning the exports of the module or a namespace object for ESM. <code>importModule</code> will return a Promise if no callback is provided.</li>
 </ul>
 <p><strong>webpack.config.js</strong></p>
-<pre data-language="js">module.exports = {
+<pre class="hljs language-js" data-language="js">module.exports = {
   module: {
     rules: [
       {
@@ -256,20 +241,20 @@ resolve(context: string, request: string): Promise&lt;string&gt;</pre>
   },
 };</pre>
 <p><strong>a-pitching-loader.js</strong></p>
-<pre data-language="js">exports.pitch = async function (remaining) {
+<pre class="hljs language-js" data-language="js">exports.pitch = async function (remaining) {
   const result = await this.importModule(
     this.resourcePath + '.webpack[javascript/auto]' + '!=!' + remaining
   );
   return result.default || result;
 };</pre>
 <p><strong>src/stylesheet.js</strong></p>
-<pre data-language="js">import { green, red } from './colors.js';
+<pre class="hljs language-js" data-language="js">import { green, red } from './colors.js';
 export default `body { background: ${red}; color: ${green}; }`;</pre>
 <p><strong>src/colors.js</strong></p>
-<pre data-language="js">export const red = '#f00';
+<pre class="hljs language-js" data-language="js">export const red = '#f00';
 export const green = '#0f0';</pre>
 <p><strong>src/index.js</strong></p>
-<pre data-language="js">import stylesheet from './stylesheet.js';
+<pre class="hljs language-js" data-language="js">import stylesheet from './stylesheet.js';
 // stylesheet will be a string `body { background: #f00; color: #0f0; }` at build time</pre>
 <p>You might notice something in the above example:</p>
 <ol>
@@ -279,24 +264,21 @@ export const green = '#0f0';</pre>
 <code>.webpack[javascript/auto]</code> is a pseudo extension of the <code>.webpack[type]</code> pattern, we use it to specify a default <a href="../configuration/module#ruletype">module type</a> when no other module type is specified. It's typically used in conjunction with <code>!=!</code> syntax.</li>
 </ol>
 <p>Note that the above example is a simplified one, you can check <a href="https://github.com/webpack/webpack/tree/master/test/configCases/loader-import-module/css">the full example on webpack repository</a>.</p>
-<h3 id="thisloaderindex">
-<code>this.loaderIndex</code>
+<h3 id="thisloaderindex">this.loaderIndex
 </h3>
 <p>The index in the loaders array of the current loader.</p>
 <p>In <a href="#example-for-the-loader-context">the example</a>: in loader1: <code>0</code>, in loader2: <code>1</code></p>
-<h3 id="thisloadmodule">
-<code>this.loadModule</code>
+<h3 id="thisloadmodule">this.loadModule
 </h3>
-<pre data-language="js">loadModule(request: string, callback: function(err, source, sourceMap, module))</pre>
+<pre class="hljs language-typescript" data-language="js">loadModule(request: string, callback: function(err, source, sourceMap, module))</pre>
 <p>Resolves the given request to a module, applies all configured loaders and calls back with the generated source, the sourceMap and the module instance (usually an instance of <a href="https://github.com/webpack/webpack/blob/master/lib/NormalModule.js"><code>NormalModule</code></a>). Use this function if you need to know the source code of another module to generate the result.</p>
 <p><code>this.loadModule</code> in a loader context uses CommonJS resolve rules by default. Use <code>this.getResolve</code> with an appropriate <code>dependencyType</code>, e.g. <code>'esm'</code>, <code>'commonjs'</code> or a custom one before using a different semantic.</p>
-<h3 id="thisloaders">
-<code>this.loaders</code>
+<h3 id="thisloaders">this.loaders
 </h3>
 <p>An array of all the loaders. It is writable in the pitch phase.</p>
-<pre data-language="js">loaders = [{request: string, path: string, query: string, module: function}]</pre>
+<pre class="hljs language-ts" data-language="js">loaders = [{request: string, path: string, query: string, module: function}]</pre>
 <p>In <a href="#example-for-the-loader-context">the example</a>:</p>
-<pre data-language="js">[
+<pre class="hljs language-javascript" data-language="js">[
   {
     request: '/abc/loader1.js?xyz',
     path: '/abc/loader1.js',
@@ -310,27 +292,23 @@ export const green = '#0f0';</pre>
     module: [Function],
   },
 ];</pre>
-<h3 id="thismode">
-<code>this.mode</code>
+<h3 id="thismode">this.mode
 </h3>
 <p>Read in which <a href="../configuration/mode"><code>mode</code></a> webpack is running.</p>
 <p>Possible values: <code>'production'</code>, <code>'development'</code>, <code>'none'</code></p>
-<h3 id="thisquery">
-<code>this.query</code>
+<h3 id="thisquery">this.query
 </h3>
 <ol>
 <li>If the loader was configured with an <a href="../configuration/module#useentry"><code>options</code></a> object, this will point to that object.</li>
 <li>If the loader has no <code>options</code>, but was invoked with a query string, this will be a string starting with <code>?</code>.</li>
 </ol>
-<h3 id="thisrequest">
-<code>this.request</code>
+<h3 id="thisrequest">this.request
 </h3>
 <p>The resolved request string.</p>
 <p>In <a href="#example-for-the-loader-context">the example</a>: <code>'/abc/loader1.js?xyz!/abc/node_modules/loader2/index.js!/abc/resource.js?rrr'</code></p>
-<h3 id="thisresolve">
-<code>this.resolve</code>
+<h3 id="thisresolve">this.resolve
 </h3>
-<pre data-language="js">resolve(context: string, request: string, callback: function(err, result: string))</pre>
+<pre class="hljs language-typescript" data-language="js">resolve(context: string, request: string, callback: function(err, result: string))</pre>
 <p>Resolve a request like a require expression.</p>
 <ul>
 <li>
@@ -341,31 +319,25 @@ export const green = '#0f0';</pre>
 <code>callback</code> is a normal Node.js-style callback function giving the resolved path.</li>
 </ul>
 <p>All dependencies of the resolving operation are automatically added as dependencies to the current module.</p>
-<h3 id="thisresource">
-<code>this.resource</code>
+<h3 id="thisresource">this.resource
 </h3>
 <p>The resource part of the request, including query.</p>
 <p>In <a href="#example-for-the-loader-context">the example</a>: <code>'/abc/resource.js?rrr'</code></p>
-<h3 id="thisresourcepath">
-<code>this.resourcePath</code>
+<h3 id="thisresourcepath">this.resourcePath
 </h3>
 <p>The resource file.</p>
 <p>In <a href="#example-for-the-loader-context">the example</a>: <code>'/abc/resource.js'</code></p>
-<h3 id="thisresourcequery">
-<code>this.resourceQuery</code>
+<h3 id="thisresourcequery">this.resourceQuery
 </h3>
 <p>The query of the resource.</p>
 <p>In <a href="#example-for-the-loader-context">the example</a>: <code>'?rrr'</code></p>
-<h3 id="thisrootcontext">
-<code>this.rootContext</code>
+<h3 id="thisrootcontext">this.rootContext
 </h3>
 <p>Since webpack 4, the formerly <code>this.options.context</code> is provided as <code>this.rootContext</code>.</p>
-<h3 id="thissourcemap">
-<code>this.sourceMap</code>
+<h3 id="thissourcemap">this.sourceMap
 </h3>
 <p>Tells if source map should be generated. Since generating source maps can be an expensive task, you should check if source maps are actually requested.</p>
-<h3 id="thistarget">
-<code>this.target</code>
+<h3 id="thistarget">this.target
 </h3>
 <p>Target of compilation. Passed from configuration options.</p>
 <p>Example values: <code>'web'</code>, <code>'node'</code></p>
@@ -379,7 +351,7 @@ export const green = '#0f0';</pre>
 <code>absolutify</code>: Return a new request string using absolute paths when possible.</li>
 </ul>
 <p><strong>my-sync-loader.js</strong></p>
-<pre data-language="js">module.exports = function (content) {
+<pre class="hljs language-js" data-language="js">module.exports = function (content) {
   this.utils.contextify(
     this.context,
     this.utils.absolutify(this.context, './index.js')
@@ -388,12 +360,10 @@ export const green = '#0f0';</pre>
   // …
   return content;
 };</pre>
-<h3 id="thisversion">
-<code>this.version</code>
+<h3 id="thisversion">this.version
 </h3>
 <p><strong>Loader API version.</strong> Currently <code>2</code>. This is useful for providing backwards compatibility. Using the version you can specify custom logic or fallbacks for breaking changes.</p>
-<h3 id="thiswebpack">
-<code>this.webpack</code>
+<h3 id="thiswebpack">this.webpack
 </h3>
 <p>This boolean is set to true when this is compiled by webpack.</p>
 <aside class="tip"><h6 class="tip__prefix">tip</h6>
@@ -402,35 +372,28 @@ export const green = '#0f0';</pre>
 <p>The loader interface provides all module relate information. However in rare cases you might need access to the compiler api itself.</p>
 <aside class="warning"><h6 class="warning__prefix">warning</h6>
 <p>Please note that using these webpack specific properties will have a negative impact on your loaders compatibility.</p></aside><p>Therefore you should only use them as a last resort. Using them will reduce the portability of your loader.</p>
-<h3 id="this_compilation">
-<code>this._compilation</code>
+<h3 id="this_compilation">this._compilation
 </h3>
 <p>Access to the current Compilation object of webpack.</p>
-<h3 id="this_compiler">
-<code>this._compiler</code>
+<h3 id="this_compiler">this._compiler
 </h3>
 <p>Access to the current Compiler object of webpack.</p>
 <h2 id="deprecated-context-properties">Deprecated context properties
 </h2>
 <aside class="warning"><h6 class="warning__prefix">warning</h6>
-<p>The usage of these properties is highly discouraged since we are planning to remove them from the context. They are still listed here for documentation purposes.</p></aside><h3 id="thisdebug">
-<code>this.debug</code>
+<p>The usage of these properties is highly discouraged since we are planning to remove them from the context. They are still listed here for documentation purposes.</p></aside><h3 id="thisdebug">this.debug
 </h3>
 <p>A boolean flag. It is set when in debug mode.</p>
-<h3 id="thisinputvalue">
-<code>this.inputValue</code>
+<h3 id="thisinputvalue">this.inputValue
 </h3>
 <p>Passed from the last loader. If you would execute the input argument as a module, consider reading this variable for a shortcut (for performance).</p>
-<h3 id="thisminimize">
-<code>this.minimize</code>
+<h3 id="thisminimize">this.minimize
 </h3>
 <p>Tells if result should be minimized.</p>
-<h3 id="thisvalue">
-<code>this.value</code>
+<h3 id="thisvalue">this.value
 </h3>
 <p>Pass values to the next loader. If you know what your result exports if executed as a module, set this value here (as an only element array).</p>
-<h3 id="this_module">
-<code>this._module</code>
+<h3 id="this_module">this._module
 </h3>
 <p>Hacky access to the Module object being loaded.</p>
 <h2 id="error-reporting">Error Reporting
@@ -443,21 +406,21 @@ export const green = '#0f0';</pre>
 </ul>
 <p>For example:</p>
 <p><strong>./src/index.js</strong></p>
-<pre data-language="js">require('./loader!./lib');</pre>
+<pre class="hljs language-javascript" data-language="js">require('./loader!./lib');</pre>
 <p>Throwing an error from loader:</p>
 <p><strong>./src/loader.js</strong></p>
-<pre data-language="js">module.exports = function (source) {
+<pre class="hljs language-javascript" data-language="js">module.exports = function (source) {
   throw new Error('This is a Fatal Error!');
 };</pre>
 <p>Or pass an error to the callback in async mode:</p>
 <p><strong>./src/loader.js</strong></p>
-<pre data-language="js">module.exports = function (source) {
+<pre class="hljs language-javascript" data-language="js">module.exports = function (source) {
   const callback = this.async();
   //...
   callback(new Error('This is a Fatal Error!'), source);
 };</pre>
 <p>The module will get bundled like this:</p>
-<pre data-language="js">/***/ "./src/loader.js!./src/lib.js":
+<pre class="" data-language="js">/***/ "./src/loader.js!./src/lib.js":
 /*!************************************!*\
   !*** ./src/loader.js!./src/lib.js ***!
   \************************************/
@@ -469,7 +432,7 @@ throw new Error("Module build failed (from ./src/loader.js):\nError: This is a F
 /***/ })
 </pre>
 <p>Then the build output will also display the error (Similar to <code>this.emitError</code>):</p>
-<pre data-language="js">ERROR in ./src/lib.js (./src/loader.js!./src/lib.js)
+<pre class="hljs language-bash" data-language="js">ERROR in ./src/lib.js (./src/loader.js!./src/lib.js)
 Module build failed (from ./src/loader.js):
 Error: This is a Fatal Error!
     at Object.module.exports (/workspace/src/loader.js:2:9)
@@ -495,31 +458,28 @@ Error: This is a Fatal Error!
 <p>A relative <code>matchResource</code> will resolve relative to the current context of the containing module.</p></aside><p>When a <code>matchResource</code> is set, it will be used to match with the <a href="../configuration/module#modulerules"><code>module.rules</code></a> instead of the original resource. This can be useful if further loaders should be applied to the resource, or if the module type needs to be changed. It's also displayed in the stats and used for matching <a href="../configuration/module#ruleissuer"><code>Rule.issuer</code></a> and <a href="../plugins/split-chunks-plugin#splitchunkscachegroupscachegrouptest"><code>test</code> in <code>splitChunks</code></a>.</p>
 <p>Example:</p>
 <p><strong>file.js</strong></p>
-<pre data-language="js">/* STYLE: body { background: red; } */
+<pre class="hljs language-javascript" data-language="js">/* STYLE: body { background: red; } */
 console.log('yep');</pre>
 <p>A loader could transform the file into the following file and use the <code>matchResource</code> to apply the user-specified CSS processing rules:</p>
 <p><strong>file.js</strong> (transformed by loader)</p>
-<pre data-language="js">import './file.js.css!=!extract-style-loader/getStyles!./file.js';
+<pre class="hljs language-javascript" data-language="js">import './file.js.css!=!extract-style-loader/getStyles!./file.js';
 console.log('yep');</pre>
 <p>This will add a dependency to <code>extract-style-loader/getStyles!./file.js</code> and treat the result as <code>file.js.css</code>. Because <a href="../configuration/module#modulerules"><code>module.rules</code></a> has a rule matching <code>/\.css$/</code> and it will apply to this dependency.</p>
 <p>The loader could look like this:</p>
 <p><strong>extract-style-loader/index.js</strong></p>
-<pre data-language="js">const stringifyRequest = require('loader-utils').stringifyRequest;
-const getRemainingRequest = require('loader-utils').getRemainingRequest;
-const getStylesLoader = require.resolve('./getStyle');
+<pre class="hljs language-javascript" data-language="js">const getStylesLoader = require.resolve('./getStyle');
 
 module.exports = function (source) {
   if (STYLES_REGEXP.test(source)) {
     source = source.replace(STYLES_REGEXP, '');
-    const remReq = getRemainingRequest(this);
-    return `import ${stringifyRequest(
-      `${this.resource}.css!=!${getStylesLoader}!${remReq}`
+    return `import ${JSON.stringify(
+      this.utils.contextify(this.context || this.rootContext, `${this.resource}.css!=!${getStylesLoader}!${this.remainingRequest}`)
     )};${source}`;
   }
   return source;
 };</pre>
 <p><strong>extract-style-loader/getStyles.js</strong></p>
-<pre data-language="js">module.exports = function (source) {
+<pre class="hljs language-javascript" data-language="js">module.exports = function (source) {
   const match = STYLES_REGEXP.match(source);
   return match[0];
 };</pre>
@@ -530,11 +490,7 @@ module.exports = function (source) {
 <li>Loaders should prefer to use <code>this.getLogger()</code> for logging which is a shortcut to <code>compilation.getLogger()</code> with loader path and processed file. This kind of logging is stored to the Stats and formatted accordingly. It can be filtered and exported by the webpack user.</li>
 <li>Loaders may use <code>this.getLogger('name')</code> to get an independent logger with a child name. Loader path and processed file is still added.</li>
 <li>Loaders may use special fallback logic for detecting logging support <code>this.getLogger() ? this.getLogger() : console</code> to provide a fallback when an older webpack version is used which does not support <code>getLogger</code> method.</li>
-</ul>
-<div class="print:hidden mt-20">
-<a class="text-gray-500 dark:text-gray-500 text-sm cursor-pointer font-sans hover:underline" href="https://github.com/webpack/webpack.js.org/edit/master/src/content/api/loaders.mdx">Edit this page</a><span class="mx-5 text-black font-bold dark:text-white">·</span><a class="text-gray-500 dark:text-gray-500 text-sm cursor-pointer font-sans hover:underline">Print this page</a>
-</div>
-<div class="contributors__section"><h3>Contributors</h3></div><div class="_attribution">
+</ul><div class="_attribution">
   <p class="_attribution-p">
     <a href="https://webpack.js.org/api/loaders" class="_attribution-link" target="_blank">https://webpack.js.org/api/loaders</a>
   </p>

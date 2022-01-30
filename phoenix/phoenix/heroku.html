@@ -16,7 +16,7 @@
 <ul><li>Heroku <a href="https://devcenter.heroku.com/articles/dynos#restarting">restarts dynos</a> every 24 hours regardless of whether the node is healthy.</li></ul>
 </li>
 <li>
-<p><a href="https://elixir-lang.org/getting-started/debugging.html#observer">The built-in Observer</a> can't be used with Heroku.</p>
+<p><a href="https://elixir-lang.org/getting-started/debugging.html#observer">The built-in observer</a> can't be used with Heroku.</p>
 <ul><li>Heroku does allow for connection into your dyno, but you won't be able to use the observer to watch the state of your dyno.</li></ul>
 </li>
 </ul>
@@ -58,33 +58,43 @@ https://mysterious-meadow-6277.herokuapp.com/ | https://git.heroku.com/mysteriou
 <blockquote><p>Note: if we hadn't initialized our Git repository before we ran the <code class="inline">heroku create</code> command, we wouldn't have our Heroku remote repository properly set up at this point. We can set that up manually by running: <code class="inline">heroku git:remote -a [our-app-name].</code></p></blockquote>
 <p>The buildpack uses a predefined Elixir and Erlang version but to avoid surprises when deploying, it is best to explicitly list the Elixir and Erlang version we want in production to be the same we are using during development or in your continuous integration servers. This is done by creating a config file named <code class="inline">elixir_buildpack.config</code> in the root directory of your project with your target version of Elixir and Erlang:</p>
 <pre data-language="elixir"># Elixir version
-elixir_version=1.8.1
+elixir_version=1.12.2
 
 # Erlang version
-# available versions https://github.com/HashNuke/heroku-buildpack-elixir-otp-builds/blob/master/otp-versions
-erlang_version=21.2.5</pre>
-<h3 id="adding-the-phoenix-server-and-assets-buildpack" class="section-heading">  Adding the Phoenix Server and Assets Buildpack </h3> <p>To successfully run Phoenix in production, we need to compile assets and start the Phoenix server. The <a href="https://github.com/gjaldon/heroku-buildpack-phoenix-static">Phoenix Static buildpack</a> can take care of that for us, so let's add it now.</p>
+# https://github.com/HashNuke/heroku-buildpack-elixir-otp-builds/blob/master/otp-versions
+erlang_version=24.0.3
+
+# Invoke assets.deploy defined in your mix.exs to deploy assets with esbuild
+# Note we nuke the esbuild executable from the image
+hook_post_compile="eval mix assets.deploy &amp;&amp; rm -f _build/esbuild*"</pre>
+<p>Finally, let's tell the build pack how to start our webserver. Create a file named <code class="inline">Procfile</code> at the root of your project:</p>
+<pre data-language="elixir">web: mix phx.server</pre>
+<h3 id="optional-node-npm-and-the-phoenix-static-buildpack" class="section-heading">  Optional: Node, npm, and the Phoenix Static buildpack </h3> <p>By default, Phoenix uses <code class="inline">esbuild</code> and manages all assets for you. However, if you are using <code class="inline">node</code> and <code class="inline">npm</code>, you will need to install the <a href="https://github.com/gjaldon/heroku-buildpack-phoenix-static">Phoenix Static buildpack</a> to handle them:</p>
 <pre data-language="elixir">$ heroku buildpacks:add https://github.com/gjaldon/heroku-buildpack-phoenix-static.git
 Buildpack added. Next release on mysterious-meadow-6277 will use:
   1. https://github.com/HashNuke/heroku-buildpack-elixir.git
   2. https://github.com/gjaldon/heroku-buildpack-phoenix-static.git
 </pre>
+<p>When using this buildpack, you want to delegate all asset bundling to <code class="inline">npm</code>. So you must remove the <code class="inline">hook_post_compile</code> configuration from your <code class="inline">elixir_buildpack.config</code> and move it to the deploy script of your <code class="inline">assets/package.json</code>. Something like this:</p>
+<pre data-language="elixir">{
+  ...
+  "scripts": {
+    "deploy": "cd .. &amp;&amp; mix assets.deploy &amp;&amp; rm -f _build/esbuild*"
+  }
+  ...
+}</pre>
 <p>The Phoenix Static buildpack uses a predefined Node.js version but to avoid surprises when deploying, it is best to explicitly list the Node.js version we want in production to be the same we are using during development or in your continuous integration servers. This is done by creating a config file named <code class="inline">phoenix_static_buildpack.config</code> in the root directory of your project with your target version of Node.js:</p>
 <pre data-language="elixir"># Node.js version
 node_version=10.20.1</pre>
 <p>Please refer to the <a href="https://github.com/gjaldon/heroku-buildpack-phoenix-static#configuration">configuration section</a> for full details. You can make your own custom build script, but for now we will use the <a href="https://github.com/gjaldon/heroku-buildpack-phoenix-static/blob/master/compile">default one provided</a>.</p>
-<p>The Phoenix Static buildpack also configures Heroku to use the proper command to start your application. The Elixir Buildpack runs by default <code class="inline">mix run --no-halt</code>, which will not start your Phoenix server. The Phoenix Static buildpack changes it to the proper <a href="mix.tasks.phx.server"><code class="inline">mix phx.server</code></a>. If you don't want to use the Phoenix Static buildpack, then you must manually define a <code class="inline">Procfile</code> at the root of your application with the proper command:</p>
-<pre data-language="elixir">web: mix phx.server</pre>
-<p>Heroku will recognize this file and use the command to start your application, ensuring that it also starts the Phoenix server.</p>
 <p>Finally, note that since we are using multiple buildpacks, you might run into an issue where the sequence is out of order (the Elixir buildpack needs to run before the Phoenix Static buildpack). <a href="https://devcenter.heroku.com/articles/using-multiple-buildpacks-for-an-app">Heroku's docs</a> explain this better, but you will need to make sure the Phoenix Static buildpack comes last.</p>
-<h2 id="making-our-project-ready-for-heroku" class="section-heading">  Making our Project ready for Heroku </h2> <p>Every new Phoenix project ships with a config file <code class="inline">config/prod.secret.exs</code> which loads configuration and secrets from <a href="https://devcenter.heroku.com/articles/config-vars">environment variables</a>. This aligns well with Heroku best practices, so the only work left for us to do is to configure URLs and SSL.</p>
+<h2 id="making-our-project-ready-for-heroku" class="section-heading">  Making our Project ready for Heroku </h2> <p>Every new Phoenix project ships with a config file <code class="inline">config/runtime.exs</code> (formerly <code class="inline">config/prod.secret.exs</code>) which loads configuration and secrets from <a href="https://devcenter.heroku.com/articles/config-vars">environment variables</a>. This aligns well with Heroku best practices, so the only work left for us to do is to configure URLs and SSL.</p>
 <p>First let's tell Phoenix to use our Heroku URL and enforce we only use the SSL version of the website. Also, bind to the port requested by Heroku in the <a href="https://devcenter.heroku.com/articles/runtime-principles#web-servers"><code class="inline">$PORT</code> environment variable</a>. Find the url line in your <code class="inline">config/prod.exs</code>:</p>
 <pre data-language="elixir">url: [host: "example.com", port: 80],</pre>
 <p>... and replace it with this (don't forget to replace <code class="inline">mysterious-meadow-6277</code> with your application name):</p>
-<pre data-language="elixir">http: [port: {:system, "PORT"}],
-url: [scheme: "https", host: "mysterious-meadow-6277.herokuapp.com", port: 443],
+<pre data-language="elixir">url: [scheme: "https", host: "mysterious-meadow-6277.herokuapp.com", port: 443],
 force_ssl: [rewrite_on: [:x_forwarded_proto]],</pre>
-<p>Then open up your <code class="inline">config/prod.secret.exs</code> and uncomment the <code class="inline"># ssl: true,</code> line in your repository configuration. It will look like this:</p>
+<p>Then open up your <code class="inline">config/runtime.xs</code> (formerly <code class="inline">config/prod.secret.exs</code>) and uncomment the <code class="inline"># ssl: true,</code> line in your repository configuration. It will look like this:</p>
 <pre data-language="elixir">config :hello, Hello.Repo,
   ssl: true,
   url: database_url,
@@ -94,13 +104,12 @@ force_ssl: [rewrite_on: [:x_forwarded_proto]],</pre>
   use Phoenix.Endpoint, otp_app: :hello
 
   socket "/socket", HelloWeb.UserSocket,
-    websocket: [timeout: 45_000],
-    longpoll: false
+    websocket: [timeout: 45_000]
 
   ...
 end</pre>
 <p>This ensures that any idle connections are closed by Phoenix before they reach Heroku's 55-second timeout window.</p>
-<h2 id="creating-environment-variables-in-heroku" class="section-heading">  Creating Environment Variables in Heroku </h2> <p>The <code class="inline">DATABASE_URL</code> config var is automatically created by Heroku when we add the <a href="https://elements.heroku.com/addons/heroku-postgresql">Heroku Postgres add-on</a>. We can create the database via the heroku toolbelt:</p>
+<h2 id="creating-environment-variables-in-heroku" class="section-heading">  Creating Environment Variables in Heroku </h2> <p>The <code class="inline">DATABASE_URL</code> config var is automatically created by Heroku when we add the <a href="https://elements.heroku.com/addons/heroku-postgresql">Heroku Postgres add-on</a>. We can create the database via the Heroku toolbelt:</p>
 <pre data-language="elixir">$ heroku addons:create heroku-postgresql:hobby-dev
 </pre>
 <p>Now we set the <code class="inline">POOL_SIZE</code> config var:</p>
@@ -124,7 +133,6 @@ SECRET_KEY_BASE: xvafzY4y01jYuzLm3ecJqo008dVnU3CN4f+MamNd1Zue4pXvfvUjbiXT8akaIF5
 <h2 id="deploy-time" class="section-heading">  Deploy Time! </h2> <p>Our project is now ready to be deployed on Heroku.</p>
 <p>Let's commit all our changes:</p>
 <pre data-language="elixir">$ git add elixir_buildpack.config
-$ git add phoenix_static_buildpack.config
 $ git commit -a -m "Use production config from Heroku ENV variables and decrease socket timeout"
 </pre>
 <p>And deploy:</p>
@@ -182,24 +190,6 @@ remote:        Will export the following config vars:
 remote:        * Config vars DATABASE_URL
 remote:        * MIX_ENV=prod
 remote:
-remote: -----&gt; Installing binaries
-remote:        Downloading node 0.12.4...
-remote:        Installing node 0.12.4...
-remote:        Using default npm version
-remote:
-remote: -----&gt; Building dependencies
-remote:        [...]
-remote:               Building Phoenix static assets
-remote:        07 Jul 00:06:22 - info: compiled 3 files into 2 files, copied 3 in 3616ms
-remote:        Check your digested files at 'priv/static'.
-remote:
-remote: -----&gt; Finalizing build
-remote:        Creating runtime environment
-remote:
-remote: -----&gt; Discovering process types
-remote:        Procfile declares types     -&gt; (web)
-remote:        Default types for Multipack -&gt; web
-remote:
 remote: -----&gt; Compressing... done, 82.1MB
 remote: -----&gt; Launching... done, v5
 remote:        https://mysterious-meadow-6277.herokuapp.com/ deployed to Heroku
@@ -229,7 +219,7 @@ build:
     MIX_ENV: prod
     SECRET_KEY_BASE: $SECRET_KEY_BASE
     DATABASE_URL: $DATABASE_URL</pre>
-<h3 id="set-up-releases-and-dockerfile" class="section-heading">  Set up releases and Dockerfile </h3> <p>Now we need to define a <code class="inline">Dockerfile</code> at the root folder of your project that contains your application. We recommend to use releases when doing so, as the release will allow us to build a container with only the parts of Erlang and Elixir we actually use. Follow <a href="releases">the releases docs</a>. At the end of the guide, there is a sample Dockerfile file you can use.</p>
+<h3 id="set-up-releases-and-dockerfile" class="section-heading">  Set up releases and Dockerfile </h3> <p>Now we need to define a <code class="inline">Dockerfile</code> at the root folder of your project that contains your application. We recommend to use releases when doing so, as the release will allow us to build a container with only the parts of Erlang and Elixir we actually use. Follow the <a href="releases">releases docs</a>. At the end of the guide, there is a sample Dockerfile file you can use.</p>
 <p>Once you have the image definition set up, you can push your app to heroku and you can see it starts building the image and deploy it.</p>
 <h2 id="useful-heroku-commands" class="section-heading">  Useful Heroku Commands </h2> <p>We can look at the logs of our application by running the following command in our project directory:</p>
 <pre data-language="elixir">$ heroku logs # use --tail if you want to tail them
@@ -278,7 +268,7 @@ ETIMEDOUT: connect ETIMEDOUT 50.19.103.36:5000
 <p>You can overcome this by adding <code class="inline">detached</code> option to run command:</p>
 <pre data-language="elixir">heroku run:detached "POOL_SIZE=2 mix ecto.migrate"
 Running POOL_SIZE=2 mix ecto.migrate on mysterious-meadow-6277... done, run.8089 (Free)
-</pre> <div class="bottom-actions"> <div class="bottom-actions-item"> <a href="gigalixir" class="bottom-actions-button" rel="prev"> <span class="subheader"> ← Previous Page </span> <span class="title"> Deploying on Gigalixir </span> </a> </div> <div class="bottom-actions-item"> <a href="custom_error_pages" class="bottom-actions-button" rel="next"> <span class="subheader"> Next Page → </span> <span class="title"> Custom Error Pages </span> </a> </div> </div><div class="_attribution">
+</pre> <div class="bottom-actions"> <div class="bottom-actions-item"> <a href="fly" class="bottom-actions-button" rel="prev"> <span class="subheader"> ← Previous Page </span> <span class="title"> Deploying on Fly </span> </a> </div> <div class="bottom-actions-item"> <a href="custom_error_pages" class="bottom-actions-button" rel="next"> <span class="subheader"> Next Page → </span> <span class="title"> Custom Error Pages </span> </a> </div> </div><div class="_attribution">
   <p class="_attribution-p">
     <a href="https://hexdocs.pm/phoenix/heroku.html" class="_attribution-link" target="_blank">https://hexdocs.pm/phoenix/heroku.html</a>
   </p>

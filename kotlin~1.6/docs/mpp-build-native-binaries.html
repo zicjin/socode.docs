@@ -1,0 +1,104 @@
+<h1 data-toc="mpp-build-native-binaries" id="mpp-build-native-binaries.md">Build final native binaries</h1>
+<p id="b75d3929">By default, a Kotlin/Native target is compiled down to a <code class="code ">*.klib</code> library artifact, which can be consumed by Kotlin/Native itself as a dependency but cannot be executed or used as a native library.</p>
+<p id="ca1c76eb">To declare final native binaries such as executables or shared libraries, use the <code class="code ">binaries</code> property of a native target. This property represents a collection of native binaries built for this target in addition to the default <code class="code ">*.klib</code> artifact and provides a set of methods for declaring and configuring them.</p>
+<aside data-type="note" class="prompt" data-title="" id="bdb0fe36"><p id="2c19c767">The <code class="code ">kotlin-multiplatform</code> plugin doesn't create any production binaries by default. The only binary available by default is a debug test executable that lets you run unit tests from the <code class="code ">test</code> compilation.</p></aside><section class="chapter"><h2 id="declare-binaries" data-toc="mpp-build-native-binaries#declare-binaries">Declare binaries</h2>
+<p id="85f39830">Use the following factory methods to declare elements of the <code class="code ">binaries</code> collection.</p>
+<div class="table-wrapper"><table class=" wide" id="4a6ec18c">
+<thead><tr class="ijRowHead" id="663c6529">
+<th id="7c9b8083"><p>Factory method</p></th>
+<th id="527fc090"><p>Binary kind</p></th>
+<th id="669d4536"><p>Available for</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="d399482c">
+<td id="5c8de4a9"><p><code class="code ">executable</code></p></td>
+<td id="c2b7d2d1"><p>Product executable</p></td>
+<td id="5978e77f"><p>All native targets</p></td>
+</tr>
+<tr class="" id="3b547410">
+<td id="6df8eec2"><p><code class="code ">test</code></p></td>
+<td id="5cde83d1"><p>Test executable</p></td>
+<td id="401873b0"><p>All native targets</p></td>
+</tr>
+<tr class="" id="7d6dd58d">
+<td id="fbc87475"><p><code class="code ">sharedLib</code></p></td>
+<td id="1941f4b6"><p>Shared native library</p></td>
+<td id="66b2183"><p>All native targets, except for <code class="code ">WebAssembly</code></p></td>
+</tr>
+<tr class="" id="4a6b947b">
+<td id="466c18bc"><p><code class="code ">staticLib</code></p></td>
+<td id="fb9633ef"><p>Static native library</p></td>
+<td id="f405fa41"><p>All native targets, except for <code class="code ">WebAssembly</code></p></td>
+</tr>
+<tr class="" id="6c0f0e4b">
+<td id="d26f9eea"><p><code class="code ">framework</code></p></td>
+<td id="58e25a3d"><p>Objective-C framework</p></td>
+<td id="b435a453"><p>macOS, iOS, watchOS, and tvOS targets only</p></td>
+</tr>
+</tbody>
+</table></div>
+<p id="cc22df69">The simplest version doesn't require any additional parameters and creates one binary for each build type. Currently, two build types are available:</p>
+<ul class="list _ul" id="5c29a50d">
+<li class="list__item" id="291586de"><p><code class="code ">DEBUG</code> – produces a non-optimized binary with debug information</p></li>
+<li class="list__item" id="b25dc056"><p><code class="code ">RELEASE</code> – produces an optimized binary without debug information</p></li>
+</ul>
+<p id="9f93aa18">The following snippet creates two executable binaries: debug and release.</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">kotlin { linuxX64 { // Use your target instead. binaries { executable { // Binary configuration. } } } } </pre>
+<p id="696b2e66">You can drop the lambda if there is no need for <a href="mpp-dsl-reference#native-targets" id="d76fed98">additional configuration</a>:</p>
+<pre class="code-block" data-lang="kotlin" data-language="kotlin">binaries { executable() } </pre>
+<p id="72f0e5d7">You can specify for which build types to create binaries. In the following example, only the <code class="code ">debug</code> executable is created.</p>
+<div class="tabs" id="d023e5e3" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="49e161d4" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code-block" data-lang="kotlin" data-title="Kotlin" data-language="kotlin">binaries { executable(listOf(DEBUG)) { // Binary configuration. } } </pre></div>
+<div class="tabs__content" data-gtm="tab" id="c349db34" data-sync-tabs="groovy" data-title="Groovy"><pre class="code-block" data-lang="groovy" data-title="Groovy" data-language="groovy">binaries { executable([DEBUG]) { // Binary configuration. } } </pre></div>
+</div>
+<p id="cab3037b">You can also declare binaries with custom names.</p>
+<div class="tabs" id="bff9ae65" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="f542335" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code-block" data-lang="kotlin" data-title="Kotlin" data-language="kotlin">binaries { executable("foo", listOf(DEBUG)) { // Binary configuration. } // It's possible to drop the list of build types (in which case, all the available build types will be used). executable("bar") { // Binary configuration. } } </pre></div>
+<div class="tabs__content" data-gtm="tab" id="bbdf6db0" data-sync-tabs="groovy" data-title="Groovy"><pre class="code-block" data-lang="groovy" data-title="Groovy" data-language="groovy">binaries { executable('foo', [DEBUG]) { // Binary configuration. } // It's possible to drop the list of build types (in which case, all the available build types will be used). executable('bar') { // Binary configuration. } } </pre></div>
+</div>
+<p id="d5a4ceee">The first argument sets a name prefix, which is the default name for the binary file. For example, for Windows the code produces the files <code class="code ">foo.exe</code> and <code class="code ">bar.exe</code>. You can also use the name prefix to <a href="#access-binaries" id="3f84cdbb">access the binary in the build script</a>.</p></section><section class="chapter"><h2 id="access-binaries" data-toc="mpp-build-native-binaries#access-binaries">Access binaries</h2>
+<p id="2847f42f">You can access binaries to <a href="mpp-dsl-reference#native-targets" id="88c79157">configure them</a> or get their properties (for example, the path to an output file).</p>
+<p id="1d8bd963">You can get a binary by its unique name. This name is based on the name prefix (if it is specified), build type, and binary kind following the pattern: <code class="code ">&lt;optional-name-prefix&gt;&lt;build-type&gt;&lt;binary-kind&gt;</code>, for example, <code class="code ">releaseFramework</code> or <code class="code ">testDebugExecutable</code>.</p>
+<aside data-type="note" class="prompt" data-title="" id="248bc214"><p id="f2adf372">Static and shared libraries have the suffixes static and shared respectively, for example, <code class="code ">fooDebugStatic</code> or <code class="code ">barReleaseShared</code>.</p></aside><div class="tabs" id="e529775b" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="12e5b08e" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code-block" data-lang="kotlin" data-title="Kotlin" data-language="kotlin">// Fails if there is no such binary. binaries["fooDebugExecutable"] binaries.getByName("fooDebugExecutable") // Returns null if there is no such binary. binaries.findByName("fooDebugExecutable") </pre></div>
+<div class="tabs__content" data-gtm="tab" id="486a9033" data-sync-tabs="groovy" data-title="Groovy"><pre class="code-block" data-lang="groovy" data-title="Groovy" data-language="groovy">// Fails if there is no such binary. binaries['fooDebugExecutable'] binaries.fooDebugExecutable binaries.getByName('fooDebugExecutable') // Returns null if there is no such binary. binaries.findByName('fooDebugExecutable') </pre></div>
+</div>
+<p id="5e01baa1">Alternatively, you can access a binary by its name prefix and build type using typed getters.</p>
+<div class="tabs" id="502a80b4" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="71932f36" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code-block" data-lang="kotlin" data-title="Kotlin" data-language="kotlin">// Fails if there is no such binary. binaries.getExecutable("foo", DEBUG) binaries.getExecutable(DEBUG) // Skip the first argument if the name prefix isn't set. binaries.getExecutable("bar", "DEBUG") // You also can use a string for build type. // Similar getters are available for other binary kinds: // getFramework, getStaticLib and getSharedLib. // Returns null if there is no such binary. binaries.findExecutable("foo", DEBUG) // Similar getters are available for other binary kinds: // findFramework, findStaticLib and findSharedLib. </pre></div>
+<div class="tabs__content" data-gtm="tab" id="f2aaa208" data-sync-tabs="groovy" data-title="Groovy"><pre class="code-block" data-lang="groovy" data-title="Groovy" data-language="groovy">// Fails if there is no such binary. binaries.getExecutable('foo', DEBUG) binaries.getExecutable(DEBUG) // Skip the first argument if the name prefix isn't set. binaries.getExecutable('bar', 'DEBUG') // You also can use a string for build type. // Similar getters are available for other binary kinds: // getFramework, getStaticLib and getSharedLib. // Returns null if there is no such binary. binaries.findExecutable('foo', DEBUG) // Similar getters are available for other binary kinds: // findFramework, findStaticLib and findSharedLib. </pre></div>
+</div></section><section class="chapter"><h2 id="export-dependencies-to-binaries" data-toc="mpp-build-native-binaries#export-dependencies-to-binaries">Export dependencies to binaries</h2>
+<p id="999a756d">When building an Objective-C framework or a native library (shared or static), you may need to pack not just the classes of the current project, but also the classes of its dependencies. Specify which dependencies to export to a binary using the <code class="code ">export</code> method.</p>
+<div class="tabs" id="5009e22e" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="93934e7" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code-block" data-lang="kotlin" data-title="Kotlin" data-language="kotlin">kotlin { sourceSets { macosMain.dependencies { // Will be exported. api(project(":dependency")) api("org.example:exported-library:1.0") // Will not be exported. api("org.example:not-exported-library:1.0") } } macosX64("macos").binaries { framework { export(project(":dependency")) export("org.example:exported-library:1.0") } sharedLib { // It's possible to export different sets of dependencies to different binaries. export(project(':dependency')) } } } </pre></div>
+<div class="tabs__content" data-gtm="tab" id="233bba65" data-sync-tabs="groovy" data-title="Groovy"><pre class="code-block" data-lang="groovy" data-title="Groovy" data-language="groovy">kotlin { sourceSets { macosMain.dependencies { // Will be exported. api project(':dependency') api 'org.example:exported-library:1.0' // Will not be exported. api 'org.example:not-exported-library:1.0' } } macosX64("macos").binaries { framework { export project(':dependency') export 'org.example:exported-library:1.0' } sharedLib { // It's possible to export different sets of dependencies to different binaries. export project(':dependency') } } } </pre></div>
+</div>
+<aside data-type="note" class="prompt" data-title="" id="dff5f5d4"><p id="753e310e">You can export only <a href="gradle#dependency-types" id="7c6499e4"><code class="code ">api</code> dependencies</a> of the corresponding source set. <br> You can export maven dependencies, but due to current limitations of Gradle metadata, such a dependency should be either a platform dependency (for example, <code class="code ">kotlinx-coroutines-core-native_debug_macos_x64</code> instead of <code class="code ">kotlinx-coroutines-core-native</code>) or be exported transitively.</p></aside><p id="199569c">By default, export works non-transitively. This means that if you export the library <code class="code ">foo</code> depending on the library <code class="code ">bar</code>, only methods of <code class="code ">foo</code> are added to the output framework.</p>
+<p id="74a6a7c3">You can change this behavior using the <code class="code ">transitiveExport</code> option. If set to <code class="code ">true</code>, the declarations of the library <code class="code ">bar</code> are exported as well.</p>
+<div class="tabs" id="e41d7b5b" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="be1619d1" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code-block" data-lang="kotlin" data-title="Kotlin" data-language="kotlin">binaries { framework { export(project(":dependency")) // Export transitively. transitiveExport = true } } </pre></div>
+<div class="tabs__content" data-gtm="tab" id="7f7dd901" data-sync-tabs="groovy" data-title="Groovy"><pre class="code-block" data-lang="groovy" data-title="Groovy" data-language="groovy">binaries { framework { export project(':dependency') // Export transitively. transitiveExport = true } } </pre></div>
+</div>
+<p id="d767037d">For example, assume that you write several modules in Kotlin and then want to access them from Swift. Since usage of several Kotlin/Native frameworks in one Swift application is limited, you can create a single umbrella framework and export all these modules to it.</p></section><section class="chapter"><h2 id="build-universal-frameworks" data-toc="mpp-build-native-binaries#build-universal-frameworks">Build universal frameworks</h2>
+<p id="2a4ab2cc">By default, an Objective-C framework produced by Kotlin/Native supports only one platform. However, you can merge such frameworks into a single universal (fat) binary using the <a href="https://llvm.org/docs/CommandGuide/llvm-lipo.html" id="ff82dd1f" data-external="true" rel="noopener noreferrer"><code class="code ">lipo</code> tool</a>. This operation especially makes sense for 32-bit and 64-bit iOS frameworks. In this case, you can use the resulting universal framework on both 32-bit and 64-bit devices.</p>
+<aside data-type="note" class="prompt" data-title="" id="5bb6780"><p id="8fb5c3e0">The fat framework must have the same base name as the initial frameworks.</p></aside><div class="tabs" id="3662b8d2" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="fe67f71" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code-block" data-lang="kotlin" data-title="Kotlin" data-language="kotlin">import org.jetbrains.kotlin.gradle.tasks.FatFrameworkTask kotlin { // Create and configure the targets. val ios32 = iosArm32("ios32") val ios64 = iosArm64("ios64") configure(listOf(ios32, ios64)) { binaries.framework { baseName = "my_framework" } } // Create a task to build a fat framework. tasks.register&lt;FatFrameworkTask&gt;("debugFatFramework") { // The fat framework must have the same base name as the initial frameworks. baseName = "my_framework" // The default destination directory is "&lt;build directory&gt;/fat-framework". destinationDir = buildDir.resolve("fat-framework/debug") // Specify the frameworks to be merged. from( ios32.binaries.getFramework("DEBUG"), ios64.binaries.getFramework("DEBUG") ) } } </pre></div>
+<div class="tabs__content" data-gtm="tab" id="9c7a451" data-sync-tabs="groovy" data-title="Groovy"><pre class="code-block" data-lang="groovy" data-title="Groovy" data-language="groovy">import org.jetbrains.kotlin.gradle.tasks.FatFrameworkTask kotlin { // Create and configure the targets. targets { iosArm32("ios32") iosArm64("ios64") configure([ios32, ios64]) { binaries.framework { baseName = "my_framework" } } } // Create a task building a fat framework. tasks.register("debugFatFramework", FatFrameworkTask) { // The fat framework must have the same base name as the initial frameworks. baseName = "my_framework" // The default destination directory is "&lt;build directory&gt;/fat-framework". destinationDir = file("$buildDir/fat-framework/debug") // Specify the frameworks to be merged. from( targets.ios32.binaries.getFramework("DEBUG"), targets.ios64.binaries.getFramework("DEBUG") ) } } </pre></div>
+</div></section><section class="chapter"><h2 id="build-xcframeworks" data-toc="mpp-build-native-binaries#build-xcframeworks">Build XCFrameworks</h2>
+<p id="e3736ff3">All Kotlin Multiplatform projects can use XCFrameworks as an output to gather logic for all the target platforms and architectures in a single bundle. Unlike <a href="#build-universal-frameworks" id="73f24fbc">universal (fat) frameworks</a>, you don't need to remove all unnecessary architectures before publishing the application to the App Store.</p>
+<div class="tabs" id="f68fc0b3" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="b8207c39" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code-block" data-lang="kotlin" data-title="Kotlin" data-language="kotlin">import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework plugins { kotlin("multiplatform") } kotlin { val xcf = XCFramework() ios { binaries.framework { baseName = "shared" xcf.add(this) } } watchos { binaries.framework { baseName = "shared" xcf.add(this) } } tvos { binaries.framework { baseName = "shared" xcf.add(this) } } } </pre></div>
+<div class="tabs__content" data-gtm="tab" id="7b09d8ae" data-sync-tabs="groovy" data-title="Groovy"><pre class="code-block" data-lang="groovy" data-title="Groovy" data-language="groovy">import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFrameworkConfig plugins { id 'org.jetbrains.kotlin.multiplatform' } kotlin { def xcf = new XCFrameworkConfig(project) ios { binaries.framework { baseName = "shared" xcf.add(it) } } watchos { binaries.framework { baseName = "shared" xcf.add(it) } } tvos { binaries.framework { baseName = "shared" xcf.add(it) } } } </pre></div>
+</div>
+<p id="b71d2548">When you declare XCFrameworks, Kotlin Gradle plugin will register three Gradle tasks:</p>
+<ul class="list _ul" id="e5ba38cd">
+<li class="list__item" id="fefb1a9e"><p><code class="code ">assembleXCFramework</code></p></li>
+<li class="list__item" id="301bc5e2"><p><code class="code ">assembleDebugXCFramework</code> (additionally debug artifact that contains <a href="native-ios-symbolication" id="d68b51c0">dSYMs</a>)</p></li>
+<li class="list__item" id="ed965aff"><p><code class="code ">assembleReleaseXCFramework</code></p></li>
+</ul></section><div class="last-modified"> Last modified: 14 October 2021</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="multiplatform-library">Create and publish a multiplatform library – tutorial</a> <a class="navigation-links__next" href="mpp-supported-platforms">Supported platforms</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/mpp-build-native-binaries.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/mpp-build-native-binaries.html</a>
+  </p>
+</div>

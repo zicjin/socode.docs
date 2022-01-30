@@ -24,7 +24,7 @@ $ git version
 git version 2.20.1.155.g426c96fcdb</pre> </div> </div>  <p>or</p>  <div class="listingblock"> <div class="content"> <pre data-language="shell-session">$ git config --global trace2.eventTarget ~/log.event
 $ git version
 git version 2.20.1.155.g426c96fcdb</pre> </div> </div>  <p>yields</p>  <div class="listingblock"> <div class="content"> <pre data-language="shell-session">$ cat ~/log.event
-{"event":"version","sid":"sid":"20190408T191610.507018Z-H9b68c35f-P000059a8","thread":"main","time":"2019-01-16T17:28:42.620713Z","file":"common-main.c","line":38,"evt":"2","exe":"2.20.1.155.g426c96fcdb"}
+{"event":"version","sid":"sid":"20190408T191610.507018Z-H9b68c35f-P000059a8","thread":"main","time":"2019-01-16T17:28:42.620713Z","file":"common-main.c","line":38,"evt":"3","exe":"2.20.1.155.g426c96fcdb"}
 {"event":"start","sid":"20190408T191610.507018Z-H9b68c35f-P000059a8","thread":"main","time":"2019-01-16T17:28:42.621027Z","file":"common-main.c","line":39,"t_abs":0.001173,"argv":["git","version"]}
 {"event":"cmd_name","sid":"20190408T191610.507018Z-H9b68c35f-P000059a8","thread":"main","time":"2019-01-16T17:28:42.621122Z","file":"git.c","line":432,"name":"version","hierarchy":"version"}
 {"event":"exit","sid":"20190408T191610.507018Z-H9b68c35f-P000059a8","thread":"main","time":"2019-01-16T17:28:42.621236Z","file":"git.c","line":662,"t_abs":0.001227,"code":0}
@@ -60,10 +60,10 @@ Common Key/Value Pairs</h4>  <p>The following key/value pairs are common to all 
 Event-Specific Key/Value Pairs</h4> <div class="dlist"> <dl> <dt class="hdlist1" id="Documentation/technical/api-trace2.txt-codeversioncode"> <code>"version"</code> </dt> <dd> <p>This event gives the version of the executable and the EVENT format. It should always be the first event in a trace session. The EVENT format version will be incremented if new event types are added, if existing fields are removed, or if there are significant changes in interpretation of existing events or fields. Smaller changes, such as adding a new field to an existing event, will not require an increment to the EVENT format version.</p> <div class="listingblock"> <div class="content"> <pre>{
         "event":"version",
         ...
-        "evt":"2",                       # EVENT format version
+        "evt":"3",                       # EVENT format version
         "exe":"2.20.1.155.g426c96fcdb" # git version
-}</pre> </div> </div> </dd> <dt class="hdlist1" id="Documentation/technical/api-trace2.txt-codediscardcode"> <code>"discard"</code> </dt> <dd> <p>This event is written to the git-trace2-discard sentinel file if there are too many files in the target trace directory (see the trace2.maxFiles config option).</p> <div class="listingblock"> <div class="content"> <pre>{
-        "event":"discard",
+}</pre> </div> </div> </dd> <dt class="hdlist1" id="Documentation/technical/api-trace2.txt-codetoomanyfilescode"> <code>"too_many_files"</code> </dt> <dd> <p>This event is written to the git-trace2-discard sentinel file if there are too many files in the target trace directory (see the trace2.maxFiles config option).</p> <div class="listingblock"> <div class="content"> <pre>{
+        "event":"too_many_files",
         ...
 }</pre> </div> </div> </dd> <dt class="hdlist1" id="Documentation/technical/api-trace2.txt-codestartcode"> <code>"start"</code> </dt> <dd> <p>This event contains the complete argv received by main().</p> <div class="listingblock"> <div class="content"> <pre>{
         "event":"start",
@@ -94,6 +94,10 @@ Event-Specific Key/Value Pairs</h4> <div class="dlist"> <dl> <dt class="hdlist1"
         "event":"cmd_path",
         ...
         "path":"C:/work/gfw/git.exe"
+}</pre> </div> </div> </dd> <dt class="hdlist1" id="Documentation/technical/api-trace2.txt-codecmdancestrycode"> <code>"cmd_ancestry"</code> </dt> <dd> <p>This event contains the text command name for the parent (and earlier generations of parents) of the current process, in an array ordered from nearest parent to furthest great-grandparent. It may not be implemented on all platforms.</p> <div class="listingblock"> <div class="content"> <pre>{
+        "event":"cmd_ancestry",
+        ...
+        "ancestry":["bash","tmux: server","systemd"]
 }</pre> </div> </div> </dd> <dt class="hdlist1" id="Documentation/technical/api-trace2.txt-codecmdnamecode"> <code>"cmd_name"</code> </dt> <dd> <p>This event contains the command name for this git process and the hierarchy of commands from parent git processes.</p> <div class="listingblock"> <div class="content"> <pre>{
         "event":"cmd_name",
         ...
@@ -129,7 +133,14 @@ Event-Specific Key/Value Pairs</h4> <div class="dlist"> <dl> <dt class="hdlist1"
         "pid":14708,         # child PID
         "code":0,         # child exit-code
         "t_rel":0.110605 # observed run-time of child process
-}</pre> </div> </div>  <p>Note that the session-id of the child process is not available to the current/spawning process, so the child’s PID is reported here as a hint for post-processing. (But it is only a hint because the child process may be a shell script which doesn’t have a session-id.)</p>   <p>Note that the <code>t_rel</code> field contains the observed run time in seconds for the child process (starting before the fork/exec/spawn and stopping after the waitpid() and includes OS process creation overhead). So this time will be slightly larger than the atexit time reported by the child process itself.</p>  </dd> <dt class="hdlist1" id="Documentation/technical/api-trace2.txt-codeexeccode"> <code>"exec"</code> </dt> <dd> <p>This event is generated before git attempts to <code>exec()</code> another command rather than starting a child process.</p> <div class="listingblock"> <div class="content"> <pre>{
+}</pre> </div> </div>  <p>Note that the session-id of the child process is not available to the current/spawning process, so the child’s PID is reported here as a hint for post-processing. (But it is only a hint because the child process may be a shell script which doesn’t have a session-id.)</p>   <p>Note that the <code>t_rel</code> field contains the observed run time in seconds for the child process (starting before the fork/exec/spawn and stopping after the waitpid() and includes OS process creation overhead). So this time will be slightly larger than the atexit time reported by the child process itself.</p>  </dd> <dt class="hdlist1" id="Documentation/technical/api-trace2.txt-codechildreadycode"> <code>"child_ready"</code> </dt> <dd> <p>This event is generated after the current process has started a background process and released all handles to it.</p> <div class="listingblock"> <div class="content"> <pre>{
+        "event":"child_ready",
+        ...
+        "child_id":2,
+        "pid":14708,         # child PID
+        "ready":"ready", # child ready state
+        "t_rel":0.110605 # observed run-time of child process
+}</pre> </div> </div>  <p>Note that the session-id of the child process is not available to the current/spawning process, so the child’s PID is reported here as a hint for post-processing. (But it is only a hint because the child process may be a shell script which doesn’t have a session-id.)</p>   <p>This event is generated after the child is started in the background and given a little time to boot up and start working. If the child startups normally and while the parent is still waiting, the "ready" field will have the value "ready". If the child is too slow to start and the parent times out, the field will have the value "timeout". If the child starts but the parent is unable to probe it, the field will have the value "error".</p>   <p>After the parent process emits this event, it will release all of its handles to the child process and treat the child as a background daemon. So even if the child does eventually finish booting up, the parent will not emit an updated event.</p>   <p>Note that the <code>t_rel</code> field contains the observed run time in seconds when the parent released the child process into the background. The child is assumed to be a long-running daemon process and may outlive the parent process. So the parent’s child event times should not be compared to the child’s atexit times.</p>  </dd> <dt class="hdlist1" id="Documentation/technical/api-trace2.txt-codeexeccode"> <code>"exec"</code> </dt> <dd> <p>This event is generated before git attempts to <code>exec()</code> another command rather than starting a child process.</p> <div class="listingblock"> <div class="content"> <pre>{
         "event":"exec",
         ...
         "exec_id":0,

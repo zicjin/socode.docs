@@ -2,6 +2,7 @@
 <ul>
 <li><a href="#example">Example Configuration</a></li>
 <li><a href="#directives">Directives</a></li>
+<li><a href="#ssl_alpn">ssl_alpn</a></li>
 <li><a href="#ssl_certificate">ssl_certificate</a></li>
 <li><a href="#ssl_certificate_key">ssl_certificate_key</a></li>
 <li><a href="#ssl_ciphers">ssl_ciphers</a></li>
@@ -45,6 +46,23 @@ stream {
     }
 </pre>
  <h4 id="directives">Directives</h4>
+<div class="directive" id="ssl_alpn">
+<table cellspacing="0"> <tr> <th> Syntax: </th> <td> <code><strong>ssl_alpn</strong> <i>protocol</i> ...;</code><br> </td> </tr> <tr> <th> Default: </th> <td> — </td> </tr> <tr> <th> Context: </th> <td> <code>stream</code>, <code>server</code><br> </td> </tr> </table>
+<p>This directive appeared in version 1.21.4. </p>
+</div>
+<p> Specifies the list of supported <a href="https://datatracker.ietf.org/doc/html/rfc7301">ALPN</a> protocols. One of the protocols must be <a href="#var_ssl_alpn_protocol">negotiated</a> if the client uses ALPN: </p> <pre data-language="nginx">
+map $ssl_alpn_protocol $proxy {
+    h2                127.0.0.1:8001;
+    http/1.1          127.0.0.1:8002;
+}
+
+server {
+    listen      12346;
+    proxy_pass  $proxy;
+    ssl_alpn    h2 http/1.1;
+}
+</pre>
+
 <div class="directive" id="ssl_certificate"><table cellspacing="0"> <tr> <th> Syntax: </th> <td> <code><strong>ssl_certificate</strong> <i>file</i>;</code><br> </td> </tr> <tr> <th> Default: </th> <td> — </td> </tr> <tr> <th> Context: </th> <td> <code>stream</code>, <code>server</code><br> </td> </tr> </table></div>
 <p> Specifies a <code><i>file</i></code> with the certificate in the PEM format for the given server. If intermediate certificates should be specified in addition to a primary certificate, they should be specified in the same file in the following order: the primary certificate comes first, then the intermediate certificates. A secret key in the PEM format may be placed in the same file. </p>
 <p> Since version 1.11.0, this directive can be specified multiple times to load certificates of different types, for example, RSA and ECDSA: </p> <pre data-language="nginx">
@@ -152,7 +170,7 @@ stream {
     [TLSv1.2]
     [TLSv1.3];</code><br> </td> </tr> <tr> <th> Default: </th> <td> <code>ssl_protocols TLSv1 TLSv1.1 TLSv1.2;</code> </td> </tr> <tr> <th> Context: </th> <td> <code>stream</code>, <code>server</code><br> </td> </tr> </table></div>
 <p> Enables the specified protocols. </p> <blockquote class="note"> The <code>TLSv1.1</code> and <code>TLSv1.2</code> parameters work only when OpenSSL 1.0.1 or higher is used. </blockquote>
- <blockquote class="note"> The <code>TLSv1.3</code> parameter (1.13.0) works only when OpenSSL 1.1.1 built with TLSv1.3 support is used. </blockquote>
+ <blockquote class="note"> The <code>TLSv1.3</code> parameter (1.13.0) works only when OpenSSL 1.1.1 or higher is used. </blockquote>
 
 <div class="directive" id="ssl_session_cache"><table cellspacing="0"> <tr> <th> Syntax: </th> <td> <code><strong>ssl_session_cache</strong> 
     off |
@@ -200,10 +218,12 @@ openssl rand 80 &gt; ticket.key
 <p>This directive appeared in version 1.11.8. </p>
 </div>
 <p> Sets the verification depth in the client certificates chain. </p> <h4 id="variables">Embedded Variables</h4>
-<p> The <code>ngx_stream_ssl_module</code> module supports variables since 1.11.2. </p> <dl class="compact"> <dt id="var_ssl_cipher"><code>$ssl_cipher</code></dt> <dd> returns the name of the cipher used for an established SSL connection; </dd> <dt id="var_ssl_ciphers"><code>$ssl_ciphers</code></dt> <dd> returns the list of ciphers supported by the client (1.11.7). Known ciphers are listed by names, unknown are shown in hexadecimal, for example: <pre data-language="nginx">
+<p> The <code>ngx_stream_ssl_module</code> module supports variables since 1.11.2. </p> <dl class="compact"> <dt id="var_ssl_alpn_protocol"><code>$ssl_alpn_protocol</code></dt> <dd> returns the protocol selected by ALPN during the SSL handshake, or an empty string otherwise (1.21.4); </dd> <dt id="var_ssl_cipher"><code>$ssl_cipher</code></dt> <dd> returns the name of the cipher used for an established SSL connection; </dd> <dt id="var_ssl_ciphers"><code>$ssl_ciphers</code></dt> <dd> returns the list of ciphers supported by the client (1.11.7). Known ciphers are listed by names, unknown are shown in hexadecimal, for example: <pre data-language="nginx">
 AES128-SHA:AES256-SHA:0x00ff
 </pre> <blockquote class="note"> The variable is fully supported only when using OpenSSL version 1.0.2 or higher. With older versions, the variable is available only for new sessions and lists only known ciphers. </blockquote> </dd> <dt id="var_ssl_client_cert"><code>$ssl_client_cert</code></dt> <dd> returns the client certificate in the PEM format for an established SSL connection, with each line except the first prepended with the tab character (1.11.8); </dd> <dt id="var_ssl_client_fingerprint"><code>$ssl_client_fingerprint</code></dt> <dd> returns the SHA1 fingerprint of the client certificate for an established SSL connection (1.11.8); </dd> <dt id="var_ssl_client_i_dn"><code>$ssl_client_i_dn</code></dt> <dd> returns the “issuer DN” string of the client certificate for an established SSL connection according to <a href="https://tools.ietf.org/html/rfc2253">RFC 2253</a> (1.11.8); </dd> <dt id="var_ssl_client_raw_cert">
-<code>$ssl_client_raw_cert</code> </dt> <dd> returns the client certificate in the PEM format for an established SSL connection (1.11.8); </dd> <dt id="var_ssl_client_s_dn"><code>$ssl_client_s_dn</code></dt> <dd> returns the “subject DN” string of the client certificate for an established SSL connection according to <a href="https://tools.ietf.org/html/rfc2253">RFC 2253</a> (1.11.8); </dd> <dt id="var_ssl_client_serial"><code>$ssl_client_serial</code></dt> <dd> returns the serial number of the client certificate for an established SSL connection (1.11.8); </dd> <dt id="var_ssl_client_v_end"><code>$ssl_client_v_end</code></dt> <dd> returns the end date of the client certificate (1.11.8); </dd> <dt id="var_ssl_client_v_remain"><code>$ssl_client_v_remain</code></dt> <dd> returns the number of days until the client certificate expires (1.11.8); </dd> <dt id="var_ssl_client_v_start"><code>$ssl_client_v_start</code></dt> <dd> returns the start date of the client certificate (1.11.8); </dd> <dt id="var_ssl_client_verify"><code>$ssl_client_verify</code></dt> <dd> returns the result of client certificate verification (1.11.8): “<code>SUCCESS</code>”, “<code>FAILED:</code><code><i>reason</i></code>”, and “<code>NONE</code>” if a certificate was not present; </dd> <dt id="var_ssl_curves"><code>$ssl_curves</code></dt> <dd> returns the list of curves supported by the client (1.11.7). Known curves are listed by names, unknown are shown in hexadecimal, for example: <pre data-language="nginx">
+<code>$ssl_client_raw_cert</code> </dt> <dd> returns the client certificate in the PEM format for an established SSL connection (1.11.8); </dd> <dt id="var_ssl_client_s_dn"><code>$ssl_client_s_dn</code></dt> <dd> returns the “subject DN” string of the client certificate for an established SSL connection according to <a href="https://tools.ietf.org/html/rfc2253">RFC 2253</a> (1.11.8); </dd> <dt id="var_ssl_client_serial"><code>$ssl_client_serial</code></dt> <dd> returns the serial number of the client certificate for an established SSL connection (1.11.8); </dd> <dt id="var_ssl_client_v_end"><code>$ssl_client_v_end</code></dt> <dd> returns the end date of the client certificate (1.11.8); </dd> <dt id="var_ssl_client_v_remain"><code>$ssl_client_v_remain</code></dt> <dd> returns the number of days until the client certificate expires (1.11.8); </dd> <dt id="var_ssl_client_v_start"><code>$ssl_client_v_start</code></dt> <dd> returns the start date of the client certificate (1.11.8); </dd> <dt id="var_ssl_client_verify"><code>$ssl_client_verify</code></dt> <dd> returns the result of client certificate verification (1.11.8): “<code>SUCCESS</code>”, “<code>FAILED:</code><code><i>reason</i></code>”, and “<code>NONE</code>” if a certificate was not present; </dd> <dt id="var_ssl_curve"><code>$ssl_curve</code></dt> <dd> returns the negotiated curve used for SSL handshake key exchange process (1.21.5). Known curves are listed by names, unknown are shown in hexadecimal, for example: <pre data-language="nginx">
+prime256v1
+</pre> <blockquote class="note"> The variable is supported only when using OpenSSL version 3.0 or higher. With older versions, the variable value will be an empty string. </blockquote> </dd> <dt id="var_ssl_curves"><code>$ssl_curves</code></dt> <dd> returns the list of curves supported by the client (1.11.7). Known curves are listed by names, unknown are shown in hexadecimal, for example: <pre data-language="nginx">
 0x001d:prime256v1:secp521r1:secp384r1
 </pre> <blockquote class="note"> The variable is supported only when using OpenSSL version 1.0.2 or higher. With older versions, the variable value will be an empty string. </blockquote> <blockquote class="note"> The variable is available only for new sessions. </blockquote> </dd> <dt id="var_ssl_protocol"><code>$ssl_protocol</code></dt> <dd> returns the protocol of an established SSL connection; </dd> <dt id="var_ssl_server_name"><code>$ssl_server_name</code></dt> <dd> returns the server name requested through <a href="http://en.wikipedia.org/wiki/Server_Name_Indication">SNI</a>; </dd> <dt id="var_ssl_session_id"><code>$ssl_session_id</code></dt> <dd> returns the session identifier of an established SSL connection; </dd> <dt id="var_ssl_session_reused"><code>$ssl_session_reused</code></dt> <dd> returns “<code>r</code>” if an SSL session was reused, or “<code>.</code>” otherwise. </dd> </dl>
 <div class="_attribution">

@@ -51,7 +51,7 @@ Loading package foo-ghc-plugin-0.1 ... linking ... done.
 Linking Test ...
 $
 </pre> <p>Alternatively, core plugins can be specified with Template Haskell.</p> <pre data-language="haskell">addCorePlugin "Foo.Plugin"
-</pre> <p>This inserts the plugin as a core-to-core pass. Unlike <code>-fplugin=(module)</code>, the plugin module can’t reside in the same package as the module calling <a class="reference external" href="../libraries/template-haskell-2.17.0.0/language-haskell-th-syntax#v:addCorePlugin">Language.Haskell.TH.Syntax.addCorePlugin</a>. This way, the implementation can expect the plugin to be built by the time it is needed.</p> <p>Plugin modules live in a separate namespace from the user import namespace. By default, these two namespaces are the same; however, there are a few command line options which control specifically plugin packages:</p> <dl class="ghc-flag"> <dt id="ghc-flag--plugin-package ⟨pkg⟩">
+</pre> <p>This inserts the plugin as a core-to-core pass. Unlike <code>-fplugin=(module)</code>, the plugin module can’t reside in the same package as the module calling <a class="reference external" href="../libraries/template-haskell-2.18.0.0/language-haskell-th-syntax#v:addCorePlugin">Language.Haskell.TH.Syntax.addCorePlugin</a>. This way, the implementation can expect the plugin to be built by the time it is needed.</p> <p>Plugin modules live in a separate namespace from the user import namespace. By default, these two namespaces are the same; however, there are a few command line options which control specifically plugin packages:</p> <dl class="ghc-flag"> <dt id="ghc-flag--plugin-package ⟨pkg⟩">
 <code>-plugin-package ⟨pkg⟩</code> </dt> <dd>
 <p>This option causes the installed package ⟨pkg⟩ to be exposed for plugins, such as <a class="reference internal" href="#ghc-flag--fplugin=%E2%9F%A8module%E2%9F%A9"><code>-fplugin=⟨module⟩</code></a>. The package ⟨pkg⟩ can be specified in full with its version number (e.g. <code>network-1.0</code>) or the version number can be omitted if there is only one version of the package installed. If there are multiple versions of ⟨pkg⟩ installed and <a class="reference internal" href="#ghc-flag--hide-all-plugin-packages"><code>-hide-all-plugin-packages</code></a> was not specified, then all other versions will become hidden. <a class="reference internal" href="#ghc-flag--plugin-package%20%E2%9F%A8pkg%E2%9F%A9"><code>-plugin-package ⟨pkg⟩</code></a> supports thinning and renaming described in <a class="reference internal" href="packages#package-thinning-and-renaming"><span class="std std-ref">Thinning and renaming modules</span></a>.</p> <p>Unlike <a class="reference internal" href="#"><code>-package ⟨pkg⟩</code></a>, this option does NOT cause package ⟨pkg⟩ to be linked into the resulting executable or shared object.</p> </dd>
 </dl> <dl class="ghc-flag"> <dt id="ghc-flag--plugin-package-id ⟨pkg-id⟩">
@@ -166,7 +166,7 @@ import GHC.Driver.Session (getDynFlags)
 import GHC.Driver.Plugins
 import GHC.Driver.Types
 import GHC.Tc.Types
-import GHC.Hs.Extension
+import Language.Haskell.Syntax.Extension
 import GHC.Hs.Decls
 import GHC.Hs.Expr
 import GHC.Hs.ImpExp
@@ -507,19 +507,23 @@ doNothing flags args = do
 import BasicTypes
 import GHC.Plugins
 import GHC.Hs.Expr
-import GHC.Hs.Extension
+import Language.Haskell.Syntax.Extension
 import GHC.Hs.Lit
 import Hooks
 import GHC.Tc.Utils.Monad
 
 plugin :: Plugin
-plugin = defaultPlugin { dynflagsPlugin = hooksP }
+plugin = driverPlugin { driverPlugin = hooksP }
 
-hooksP :: [CommandLineOption] -&gt; DynFlags -&gt; IO DynFlags
-hooksP opts dflags = return $ dflags
-  { hooks = (hooks dflags)
-    { runMetaHook = Just (fakeRunMeta opts) }
-  }
+hooksP :: [CommandLineOption] -&gt; HscEnv -&gt; IO HscEnv
+hooksP opts hsc_env = do
+    let dflags  = hsc_dflags hsc_env
+        dflags' = dflags
+            { hooks = (hooks dflags)
+                { runMetaHook = Just (fakeRunMeta opts) }
+            }
+        hsc_env' = hsc_env { hsc_dflags = dflags' }
+    return hsc_env'
 
 -- This meta hook doesn't actually care running code in splices,
 -- it just replaces any expression splice with the "0"
@@ -543,6 +547,6 @@ main :: IO ()
 main = print $( [|1|] )
 </pre> <p>This will not actually evaluate <code>[|1|]</code>, but instead replace it with the <code>0 :: Int</code> literal.</p> <p>Just like the other types of plugins, you can write <code>DynFlags</code> plugins that can take and make use of some options that you can then specify using the <code>-fplugin-opt</code> flag. In the <code>DynFlagsPlugin</code> code from above, the said options would be available in the <code>opts</code> argument of <code>hooksP</code>.</p> <p>Finally, since those <code>DynFlags</code> updates happen after the plugins are loaded, you cannot from a <code>DynFlags</code> plugin register other plugins by just adding them to the <code>plugins</code> field of <code>DynFlags</code>. In order to achieve this, you would have to load them yourself and store the result into the <code>cachedPlugins</code> field of <code>DynFlags</code>.</p>    </div> </div><div class="_attribution">
   <p class="_attribution-p">
-    <a href="https://downloads.haskell.org/~ghc/9.0.1/docs/html/users_guide/extending_ghc.html" class="_attribution-link" target="_blank">https://downloads.haskell.org/~ghc/9.0.1/docs/html/users_guide/extending_ghc.html</a>
+    <a href="https://downloads.haskell.org/~ghc/9.2.1/docs/html/users_guide/extending_ghc.html" class="_attribution-link" target="_blank">https://downloads.haskell.org/~ghc/9.2.1/docs/html/users_guide/extending_ghc.html</a>
   </p>
 </div>

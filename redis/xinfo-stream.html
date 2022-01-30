@@ -1,0 +1,82 @@
+<h1 class="command">XINFO</h1>
+<pre>XINFO STREAM key [FULL [COUNT count]]</pre>   <div class="metadata"> <p><strong>Available since 5.0.0.</strong></p> <p><strong>Time complexity:</strong> O(1)</p> </div> <p>This command returns information about the stream stored at <code>&lt;key&gt;</code>.</p> <p>The informative details provided by this command are:</p> <ul> <li>
+<strong>length</strong>: the number of entries in the stream (see <a href="xlen">XLEN</a>)</li> <li>
+<strong>radix-tree-keys</strong>: the number of keys in the underlying radix data structure</li> <li>
+<strong>radix-tree-nodes</strong>: the number of nodes in the underlying radix data structure</li> <li>
+<strong>groups</strong>: the number of consumer groups defined for the stream</li> <li>
+<strong>last-generated-id</strong>: the ID of the least-recently entry that was added to the stream</li> <li>
+<strong>first-entry</strong>: the ID and field-value tuples of the first entry in the stream</li> <li>
+<strong>last-entry</strong>: the ID and field-value tuples of the last entry in the stream</li> </ul> <p>The optional <code>FULL</code> modifier provides a more verbose reply. When provided, the <code>FULL</code> reply includes an <strong>entries</strong> array that consists of the stream entries (ID and field-value tuples) in ascending order. Furthermore, <strong>groups</strong> is also an array, and for each of the consumer groups it consists of the information reported by <code>XINFO GROUP</code> and <a href="xinfo-consumers">XINFO CONSUMERS</a>.</p> <p>The <code>COUNT</code> option can be used to limit the number of stream and PEL entries that are returned (The first <code>&lt;count&gt;</code> entries are returned). The default <code>COUNT</code> is 10 and a <code>COUNT</code> of 0 means that all entries will be returned (execution time may be long if the stream has a lot of entries).</p> <h2>Return value</h2> <p><a href="https://redis.io/topics/protocol#array-reply">Array reply</a>: a list of informational bits</p> <h2>Examples</h2> <p>Default reply:</p> <pre>&gt; XINFO STREAM mystream
+ 1) length
+ 2) (integer) 2
+ 3) radix-tree-keys
+ 4) (integer) 1
+ 5) radix-tree-nodes
+ 6) (integer) 2
+ 7) groups
+ 8) (integer) 2
+ 9) last-generated-id
+10) 1538385846314-0
+11) first-entry
+12) 1) 1538385820729-0
+    2) 1) "foo"
+       2) "bar"
+13) last-entry
+14) 1) 1538385846314-0
+    2) 1) "field"
+       2) "value"
+</pre> <p>Full reply:</p> <pre>&gt; XADD mystream * foo bar
+"1588152471065-0"
+&gt; XADD mystream * foo bar2
+"1588152473531-0"
+&gt; XGROUP CREATE mystream mygroup 0-0
+OK
+&gt; XREADGROUP GROUP mygroup Alice COUNT 1 STREAMS mystream &gt;
+1) 1) "mystream"
+   2) 1) 1) "1588152471065-0"
+         2) 1) "foo"
+            2) "bar"
+&gt; XINFO STREAM mystream FULL
+ 1) "length"
+ 2) (integer) 2
+ 3) "radix-tree-keys"
+ 4) (integer) 1
+ 5) "radix-tree-nodes"
+ 6) (integer) 2
+ 7) "last-generated-id"
+ 8) "1588152473531-0"
+ 9) "entries"
+10) 1) 1) "1588152471065-0"
+       2) 1) "foo"
+          2) "bar"
+    2) 1) "1588152473531-0"
+       2) 1) "foo"
+          2) "bar2"
+11) "groups"
+12) 1)  1) "name"
+        2) "mygroup"
+        3) "last-delivered-id"
+        4) "1588152471065-0"
+        5) "pel-count"
+        6) (integer) 1
+        7) "pending"
+        8) 1) 1) "1588152471065-0"
+              2) "Alice"
+              3) (integer) 1588152520299
+              4) (integer) 1
+        9) "consumers"
+       10) 1) 1) "name"
+              2) "Alice"
+              3) "seen-time"
+              4) (integer) 1588152520299
+              5) "pel-count"
+              6) (integer) 1
+              7) "pending"
+              8) 1) 1) "1588152471065-0"
+                    2) (integer) 1588152520299
+                    3) (integer) 1
+</pre>  <div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://redis.io/commands/xinfo-stream" class="_attribution-link" target="_blank">https://redis.io/commands/xinfo-stream</a>
+  </p>
+</div>

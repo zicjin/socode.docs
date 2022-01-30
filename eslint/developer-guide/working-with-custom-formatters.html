@@ -3,34 +3,18 @@
 <p>While ESLint has some built-in formatters available to format the linting results, it's also possible to create and distribute your own custom formatters. You can include custom formatters in your project directly or create an npm package to distribute them separately.</p>
 <p>Each formatter is just a function that receives a <code>results</code> object and returns a string. For example, the following is how the <code>json</code> built-in formatter is implemented:</p>
 <pre data-language="js">//my-awesome-formatter.js
-module.exports = function(results) {
+module.exports = function(results, context) {
     return JSON.stringify(results, null, 2);
+};</pre>
+<p>Formatter can also be an async function (from ESLint v8.4.0), the following shows a simple example:</p>
+<pre data-language="js">//my-awesome-formatter.js
+module.exports = async function(results) {
+    const formatted = await asyncTask();
+    return formatted;
 };</pre>
 <p>To run ESLint with this formatter, you can use the <code>-f</code> (or <code>--format</code>) command line flag:</p>
 <pre data-language="bash">eslint -f ./my-awesome-formatter.js src/</pre>
 <p>In order to use a local file as a custom formatter, you must begin the filename with a dot (such as <code>./my-awesome-formatter.js</code> or <code>../formatters/my-awesome-formatter.js</code>).</p>
-<h3 id="the-data-argument">The <code>data</code> Argument</h3>
-<p>The exported function receives an optional second argument named <code>data</code>. The <code>data</code> object provides extended information related to the analysis results. Currently, the <code>data</code> object consists of a single property named <code>rulesMeta</code>. This property is a dictionary of rule metadata, keyed with <code>ruleId</code>. The value for each entry is the <code>meta</code> property from the corresponding rule object. The dictionary contains an entry for each rule that was run during the analysis.</p>
-<p>Here's what the <code>data</code> object would look like if one rule, <code>no-extra-semi</code>, had been run:</p>
-<pre data-language="js">{
-    rulesMeta: {
-        "no-extra-semi": {
-            type: "suggestion",
-            docs: {
-                description: "disallow unnecessary semicolons",
-                category: "Possible Errors",
-                recommended: true,
-                url: "https://eslint.org/docs/rules/no-extra-semi"
-            },
-            fixable: "code",
-            schema: [],
-            messages: {
-                unexpected: "Unnecessary semicolon."
-            }
-        }
-    }
-}</pre>
-<p>The <a href="#using-rule-metadata">Using Rule metadata</a> example shows how to use the <code>data</code> object in a custom formatter. See the <a href="working-with-rules">Working with Rules</a> page for more information about rules.</p>
 <h2 id="packaging-the-custom-formatter">Packaging the Custom Formatter</h2>
 <p>Custom formatters can also be distributed through npm packages. To do so, create an npm package with a name in the format of <code>eslint-formatter-*</code>, where <code>*</code> is the name of your formatter (such as <code>eslint-formatter-awesome</code>). Projects should then install the package and can use the custom formatter with the <code>-f</code> (or <code>--format</code>) flag like this:</p>
 <pre data-language="bash">eslint -f awesome src/</pre>
@@ -46,11 +30,11 @@ module.exports = function(results) {
 </li>
 </ul>
 <p>See all <a href="https://www.npmjs.com/search?q=eslint-formatter">formatters on npm</a>;</p>
-<h2 id="the-results-object">The <code>results</code> Object</h2>
+<h2 id="the-results-argument">The <code>results</code> Argument</h2>
 <p>The <code>results</code> object passed into a formatter is an array of objects containing the lint results for individual files. Here's some example output:</p>
 <pre data-language="js">[
     {
-        filePath: "path/to/file.js",
+        filePath: "/path/to/a/file.js",
         messages: [
             {
                 ruleId: "curly",
@@ -77,7 +61,7 @@ module.exports = function(results) {
             "var err = doStuff();\nif (err) console.log('failed tests: ' + err);\nprocess.exit(1);\n"
     },
     {
-        filePath: "Gruntfile.js",
+        filePath: "/path/to/Gruntfile.js",
         messages: [],
         errorCount: 0,
         warningCount: 0,
@@ -118,10 +102,38 @@ module.exports = function(results) {
 <strong>nodeType</strong>: the type of the node in the <a href="https://github.com/estree/estree/blob/master/spec.md#node-objects">AST</a>
 </li>
 </ul>
+<h2 id="the-context-argument">The <code>context</code> Argument</h2>
+<p>The formatter function receives an object as the second argument. The object has two properties:</p>
+<ul>
+<li>
+<code>cwd</code> ... The current working directory. This value comes from the <code>cwd</code> constructor option of the <a href="nodejs-api#-new-eslintoptions">ESLint</a> class.</li>
+<li>
+<code>rulesMeta</code> ... The <code>meta</code> property values of rules. See the <a href="working-with-rules">Working with Rules</a> page for more information about rules.</li>
+</ul>
+<p>For example, here's what the object would look like if one rule, <code>no-extra-semi</code>, had been run:</p>
+<pre data-language="js">{
+    cwd: "/path/to/cwd",
+    rulesMeta: {
+        "no-extra-semi": {
+            type: "suggestion",
+            docs: {
+                description: "disallow unnecessary semicolons",
+                recommended: true,
+                url: "https://eslint.org/docs/rules/no-extra-semi"
+            },
+            fixable: "code",
+            schema: [],
+            messages: {
+                unexpected: "Unnecessary semicolon."
+            }
+        }
+    }
+}</pre>
+<p><strong>Note:</strong> if a linting is executed by deprecated <code>CLIEngine</code> class, the <code>context</code> argument may be a different value because it is up to the API users. Please check whether the <code>context</code> argument is an expected value or not if you want to support legacy environments.</p>
 <h2 id="examples">Examples</h2>
 <h3 id="summary-formatter">Summary formatter</h3>
 <p>A formatter that only cares about the total count of errors and warnings will look like this:</p>
-<pre data-language="javascript">module.exports = function(results) {
+<pre data-language="javascript">module.exports = function(results, context) {
     // accumulate the errors and warnings
     var summary = results.reduce(
         function(seq, current) {
@@ -150,7 +162,7 @@ module.exports = function(results) {
 <pre data-language="bash">Errors: 2, Warnings: 4</pre>
 <h3 id="detailed-formatter">Detailed formatter</h3>
 <p>A more complex report will look something like this:</p>
-<pre data-language="javascript">module.exports = function(results, data) {
+<pre data-language="javascript">module.exports = function(results, context) {
     var results = results || [];
 
     var summary = results.reduce(
@@ -159,7 +171,7 @@ module.exports = function(results) {
                 var logMessage = {
                     filePath: current.filePath,
                     ruleId: msg.ruleId,
-                    ruleUrl: data.rulesMeta[msg.ruleId].docs.url,
+                    ruleUrl: context.rulesMeta[msg.ruleId].docs.url,
                     message: msg.message,
                     line: msg.line,
                     column: msg.column

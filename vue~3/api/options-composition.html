@@ -203,21 +203,38 @@ export default {
     })
   }
 }</pre> </div>
-<p>The <code>props</code> object is immutable for userland code during development (will emit warning if user code attempts to mutate it).</p> <p>The second argument provides a context object which exposes a selective list of properties that were previously exposed on <code>this</code>:</p> <div class="language-js line-numbers-mode">
+<p>The <code>props</code> object is immutable for userland code during development (will emit warning if user code attempts to mutate it).</p> <p>The second argument provides a context object which exposes various objects and functions that might be useful in <code>setup</code>:</p> <div class="language-js line-numbers-mode">
 <pre class="language-js" data-language="javascript">const MyComponent = {
   setup(props, context) {
     context.attrs
     context.slots
     context.emit
+    context.expose
   }
 }</pre> </div>
-<p><code>attrs</code> and <code>slots</code> are proxies to the corresponding values on the internal component instance. This ensures they always expose the latest values even after updates so that we can destructure them without worrying about accessing a stale reference:</p> <div class="language-js line-numbers-mode">
+<p><code>attrs</code>, <code>slots</code>, and <code>emit</code> are equivalent to the instance properties <a href="instance-properties#attrs"><code>$attrs</code></a>, <a href="instance-properties#slots"><code>$slots</code></a>, and <a href="instance-methods#emit"><code>$emit</code></a> respectively.</p> <p><code>attrs</code> and <code>slots</code> are proxies to the corresponding values on the internal component instance. This ensures they always expose the latest values even after updates so that we can destructure them without worrying about accessing a stale reference:</p> <div class="language-js line-numbers-mode">
 <pre class="language-js" data-language="javascript">const MyComponent = {
   setup(props, { attrs }) {
     // a function that may get called at a later stage
     function onClick() {
       console.log(attrs.foo) // guaranteed to be the latest reference
     }
+  }
+}</pre> </div>
+<p><code>expose</code>, added in Vue 3.2, is a function that allows specific properties to be exposed via the public component instance. By default, the public instance retrieved using refs, <code>$parent</code>, or <code>$root</code> is equivalent to the internal instance used by the template. Calling <code>expose</code> will create a separate public instance with the properties specified:</p> <div class="language-js line-numbers-mode">
+<pre class="language-js" data-language="javascript">const MyComponent = {
+  setup(props, { expose }) {
+    const count = ref(0)
+    const reset = () =&gt; count.value = 0
+    const increment = () =&gt; count.value++
+
+    // Only reset will be available externally, e.g. via $refs
+    expose({
+      reset
+    })
+
+    // Internally, the template has access to count and increment
+    return { count, increment }
   }
 }</pre> </div>
 <p>There are a number of reasons for placing <code>props</code> as a separate first argument instead of including it in the context:</p> <ul>

@@ -14,10 +14,10 @@ function fn(x: () =&gt; void) {
   k.doSomething(); // error, but would be OK if the return type had been 'any'
 }</pre> <h2 id="optional-parameters-in-callbacks" style="position:relative;">Optional Parameters in Callbacks</h2> <p>❌ <strong>Don’t</strong> use optional parameters in callbacks unless you really mean it:</p> <pre data-language="ts">/* WRONG */
 interface Fetcher {
-  getObject(done: (data: any, elapsedTime?: number) =&gt; void): void;
+  getObject(done: (data: unknown, elapsedTime?: number) =&gt; void): void;
 }</pre> <p>This has a very specific meaning: the <code>done</code> callback might be invoked with 1 argument or might be invoked with 2 arguments. The author probably intended to say that the callback might not care about the <code>elapsedTime</code> parameter, but there’s no need to make the parameter optional to accomplish this — it’s always legal to provide a callback that accepts fewer arguments.</p> <p>✅ <strong>Do</strong> write callback parameters as non-optional:</p> <pre data-language="ts">/* OK */
 interface Fetcher {
-  getObject(done: (data: any, elapsedTime: number) =&gt; void): void;
+  getObject(done: (data: unknown, elapsedTime: number) =&gt; void): void;
 }</pre> <h2 id="overloads-and-callbacks" style="position:relative;">Overloads and Callbacks</h2> <p>❌ <strong>Don’t</strong> write separate overloads that differ only on callback arity:</p> <pre data-language="ts">/* WRONG */
 declare function beforeAll(action: () =&gt; void, timeout?: number): void;
 declare function beforeAll(
@@ -28,15 +28,15 @@ declare function beforeAll(
   action: (done: DoneFn) =&gt; void,
   timeout?: number
 ): void;</pre> <p>❔ <strong>Why:</strong> It’s always legal for a callback to disregard a parameter, so there’s no need for the shorter overload. Providing a shorter callback first allows incorrectly-typed functions to be passed in because they match the first overload.</p> <h2 id="function-overloads" style="position:relative;">Function Overloads</h2> <h2 id="ordering" style="position:relative;">Ordering</h2> <p>❌ <strong>Don’t</strong> put more general overloads before more specific overloads:</p> <pre data-language="ts">/* WRONG */
-declare function fn(x: any): any;
+declare function fn(x: unknown): unknown;
 declare function fn(x: HTMLElement): number;
 declare function fn(x: HTMLDivElement): string;
 
 var myElem: HTMLDivElement;
-var x = fn(myElem); // x: any, wat?</pre> <p>✅ <strong>Do</strong> sort overloads by putting the more general signatures after more specific signatures:</p> <pre data-language="ts">/* OK */
+var x = fn(myElem); // x: unknown, wat?</pre> <p>✅ <strong>Do</strong> sort overloads by putting the more general signatures after more specific signatures:</p> <pre data-language="ts">/* OK */
 declare function fn(x: HTMLDivElement): string;
 declare function fn(x: HTMLElement): number;
-declare function fn(x: any): any;
+declare function fn(x: unknown): unknown;
 
 var myElem: HTMLDivElement;
 var x = fn(myElem); // x: string, :)</pre> <p>❔ <strong>Why:</strong> TypeScript chooses the <em>first matching overload</em> when resolving function calls. When an earlier overload is “more general” than a later one, the later one is effectively hidden and cannot be called.</p> <h2 id="use-optional-parameters" style="position:relative;">Use Optional Parameters</h2> <p>❌ <strong>Don’t</strong> write several overloads that differ only in trailing parameters:</p> <pre data-language="ts">/* WRONG */

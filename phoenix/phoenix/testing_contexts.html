@@ -1,7 +1,7 @@
 <h1>Testing Contexts</h1>
-<blockquote><p><strong>Requirement</strong>: This guide expects that you have gone through the introductory guides and got a Phoenix application up and running.</p></blockquote>
-<blockquote><p><strong>Requirement</strong>: This guide expects that you have gone through <a href="testing">the Introduction to Testing guide</a>.</p></blockquote>
-<blockquote><p><strong>Requirement</strong>: This guide expects that you have gone through <a href="contexts">the Contexts guide</a>.</p></blockquote>
+<blockquote><p><strong>Requirement</strong>: This guide expects that you have gone through the <a href="installation">introductory guides</a> and got a Phoenix application <a href="up_and_running">up and running</a>.</p></blockquote>
+<blockquote><p><strong>Requirement</strong>: This guide expects that you have gone through the <a href="testing">Introduction to Testing guide</a>.</p></blockquote>
+<blockquote><p><strong>Requirement</strong>: This guide expects that you have gone through the <a href="contexts">Contexts guide</a>.</p></blockquote>
 <p>At the end of the Introduction to Testing guide, we generated an HTML resource for posts using the following command:</p>
 <pre data-language="elixir">$ mix phx.gen.html Blog Post posts title body:text
 </pre>
@@ -46,10 +46,10 @@ Randomized with seed 638414
     ...</pre>
 <p>As the top of the file we import <code class="inline">Hello.DataCase</code>, which as we will see soon, it is similar to <code class="inline">HelloWeb.ConnCase</code>. While <code class="inline">HelloWeb.ConnCase</code> sets up helpers for working with connections, which is useful when testing controllers and views, <code class="inline">Hello.DataCase</code> provides functionality for working with contexts and schemas.</p>
 <p>Next we define an alias, so we can refer to <code class="inline">Hello.Blog</code> simply as <code class="inline">Blog</code>.</p>
-<p>Then we start a <code class="inline">describe "posts"</code> block. A <code class="inline">describe</code> block is a feature in ExUnit that allows us to group similar tests. The reason why we have grouped all post related tests together is because contexts in Phoenix are capable of grouping multiple schemas together. For example, if you ran this command:</p>
+<p>Then we start a <code class="inline">describe "posts"</code> block. A <code class="inline">describe</code> block is a feature in ExUnit that allows us to group similar tests. The reason why we have grouped all post related tests together is because contexts in Phoenix are capable of grouping multiple schemas together. For example, if we ran this command:</p>
 <pre data-language="elixir">$ mix phx.gen.html Blog Comment comments post_id:references:posts body:text
 </pre>
-<p>We will would get a bunch of new functions in the <code class="inline">Hello.Blog</code> context plus a whole new <code class="inline">describe "comments"</code> block in our test file.</p>
+<p>We will get a bunch of new functions in the <code class="inline">Hello.Blog</code> context plus a whole new <code class="inline">describe "comments"</code> block in our test file.</p>
 <p>The tests defined for our context are very straight-forward. They call the functions in our context and assert on their results. As you can see, some of those tests even create entries in the database:</p>
 <pre data-language="elixir">test "create_post/1 with valid data creates a post" do
   assert {:ok, %Post{} = post} = Blog.create_post(@valid_attrs)
@@ -73,12 +73,8 @@ end</pre>
   end
 
   setup tags do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(Hello.Repo)
-
-    unless tags[:async] do
-      Ecto.Adapters.SQL.Sandbox.mode(Hello.Repo, {:shared, self()})
-    end
-
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Demo.Repo, shared: not tags[:async])
+    on_exit(fn -&gt; Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
     :ok
   end
 
@@ -108,7 +104,7 @@ end</pre>
   alias Hello.Blog.Post
 
   test "title must be at least two characters long" do
-    changeset = Post.changeset(%User{}, %{title: "I"})
+    changeset = Post.changeset(%Post{}, %{title: "I"})
     assert %{title: ["should be at least 2 character(s)"]} = errors_on(changeset)
   end
 end</pre>

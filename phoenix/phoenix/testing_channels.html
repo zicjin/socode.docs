@@ -1,7 +1,7 @@
 <h1>Testing Channels</h1>
-<blockquote><p><strong>Requirement</strong>: This guide expects that you have gone through the introductory guides and got a Phoenix application up and running.</p></blockquote>
-<blockquote><p><strong>Requirement</strong>: This guide expects that you have gone through <a href="testing">the Introduction to Testing guide</a>.</p></blockquote>
-<blockquote><p><strong>Requirement</strong>: This guide expects that you have gone through <a href="channels">the Channels guide</a>.</p></blockquote>
+<blockquote><p><strong>Requirement</strong>: This guide expects that you have gone through the <a href="installation">introductory guides</a> and got a Phoenix application <a href="up_and_running">up and running</a>.</p></blockquote>
+<blockquote><p><strong>Requirement</strong>: This guide expects that you have gone through the <a href="testing">Introduction to Testing guide</a>.</p></blockquote>
+<blockquote><p><strong>Requirement</strong>: This guide expects that you have gone through the <a href="channels">Channels guide</a>.</p></blockquote>
 <p>In the Channels guide, we saw that a "Channel" is a layered system with different components. Given this, there would be cases when writing unit tests for our Channel functions may not be enough. We may want to verify that its different moving parts are working together as we expect. This integration testing would assure us that we correctly defined our channel route, the channel module, and its callbacks; and that the lower-level layers such as the PubSub and Transport are configured correctly and are working as intended.</p>
 <h2 id="generating-channels" class="section-heading">  Generating channels </h2> <p>As we progress through this guide, it would help to have a concrete example we could work off of. Phoenix comes with a Mix task for generating a basic channel and tests. These generated files serve as a good reference for writing channels and their corresponding tests. Let's go ahead and generate our Channel:</p>
 <pre data-language="elixir">$ mix phx.gen.channel Room
@@ -31,16 +31,12 @@ Add the channel to your `lib/hello_web/channels/user_socket.ex` handler, for exa
   end
 
   setup tags do
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(Demo.Repo)
-
-    unless tags[:async] do
-      Ecto.Adapters.SQL.Sandbox.mode(Demo.Repo, {:shared, self()})
-    end
-
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(Demo.Repo, shared: not tags[:async])
+    on_exit(fn -&gt; Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
     :ok
   end
 end</pre>
-<p>It is very straight-forward. It sets up a case template that imports all of <a href="phoenix.channeltest"><code class="inline">Phoenix.ChannelTest</code></a> on use. In the <code class="inline">setup</code> block, it starts the SQL Sandbox, which we discussed <a href="testing_contexts">in the Testing Contexts guide</a>.</p>
+<p>It is very straight-forward. It sets up a case template that imports all of <a href="phoenix.channeltest"><code class="inline">Phoenix.ChannelTest</code></a> on use. In the <code class="inline">setup</code> block, it starts the SQL Sandbox, which we discussed in the <a href="testing_contexts">Testing contexts guide</a>.</p>
 <h2 id="subscribe-and-joining" class="section-heading">  Subscribe and joining </h2> <p>Now that we know that Phoenix provides with a custom Test Case just for channels and what it provides, we can move on to understanding the rest of <code class="inline">test/hello_web/channels/room_channel_test.exs</code>.</p>
 <p>First off, is the setup block:</p>
 <pre data-language="elixir">setup do
@@ -51,7 +47,7 @@ end</pre>
 
   %{socket: socket}
 end</pre>
-<p>The <code class="inline">setup</code> block sets up a <a href="phoenix.socket"><code class="inline">Phoenix.Socket</code></a> based on the <code class="inline">UserSocket</code> module, which you can find at "lib/hello_web/channels/user_socket.ex". Then it says we want to subscribe and join the <code class="inline">RoomChannel</code>, accessible as "room:lobby" in the <code class="inline">UserSocket</code>. At the end of the test, we return the <code class="inline">%{socket: socket}</code> as metadata, so we can re-use it on every test.</p>
+<p>The <code class="inline">setup</code> block sets up a <a href="phoenix.socket"><code class="inline">Phoenix.Socket</code></a> based on the <code class="inline">UserSocket</code> module, which you can find at <code class="inline">lib/hello_web/channels/user_socket.ex</code>. Then it says we want to subscribe and join the <code class="inline">RoomChannel</code>, accessible as <code class="inline">"room:lobby"</code> in the <code class="inline">UserSocket</code>. At the end of the test, we return the <code class="inline">%{socket: socket}</code> as metadata, so we can reuse it on every test.</p>
 <p>In a nutshell, <code class="inline">subscribe_and_join/3</code> emulates the client joining a channel and subscribes the test process to the given topic. This is a necessary step since clients need to join a channel before they can send and receive events on that channel.</p>
 <h2 id="testing-a-synchronous-reply" class="section-heading">  Testing a synchronous reply </h2> <p>The first test block in our generated channel test looks like:</p>
 <pre data-language="elixir">test "ping replies with status ok", %{socket: socket} do

@@ -1,12 +1,12 @@
-<h1>External Uploads</h1>
-<blockquote><p>This guide continues from the configuration started in the server <a href="uploads">Uploads guide</a>.</p></blockquote>
+<h1> <button class="settings display-settings">  <span class="sr-only">Settings</span> </button>  <span>External Uploads</span> </h1> <blockquote><p>This guide continues from the configuration started in the server <a href="uploads">Uploads guide</a>.</p></blockquote>
 <p>Uploads to external cloud providers, such as Amazon S3, Google Cloud, etc., can be achieved by using the <code class="inline">:external</code> option in <a href="phoenix.liveview#allow_upload/3"><code class="inline">allow_upload/3</code></a>.</p>
 <p>You provide a 2-arity function to allow the server to generate metadata for each upload entry, which is passed to a user-specified JavaScript function on the client.</p>
 <p>Typically when your function is invoked, you will generate a pre-signed URL, specific to your cloud storage provider, that will provide temporary access for the end-user to upload data directly to your cloud storage.</p>
 <h2 id="chunked-http-uploads" class="section-heading">  Chunked HTTP Uploads </h2> <p>For any service that supports large file uploads via chunked HTTP requests with <code class="inline">Content-Range</code> headers, you can use the UpChunk JS library by Mux to do all the hard work of uploading the file.</p>
 <p>You only need to wire the UpChunk instance to the LiveView UploadEntry callbacks, and LiveView will take care of the rest.</p>
-<p>Install <a href="https://github.com/muxinc/upchunk">UpChunk</a>:</p>
-<pre data-language="elixir">npm install --prefix assets --save @mux/upchunk</pre>
+<p>Install <a href="https://github.com/muxinc/upchunk">UpChunk</a> by saving <a href="https://unpkg.com/@mux/upchunk@2">its contents</a> to <code class="inline">assets/vendor/upchunk.js</code> or by installing it with <code class="inline">npm</code>:</p>
+<pre data-language="elixir">$ npm install --prefix assets --save @mux/upchunk
+</pre>
 <p>Configure your uploader on <a href="phoenix.liveview#c:mount/3"><code class="inline">Phoenix.LiveView.mount/3</code></a>:</p>
 <pre data-language="elixir">def mount(_params, _session, socket) do
   {:ok,
@@ -34,7 +34,7 @@ Uploaders.UpChunk = function(entries, onViewError){
   entries.forEach(entry =&gt; {
     // create the upload session with UpChunk
     let { file, meta: { entrypoint } } = entry
-    let upload = UpChunk.createUpload({ entrypoint, file })
+    let upload = UpChunk.createUpload({ endpoint: entrypoint, file })
 
     // stop uploading in the event of a view error
     onViewError(() =&gt; upload.pause())
@@ -58,6 +58,18 @@ let liveSocket = new LiveSocket("/live", Socket, {
   params: {_csrf_token: csrfToken}
 })</pre>
 <h2 id="direct-to-s3" class="section-heading">  Direct to S3 </h2> <p>In order to enforce all of your file constraints when uploading to S3, it is necessary to perform a multipart form POST with your file data.</p>
+<p>This guide assumes an existing S3 bucket with the correct CORS configuration which allows uploading directly to the bucket.</p>
+<p>An example CORS config is:</p>
+<pre data-language="elixir">[
+    {
+        "AllowedHeaders": [ "*" ],
+        "AllowedMethods": [ "PUT", "POST" ],
+        "AllowedOrigins": [ your_domain_or_*_here ],
+        "ExposeHeaders": []
+    }
+]</pre>
+<p>More information on configuring CORS for S3 buckets is available at:</p>
+<p><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/ManageCorsUsing.html">https://docs.aws.amazon.com/AmazonS3/latest/userguide/ManageCorsUsing.html</a></p>
 <blockquote><p>The following example uses a zero-dependency module called <a href="https://gist.github.com/chrismccord/37862f1f8b1f5148644b75d20d1cb073"><code class="inline">SimpleS3Upload</code></a> written by Chris McCord to generate pre-signed URLs for S3.</p></blockquote>
 <pre data-language="elixir">def mount(_params, _session, socket) do
   {:ok,
@@ -85,7 +97,7 @@ defp presign_upload(entry, socket) do
       expires_in: :timer.hours(1)
     )
 
-  meta = %{uploader: "S3", key: key, url: "http://#{bucket}.s3.amazonaws.com", fields: fields}
+  meta = %{uploader: "S3", key: key, url: "http://#{bucket}.s3-#{config.region}.amazonaws.com", fields: fields}
   {:ok, meta, socket}
 end</pre>
 <p>Here, we implemented a <code class="inline">presign_upload/2</code> function, which we passed as a captured anonymous function to <code class="inline">:external</code>. Next, we generate a pre-signed URL for the upload. Lastly, we return our <code class="inline">:ok</code> result, with a payload of metadata for the client, along with our unchanged socket. The metadata <em>must</em> contain the <code class="inline">:uploader</code> key, specifying the name of the JavaScript client-side uploader, in this case <code class="inline">"S3"</code>.</p>
