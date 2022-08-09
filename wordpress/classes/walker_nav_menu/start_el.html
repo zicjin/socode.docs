@@ -1,0 +1,140 @@
+<h1>Walker_Nav_Menu::start_el( string $output, WP_Post $data_object, int $depth, stdClass $args = null, int $current_object_id )</h1>  <section> <p>Starts the element output.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <h3 id="see-also">See also</h3> <ul> <li><a href="../walker/start_el">Walker::start_el()</a></li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$output</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Used to append additional content (passed by reference).</span> </p> </dd> <dt>$data_object</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Post"><a href="../wp_post">WP_Post</a></span>)</span> <span class="required">(Required)</span> <span class="description">Menu item data object.</span> </p> </dd> <dt>$depth</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">Depth of menu item. Used for padding.</span> </p> </dd> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="stdClass">stdClass</span>)</span> <span class="required">(Optional)</span> <span class="description">An object of <a href="../../functions/wp_nav_menu">wp_nav_menu()</a> arguments.</span> </p> <p class="default">Default value: null</p> </dd> <dt>$current_object_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description"> ID of the current menu item. Default 0.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-walker-nav-menu.php/">wp-includes/class-walker-nav-menu.php</a> </p> <pre data-language="php">public function start_el( &amp;$output, $data_object, $depth = 0, $args = null, $current_object_id = 0 ) {
+		// Restores the more descriptive, specific name for use within this method.
+		$menu_item = $data_object;
+
+		if ( isset( $args-&gt;item_spacing ) &amp;&amp; 'discard' === $args-&gt;item_spacing ) {
+			$t = '';
+			$n = '';
+		} else {
+			$t = "\t";
+			$n = "\n";
+		}
+		$indent = ( $depth ) ? str_repeat( $t, $depth ) : '';
+
+		$classes   = empty( $menu_item-&gt;classes ) ? array() : (array) $menu_item-&gt;classes;
+		$classes[] = 'menu-item-' . $menu_item-&gt;ID;
+
+		/**
+		 * Filters the arguments for a single nav menu item.
+		 *
+		 * @since 4.4.0
+		 *
+		 * @param stdClass $args      An object of wp_nav_menu() arguments.
+		 * @param WP_Post  $menu_item Menu item data object.
+		 * @param int      $depth     Depth of menu item. Used for padding.
+		 */
+		$args = apply_filters( 'nav_menu_item_args', $args, $menu_item, $depth );
+
+		/**
+		 * Filters the CSS classes applied to a menu item's list item element.
+		 *
+		 * @since 3.0.0
+		 * @since 4.1.0 The `$depth` parameter was added.
+		 *
+		 * @param string[] $classes   Array of the CSS classes that are applied to the menu item's `&lt;li&gt;` element.
+		 * @param WP_Post  $menu_item The current menu item object.
+		 * @param stdClass $args      An object of wp_nav_menu() arguments.
+		 * @param int      $depth     Depth of menu item. Used for padding.
+		 */
+		$class_names = implode( ' ', apply_filters( 'nav_menu_css_class', array_filter( $classes ), $menu_item, $args, $depth ) );
+		$class_names = $class_names ? ' class="' . esc_attr( $class_names ) . '"' : '';
+
+		/**
+		 * Filters the ID applied to a menu item's list item element.
+		 *
+		 * @since 3.0.1
+		 * @since 4.1.0 The `$depth` parameter was added.
+		 *
+		 * @param string   $menu_id   The ID that is applied to the menu item's `&lt;li&gt;` element.
+		 * @param WP_Post  $menu_item The current menu item.
+		 * @param stdClass $args      An object of wp_nav_menu() arguments.
+		 * @param int      $depth     Depth of menu item. Used for padding.
+		 */
+		$id = apply_filters( 'nav_menu_item_id', 'menu-item-' . $menu_item-&gt;ID, $menu_item, $args, $depth );
+		$id = $id ? ' id="' . esc_attr( $id ) . '"' : '';
+
+		$output .= $indent . '&lt;li' . $id . $class_names . '&gt;';
+
+		$atts           = array();
+		$atts['title']  = ! empty( $menu_item-&gt;attr_title ) ? $menu_item-&gt;attr_title : '';
+		$atts['target'] = ! empty( $menu_item-&gt;target ) ? $menu_item-&gt;target : '';
+		if ( '_blank' === $menu_item-&gt;target &amp;&amp; empty( $menu_item-&gt;xfn ) ) {
+			$atts['rel'] = 'noopener';
+		} else {
+			$atts['rel'] = $menu_item-&gt;xfn;
+		}
+		$atts['href']         = ! empty( $menu_item-&gt;url ) ? $menu_item-&gt;url : '';
+		$atts['aria-current'] = $menu_item-&gt;current ? 'page' : '';
+
+		/**
+		 * Filters the HTML attributes applied to a menu item's anchor element.
+		 *
+		 * @since 3.6.0
+		 * @since 4.1.0 The `$depth` parameter was added.
+		 *
+		 * @param array $atts {
+		 *     The HTML attributes applied to the menu item's `&lt;a&gt;` element, empty strings are ignored.
+		 *
+		 *     @type string $title        Title attribute.
+		 *     @type string $target       Target attribute.
+		 *     @type string $rel          The rel attribute.
+		 *     @type string $href         The href attribute.
+		 *     @type string $aria-current The aria-current attribute.
+		 * }
+		 * @param WP_Post  $menu_item The current menu item object.
+		 * @param stdClass $args      An object of wp_nav_menu() arguments.
+		 * @param int      $depth     Depth of menu item. Used for padding.
+		 */
+		$atts = apply_filters( 'nav_menu_link_attributes', $atts, $menu_item, $args, $depth );
+
+		$attributes = '';
+		foreach ( $atts as $attr =&gt; $value ) {
+			if ( is_scalar( $value ) &amp;&amp; '' !== $value &amp;&amp; false !== $value ) {
+				$value       = ( 'href' === $attr ) ? esc_url( $value ) : esc_attr( $value );
+				$attributes .= ' ' . $attr . '="' . $value . '"';
+			}
+		}
+
+		/** This filter is documented in wp-includes/post-template.php */
+		$title = apply_filters( 'the_title', $menu_item-&gt;title, $menu_item-&gt;ID );
+
+		/**
+		 * Filters a menu item's title.
+		 *
+		 * @since 4.4.0
+		 *
+		 * @param string   $title     The menu item's title.
+		 * @param WP_Post  $menu_item The current menu item object.
+		 * @param stdClass $args      An object of wp_nav_menu() arguments.
+		 * @param int      $depth     Depth of menu item. Used for padding.
+		 */
+		$title = apply_filters( 'nav_menu_item_title', $title, $menu_item, $args, $depth );
+
+		$item_output  = $args-&gt;before;
+		$item_output .= '&lt;a' . $attributes . '&gt;';
+		$item_output .= $args-&gt;link_before . $title . $args-&gt;link_after;
+		$item_output .= '&lt;/a&gt;';
+		$item_output .= $args-&gt;after;
+
+		/**
+		 * Filters a menu item's starting output.
+		 *
+		 * The menu item's starting output only includes `$args-&gt;before`, the opening `&lt;a&gt;`,
+		 * the menu item's title, the closing `&lt;/a&gt;`, and `$args-&gt;after`. Currently, there is
+		 * no filter for modifying the opening and closing `&lt;li&gt;` for a menu item.
+		 *
+		 * @since 3.0.0
+		 *
+		 * @param string   $item_output The menu item's starting HTML output.
+		 * @param WP_Post  $menu_item   Menu item data object.
+		 * @param int      $depth       Depth of menu item. Used for padding.
+		 * @param stdClass $args        An object of wp_nav_menu() arguments.
+		 */
+		$output .= apply_filters( 'walker_nav_menu_start_el', $item_output, $menu_item, $depth, $args );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-walker-nav-menu.php:</span> <a href="../../hooks/nav_menu_item_args">nav_menu_item_args</a> </td> <td class="related-desc"> <p>Filters the arguments for a single nav menu item.</p> </td> </tr> <tr> <td> <span>wp-includes/class-walker-nav-menu.php:</span> <a href="../../hooks/nav_menu_item_title">nav_menu_item_title</a> </td> <td class="related-desc"> <p>Filters a menu item’s title.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/class-walker-nav-menu.php:</span> <a href="../../hooks/nav_menu_css_class">nav_menu_css_class</a> </td> <td class="related-desc"> <p>Filters the CSS classes applied to a menu item’s list item element.</p> </td> </tr> <tr> <td> <span>wp-includes/class-walker-nav-menu.php:</span> <a href="../../hooks/nav_menu_item_id">nav_menu_item_id</a> </td> <td class="related-desc"> <p>Filters the ID applied to a menu item’s list item element.</p> </td> </tr> <tr> <td> <span>wp-includes/class-walker-nav-menu.php:</span> <a href="../../hooks/nav_menu_link_attributes">nav_menu_link_attributes</a> </td> <td class="related-desc"> <p>Filters the HTML attributes applied to a menu item’s anchor element.</p> </td> </tr> <tr> <td> <span>wp-includes/class-walker-nav-menu.php:</span> <a href="../../hooks/walker_nav_menu_start_el">walker_nav_menu_start_el</a> </td> <td class="related-desc"> <p>Filters a menu item’s starting output.</p> </td> </tr> <tr> <td> <span>wp-includes/post-template.php:</span> <a href="../../hooks/the_title">the_title</a> </td> <td class="related-desc"> <p>Filters the post title.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.9.0/" alt="WordPress 5.9.0">5.9.0</a></td> <td><span class="since-description">Renamed <code>$item</code> to <code>$data_object</code> and <code>$id</code> to <code>$current_object_id</code> to match parent class for PHP 8 named parameter support.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.4.0/" alt="WordPress 4.4.0">4.4.0</a></td> <td><span class="since-description">The <a href="../../hooks/nav_menu_item_args">'nav_menu_item_args'</a> filter was added.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.0.0/" alt="WordPress 3.0.0">3.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/walker_nav_menu/start_el" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/walker_nav_menu/start_el</a>
+  </p>
+</div>

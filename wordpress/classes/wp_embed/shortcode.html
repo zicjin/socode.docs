@@ -1,0 +1,193 @@
+<h1>WP_Embed::shortcode( array $attr, string $url = '' )</h1>  <section> <p>The <a href="../../functions/do_shortcode">do_shortcode()</a> callback function.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Attempts to convert a URL into embed HTML. Starts by checking the URL against the regex of the registered embed handlers. If none of the regex matches and it’s enabled, then the URL will be given to the <a href="../wp_oembed">WP_oEmbed</a> class.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$attr</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Shortcode attributes. Optional. <ul class="param-hash">
+<li>
+<b>'width'</b><br><i><span class="type">(int)</span></i> Width of the embed in pixels.</li> <li>
+<b>'height'</b><br><i><span class="type">(int)</span></i> Height of the embed in pixels.</li> </ul> </span> </p> </dd> <dt>$url</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description">The URL attempting to be embedded.</span> </p> <p class="default">Default value: ''</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string|false)</span> The embed HTML on success, otherwise the original URL. <code>-&gt;maybe_make_link()</code> can return false on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-embed.php/">wp-includes/class-wp-embed.php</a> </p> <pre data-language="php">public function shortcode( $attr, $url = '' ) {
+		$post = get_post();
+
+		if ( empty( $url ) &amp;&amp; ! empty( $attr['src'] ) ) {
+			$url = $attr['src'];
+		}
+
+		$this-&gt;last_url = $url;
+
+		if ( empty( $url ) ) {
+			$this-&gt;last_attr = $attr;
+			return '';
+		}
+
+		$rawattr = $attr;
+		$attr    = wp_parse_args( $attr, wp_embed_defaults( $url ) );
+
+		$this-&gt;last_attr = $attr;
+
+		// KSES converts &amp; into &amp;amp; and we need to undo this.
+		// See https://core.trac.wordpress.org/ticket/11311
+		$url = str_replace( '&amp;amp;', '&amp;', $url );
+
+		// Look for known internal handlers.
+		$embed_handler_html = $this-&gt;get_embed_handler_html( $rawattr, $url );
+		if ( false !== $embed_handler_html ) {
+			return $embed_handler_html;
+		}
+
+		$post_ID = ( ! empty( $post-&gt;ID ) ) ? $post-&gt;ID : null;
+
+		// Potentially set by WP_Embed::cache_oembed().
+		if ( ! empty( $this-&gt;post_ID ) ) {
+			$post_ID = $this-&gt;post_ID;
+		}
+
+		// Check for a cached result (stored as custom post or in the post meta).
+		$key_suffix    = md5( $url . serialize( $attr ) );
+		$cachekey      = '_oembed_' . $key_suffix;
+		$cachekey_time = '_oembed_time_' . $key_suffix;
+
+		/**
+		 * Filters the oEmbed TTL value (time to live).
+		 *
+		 * @since 4.0.0
+		 *
+		 * @param int    $time    Time to live (in seconds).
+		 * @param string $url     The attempted embed URL.
+		 * @param array  $attr    An array of shortcode attributes.
+		 * @param int    $post_ID Post ID.
+		 */
+		$ttl = apply_filters( 'oembed_ttl', DAY_IN_SECONDS, $url, $attr, $post_ID );
+
+		$cache      = '';
+		$cache_time = 0;
+
+		$cached_post_id = $this-&gt;find_oembed_post_id( $key_suffix );
+
+		if ( $post_ID ) {
+			$cache      = get_post_meta( $post_ID, $cachekey, true );
+			$cache_time = get_post_meta( $post_ID, $cachekey_time, true );
+
+			if ( ! $cache_time ) {
+				$cache_time = 0;
+			}
+		} elseif ( $cached_post_id ) {
+			$cached_post = get_post( $cached_post_id );
+
+			$cache      = $cached_post-&gt;post_content;
+			$cache_time = strtotime( $cached_post-&gt;post_modified_gmt );
+		}
+
+		$cached_recently = ( time() - $cache_time ) &lt; $ttl;
+
+		if ( $this-&gt;usecache || $cached_recently ) {
+			// Failures are cached. Serve one if we're using the cache.
+			if ( '{{unknown}}' === $cache ) {
+				return $this-&gt;maybe_make_link( $url );
+			}
+
+			if ( ! empty( $cache ) ) {
+				/**
+				 * Filters the cached oEmbed HTML.
+				 *
+				 * @since 2.9.0
+				 *
+				 * @see WP_Embed::shortcode()
+				 *
+				 * @param string|false $cache   The cached HTML result, stored in post meta.
+				 * @param string       $url     The attempted embed URL.
+				 * @param array        $attr    An array of shortcode attributes.
+				 * @param int          $post_ID Post ID.
+				 */
+				return apply_filters( 'embed_oembed_html', $cache, $url, $attr, $post_ID );
+			}
+		}
+
+		/**
+		 * Filters whether to inspect the given URL for discoverable link tags.
+		 *
+		 * @since 2.9.0
+		 * @since 4.4.0 The default value changed to true.
+		 *
+		 * @see WP_oEmbed::discover()
+		 *
+		 * @param bool $enable Whether to enable `&lt;link&gt;` tag discovery. Default true.
+		 */
+		$attr['discover'] = apply_filters( 'embed_oembed_discover', true );
+
+		// Use oEmbed to get the HTML.
+		$html = wp_oembed_get( $url, $attr );
+
+		if ( $post_ID ) {
+			if ( $html ) {
+				update_post_meta( $post_ID, $cachekey, $html );
+				update_post_meta( $post_ID, $cachekey_time, time() );
+			} elseif ( ! $cache ) {
+				update_post_meta( $post_ID, $cachekey, '{{unknown}}' );
+			}
+		} else {
+			$has_kses = false !== has_filter( 'content_save_pre', 'wp_filter_post_kses' );
+
+			if ( $has_kses ) {
+				// Prevent KSES from corrupting JSON in post_content.
+				kses_remove_filters();
+			}
+
+			$insert_post_args = array(
+				'post_name'   =&gt; $key_suffix,
+				'post_status' =&gt; 'publish',
+				'post_type'   =&gt; 'oembed_cache',
+			);
+
+			if ( $html ) {
+				if ( $cached_post_id ) {
+					wp_update_post(
+						wp_slash(
+							array(
+								'ID'           =&gt; $cached_post_id,
+								'post_content' =&gt; $html,
+							)
+						)
+					);
+				} else {
+					wp_insert_post(
+						wp_slash(
+							array_merge(
+								$insert_post_args,
+								array(
+									'post_content' =&gt; $html,
+								)
+							)
+						)
+					);
+				}
+			} elseif ( ! $cache ) {
+				wp_insert_post(
+					wp_slash(
+						array_merge(
+							$insert_post_args,
+							array(
+								'post_content' =&gt; '{{unknown}}',
+							)
+						)
+					)
+				);
+			}
+
+			if ( $has_kses ) {
+				kses_init_filters();
+			}
+		}
+
+		// If there was a result, return it.
+		if ( $html ) {
+			/** This filter is documented in wp-includes/class-wp-embed.php */
+			return apply_filters( 'embed_oembed_html', $html, $url, $attr, $post_ID );
+		}
+
+		// Still unknown.
+		return $this-&gt;maybe_make_link( $url );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-embed.php:</span> <a href="get_embed_handler_html">WP_Embed::get_embed_handler_html()</a> </td> <td class="related-desc"> <p>Returns embed HTML for a given URL from embed handlers.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-embed.php:</span> <a href="find_oembed_post_id">WP_Embed::find_oembed_post_id()</a> </td> <td class="related-desc"> <p>Finds the oEmbed cache post ID for a given cache key.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-embed.php:</span> <a href="../../hooks/oembed_ttl">oembed_ttl</a> </td> <td class="related-desc"> <p>Filters the oEmbed TTL value (time to live).</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/wp_slash">wp_slash()</a> </td> <td class="related-desc"> <p>Adds slashes to a string or recursively adds slashes to strings within an array.</p> </td> </tr> <tr> <td> <span>wp-includes/kses.php:</span> <a href="../../functions/kses_remove_filters">kses_remove_filters()</a> </td> <td class="related-desc"> <p>Removes all KSES input form content filters.</p> </td> </tr> <tr> <td> <span>wp-includes/kses.php:</span> <a href="../../functions/kses_init_filters">kses_init_filters()</a> </td> <td class="related-desc"> <p>Adds all KSES input form content filters.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_parse_args">wp_parse_args()</a> </td> <td class="related-desc"> <p>Merges user defined arguments into defaults array.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-embed.php:</span> <a href="maybe_make_link">WP_Embed::maybe_make_link()</a> </td> <td class="related-desc"> <p>Conditionally makes a hyperlink based on an internal class variable.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-embed.php:</span> <a href="../../hooks/embed_oembed_html">embed_oembed_html</a> </td> <td class="related-desc"> <p>Filters the cached oEmbed HTML.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-embed.php:</span> <a href="../../hooks/embed_oembed_discover">embed_oembed_discover</a> </td> <td class="related-desc"> <p>Filters whether to inspect the given URL for discoverable link tags.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/has_filter">has_filter()</a> </td> <td class="related-desc"> <p>Checks if any filter has been registered for a hook.</p> </td> </tr> <tr> <td> <span>wp-includes/embed.php:</span> <a href="../../functions/wp_embed_defaults">wp_embed_defaults()</a> </td> <td class="related-desc"> <p>Creates default array of embed parameters.</p> </td> </tr> <tr> <td> <span>wp-includes/embed.php:</span> <a href="../../functions/wp_oembed_get">wp_oembed_get()</a> </td> <td class="related-desc"> <p>Attempts to fetch the embed HTML for a provided URL using oEmbed.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/wp_update_post">wp_update_post()</a> </td> <td class="related-desc"> <p>Update a post with new post data.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/wp_insert_post">wp_insert_post()</a> </td> <td class="related-desc"> <p>Insert or update a post.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/get_post_meta">get_post_meta()</a> </td> <td class="related-desc"> <p>Retrieves a post meta field for the given post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/update_post_meta">update_post_meta()</a> </td> <td class="related-desc"> <p>Updates a post meta field based on the given post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-embed.php:</span> <a href="autoembed_callback">WP_Embed::autoembed_callback()</a> </td> <td class="related-desc"> <p>Callback function for <a href="autoembed">WP_Embed::autoembed()</a>.</p> </td> </tr> </tbody>
+
+</table> </article> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_embed/shortcode" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_embed/shortcode</a>
+  </p>
+</div>

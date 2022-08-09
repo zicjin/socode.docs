@@ -1,4 +1,4 @@
-<h1 id="working-with-environment-variables">Working with Environment Variables</h1> <p>We’ll improve <code>minigrep</code> by adding an extra feature: an option for case-insensitive searching that the user can turn on via an environment variable. We could make this feature a command line option and require that users enter it each time they want it to apply, but instead we’ll use an environment variable. Doing so allows our users to set the environment variable once and have all their searches be case insensitive in that terminal session.</p> <h3 id="writing-a-failing-test-for-the-case-insensitive-search-function">Writing a Failing Test for the Case-Insensitive <code id="">search</code> Function</h3> <p>We want to add a new <code>search_case_insensitive</code> function that we’ll call when the environment variable is on. We’ll continue to follow the TDD process, so the first step is again to write a failing test. We’ll add a new test for the new <code>search_case_insensitive</code> function and rename our old test from <code>one_result</code> to <code>case_sensitive</code> to clarify the differences between the two tests, as shown in Listing 12-20.</p> <p><span class="filename">Filename: src/lib.rs</span></p> <pre data-language="rust">use std::error::Error;
+<h1 id="working-with-environment-variables">Working with Environment Variables</h1> <p>We’ll improve <code>minigrep</code> by adding an extra feature: an option for case-insensitive searching that the user can turn on via an environment variable. We could make this feature a command line option and require that users enter it each time they want it to apply, but by instead making it an environment variable, we allow our users to set the environment variable once and have all their searches be case insensitive in that terminal session.</p> <h3 id="writing-a-failing-test-for-the-case-insensitive-search-function">Writing a Failing Test for the Case-Insensitive <code id="">search</code> Function</h3> <p>We first add a new <code>search_case_insensitive</code> function that will be called when the environment variable has a value. We’ll continue to follow the TDD process, so the first step is again to write a failing test. We’ll add a new test for the new <code>search_case_insensitive</code> function and rename our old test from <code>one_result</code> to <code>case_sensitive</code> to clarify the differences between the two tests, as shown in Listing 12-20.</p> <p><span class="filename">Filename: src/lib.rs</span></p> <pre data-language="rust">use std::error::Error;
 use std::fs;
 
 pub struct Config {
@@ -7,7 +7,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;str&gt; {
+    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;'static str&gt; {
         if args.len() &lt; 3 {
             return Err("not enough arguments");
         }
@@ -81,7 +81,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;str&gt; {
+    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;'static str&gt; {
         if args.len() &lt; 3 {
             return Err("not enough arguments");
         }
@@ -162,7 +162,7 @@ Trust me.";
         );
     }
 }
-</pre> <p><span class="caption">Listing 12-21: Defining the <code>search_case_insensitive</code> function to lowercase the query and the line before comparing them</span></p> <p>First, we lowercase the <code>query</code> string and store it in a shadowed variable with the same name. Calling <code>to_lowercase</code> on the query is necessary so no matter whether the user’s query is <code>"rust"</code>, <code>"RUST"</code>, <code>"Rust"</code>, or <code>"rUsT"</code>, we’ll treat the query as if it were <code>"rust"</code> and be insensitive to the case. While <code>to_lowercase</code> will handle basic Unicode, it won’t be 100% accurate. If we were writing a real application, we’d want to do a bit more work here, but this section is about environment variables, not Unicode, so we’ll leave it at that here.</p> <p>Note that <code>query</code> is now a <code>String</code> rather than a string slice, because calling <code>to_lowercase</code> creates new data rather than referencing existing data. Say the query is <code>"rUsT"</code>, as an example: that string slice doesn’t contain a lowercase <code>u</code> or <code>t</code> for us to use, so we have to allocate a new <code>String</code> containing <code>"rust"</code>. When we pass <code>query</code> as an argument to the <code>contains</code> method now, we need to add an ampersand because the signature of <code>contains</code> is defined to take a string slice.</p> <p>Next, we add a call to <code>to_lowercase</code> on each <code>line</code> before we check whether it contains <code>query</code> to lowercase all characters. Now that we’ve converted <code>line</code> and <code>query</code> to lowercase, we’ll find matches no matter what the case of the query is.</p> <p>Let’s see if this implementation passes the tests:</p> <pre>$ cargo test
+</pre> <p><span class="caption">Listing 12-21: Defining the <code>search_case_insensitive</code> function to lowercase the query and the line before comparing them</span></p> <p>First, we lowercase the <code>query</code> string and store it in a shadowed variable with the same name. Calling <code>to_lowercase</code> on the query is necessary so no matter whether the user’s query is <code>"rust"</code>, <code>"RUST"</code>, <code>"Rust"</code>, or <code>"rUsT"</code>, we’ll treat the query as if it were <code>"rust"</code> and be insensitive to the case. While <code>to_lowercase</code> will handle basic Unicode, it won’t be 100% accurate. If we were writing a real application, we’d want to do a bit more work here, but this section is about environment variables, not Unicode, so we’ll leave it at that here.</p> <p>Note that <code>query</code> is now a <code>String</code> rather than a string slice, because calling <code>to_lowercase</code> creates new data rather than referencing existing data. Say the query is <code>"rUsT"</code>, as an example: that string slice doesn’t contain a lowercase <code>u</code> or <code>t</code> for us to use, so we have to allocate a new <code>String</code> containing <code>"rust"</code>. When we pass <code>query</code> as an argument to the <code>contains</code> method now, we need to add an ampersand because the signature of <code>contains</code> is defined to take a string slice.</p> <p>Next, we add a call to <code>to_lowercase</code> on each <code>line</code> to lowercase all characters. Now that we’ve converted <code>line</code> and <code>query</code> to lowercase, we’ll find matches no matter what the case of the query is.</p> <p>Let’s see if this implementation passes the tests:</p> <pre>$ cargo test
    Compiling minigrep v0.1.0 (file:///projects/minigrep)
     Finished test [unoptimized + debuginfo] target(s) in 1.33s
      Running unittests (target/debug/deps/minigrep-9cd200e5fac0fc94)
@@ -191,11 +191,11 @@ use std::fs;
 pub struct Config {
     pub query: String,
     pub filename: String,
-    pub case_sensitive: bool,
+    pub ignore_case: bool,
 }
 
 impl Config {
-    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;str&gt; {
+    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;'static str&gt; {
         if args.len() &lt; 3 {
             return Err("not enough arguments");
         }
@@ -210,10 +210,10 @@ impl Config {
 pub fn run(config: Config) -&gt; Result&lt;(), Box&lt;dyn Error&gt;&gt; {
     let contents = fs::read_to_string(config.filename)?;
 
-    let results = if config.case_sensitive {
-        search(&amp;config.query, &amp;contents)
-    } else {
+    let results = if config.ignore_case {
         search_case_insensitive(&amp;config.query, &amp;contents)
+    } else {
+        search(&amp;config.query, &amp;contents)
     };
 
     for line in results {
@@ -282,17 +282,17 @@ Trust me.";
         );
     }
 }
-</pre> <p>Note that we added the <code>case_sensitive</code> field that holds a Boolean. Next, we need the <code>run</code> function to check the <code>case_sensitive</code> field’s value and use that to decide whether to call the <code>search</code> function or the <code>search_case_insensitive</code> function, as shown in Listing 12-22. Note this still won’t compile yet.</p> <p><span class="filename">Filename: src/lib.rs</span></p> <pre data-language="rust">use std::error::Error;
+</pre> <p>We added the <code>ignore_case</code> field that holds a Boolean. Next, we need the <code>run</code> function to check the <code>ignore_case</code> field’s value and use that to decide whether to call the <code>search</code> function or the <code>search_case_insensitive</code> function, as shown in Listing 12-22. This still won’t compile yet.</p> <p><span class="filename">Filename: src/lib.rs</span></p> <pre data-language="rust">use std::error::Error;
 use std::fs;
 
 pub struct Config {
     pub query: String,
     pub filename: String,
-    pub case_sensitive: bool,
+    pub ignore_case: bool,
 }
 
 impl Config {
-    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;str&gt; {
+    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;'static str&gt; {
         if args.len() &lt; 3 {
             return Err("not enough arguments");
         }
@@ -307,10 +307,10 @@ impl Config {
 pub fn run(config: Config) -&gt; Result&lt;(), Box&lt;dyn Error&gt;&gt; {
     let contents = fs::read_to_string(config.filename)?;
 
-    let results = if config.case_sensitive {
-        search(&amp;config.query, &amp;contents)
-    } else {
+    let results = if config.ignore_case {
         search_case_insensitive(&amp;config.query, &amp;contents)
+    } else {
+        search(&amp;config.query, &amp;contents)
     };
 
     for line in results {
@@ -379,7 +379,7 @@ Trust me.";
         );
     }
 }
-</pre> <p><span class="caption">Listing 12-22: Calling either <code>search</code> or <code>search_case_insensitive</code> based on the value in <code>config.case_sensitive</code></span></p> <p>Finally, we need to check for the environment variable. The functions for working with environment variables are in the <code>env</code> module in the standard library, so we want to bring that module into scope with a <code>use std::env;</code> line at the top of <em>src/lib.rs</em>. Then we’ll use the <code>var</code> function from the <code>env</code> module to check for an environment variable named <code>CASE_INSENSITIVE</code>, as shown in Listing 12-23.</p> <p><span class="filename">Filename: src/lib.rs</span></p> <pre data-language="rust">use std::env;
+</pre> <p><span class="caption">Listing 12-22: Calling either <code>search</code> or <code>search_case_insensitive</code> based on the value in <code>config.ignore_case</code></span></p> <p>Finally, we need to check for the environment variable. The functions for working with environment variables are in the <code>env</code> module in the standard library, so we bring that module into scope at the top of <em>src/lib.rs</em>. Then we’ll use the <code>var</code> function from the <code>env</code> module to check to see if any value has been set for an environment variable named <code>IGNORE_CASE</code>, as shown in Listing 12-23.</p> <p><span class="filename">Filename: src/lib.rs</span></p> <pre data-language="rust">use std::env;
 // --snip--
 
 use std::error::Error;
@@ -388,11 +388,11 @@ use std::fs;
 pub struct Config {
     pub query: String,
     pub filename: String,
-    pub case_sensitive: bool,
+    pub ignore_case: bool,
 }
 
 impl Config {
-    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;str&gt; {
+    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;'static str&gt; {
         if args.len() &lt; 3 {
             return Err("not enough arguments");
         }
@@ -400,12 +400,12 @@ impl Config {
         let query = args[1].clone();
         let filename = args[2].clone();
 
-        let case_sensitive = env::var("CASE_INSENSITIVE").is_err();
+        let ignore_case = env::var("IGNORE_CASE").is_ok();
 
         Ok(Config {
             query,
             filename,
-            case_sensitive,
+            ignore_case,
         })
     }
 }
@@ -413,10 +413,10 @@ impl Config {
 pub fn run(config: Config) -&gt; Result&lt;(), Box&lt;dyn Error&gt;&gt; {
     let contents = fs::read_to_string(config.filename)?;
 
-    let results = if config.case_sensitive {
-        search(&amp;config.query, &amp;contents)
-    } else {
+    let results = if config.ignore_case {
         search_case_insensitive(&amp;config.query, &amp;contents)
+    } else {
+        search(&amp;config.query, &amp;contents)
     };
 
     for line in results {
@@ -485,22 +485,20 @@ Trust me.";
         );
     }
 }
-</pre> <p><span class="caption">Listing 12-23: Checking for an environment variable named <code>CASE_INSENSITIVE</code></span></p> <p>Here, we create a new variable <code>case_sensitive</code>. To set its value, we call the <code>env::var</code> function and pass it the name of the <code>CASE_INSENSITIVE</code> environment variable. The <code>env::var</code> function returns a <code>Result</code> that will be the successful <code>Ok</code> variant that contains the value of the environment variable if the environment variable is set. It will return the <code>Err</code> variant if the environment variable is not set.</p> <p>We’re using the <code>is_err</code> method on the <code>Result</code> to check whether it’s an error and therefore unset, which means it <em>should</em> do a case-sensitive search. If the <code>CASE_INSENSITIVE</code> environment variable is set to anything, <code>is_err</code> will return false and the program will perform a case-insensitive search. We don’t care about the <em>value</em> of the environment variable, just whether it’s set or unset, so we’re checking <code>is_err</code> rather than using <code>unwrap</code>, <code>expect</code>, or any of the other methods we’ve seen on <code>Result</code>.</p> <p>We pass the value in the <code>case_sensitive</code> variable to the <code>Config</code> instance so the <code>run</code> function can read that value and decide whether to call <code>search</code> or <code>search_case_insensitive</code>, as we implemented in Listing 12-22.</p> <p>Let’s give it a try! First, we’ll run our program without the environment variable set and with the query <code>to</code>, which should match any line that contains the word “to” in all lowercase:</p> <pre>$ cargo run to poem.txt
+</pre> <p><span class="caption">Listing 12-23: Checking for any value in an environment variable named <code>IGNORE_CASE</code></span></p> <p>Here, we create a new variable <code>ignore_case</code>. To set its value, we call the <code>env::var</code> function and pass it the name of the <code>IGNORE_CASE</code> environment variable. The <code>env::var</code> function returns a <code>Result</code> that will be the successful <code>Ok</code> variant that contains the value of the environment variable if the environment variable is set to any value. It will return the <code>Err</code> variant if the environment variable is not set.</p> <p>We’re using the <code>is_ok</code> method on the <code>Result</code> to check whether the environment variable is set, which means the program should do a case-insensitive search. If the <code>IGNORE_CASE</code> environment variable isn’t set to anything, <code>is_ok</code> will return false and the program will perform a case-sensitive search. We don’t care about the <em>value</em> of the environment variable, just whether it’s set or unset, so we’re checking <code>is_ok</code> rather than using <code>unwrap</code>, <code>expect</code>, or any of the other methods we’ve seen on <code>Result</code>.</p> <p>We pass the value in the <code>ignore_case</code> variable to the <code>Config</code> instance so the <code>run</code> function can read that value and decide whether to call <code>search_case_insensitive</code> or <code>search</code>, as we implemented in Listing 12-22.</p> <p>Let’s give it a try! First, we’ll run our program without the environment variable set and with the query <code>to</code>, which should match any line that contains the word “to” in all lowercase:</p> <pre>$ cargo run to poem.txt
    Compiling minigrep v0.1.0 (file:///projects/minigrep)
     Finished dev [unoptimized + debuginfo] target(s) in 0.0s
      Running `target/debug/minigrep to poem.txt`
 Are you nobody, too?
 How dreary to be somebody!
-</pre> <p>Looks like that still works! Now, let’s run the program with <code>CASE_INSENSITIVE</code> set to <code>1</code> but with the same query <code>to</code>.</p> <p>If you’re using PowerShell, you will need to set the environment variable and run the program as separate commands:</p> <pre>PS&gt; $Env:CASE_INSENSITIVE=1; cargo run to poem.txt
-</pre> <p>This will make <code>CASE_INSENSITIVE</code> persist for the remainder of your shell session. It can be unset with the <code>Remove-Item</code> cmdlet:</p> <pre>PS&gt; Remove-Item Env:CASE_INSENSITIVE
-</pre> <p>We should get lines that contain “to” that might have uppercase letters:</p>  <pre>$ CASE_INSENSITIVE=1 cargo run to poem.txt
-    Finished dev [unoptimized + debuginfo] target(s) in 0.0s
-     Running `target/debug/minigrep to poem.txt`
-Are you nobody, too?
+</pre> <p>Looks like that still works! Now, let’s run the program with <code>IGNORE_CASE</code> set to <code>1</code> but with the same query <code>to</code>.</p> <pre>$ IGNORE_CASE=1 cargo run to poem.txt
+</pre> <p>If you’re using PowerShell, you will need to set the environment variable and run the program as separate commands:</p> <pre>PS&gt; $Env:IGNORE_CASE=1; cargo run to poem.txt
+</pre> <p>This will make <code>IGNORE_CASE</code> persist for the remainder of your shell session. It can be unset with the <code>Remove-Item</code> cmdlet:</p> <pre>PS&gt; Remove-Item Env:IGNORE_CASE
+</pre> <p>We should get lines that contain “to” that might have uppercase letters:</p>  <pre>Are you nobody, too?
 How dreary to be somebody!
 To tell your name the livelong day
 To an admiring bog!
-</pre> <p>Excellent, we also got lines containing “To”! Our <code>minigrep</code> program can now do case-insensitive searching controlled by an environment variable. Now you know how to manage options set using either command line arguments or environment variables.</p> <p>Some programs allow arguments <em>and</em> environment variables for the same configuration. In those cases, the programs decide that one or the other takes precedence. For another exercise on your own, try controlling case insensitivity through either a command line argument or an environment variable. Decide whether the command line argument or the environment variable should take precedence if the program is run with one set to case sensitive and one set to case insensitive.</p> <p>The <code>std::env</code> module contains many more useful features for dealing with environment variables: check out its documentation to see what is available.</p><div class="_attribution">
+</pre> <p>Excellent, we also got lines containing “To”! Our <code>minigrep</code> program can now do case-insensitive searching controlled by an environment variable. Now you know how to manage options set using either command line arguments or environment variables.</p> <p>Some programs allow arguments <em>and</em> environment variables for the same configuration. In those cases, the programs decide that one or the other takes precedence. For another exercise on your own, try controlling case sensitivity through either a command line argument or an environment variable. Decide whether the command line argument or the environment variable should take precedence if the program is run with one set to case sensitive and one set to ignore case.</p> <p>The <code>std::env</code> module contains many more useful features for dealing with environment variables: check out its documentation to see what is available.</p><div class="_attribution">
   <p class="_attribution-p">
     <a href="https://doc.rust-lang.org/book/ch12-05-working-with-environment-variables.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/book/ch12-05-working-with-environment-variables.html</a>
   </p>

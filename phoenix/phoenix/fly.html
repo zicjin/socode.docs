@@ -1,151 +1,46 @@
-<h1>Deploying on Fly</h1>
-<h2 id="what-we-ll-need" class="section-heading">  What we'll need </h2> <p>The only thing we'll need for this guide is a working Phoenix application. For those of us who need a simple application to deploy, please follow the <a href="up_and_running">Up and Running guide</a>.</p>
-<h2 id="goals" class="section-heading">  Goals </h2> <p>Our main goal for this guide is to get a Phoenix application running on Fly.io.</p>
-<h2 id="steps" class="section-heading">  Steps </h2> <p>Let's separate this process into a few steps so we can keep track of where we are.</p>
+<h1>   <span>Deploying on Fly.io</span> </h1> <h2 id="what-we-ll-need" class="section-heading">  What we'll need </h2> <p>The only thing we'll need for this guide is a working Phoenix application. For those of us who need a simple application to deploy, please follow the <a href="up_and_running">Up and Running guide</a>.</p>
+<p>You can just:</p>
+<pre data-language="elixir">$ mix phx.new my_app
+</pre>
+<h2 id="goals" class="section-heading">  Goals </h2> <p>The main goal for this guide is to get a Phoenix application running on <a href="https://fly.io">Fly.io</a>.</p>
+<h2 id="sections" class="section-heading">  Sections </h2> <p>Let's separate this process into a few steps, so we can keep track of where we are.</p>
 <ul>
-<li>Install the Fly CLI</li>
-<li>Sign up for Fly</li>
-<li>Make our project ready for Fly</li>
-<li>Create and set up our Fly application</li>
-<li>Provision a database</li>
-<li>Deploy time!</li>
-<li>Helpful Fly resources</li>
+<li>Install the Fly.io CLI</li>
+<li>Sign up for Fly.io</li>
+<li>Deploy the app to Fly.io</li>
+<li>Extra Fly.io tips</li>
+<li>Helpful Fly.io resources</li>
 </ul>
-<h2 id="installing-the-fly-cli" class="section-heading">  Installing the Fly CLI </h2> <p>Follow the instructions <a href="https://fly.io/docs/getting-started/installing-flyctl/">here</a> to install the command-line interface for the Fly platform.</p>
-<h2 id="sign-up-for-fly" class="section-heading">  Sign up for Fly </h2> <p>We can <a href="https://fly.io/docs/getting-started/login-to-fly/">sign up for an account</a> using the CLI.</p>
+<h2 id="installing-the-fly-io-cli" class="section-heading">  Installing the Fly.io CLI </h2> <p>Follow the instructions <a href="https://fly.io/docs/getting-started/installing-flyctl/">here</a> to install Flyctl, the command-line interface for the Fly.io platform.</p>
+<h2 id="sign-up-for-fly-io" class="section-heading">  Sign up for Fly.io </h2> <p>We can <a href="https://fly.io/docs/getting-started/login-to-fly/">sign up for an account</a> using the CLI.</p>
 <pre data-language="elixir">$ fly auth signup
 </pre>
-<p>Fly has a <a href="https://fly.io/docs/about/pricing/">free tier</a> for applications without a database. A credit card is required when setting up an account to help prevent abuse. See the <a href="https://fly.io/docs/about/pricing/">pricing</a> page for more details.</p>
-<h2 id="make-our-project-ready-for-fly" class="section-heading">  Make our project ready for Fly </h2> <p>For this guide, we'll use a Dockerfile and build a release for our Fly deployment. Internally, Fly's networking uses IPv6, so there is a little config we can do to our application to make it a smooth experience.</p>
-<h3 id="use-releases" class="section-heading">  Use releases </h3> <p>Configure the application to <a href="releases">Deploy using Releases</a> including the section on Containers. There is a guide for deploying Elixir applications in the <a href="https://fly.io/docs/getting-started/elixir/">Fly documentation</a> that you can refer to for this as well.</p>
-<h3 id="runtime-configuration" class="section-heading">  Runtime configuration </h3> <p>After following the <a href="releases">Deploy using Releases</a> steps with the <code class="inline">config/runtime.exs</code> file, we are ready to configure it for Fly.</p>
-<p>Update the <code class="inline">config/runtime.exs</code> file to follow this example:</p>
-<pre data-language="elixir">import Config
-
-if config_env() == :prod do
-  secret_key_base =
-    System.get_env("SECRET_KEY_BASE") ||
-      raise """
-      environment variable SECRET_KEY_BASE is missing.
-      You can generate one by calling: mix phx.gen.secret
-      """
-
-  app_name =
-    System.get_env("FLY_APP_NAME") ||
-      raise "FLY_APP_NAME not available"
-
-  config :my_app, MyAppWeb.Endpoint,
-    server: true,
-    url: [host: "#{app_name}.fly.dev", port: 80],
-    http: [
-      # Enable IPv6 and bind on all interfaces.
-      # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
-      # See the documentation on https://hexdocs.pm/plug_cowboy/Plug.Cowboy.html
-      # for details about using IPv6 vs IPv4 and loopback vs public addresses.
-      ip: {0, 0, 0, 0, 0, 0, 0, 0},
-      port: String.to_integer(System.get_env("PORT") || "4000")
-    ],
-    secret_key_base: secret_key_base
-
-  database_url =
-    System.get_env("DATABASE_URL") ||
-      raise """
-      environment variable DATABASE_URL is missing.
-      For example: ecto://USER:PASS@HOST/DATABASE
-      """
-
-  config :my_app, MyApp.Repo,
-    url: database_url,
-    # IMPORTANT: Or it won't find the DB server
-    socket_options: [:inet6],
-    pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
-end</pre>
-<p>The areas to pay attention to are:</p>
-<ul>
-<li>Using <code class="inline">FLY_APP_NAME</code> for the host in the Endpoint</li>
-<li>Using an IPv6 binding on the Endpoint</li>
-<li>Using <code class="inline">:inet6</code> for the Repo's socket options</li>
-</ul>
-<p>Also, you don't need to turn on TLS for connecting to the PostgreSQL instance. Fly private networks operate over an encrypted WireGuard mesh, so traffic between application servers and PostgreSQL is already encrypted and there's no need to TLS.</p>
-<h3 id="generate-release-config-files" class="section-heading">  Generate release config files </h3> <p>We use the <a href="https://hexdocs.pm/mix/Mix.Tasks.Release.Init.html"><code class="inline">mix release.init</code></a> command to create some sample files in the <code class="inline">./rel</code> directory.</p>
-<pre data-language="elixir">$ mix release.init
+<p>Or sign in.</p>
+<pre data-language="elixir">$ flyctl auth login
 </pre>
-<p>We only need to configure <code class="inline">rel/env.sh.eex</code>. This file is used when running any of the release commands. Here are the important parts.</p>
-<pre data-language="elixir">#!/bin/sh
-
-ip=$(grep fly-local-6pn /etc/hosts | cut -f 1)
-export RELEASE_DISTRIBUTION=name
-export RELEASE_NODE=$FLY_APP_NAME@$ip
-export ELIXIR_ERL_OPTIONS="-proto_dist inet6_tcp"</pre>
-<p>We configure the node to use a full node name when it runs. We get the Fly assigned IPv6 address and use that with the <code class="inline">$FLY_APP_NAME</code> to name the node. Finally, we configure <code class="inline">inet6_tcp</code> for the BEAM as well.</p>
-<h2 id="create-and-set-up-our-fly-application" class="section-heading">  Create and set up our Fly application </h2> <p>To tell Fly about your application, run <code class="inline">fly launch</code> in the directory with your source code. This creates and configures a fly app.</p>
+<p>Fly has a <a href="https://fly.io/docs/about/pricing/">free tier</a> for most applications. A credit card is required when setting up an account to help prevent abuse. See the <a href="https://fly.io/docs/about/pricing/">pricing</a> page for more details.</p>
+<h2 id="deploy-the-app-to-fly-io" class="section-heading">  Deploy the app to Fly.io </h2> <p>To tell Fly about your application, run <code class="inline">fly launch</code> in the directory with your source code. This creates and configures a Fly.io app.</p>
 <pre data-language="elixir">$ fly launch
 </pre>
-<p>After your source code is scanned and the results are printed, you'll be prompted for an organization. Organizations are a way of sharing applications and resources between Fly users. Every Fly account has a personal organization, called <code class="inline">personal</code>, which is only visible to your account. Let's select that for this guide.</p>
-<p>Next, you'll be prompted to select a region to deploy in. The closest region to you is selected by default. You can use this or change to another region. You can find the <a href="https://fly.io/docs/reference/regions/">list of supported regions here</a>.</p>
-<p>At this point, <code class="inline">flyctl</code> creates a Fly-side application slot with a new name and wrote your configuration to a <code class="inline">fly.toml</code> file. You'll then be prompted to build and deploy your app. Don't deploy it just yet. We're going to adjust the generated <code class="inline">fly.toml</code> file first.</p>
-<h3 id="customizing-fly-toml" class="section-heading">  Customizing <code class="inline">fly.toml</code> </h3> <p>The <code class="inline">fly.toml</code> file contains a default configuration for deploying your app. If you don't provide a name to use, a name will be generated for you.</p>
-<p>The following is an example of a customized <code class="inline">fly.toml</code> file.</p>
-<pre data-language="elixir">app = "your-app-name-here"
-
-kill_signal = "SIGTERM"
-kill_timeout = 5
-
-[env]
-
-[deploy]
-  release_command = "/app/bin/my_app eval MyApp.Release.migrate"
-
-[[services]]
-  internal_port = 4000
-  protocol = "tcp"
-
-  [services.concurrency]
-    hard_limit = 25
-    soft_limit = 20
-
-  [[services.ports]]
-    handlers = ["http"]
-    port = 80
-
-  [[services.ports]]
-    handlers = ["tls", "http"]
-    port = 443
-
-  [[services.tcp_checks]]
-    grace_period = "30s" # allow some time for startup
-    interval = "15s"
-    restart_limit = 6
-    timeout = "2s"</pre>
-<p>There are two important changes here:</p>
+<p>This scans your source, detects the Phoenix project, and runs <code class="inline">mix phx.gen.release --docker</code> for you! This creates a Dockerfile for you.</p>
+<p>The <code class="inline">fly launch</code> command walks you through a few questions.</p>
 <ul>
-<li>We added the <code class="inline">[deploy]</code> setting. This tells Fly that on a new deploy, <strong>run our database migrations</strong>. The text here depends on your application name. This is calling a module you created when updating your application for deploying with releases.</li>
-<li>The <code class="inline">kill_signal</code> is set to <code class="inline">SIGTERM</code>. An Elixir node does a clean shutdown when it receives a <code class="inline">SIGTERM</code> from the OS.</li>
+<li>You can name the app or have it generate a random name for you.</li>
+<li>Choose an organization (defaults to <code class="inline">personal</code>). Organizations are a way of sharing applications and resources between Fly.io users.</li>
+<li>Choose a region to deploy to. Defaults to the nearest Fly.io region. You can check out the <a href="https://fly.io/docs/reference/regions/">complete list of regions here</a>.</li>
+<li>Sets up a Postgres DB for you.</li>
+<li>Builds the Dockerfile.</li>
+<li>Deploys your application!</li>
 </ul>
-<p>Some other values were tweaked as well. Check that <code class="inline">internal_port</code> matches the port for your application.</p>
-<h3 id="storing-secrets-on-fly" class="section-heading">  Storing secrets on Fly </h3> <p>Before we deploy our new app, we first want to setup a few things in our Fly account. Any secrets that we don't want compiled into the source code are stored externally. An example of that is our Phoenix key base secret.</p>
-<p>Elixir has a mix task that generates a new Phoenix key base secret. Let's use that.</p>
-<pre data-language="elixir">$ mix phx.gen.secret
-REALLY_LONG_SECRET
+<p>The <code class="inline">fly launch</code> command also created a <code class="inline">fly.toml</code> file for you. This is where you can set ENV values and other config.</p>
+<h3 id="storing-secrets-on-fly-io" class="section-heading">  Storing secrets on Fly.io </h3> <p>You may also have some secrets you'd like to set on your app.</p>
+<p>Use <a href="https://fly.io/docs/reference/secrets/#setting-secrets"><code class="inline">fly secrets</code></a> to configure those.</p>
+<pre data-language="elixir">$ fly secrets set MY_SECRET_KEY=my_secret_value
 </pre>
-<p>It generates a long string of random text. Let's store that with Fly as a secret for our app. When we run this command in our project folder, <code class="inline">flyctl</code> uses the <code class="inline">fly.toml</code> file to know which app we are setting the value on.</p>
-<pre data-language="elixir">$ fly secrets set SECRET_KEY_BASE=REALLY_LONG_SECRET
-</pre>
-<h2 id="provision-a-database" class="section-heading">  Provision a database </h2> <p>Most Elixir applications use a database and PostgreSQL is the default one used. Let's provision a database on Fly for our application.</p>
-<pre data-language="elixir">$ fly postgres create
-</pre>
-<p>When naming the database, you can use something like <code class="inline">my-app-db</code>. Taking the defaults gives you a small database to start playing with.</p>
-<p>Now we need to "attach" the database to our application.</p>
-<pre data-language="elixir">$ fly postgres attach --postgres-app my-app-db
-</pre>
-<p>When the database is attached, it creates the secrets needed by your application. You can see what secrets were created this way.</p>
-<pre data-language="elixir">$ fly secrets list
-</pre>
-<p>With our application configured for releases, a Dockerfile defined for packaging it, our <code class="inline">config/runtime.exs</code> and <code class="inline">rel/env.sh.eex</code> files configured, a Fly app defined, our secrets stored in Fly, and a database provisioned, we are ready to deploy!</p>
-<h2 id="deploy-time" class="section-heading">  Deploy time! </h2> <p>Our project is now ready to be deployed to Fly.io.</p>
+<h3 id="deploying-again" class="section-heading">  Deploying again </h3> <p>When you want to deploy changes to your application, use <code class="inline">fly deploy</code>.</p>
 <pre data-language="elixir">$ fly deploy
 </pre>
-<p>Note: On Apple Silicon (M1) computers, docker runs cross platform builds using qemu which might not always work. If you get a segmentation fault error like the following:</p>
+<p>Note: On Apple Silicon (M1) computers, docker runs cross-platform builds using qemu which might not always work. If you get a segmentation fault error like the following:</p>
 <pre data-language="elixir"> =&gt; [build  7/17] RUN mix deps.get --only
  =&gt; =&gt; # qemu: uncaught target signal 11 (Segmentation fault) - core dumped</pre>
 <p>You can use fly's remote builder by adding the <code class="inline">--remote-only</code> flag:</p>
@@ -160,8 +55,8 @@ REALLY_LONG_SECRET
 <p>If everything looks good, open your app on Fly</p>
 <pre data-language="elixir">$ fly open
 </pre>
-<h3 id="getting-an-iex-shell-into-a-running-node" class="section-heading">  Getting an IEx shell into a running node </h3> <p>Elixir supports getting a IEx shell into a running production node. We already took the steps to configure <code class="inline">rel/env.sh.eex</code>, so this step should be pretty easy.</p>
-<p>There are a couple prerequisites, we first need to establish an <a href="https://fly.io/docs/flyctl/ssh/">SSH Shell</a> to our machine on Fly.</p>
+<h2 id="extra-fly-io-tips" class="section-heading">  Extra Fly.io tips </h2> <h3 id="getting-an-iex-shell-into-a-running-node" class="section-heading">  Getting an IEx shell into a running node </h3> <p>Elixir supports getting a IEx shell into a running production node.</p>
+<p>There are a couple prerequisites, we first need to establish an <a href="https://fly.io/docs/flyctl/ssh/">SSH Shell</a> to our machine on Fly.io.</p>
 <p>This step sets up a root certificate for your account and then issues a certificate.</p>
 <pre data-language="elixir">$ fly ssh establish
 $ fly ssh issue
@@ -171,23 +66,25 @@ $ fly ssh issue
 Connecting to my-app-1234.internal... complete
 / #
 </pre>
-<p>If all has gone smoothly, then you have a shell into the machine! Now we just need to launch our remote IEx shell. The deployment Dockerfile was configured to pull our application into <code class="inline">/app</code>. So our command for the <code class="inline">my_app</code> app looks like this:</p>
+<p>If all has gone smoothly, then you have a shell into the machine! Now we just need to launch our remote IEx shell. The deployment Dockerfile was configured to pull our application into <code class="inline">/app</code>. So the command for an app named <code class="inline">my_app</code> looks like this:</p>
 <pre data-language="elixir">$ app/bin/my_app remote
 Erlang/OTP 23 [erts-11.2.1] [source] [64-bit] [smp:1:1] [ds:1:1:10] [async-threads:1]
 
 Interactive Elixir (1.11.2) - press Ctrl+C to exit (type h() ENTER for help)
 iex(my_app@fdaa:0:1da8:a7b:ac4:b204:7e29:2)1&gt;
 </pre>
-<p>Now we have a running IEx shell into our node. You can safely disconnect using CTRL+C, CTRL+C.</p>
-<h2 id="clustering-your-application" class="section-heading">  Clustering your application </h2> <p>Elixir and the BEAM have the incredible ability to be clustered together and pass messages seamlessly between nodes. This portion of the guide walks you through clustering your Elixir application.</p>
-<p>There are 2 parts to getting clustering quickly setup on Fly.</p>
+<p>Now we have a running IEx shell into our node! You can safely disconnect using CTRL+C, CTRL+C.</p>
+<h3 id="clustering-your-application" class="section-heading">  Clustering your application </h3> <p>Elixir and the BEAM have the incredible ability to be clustered together and pass messages seamlessly between nodes. This portion of the guide walks you through clustering your Elixir application.</p>
+<p>There are 2 parts to getting clustering quickly setup on Fly.io.</p>
 <ul>
 <li>Installing and using <code class="inline">libcluster</code>
 </li>
 <li>Scaling the application to multiple instances</li>
 </ul>
-<h3 id="adding-libcluster" class="section-heading">  Adding <code class="inline">libcluster</code> </h3> <p>The widely adopted library <a href="https://github.com/bitwalker/libcluster">libcluster</a> helps here.</p>
-<p>There are multiple strategies that <code class="inline">libcluster</code> can use to find and connect with other nodes. The strategy we'll use on Fly is <code class="inline">DNSPoll</code>.</p>
+<h4>Adding <code class="inline">libcluster</code>
+</h4>
+<p>The widely adopted library <a href="https://github.com/bitwalker/libcluster">libcluster</a> helps here.</p>
+<p>There are multiple strategies that <code class="inline">libcluster</code> can use to find and connect with other nodes. The strategy we'll use on Fly.io is <code class="inline">DNSPoll</code>.</p>
 <p>After installing <code class="inline">libcluster</code>, add it to the application like this:</p>
 <pre data-language="elixir">defmodule MyApp.Application do
   use Application
@@ -223,9 +120,20 @@ end</pre>
       ]
     ]</pre>
 <p>This configures <code class="inline">libcluster</code> to use the <code class="inline">DNSPoll</code> strategy and look for other deployed apps using the <code class="inline">$FLY_APP_NAME</code> on the <code class="inline">.internal</code> private network.</p>
-<p>This assumes that your <code class="inline">rel/env.sh.eex</code> file is configured to name your Elixir node using the <code class="inline">$FLY_APP_NAME</code>.</p>
-<p>Before it can be clustered, we have to have multiple instances. Next we'll add an additional node instance.</p>
-<h3 id="running-multiple-instances" class="section-heading">  Running multiple instances </h3> <p>There are two ways to run multiple instances.</p>
+<h4>Controlling the name for our node</h4>
+<p>We need to control the naming of our Elixir nodes. To help them connect up, we'll name them using this pattern: <code class="inline">your-fly-app-name@the.ipv6.address.on.fly</code>. To do this, we'll generate the release config.</p>
+<pre data-language="elixir">$ mix release.init
+</pre>
+<p>Then edit the generated <code class="inline">rel/env.sh.eex</code> file and add the following lines:</p>
+<pre data-language="elixir">ip=$(grep fly-local-6pn /etc/hosts | cut -f 1)
+export RELEASE_DISTRIBUTION=name
+export RELEASE_NODE=$FLY_APP_NAME@$ip</pre>
+<p>After making the change, deploy your app!</p>
+<pre data-language="elixir">$ fly deploy
+</pre>
+<p>For our app to be clustered, we have to have multiple instances. Next we'll add an additional node instance.</p>
+<h4>Running multiple instances</h4>
+<p>There are two ways to run multiple instances.</p>
 <ol>
 <li>Scale our application to have multiple instances in one region.</li>
 <li>Add an instance to another region (multiple regions).</li>
@@ -237,11 +145,12 @@ Instances
 ID       VERSION REGION DESIRED STATUS  HEALTH CHECKS      RESTARTS CREATED
 f9014bf7 26      sea    run     running 1 total, 1 passing 0        1h8m ago
 </pre>
-<h3 id="scaling-in-a-single-region" class="section-heading">  Scaling in a single region </h3> <p>Let's scale up to 2 instances in our current region.</p>
+<h4>Scaling in a single region</h4>
+<p>Let's scale up to 2 instances in our current region.</p>
 <pre data-language="elixir">$ fly scale count 2
 Count changed to 2
 </pre>
-<p>Checking the status we can see what happened.</p>
+<p>Checking the status, we can see what happened.</p>
 <pre data-language="elixir">$ fly status
 ...
 Instances
@@ -263,8 +172,9 @@ $ /app/bin/my_app remote
 <pre data-language="elixir">iex(my-app-1234@fdaa:0:1da8:a7b:ac2:f901:4bf7:2)1&gt; Node.list
 [:"my-app-1234@fdaa:0:1da8:a7b:ac4:eb41:19d3:2"]</pre>
 <p>The IEx prompt is included to help show the IP address of the node we are connected to. Then getting the <code class="inline">Node.list</code> returns the other node. Our two instances are connected and clustered!</p>
-<h3 id="scaling-to-multiple-regions" class="section-heading">  Scaling to multiple regions </h3> <p>Fly makes it easy to deploy instances closer to your users. Through the magic of DNS, users are directed to the nearest region where your application is located. You can read more about <a href="https://fly.io/docs/reference/regions/">Fly regions here</a>.</p>
-<p>Starting back from our baseline of a single instance running in <code class="inline">sea</code> which is Seattle, Washington (US), Let's add the region <code class="inline">ewr</code> which is Parsippany, NJ (US). This puts an instance on both coasts of the US.</p>
+<h4>Scaling to multiple regions</h4>
+<p>Fly makes it easy to deploy instances closer to your users. Through the magic of DNS, users are directed to the nearest region where your application is located. You can read more about <a href="https://fly.io/docs/reference/regions/">Fly.io regions here</a>.</p>
+<p>Starting back from our baseline of a single instance running in <code class="inline">sea</code> which is Seattle, Washington (US), let's add the region <code class="inline">ewr</code> which is Parsippany, NJ (US). This puts an instance on both coasts of the US.</p>
 <pre data-language="elixir">$ fly regions add ewr
 Region Pool:
 ewr
@@ -301,8 +211,8 @@ $ /app/bin/my_app remote
 <pre data-language="elixir">iex(my-app-1234@fdaa:0:1da8:a7b:ac2:cdf6:c422:2)1&gt; Node.list
 [:"my-app-1234@fdaa:0:1da8:a7b:ab2:a8e:6666:2"]</pre>
 <p>We have two instances of our application deployed to the West and East coasts of the North American continent and they are clustered together! Our users will automatically be directed to the server nearest them.</p>
-<p>The Fly platform has built-in distribution support making it easy to cluster distributed Elixir nodes in multiple regions.</p>
-<h2 id="helpful-fly-commands-and-resources" class="section-heading">  Helpful Fly commands and resources </h2> <p>Open the Dashboard for your account</p>
+<p>The Fly.io platform has built-in distribution support making it easy to cluster distributed Elixir nodes in multiple regions.</p>
+<h2 id="helpful-fly-io-resources" class="section-heading">  Helpful Fly.io resources </h2> <p>Open the Dashboard for your account</p>
 <pre data-language="elixir">$ fly dashboard
 </pre>
 <p>Deploy your application</p>
@@ -317,15 +227,15 @@ $ /app/bin/my_app remote
 <p>Scaling your application up or down</p>
 <pre data-language="elixir">$ fly scale count 2
 </pre>
-<p>Refer to the <a href="https://fly.io/docs/getting-started/elixir">Fly Elixir documentation</a> for additional information.</p>
-<p><a href="https://fly.io/docs/getting-started/working-with-fly-apps/">Working with Fly applications</a> covers things like:</p>
+<p>Refer to the <a href="https://fly.io/docs/getting-started/elixir">Fly.io Elixir documentation</a> for additional information.</p>
+<p><a href="https://fly.io/docs/getting-started/working-with-fly-apps/">Working with Fly.io applications</a> covers things like:</p>
 <ul>
 <li>Status and logs</li>
 <li>Custom domains</li>
 <li>Certificates</li>
 </ul>
 <h2 id="troubleshooting" class="section-heading">  Troubleshooting </h2> <p>See <a href="https://fly.io/docs/getting-started/troubleshooting/#welcome-message">Troubleshooting</a></p>
-<p>Visit the <a href="https://community.fly.io/">Fly Community</a> to find solutions and ask questions.</p> <div class="bottom-actions"> <div class="bottom-actions-item"> <a href="gigalixir" class="bottom-actions-button" rel="prev"> <span class="subheader"> ← Previous Page </span> <span class="title"> Deploying on Gigalixir </span> </a> </div> <div class="bottom-actions-item"> <a href="heroku" class="bottom-actions-button" rel="next"> <span class="subheader"> Next Page → </span> <span class="title"> Deploying on Heroku </span> </a> </div> </div><div class="_attribution">
+<p>Visit the <a href="https://community.fly.io/">Fly.io Community</a> to find solutions and ask questions.</p> <div class="bottom-actions"> <div class="bottom-actions-item"> <a href="gigalixir" class="bottom-actions-button" rel="prev"> <span class="subheader"> ← Previous Page </span> <span class="title"> Deploying on Gigalixir </span> </a> </div> <div class="bottom-actions-item"> <a href="heroku" class="bottom-actions-button" rel="next"> <span class="subheader"> Next Page → </span> <span class="title"> Deploying on Heroku </span> </a> </div> </div><div class="_attribution">
   <p class="_attribution-p">
     <a href="https://hexdocs.pm/phoenix/fly.html" class="_attribution-link" target="_blank">https://hexdocs.pm/phoenix/fly.html</a>
   </p>

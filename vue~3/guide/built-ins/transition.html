@@ -1,0 +1,374 @@
+<h1 id="transition" tabindex="-1">Transition </h1>
+<p>Vue offers two built-in components that can help work with transitions and animations in response to changing state:</p>
+<ul>
+<li><p><code>&lt;Transition&gt;</code> for applying animations when an element or component is entering and leaving the DOM. This is covered on this page.</p></li>
+<li><p><code>&lt;TransitionGroup&gt;</code> for applying animations when an element or component is inserted into, removed from, or moved within a <code>v-for</code> list. This is covered in <a href="transition-group">the next chapter</a>.</p></li>
+</ul>
+<p>Aside from these two components, we can also apply animations in Vue using other techniques such as toggling CSS classes or state-driven animations via style bindings. These additional techniques are covered in the <a href="../extras/animation">Animation Techniques</a> chapter.</p>
+<h2 id="the-transition-component" tabindex="-1">The <code>&lt;Transition&gt;</code> Component </h2>
+<p><code>&lt;Transition&gt;</code> is a built-in component: this means it is available in any component's template without having to register it. It can be used to apply enter and leave animations on elements or components passed to it via its default slot. The enter or leave can be triggered by one of the following:</p>
+<ul>
+<li>Conditional rendering via <code>v-if</code>
+</li>
+<li>Conditional display via <code>v-show</code>
+</li>
+<li>Dynamic components toggling via the <code>&lt;component&gt;</code> special element</li>
+</ul>
+<p>This is an example of the most basic usage:</p>
+<div class="language-vue-html"><pre data-language="javascript">&lt;button @click="show = !show"&gt;Toggle&lt;/button&gt;
+&lt;Transition&gt;
+  &lt;p v-if="show"&gt;hello&lt;/p&gt;
+&lt;/Transition&gt;</pre></div>
+<div class="language-css"><pre data-language="javascript">/* we will explain what these classes do next! */
+.v-enter-active,
+.v-leave-active {
+  transition: opacity 0.5s ease;
+}
+
+.v-enter-from,
+.v-leave-to {
+  opacity: 0;
+}</pre></div>
+<div class="composition-api"><p><a href="https://sfc.vuejs.org/#eyJBcHAudnVlIjoiPHNjcmlwdCBzZXR1cD5cbmltcG9ydCB7IHJlZiB9IGZyb20gJ3Z1ZSdcblxuY29uc3Qgc2hvdyA9IHJlZih0cnVlKVxuPC9zY3JpcHQ+XG5cbjx0ZW1wbGF0ZT5cbiAgPGJ1dHRvbiBAY2xpY2s9XCJzaG93ID0gIXNob3dcIj5Ub2dnbGU8L2J1dHRvbj5cbiAgPFRyYW5zaXRpb24+XG4gICAgPHAgdi1pZj1cInNob3dcIj5oZWxsbzwvcD5cbiAgPC9UcmFuc2l0aW9uPlxuPC90ZW1wbGF0ZT5cblxuPHN0eWxlPlxuLnYtZW50ZXItYWN0aXZlLFxuLnYtbGVhdmUtYWN0aXZlIHtcbiAgdHJhbnNpdGlvbjogb3BhY2l0eSAwLjVzIGVhc2U7XG59XG5cbi52LWVudGVyLWZyb20sXG4udi1sZWF2ZS10byB7XG4gIG9wYWNpdHk6IDA7XG59XG48L3N0eWxlPiIsImltcG9ydC1tYXAuanNvbiI6IntcbiAgXCJpbXBvcnRzXCI6IHtcbiAgICBcInZ1ZVwiOiBcImh0dHBzOi8vc2ZjLnZ1ZWpzLm9yZy92dWUucnVudGltZS5lc20tYnJvd3Nlci5qc1wiXG4gIH1cbn0ifQ==" target="_blank" rel="noopener noreferrer">Try it in the Playground</a></p></div>
+<div class="options-api"><p><a href="https://sfc.vuejs.org/#eyJBcHAudnVlIjoiPHNjcmlwdD5cbmV4cG9ydCBkZWZhdWx0IHtcbiAgZGF0YSgpIHtcbiAgICByZXR1cm4ge1xuICAgICAgc2hvdzogdHJ1ZVxuICAgIH1cbiAgfVxufVxuPC9zY3JpcHQ+XG5cbjx0ZW1wbGF0ZT5cbiAgPGJ1dHRvbiBAY2xpY2s9XCJzaG93ID0gIXNob3dcIj5Ub2dnbGU8L2J1dHRvbj5cbiAgPFRyYW5zaXRpb24+XG4gICAgPHAgdi1pZj1cInNob3dcIj5oZWxsbzwvcD5cbiAgPC9UcmFuc2l0aW9uPlxuPC90ZW1wbGF0ZT5cblxuPHN0eWxlPlxuLnYtZW50ZXItYWN0aXZlLFxuLnYtbGVhdmUtYWN0aXZlIHtcbiAgdHJhbnNpdGlvbjogb3BhY2l0eSAwLjVzIGVhc2U7XG59XG5cbi52LWVudGVyLWZyb20sXG4udi1sZWF2ZS10byB7XG4gIG9wYWNpdHk6IDA7XG59XG48L3N0eWxlPiIsImltcG9ydC1tYXAuanNvbiI6IntcbiAgXCJpbXBvcnRzXCI6IHtcbiAgICBcInZ1ZVwiOiBcImh0dHBzOi8vc2ZjLnZ1ZWpzLm9yZy92dWUucnVudGltZS5lc20tYnJvd3Nlci5qc1wiXG4gIH1cbn0ifQ==" target="_blank" rel="noopener noreferrer">Try it in the Playground</a></p></div>
+<div class="tip custom-block">
+<strong class="custom-block-title">TIP</strong><p><code>&lt;Transition&gt;</code> only supports a single element or component as its slot content. If the content is a component, the component must also have only one single root element.</p>
+</div>
+<p>When an element in a <code>&lt;Transition&gt;</code> component is inserted or removed, this is what happens:</p>
+<ol>
+<li><p>Vue will automatically sniff whether the target element has CSS transitions or animations applied. If it does, a number of <a href="#transition-classes">CSS transition classes</a> will be added / removed at appropriate timings.</p></li>
+<li><p>If there are listeners for <a href="#javascript-hooks">JavaScript hooks</a>, these hooks will be called at appropriate timings.</p></li>
+<li><p>If no CSS transitions / animations are detected and no JavaScript hooks are provided, the DOM operations for insertion and/or removal will be executed on the browser's next animation frame.</p></li>
+</ol>
+<h2 id="css-based-transitions" tabindex="-1">CSS-Based Transitions </h2>
+<h3 id="transition-classes" tabindex="-1">Transition Classes </h3>
+<p>There are six classes applied for enter / leave transitions.</p>
+<p><img src="data:image/png;base64,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kIukpM2OSsrNJheqyv//aSsQDQ1CH+MZj8fS816kPBMJiT6Hh6bBBixgAQtYwAIWsIAFrPEDLGABCwjAAhawgAUsYAELWMACFrDGD7CABSwgAAtYwAIWsIAFLGABC1jAGj/AAhawgAAsYAELWMACFrCABSxgAWv8AAtYwAICsIAFLGABC1jAAhawgAWs8QMsYAELCMACFrCABSxgAQtYwAIWsMYPsIAFLCAAC1jAAhawgAUsYAELWMAaP8ACFrCAACxgAQtYwAIWsIAFLGABa/wAC1jAAgKwgAUsYAELWMACFrCABazxAyxgAQsIwAIWsIAFLGABC1jAAhawxg+wgAUsIAALWMACFrCABSxgAQtYwBo/wAIWsIAFLGABC1jAAhawgAUsYAFr/AALWMACFrCABSxgAQtYwAIWsIAFrPEDLGABC1jAAhawgAUsYAELWMACFrDGD7CABSxgAQtYwAIWsIAFLGABC1jAGj/AAhawgAUsYAELWMACFrCABSxgAWv8AAtYwAIWsIAFLGABC1jAAhawgAWs8QMsYAELWMACFrCABSxgAQtYwAIWsMYPsIAFLGABC1jAAhawgAUsYAELWEAAFrCABSxgAQtYwAIWsIAFLGABC1hAABawgAUsYAELWMACFrCABSxgAQtYQAAWsIAFLGABC1jAAhawgAUsYAELWEAAFrCABSxgAQtYwAIWsIAFLGABC1hAABawgAUsYAELWMACFrCABSxgAQtYQAAWsIAFLGABC1jAAhawgAUsYAELWEAAFrCABSxgAQtYwAIWsIAFLGABC1hAABawgAUsYAEL2DsH9qd/3VP+ACwgAPujAvvHXWH0UwfsO+Xvv9/pg+4X2F9+fp/89dc7fdAv7zt+/36fvfrvvY7fOwB7b/nHp//8fG9H7a9P8rr89uUXg/D1+fzlnwbhq/Lrz/eW/3x6t9nXl980EGABK9+1Nn9+ft8PBKwAFrCPkt+//A5YASxgBbCABawAFrCAFcACVgArgAWsABawgBXAAhawAljACmAFsIAVwAIWsAJYwAJWAAtYAawAFrACWMACVgALWMAKYAErgBXAAlYAC1jACmABC1gBLGAFsAJYwApgAQtYASxgASuABawAVgALWAEsYAErgAUsYAWwgBXACmABK4AFLGAFsIAFrAAWsAJYASxgBbCABawAFrCAFcACVgAr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PpHrUvTzu7xjFNXajsOpcL3t+kMoHm7Gp1kD0+cETKZDTcuUO7fzQwDrcD72v3buIKdBIArA8AEgSElgySza6AG8/93UmWGcobUNiRvt922LwOLxB0191S6C0L7fVO+47/vJn9p/9n4tD5c32D8yiueyfOj252tXbbr63iX0si22+pqcOCZLn6cvLSJa3rZhrA+9/dta3Co0zv22CSufotlUlJ6BfJG8TSsqbxjl3tLxzY3zXMa7M1dNT5e/uHWK41WWr03nNJKXas3c2q6cG+KyrKX/6ekZ4ve0+nAqS+vyT9QL3ub0Za40pWt1W+XuL12zgTstnltGf4P9Rw2ewvz4kOZ9IYTh4CWGxxfdX+Q3bhy2aWmH9nokbzR0urtx+POM+4/D9VnDdGxt8Xz04RJYgOcmsAACCyCwAAgsgMACCCwAAgsgsAACC4DAAggsgMACILAAAgsgsAAILIDAAggsAAILILAAAguAwAIILIDAAiCwAAILILAACCyAwAIILAACCyCwAAILgMACCCyAwAIgsAACCyCwAAgsgMACCCwAAgsgsAACC4DAAggsgMACILAAAgsgsAAILIDAAggsAAILILAAAguAwAIILIDAAiCwAAILILAACCyAwAIILAACCyCwAAILgMACCCyAwAIgsAACCyCwAAgsgMACCCwAAgsgsAACC4DAAggsgMACILAAAguAwAIILIDAAiCwAAILILAACCyAwAIILADFBycyL5x/n2gzAAAAAElFTkSuQmCC" alt=""></p>
+<ol>
+<li><p><code>v-enter-from</code>: Starting state for enter. Added before the element is inserted, removed one frame after the element is inserted.</p></li>
+<li><p><code>v-enter-active</code>: Active state for enter. Applied during the entire entering phase. Added before the element is inserted, removed when the transition/animation finishes. This class can be used to define the duration, delay and easing curve for the entering transition.</p></li>
+<li><p><code>v-enter-to</code>: Ending state for enter. Added one frame after the element is inserted (at the same time <code>v-enter-from</code> is removed), removed when the transition/animation finishes.</p></li>
+<li><p><code>v-leave-from</code>: Starting state for leave. Added immediately when a leaving transition is triggered, removed after one frame.</p></li>
+<li><p><code>v-leave-active</code>: Active state for leave. Applied during the entire leaving phase. Added immediately when a leave transition is triggered, removed when the transition/animation finishes. This class can be used to define the duration, delay and easing curve for the leaving transition.</p></li>
+<li><p><code>v-leave-to</code>: Ending state for leave. Added one frame after a leaving transition is triggered (at the same time <code>v-leave-from</code> is removed), removed when the transition/animation finishes.</p></li>
+</ol>
+<p><code>v-enter-active</code> and <code>v-leave-active</code> give us the ability to specify different easing curves for enter / leave transitions, which we'll see an example of in the following sections.</p>
+<h3 id="named-transitions" tabindex="-1">Named Transitions </h3>
+<p>A transition can be named via the <code>name</code> prop:</p>
+<div class="language-vue-html"><pre data-language="javascript">&lt;Transition name="fade"&gt;
+  ...
+&lt;/Transition&gt;</pre></div>
+<p>For a named transition, its transition classes will be prefixed with its name instead of <code>v</code>. For example, the applied class for the above transition will be <code>fade-enter-active</code> instead of <code>v-enter-active</code>. The CSS for the fade transition should look like this:</p>
+<div class="language-css"><pre data-language="javascript">.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}</pre></div>
+<h3 id="css-transitions" tabindex="-1">CSS Transitions </h3>
+<p><code>&lt;Transition&gt;</code> is most commonly used in combination with <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Transitions/Using_CSS_transitions" target="_blank" rel="noopener noreferrer">native CSS transitions</a>, as seen in the basic example above. The <code>transition</code> CSS property is a shorthand that allows us to specify multiple aspects of a transition, including properties that should be animated, duration of the transition, and <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/easing-function" target="_blank" rel="noopener noreferrer">easing curves</a>.</p>
+<p>Here is a more advanced example that transitions multiple properties, with different durations and easing curves for enter and leave:</p>
+<div class="language-vue-html"><pre data-language="javascript">&lt;Transition name="slide-fade"&gt;
+  &lt;p v-if="show"&gt;hello&lt;/p&gt;
+&lt;/Transition&gt;</pre></div>
+<div class="language-css"><pre data-language="javascript">/*
+  Enter and leave animations can use different
+  durations and timing functions.
+*/
+.slide-fade-enter-active {
+  transition: all 0.3s ease-out;
+}
+
+.slide-fade-leave-active {
+  transition: all 0.8s cubic-bezier(1, 0.5, 0.8, 1);
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateX(20px);
+  opacity: 0;
+}</pre></div>
+<div class="composition-api"><p><a href="https://sfc.vuejs.org/#eyJBcHAudnVlIjoiPHNjcmlwdCBzZXR1cD5cbmltcG9ydCB7IHJlZiB9IGZyb20gJ3Z1ZSdcblxuY29uc3Qgc2hvdyA9IHJlZih0cnVlKVxuPC9zY3JpcHQ+XG5cbjx0ZW1wbGF0ZT5cblx0PGJ1dHRvbiBAY2xpY2s9XCJzaG93ID0gIXNob3dcIj5Ub2dnbGUgU2xpZGUgKyBGYWRlPC9idXR0b24+XG4gIDxUcmFuc2l0aW9uIG5hbWU9XCJzbGlkZS1mYWRlXCI+XG4gICAgPHAgdi1pZj1cInNob3dcIj5oZWxsbzwvcD5cbiAgPC9UcmFuc2l0aW9uPlxuPC90ZW1wbGF0ZT5cblxuPHN0eWxlPlxuLnNsaWRlLWZhZGUtZW50ZXItYWN0aXZlIHtcbiAgdHJhbnNpdGlvbjogYWxsIDAuM3MgZWFzZS1vdXQ7XG59XG5cbi5zbGlkZS1mYWRlLWxlYXZlLWFjdGl2ZSB7XG4gIHRyYW5zaXRpb246IGFsbCAwLjhzIGN1YmljLWJlemllcigxLCAwLjUsIDAuOCwgMSk7XG59XG5cbi5zbGlkZS1mYWRlLWVudGVyLWZyb20sXG4uc2xpZGUtZmFkZS1sZWF2ZS10byB7XG4gIHRyYW5zZm9ybTogdHJhbnNsYXRlWCgyMHB4KTtcbiAgb3BhY2l0eTogMDtcbn1cbjwvc3R5bGU+IiwiaW1wb3J0LW1hcC5qc29uIjoie1xuICBcImltcG9ydHNcIjoge1xuICAgIFwidnVlXCI6IFwiaHR0cHM6Ly9zZmMudnVlanMub3JnL3Z1ZS5ydW50aW1lLmVzbS1icm93c2VyLmpzXCJcbiAgfVxufSJ9" target="_blank" rel="noopener noreferrer">Try it in the Playground</a></p></div>
+<div class="options-api"><p><a href="https://sfc.vuejs.org/#eyJBcHAudnVlIjoiPHNjcmlwdD5cbmV4cG9ydCBkZWZhdWx0IHtcbiAgZGF0YSgpIHtcbiAgICByZXR1cm4ge1xuICAgICAgc2hvdzogdHJ1ZVxuICAgIH1cbiAgfVxufVxuPC9zY3JpcHQ+XG5cbjx0ZW1wbGF0ZT5cblx0PGJ1dHRvbiBAY2xpY2s9XCJzaG93ID0gIXNob3dcIj5Ub2dnbGUgU2xpZGUgKyBGYWRlPC9idXR0b24+XG4gIDxUcmFuc2l0aW9uIG5hbWU9XCJzbGlkZS1mYWRlXCI+XG4gICAgPHAgdi1pZj1cInNob3dcIj5oZWxsbzwvcD5cbiAgPC9UcmFuc2l0aW9uPlxuPC90ZW1wbGF0ZT5cblxuPHN0eWxlPlxuLnNsaWRlLWZhZGUtZW50ZXItYWN0aXZlIHtcbiAgdHJhbnNpdGlvbjogYWxsIDAuM3MgZWFzZS1vdXQ7XG59XG5cbi5zbGlkZS1mYWRlLWxlYXZlLWFjdGl2ZSB7XG4gIHRyYW5zaXRpb246IGFsbCAwLjhzIGN1YmljLWJlemllcigxLCAwLjUsIDAuOCwgMSk7XG59XG5cbi5zbGlkZS1mYWRlLWVudGVyLWZyb20sXG4uc2xpZGUtZmFkZS1sZWF2ZS10byB7XG4gIHRyYW5zZm9ybTogdHJhbnNsYXRlWCgyMHB4KTtcbiAgb3BhY2l0eTogMDtcbn1cbjwvc3R5bGU+IiwiaW1wb3J0LW1hcC5qc29uIjoie1xuICBcImltcG9ydHNcIjoge1xuICAgIFwidnVlXCI6IFwiaHR0cHM6Ly9zZmMudnVlanMub3JnL3Z1ZS5ydW50aW1lLmVzbS1icm93c2VyLmpzXCJcbiAgfVxufSJ9" target="_blank" rel="noopener noreferrer">Try it in the Playground</a></p></div>
+<h3 id="css-animations" tabindex="-1">CSS Animations </h3>
+<p><a href="https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Animations/Using_CSS_animations" target="_blank" rel="noopener noreferrer">Native CSS animations</a> are applied in the same way as CSS transitions, with the difference being that <code>*-enter-from</code> is not removed immediately after the element is inserted, but on an <code>animationend</code> event.</p>
+<p>For most CSS animations, we can simply declare them under the <code>*-enter-active</code> and <code>*-leave-active</code> classes. Here's an example:</p>
+<div class="language-vue-html"><pre data-language="javascript">&lt;Transition name="bounce"&gt;
+  &lt;p v-if="show" style="text-align: center;"&gt;
+    Hello here is some bouncy text!
+  &lt;/p&gt;
+&lt;/Transition&gt;</pre></div>
+<div class="language-css"><pre data-language="javascript">.bounce-enter-active {
+  animation: bounce-in 0.5s;
+}
+.bounce-leave-active {
+  animation: bounce-in 0.5s reverse;
+}
+@keyframes bounce-in {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
+}</pre></div>
+<div class="composition-api"><p><a href="https://sfc.vuejs.org/#eyJBcHAudnVlIjoiPHNjcmlwdCBzZXR1cD5cbmltcG9ydCB7IHJlZiB9IGZyb20gJ3Z1ZSdcblxuY29uc3Qgc2hvdyA9IHJlZih0cnVlKVxuPC9zY3JpcHQ+XG5cbjx0ZW1wbGF0ZT5cblx0PGJ1dHRvbiBAY2xpY2s9XCJzaG93ID0gIXNob3dcIj5Ub2dnbGU8L2J1dHRvbj5cbiAgPFRyYW5zaXRpb24gbmFtZT1cImJvdW5jZVwiPlxuICAgIDxwIHYtaWY9XCJzaG93XCIgc3R5bGU9XCJtYXJnaW4tdG9wOiAyMHB4OyB0ZXh0LWFsaWduOiBjZW50ZXI7XCI+XG4gICAgICBIZWxsbyBoZXJlIGlzIHNvbWUgYm91bmN5IHRleHQhXG4gICAgPC9wPlxuICA8L1RyYW5zaXRpb24+XG48L3RlbXBsYXRlPlxuXG48c3R5bGU+XG4uYm91bmNlLWVudGVyLWFjdGl2ZSB7XG4gIGFuaW1hdGlvbjogYm91bmNlLWluIDAuNXM7XG59XG4uYm91bmNlLWxlYXZlLWFjdGl2ZSB7XG4gIGFuaW1hdGlvbjogYm91bmNlLWluIDAuNXMgcmV2ZXJzZTtcbn1cbkBrZXlmcmFtZXMgYm91bmNlLWluIHtcbiAgMCUge1xuICAgIHRyYW5zZm9ybTogc2NhbGUoMCk7XG4gIH1cbiAgNTAlIHtcbiAgICB0cmFuc2Zvcm06IHNjYWxlKDEuMjUpO1xuICB9XG4gIDEwMCUge1xuICAgIHRyYW5zZm9ybTogc2NhbGUoMSk7XG4gIH1cbn1cbjwvc3R5bGU+IiwiaW1wb3J0LW1hcC5qc29uIjoie1xuICBcImltcG9ydHNcIjoge1xuICAgIFwidnVlXCI6IFwiaHR0cHM6Ly9zZmMudnVlanMub3JnL3Z1ZS5ydW50aW1lLmVzbS1icm93c2VyLmpzXCJcbiAgfVxufSJ9" target="_blank" rel="noopener noreferrer">Try it in the Playground</a></p></div>
+<div class="options-api"><p><a href="https://sfc.vuejs.org/#eyJBcHAudnVlIjoiPHNjcmlwdD5cbmV4cG9ydCBkZWZhdWx0IHtcbiAgZGF0YSgpIHtcbiAgICByZXR1cm4ge1xuICAgICAgc2hvdzogdHJ1ZVxuICAgIH1cbiAgfVxufVxuPC9zY3JpcHQ+XG5cbjx0ZW1wbGF0ZT5cblx0PGJ1dHRvbiBAY2xpY2s9XCJzaG93ID0gIXNob3dcIj5Ub2dnbGU8L2J1dHRvbj5cbiAgPFRyYW5zaXRpb24gbmFtZT1cImJvdW5jZVwiPlxuICAgIDxwIHYtaWY9XCJzaG93XCIgc3R5bGU9XCJtYXJnaW4tdG9wOiAyMHB4OyB0ZXh0LWFsaWduOiBjZW50ZXI7XCI+XG4gICAgICBIZWxsbyBoZXJlIGlzIHNvbWUgYm91bmN5IHRleHQhXG4gICAgPC9wPlxuICA8L1RyYW5zaXRpb24+XG48L3RlbXBsYXRlPlxuXG48c3R5bGU+XG4uYm91bmNlLWVudGVyLWFjdGl2ZSB7XG4gIGFuaW1hdGlvbjogYm91bmNlLWluIDAuNXM7XG59XG4uYm91bmNlLWxlYXZlLWFjdGl2ZSB7XG4gIGFuaW1hdGlvbjogYm91bmNlLWluIDAuNXMgcmV2ZXJzZTtcbn1cbkBrZXlmcmFtZXMgYm91bmNlLWluIHtcbiAgMCUge1xuICAgIHRyYW5zZm9ybTogc2NhbGUoMCk7XG4gIH1cbiAgNTAlIHtcbiAgICB0cmFuc2Zvcm06IHNjYWxlKDEuMjUpO1xuICB9XG4gIDEwMCUge1xuICAgIHRyYW5zZm9ybTogc2NhbGUoMSk7XG4gIH1cbn1cbjwvc3R5bGU+IiwiaW1wb3J0LW1hcC5qc29uIjoie1xuICBcImltcG9ydHNcIjoge1xuICAgIFwidnVlXCI6IFwiaHR0cHM6Ly9zZmMudnVlanMub3JnL3Z1ZS5ydW50aW1lLmVzbS1icm93c2VyLmpzXCJcbiAgfVxufSJ9" target="_blank" rel="noopener noreferrer">Try it in the Playground</a></p></div>
+<h3 id="custom-transition-classes" tabindex="-1">Custom Transition Classes </h3>
+<p>You can also specify custom transition classes by passing the following props to <code>&lt;Transition&gt;</code>:</p>
+<ul>
+<li><code>enter-from-class</code></li>
+<li><code>enter-active-class</code></li>
+<li><code>enter-to-class</code></li>
+<li><code>leave-from-class</code></li>
+<li><code>leave-active-class</code></li>
+<li><code>leave-to-class</code></li>
+</ul>
+<p>These will override the conventional class names. This is especially useful when you want to combine Vue's transition system with an existing CSS animation library, such as <a href="https://daneden.github.io/animate.css/" target="_blank" rel="noopener noreferrer">Animate.css</a>:</p>
+<div class="language-vue-html"><pre data-language="javascript">&lt;!-- assuming Animate.css is included on the page --&gt;
+&lt;Transition
+  name="custom-classes"
+  enter-active-class="animate__animated animate__tada"
+  leave-active-class="animate__animated animate__bounceOutRight"
+&gt;
+  &lt;p v-if="show"&gt;hello&lt;/p&gt;
+&lt;/Transition&gt;</pre></div>
+<div class="composition-api"><p><a href="https://sfc.vuejs.org/#eyJBcHAudnVlIjoiPHNjcmlwdCBzZXR1cD5cbmltcG9ydCB7IHJlZiB9IGZyb20gJ3Z1ZSdcblxuY29uc3Qgc2hvdyA9IHJlZih0cnVlKVxuPC9zY3JpcHQ+XG5cbjx0ZW1wbGF0ZT5cblx0PGJ1dHRvbiBAY2xpY2s9XCJzaG93ID0gIXNob3dcIj5Ub2dnbGU8L2J1dHRvbj5cbiAgPFRyYW5zaXRpb25cbiAgICBuYW1lPVwiY3VzdG9tLWNsYXNzZXNcIlxuICAgIGVudGVyLWFjdGl2ZS1jbGFzcz1cImFuaW1hdGVfX2FuaW1hdGVkIGFuaW1hdGVfX3RhZGFcIlxuICAgIGxlYXZlLWFjdGl2ZS1jbGFzcz1cImFuaW1hdGVfX2FuaW1hdGVkIGFuaW1hdGVfX2JvdW5jZU91dFJpZ2h0XCJcbiAgPlxuICAgIDxwIHYtaWY9XCJzaG93XCI+aGVsbG88L3A+XG4gIDwvVHJhbnNpdGlvbj5cbjwvdGVtcGxhdGU+XG5cbjxzdHlsZT5cbkBpbXBvcnQgXCJodHRwczovL2NkbmpzLmNsb3VkZmxhcmUuY29tL2FqYXgvbGlicy9hbmltYXRlLmNzcy80LjEuMS9hbmltYXRlLm1pbi5jc3NcIjtcbjwvc3R5bGU+IiwiaW1wb3J0LW1hcC5qc29uIjoie1xuICBcImltcG9ydHNcIjoge1xuICAgIFwidnVlXCI6IFwiaHR0cHM6Ly9zZmMudnVlanMub3JnL3Z1ZS5ydW50aW1lLmVzbS1icm93c2VyLmpzXCJcbiAgfVxufSJ9" target="_blank" rel="noopener noreferrer">Try it in the Playground</a></p></div>
+<div class="options-api"><p><a href="https://sfc.vuejs.org/#eyJBcHAudnVlIjoiPHNjcmlwdD5cbmV4cG9ydCBkZWZhdWx0IHtcbiAgZGF0YSgpIHtcbiAgICByZXR1cm4ge1xuICAgICAgc2hvdzogdHJ1ZVxuICAgIH1cbiAgfVxufVxuPC9zY3JpcHQ+XG5cbjx0ZW1wbGF0ZT5cblx0PGJ1dHRvbiBAY2xpY2s9XCJzaG93ID0gIXNob3dcIj5Ub2dnbGU8L2J1dHRvbj5cbiAgPFRyYW5zaXRpb25cbiAgICBuYW1lPVwiY3VzdG9tLWNsYXNzZXNcIlxuICAgIGVudGVyLWFjdGl2ZS1jbGFzcz1cImFuaW1hdGVfX2FuaW1hdGVkIGFuaW1hdGVfX3RhZGFcIlxuICAgIGxlYXZlLWFjdGl2ZS1jbGFzcz1cImFuaW1hdGVfX2FuaW1hdGVkIGFuaW1hdGVfX2JvdW5jZU91dFJpZ2h0XCJcbiAgPlxuICAgIDxwIHYtaWY9XCJzaG93XCI+aGVsbG88L3A+XG4gIDwvVHJhbnNpdGlvbj5cbjwvdGVtcGxhdGU+XG5cbjxzdHlsZT5cbkBpbXBvcnQgXCJodHRwczovL2NkbmpzLmNsb3VkZmxhcmUuY29tL2FqYXgvbGlicy9hbmltYXRlLmNzcy80LjEuMS9hbmltYXRlLm1pbi5jc3NcIjtcbjwvc3R5bGU+IiwiaW1wb3J0LW1hcC5qc29uIjoie1xuICBcImltcG9ydHNcIjoge1xuICAgIFwidnVlXCI6IFwiaHR0cHM6Ly9zZmMudnVlanMub3JnL3Z1ZS5ydW50aW1lLmVzbS1icm93c2VyLmpzXCJcbiAgfVxufSJ9" target="_blank" rel="noopener noreferrer">Try it in the Playground</a></p></div>
+<h3 id="using-transitions-and-animations-together" tabindex="-1">Using Transitions and Animations Together </h3>
+<p>Vue needs to attach event listeners in order to know when a transition has ended. It can either be <code>transitionend</code> or <code>animationend</code>, depending on the type of CSS rules applied. If you are only using one or the other, Vue can automatically detect the correct type.</p>
+<p>However, in some cases you may want to have both on the same element, for example having a CSS animation triggered by Vue, along with a CSS transition effect on hover. In these cases, you will have to explicitly declare the type you want Vue to care about by passing the <code>type</code> prop, with a value of either <code>animation</code> or <code>transition</code>:</p>
+<div class="language-vue-html"><pre data-language="javascript">&lt;Transition type="animation"&gt;...&lt;/Transition&gt;</pre></div>
+<h3 id="nested-transitions-and-explicit-transition-durations" tabindex="-1">Nested Transitions and Explicit Transition Durations </h3>
+<p>Although the transition classes are only applied to the direct child element in <code>&lt;Transition&gt;</code>, we can transition nested elements using nested CSS selectors:</p>
+<div class="language-vue-html"><pre data-language="javascript">&lt;Transition name="nested"&gt;
+  &lt;div v-if="show" class="outer"&gt;
+    &lt;div class="inner"&gt;
+      Hello
+    &lt;/div&gt;
+  &lt;/div&gt;
+&lt;/Transition&gt;</pre></div>
+<div class="language-css"><pre data-language="javascript">/* rules that target nested elements */
+.nested-enter-active .inner,
+.nested-leave-active .inner {
+  transition: all 0.3s ease-in-out;
+}
+
+.nested-enter-from .inner,
+.nested-leave-to .inner {
+  transform: translateX(30px);
+  opacity: 0;
+}
+
+/* ... other necessary CSS omitted */</pre></div>
+<p>We can even add a transition delay to the nested element on enter, which creates a staggered enter animation sequence:</p>
+<div class="language-css">
+<div class="highlight-lines">
+<br><br>
+<br><br>
+</div>
+<pre data-language="javascript">/* delay enter of nested element for staggered effect */
+.nested-enter-active .inner {
+  transition-delay: 0.25s;
+}</pre>
+</div>
+<p>However, this creates a small issue. By default, the <code>&lt;Transition&gt;</code> component attempts to automatically figure out when the transition has finished by listening to the <strong>first</strong> <code>transitionend</code> or <code>animationend</code> event on the root transition element. With a nested transition, the desired behavior should be waiting until the transitions of all inner elements have finished.</p>
+<p>In such cases you can specify an explicit transition duration (in milliseconds) using the <code>duration</code> prop on the <code>&lt;transition&gt;</code> component. The total duration should match the delay plus transition duration of the inner element:</p>
+<div class="language-vue-html"><pre data-language="javascript">&lt;Transition :duration="550"&gt;...&lt;/Transition&gt;</pre></div>
+<p><a href="https://sfc.vuejs.org/#eyJBcHAudnVlIjoiPHNjcmlwdCBzZXR1cD5cbmltcG9ydCB7IHJlZiB9IGZyb20gJ3Z1ZSdcblxuY29uc3Qgc2hvdyA9IHJlZih0cnVlKVxuPC9zY3JpcHQ+XG5cbjx0ZW1wbGF0ZT5cbiAgPGJ1dHRvbiBAY2xpY2s9XCJzaG93ID0gIXNob3dcIj5Ub2dnbGU8L2J1dHRvbj5cbiAgPFRyYW5zaXRpb24gZHVyYXRpb249XCI1NTBcIiBuYW1lPVwibmVzdGVkXCI+XG4gICAgPGRpdiB2LWlmPVwic2hvd1wiIGNsYXNzPVwib3V0ZXJcIj5cbiAgICAgIDxkaXYgY2xhc3M9XCJpbm5lclwiPlxuICAgXHRcdFx0SGVsbG9cbiAgICAgIDwvZGl2PlxuICAgIDwvZGl2PlxuICA8L1RyYW5zaXRpb24+XG48L3RlbXBsYXRlPlxuXG48c3R5bGU+XG4ub3V0ZXIsIC5pbm5lciB7XG5cdGJhY2tncm91bmQ6ICNlZWU7XG4gIHBhZGRpbmc6IDMwcHg7XG4gIG1pbi1oZWlnaHQ6IDEwMHB4O1xufVxuICBcbi5pbm5lciB7IFxuICBiYWNrZ3JvdW5kOiAjY2NjO1xufVxuICBcbi5uZXN0ZWQtZW50ZXItYWN0aXZlLCAubmVzdGVkLWxlYXZlLWFjdGl2ZSB7XG5cdHRyYW5zaXRpb246IGFsbCAwLjNzIGVhc2UtaW4tb3V0O1xufVxuLyogZGVsYXkgbGVhdmUgb2YgcGFyZW50IGVsZW1lbnQgKi9cbi5uZXN0ZWQtbGVhdmUtYWN0aXZlIHtcbiAgdHJhbnNpdGlvbi1kZWxheTogMC4yNXM7XG59XG5cbi5uZXN0ZWQtZW50ZXItZnJvbSxcbi5uZXN0ZWQtbGVhdmUtdG8ge1xuICB0cmFuc2Zvcm06IHRyYW5zbGF0ZVkoMzBweCk7XG4gIG9wYWNpdHk6IDA7XG59XG5cbi8qIHdlIGNhbiBhbHNvIHRyYW5zaXRpb24gbmVzdGVkIGVsZW1lbnRzIHVzaW5nIG5lc3RlZCBzZWxlY3RvcnMgKi9cbi5uZXN0ZWQtZW50ZXItYWN0aXZlIC5pbm5lcixcbi5uZXN0ZWQtbGVhdmUtYWN0aXZlIC5pbm5lciB7IFxuICB0cmFuc2l0aW9uOiBhbGwgMC4zcyBlYXNlLWluLW91dDtcbn1cbi8qIGRlbGF5IGVudGVyIG9mIG5lc3RlZCBlbGVtZW50ICovXG4ubmVzdGVkLWVudGVyLWFjdGl2ZSAuaW5uZXIge1xuXHR0cmFuc2l0aW9uLWRlbGF5OiAwLjI1cztcbn1cblxuLm5lc3RlZC1lbnRlci1mcm9tIC5pbm5lcixcbi5uZXN0ZWQtbGVhdmUtdG8gLmlubmVyIHtcbiAgdHJhbnNmb3JtOiB0cmFuc2xhdGVYKDMwcHgpO1xuICAvKlxuICBcdEhhY2sgYXJvdW5kIGEgQ2hyb21lIDk2IGJ1ZyBpbiBoYW5kbGluZyBuZXN0ZWQgb3BhY2l0eSB0cmFuc2l0aW9ucy5cbiAgICBUaGlzIGlzIG5vdCBuZWVkZWQgaW4gb3RoZXIgYnJvd3NlcnMgb3IgQ2hyb21lIDk5KyB3aGVyZSB0aGUgYnVnXG4gICAgaGFzIGJlZW4gZml4ZWQuXG4gICovXG4gIG9wYWNpdHk6IDAuMDAxO1xufVxuPC9zdHlsZT4iLCJpbXBvcnQtbWFwLmpzb24iOiJ7XG4gIFwiaW1wb3J0c1wiOiB7XG4gICAgXCJ2dWVcIjogXCJodHRwczovL3NmYy52dWVqcy5vcmcvdnVlLnJ1bnRpbWUuZXNtLWJyb3dzZXIuanNcIlxuICB9XG59In0=" target="_blank" rel="noopener noreferrer">Try it in the Playground</a></p>
+<p>If necessary, you can also specify separate values for enter and leave durations using an object:</p>
+<div class="language-vue-html"><pre data-language="javascript">&lt;Transition :duration="{ enter: 500, leave: 800 }"&gt;...&lt;/Transition&gt;</pre></div>
+<h3 id="performance-considerations" tabindex="-1">Performance Considerations </h3>
+<p>You may notice that the animations shown above are mostly using properties like <code>transform</code> and <code>opacity</code>. These properties are efficient to animate because:</p>
+<ol>
+<li><p>They do not affect the document layout during the animation, so they do not trigger expensive CSS layout calculation on every animation frame.</p></li>
+<li><p>Most modern browsers can leverage GPU hardware acceleration when animating <code>transform</code>.</p></li>
+</ol>
+<p>In comparison, properties like <code>height</code> or <code>margin</code> will trigger CSS layout, so they are much more expensive to animate, and should be used with caution. We can check resources like <a href="https://csstriggers.com/" target="_blank" rel="noopener noreferrer">CSS-Triggers</a> to see which properties will trigger layout if we animate them.</p>
+<h2 id="javascript-hooks" tabindex="-1">JavaScript Hooks </h2>
+<p>You can hook into the transition process with JavaScript by listening to events on the <code>&lt;Transition&gt;</code> component:</p>
+<div class="language-html"><pre data-language="javascript">&lt;Transition
+  @before-enter="onBeforeEnter"
+  @enter="onEnter"
+  @after-enter="onAfterEnter"
+  @enter-cancelled="onEnterCancelled"
+  @before-leave="onBeforeLeave"
+  @leave="onLeave"
+  @after-leave="onAfterLeave"
+  @leave-cancelled="onLeaveCancelled"
+&gt;
+  &lt;!-- ... --&gt;
+&lt;/Transition&gt;</pre></div>
+<div class="composition-api"><div class="language-js"><pre data-language="javascript">// called before the element is inserted into the DOM.
+// use this to set the "enter-from" state of the element
+function onBeforeEnter(el) {}
+
+// called one frame after the element is inserted.
+// use this to start the entering animation.
+function onEnter(el, done) {
+  // call the done callback to indicate transition end
+  // optional if used in combination with CSS
+  done()
+}
+
+// called when the enter transition has finished.
+function onAfterEnter(el) {}
+function onEnterCancelled(el) {}
+
+// called before the leave hook.
+// Most of the time, you should just use the leave hook
+function onBeforeLeave(el) {}
+
+// called when the leave transition starts.
+// use this to start the leaving animation.
+function onLeave(el, done) {
+  // call the done callback to indicate transition end
+  // optional if used in combination with CSS
+  done()
+}
+
+// called when the leave transition has finished and the
+// element has been removed from the DOM.
+function onAfterLeave(el) {}
+
+// only available with v-show transitions
+function onLeaveCancelled(el) {}</pre></div></div>
+<div class="options-api"><div class="language-js"><pre data-language="javascript">export default {
+  // ...
+  methods: {
+    // called before the element is inserted into the DOM.
+    // use this to set the "enter-from" state of the element
+    onBeforeEnter(el) {},
+
+    // called one frame after the element is inserted.
+    // use this to start the animation.
+    onEnter(el, done) {
+      // call the done callback to indicate transition end
+      // optional if used in combination with CSS
+      done()
+    },
+
+    // called when the enter transition has finished.
+    onAfterEnter(el) {},
+    onEnterCancelled(el) {},
+
+    // called before the leave hook.
+    // Most of the time, you shoud just use the leave hook.
+    onBeforeLeave(el) {},
+
+    // called when the leave transition starts.
+    // use this to start the leaving animation.
+    onLeave(el, done) {
+      // call the done callback to indicate transition end
+      // optional if used in combination with CSS
+      done()
+    },
+
+    // called when the leave transition has finished and the
+    // element has been removed from the DOM.
+    onAfterLeave(el) {},
+
+    // only available with v-show transitions
+    onLeaveCancelled(el) {}
+  }
+}</pre></div></div>
+<p>These hooks can be used in combination with CSS transitions / animations or on their own.</p>
+<p>When using JavaScript-only transitions, it is usually a good idea to add the <code>:css="false"</code> prop. This explicitly tells Vue to skip auto CSS transition detection. Aside from being slightly more performant, this also prevents CSS rules from accidentally interfering with the transition:</p>
+<div class="language-vue-html">
+<div class="highlight-lines">
+<br><br>
+<br><br><br><br>
+</div>
+<pre data-language="javascript">&lt;Transition
+  ...
+  :css="false"
+&gt;
+  ...
+&lt;/Transition&gt;</pre>
+</div>
+<p>With <code>:css="false"</code>, we are also fully responsible for controlling when the transition ends. In this case, the <code>done</code> callbacks are required for the <code>@enter</code> and <code>@leave</code> hooks. Otherwise, the hooks will be called synchronously and the transition will finish immediately.</p>
+<p>Here's a demo using the <a href="https://greensock.com/" target="_blank" rel="noopener noreferrer">GreenSock library</a> to perform the animations. You can, of course, use any other animation library you want, for example <a href="https://animejs.com/" target="_blank" rel="noopener noreferrer">Anime.js</a> or <a href="https://motion.dev/" target="_blank" rel="noopener noreferrer">Motion One</a>.</p>
+<div class="composition-api"><p><a href="https://sfc.vuejs.org/#eyJBcHAudnVlIjoiPHNjcmlwdCBzZXR1cD5cbmltcG9ydCB7IHJlZiB9IGZyb20gJ3Z1ZSdcbmltcG9ydCBnc2FwIGZyb20gJ2dzYXAnXG5cbmNvbnN0IHNob3cgPSByZWYodHJ1ZSlcblxuZnVuY3Rpb24gb25CZWZvcmVFbnRlcihlbCkge1xuICBnc2FwLnNldChlbCwge1xuICAgIHNjYWxlWDogMC4yNSxcbiAgICBzY2FsZVk6IDAuMjUsXG4gICAgb3BhY2l0eTogMVxuICB9KVxufVxuICBcbmZ1bmN0aW9uIG9uRW50ZXIoZWwsIGRvbmUpIHtcbiAgZ3NhcC50byhlbCwge1xuICAgIGR1cmF0aW9uOiAxLFxuICAgIHNjYWxlWDogMSxcbiAgICBzY2FsZVk6IDEsXG4gICAgb3BhY2l0eTogMSxcbiAgICBlYXNlOiAnZWxhc3RpYy5pbk91dCgyLjUsIDEpJyxcbiAgICBvbkNvbXBsZXRlOiBkb25lXG4gIH0pXG59XG5cbmZ1bmN0aW9uIG9uTGVhdmUoZWwsIGRvbmUpIHtcblx0Z3NhcC50byhlbCwge1xuICAgIGR1cmF0aW9uOiAwLjcsXG4gICAgc2NhbGVYOiAxLFxuICAgIHNjYWxlWTogMSxcbiAgICB4OiAzMDAsXG4gICAgZWFzZTogJ2VsYXN0aWMuaW5PdXQoMi41LCAxKSdcbiAgfSlcbiAgZ3NhcC50byhlbCwge1xuICAgIGR1cmF0aW9uOiAwLjIsXG4gICAgZGVsYXk6IDAuNSxcbiAgICBvcGFjaXR5OiAwLFxuICAgIG9uQ29tcGxldGU6IGRvbmVcbiAgfSlcbn1cbjwvc2NyaXB0PlxuXG48dGVtcGxhdGU+XG4gIDxidXR0b24gQGNsaWNrPVwic2hvdyA9ICFzaG93XCI+VG9nZ2xlPC9idXR0b24+XG5cbiAgPFRyYW5zaXRpb25cbiAgICBAYmVmb3JlLWVudGVyPVwib25CZWZvcmVFbnRlclwiXG4gICAgQGVudGVyPVwib25FbnRlclwiXG4gICAgQGxlYXZlPVwib25MZWF2ZVwiXG4gICAgOmNzcz1cImZhbHNlXCJcbiAgPlxuICAgIDxkaXYgY2xhc3M9XCJnc2FwLWJveFwiIHYtaWY9XCJzaG93XCI+PC9kaXY+XG4gIDwvVHJhbnNpdGlvbj5cbjwvdGVtcGxhdGU+XG5cbjxzdHlsZT5cbi5nc2FwLWJveCB7XG4gIGJhY2tncm91bmQ6ICM0MmI4ODM7XG4gIG1hcmdpbi10b3A6IDIwcHg7XG4gIHdpZHRoOiAzMHB4O1xuICBoZWlnaHQ6IDMwcHg7XG4gIGJvcmRlci1yYWRpdXM6IDUwJTtcbn1cbjwvc3R5bGU+XG4iLCJpbXBvcnQtbWFwLmpzb24iOiJ7XG4gIFwiaW1wb3J0c1wiOiB7XG4gICAgXCJnc2FwXCI6IFwiaHR0cHM6Ly91bnBrZy5jb20vZ3NhcD9tb2R1bGVcIixcbiAgICBcInZ1ZVwiOiBcImh0dHBzOi8vc2ZjLnZ1ZWpzLm9yZy92dWUucnVudGltZS5lc20tYnJvd3Nlci5qc1wiXG4gIH1cbn0ifQ==" target="_blank" rel="noopener noreferrer">Try it in the Playground</a></p></div>
+<div class="options-api"><p><a href="https://sfc.vuejs.org/#eyJBcHAudnVlIjoiPHNjcmlwdD5cbmltcG9ydCBnc2FwIGZyb20gJ2dzYXAnXG4gIFxuZXhwb3J0IGRlZmF1bHQge1xuICBkYXRhKCkge1xuICAgIHJldHVybiB7XG4gICAgICBzaG93OiB0cnVlXG4gICAgfVxuICB9LFxuICBtZXRob2RzOiB7XG5cdFx0b25CZWZvcmVFbnRlcixcbiAgICBvbkVudGVyLFxuICAgIG9uTGVhdmVcbiAgfVxufVxuXG5mdW5jdGlvbiBvbkJlZm9yZUVudGVyKGVsKSB7XG4gIGdzYXAuc2V0KGVsLCB7XG4gICAgc2NhbGVYOiAwLjI1LFxuICAgIHNjYWxlWTogMC4yNSxcbiAgICBvcGFjaXR5OiAxXG4gIH0pXG59XG4gIFxuZnVuY3Rpb24gb25FbnRlcihlbCwgZG9uZSkge1xuICBnc2FwLnRvKGVsLCB7XG4gICAgZHVyYXRpb246IDEsXG4gICAgc2NhbGVYOiAxLFxuICAgIHNjYWxlWTogMSxcbiAgICBvcGFjaXR5OiAxLFxuICAgIGVhc2U6ICdlbGFzdGljLmluT3V0KDIuNSwgMSknLFxuICAgIG9uQ29tcGxldGU6IGRvbmVcbiAgfSlcbn1cblxuZnVuY3Rpb24gb25MZWF2ZShlbCwgZG9uZSkge1xuXHRnc2FwLnRvKGVsLCB7XG4gICAgZHVyYXRpb246IDAuNyxcbiAgICBzY2FsZVg6IDEsXG4gICAgc2NhbGVZOiAxLFxuICAgIHg6IDMwMCxcbiAgICBlYXNlOiAnZWxhc3RpYy5pbk91dCgyLjUsIDEpJ1xuICB9KVxuICBnc2FwLnRvKGVsLCB7XG4gICAgZHVyYXRpb246IDAuMixcbiAgICBkZWxheTogMC41LFxuICAgIG9wYWNpdHk6IDAsXG4gICAgb25Db21wbGV0ZTogZG9uZVxuICB9KVxufVxuPC9zY3JpcHQ+XG5cbjx0ZW1wbGF0ZT5cbiAgPGJ1dHRvbiBAY2xpY2s9XCJzaG93ID0gIXNob3dcIj5Ub2dnbGU8L2J1dHRvbj5cblxuICA8VHJhbnNpdGlvblxuICAgIEBiZWZvcmUtZW50ZXI9XCJvbkJlZm9yZUVudGVyXCJcbiAgICBAZW50ZXI9XCJvbkVudGVyXCJcbiAgICBAbGVhdmU9XCJvbkxlYXZlXCJcbiAgICA6Y3NzPVwiZmFsc2VcIlxuICA+XG4gICAgPGRpdiBjbGFzcz1cImdzYXAtYm94XCIgdi1pZj1cInNob3dcIj48L2Rpdj5cbiAgPC9UcmFuc2l0aW9uPlxuPC90ZW1wbGF0ZT5cblxuPHN0eWxlPlxuLmdzYXAtYm94IHtcbiAgYmFja2dyb3VuZDogIzQyYjg4MztcbiAgbWFyZ2luLXRvcDogMjBweDtcbiAgd2lkdGg6IDMwcHg7XG4gIGhlaWdodDogMzBweDtcbiAgYm9yZGVyLXJhZGl1czogNTAlO1xufVxuPC9zdHlsZT5cbiIsImltcG9ydC1tYXAuanNvbiI6IntcbiAgXCJpbXBvcnRzXCI6IHtcbiAgICBcImdzYXBcIjogXCJodHRwczovL3VucGtnLmNvbS9nc2FwP21vZHVsZVwiLFxuICAgIFwidnVlXCI6IFwiaHR0cHM6Ly9zZmMudnVlanMub3JnL3Z1ZS5ydW50aW1lLmVzbS1icm93c2VyLmpzXCJcbiAgfVxufSJ9" target="_blank" rel="noopener noreferrer">Try it in the Playground</a></p></div>
+<h2 id="reusable-transitions" tabindex="-1">Reusable Transitions </h2>
+<p>Transitions can be reused through Vue's component system. To create a reusable transition, we can create a component that wraps the <code>&lt;Transition&gt;</code> component and passes down the slot content:</p>
+<div class="language-vue">
+<div class="highlight-lines">
+<br><br><br><br>
+<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+</div>
+<pre data-language="javascript">&lt;!-- MyTransition.vue --&gt;
+&lt;script&gt;
+// JavaScript hooks logic...
+&lt;/script&gt;
+
+&lt;template&gt;
+  &lt;!-- wrap the built-in Transition component --&gt;
+  &lt;Transition
+    name="my-transition"
+    @enter="onEnter"
+    @leave="onLeave"&gt;
+    &lt;slot&gt;&lt;/slot&gt; &lt;!-- pass down slot content --&gt;
+  &lt;/Transition&gt;
+&lt;/template&gt;
+
+&lt;style&gt;
+/*
+  Necessary CSS...
+  Note: avoid using &lt;style scoped&gt; here since it
+  does not apply to slot content.
+*/
+&lt;/style&gt;</pre>
+</div>
+<p>Now <code>MyTransition</code> can be imported and used just like the built-in version:</p>
+<div class="language-vue-html"><pre data-language="javascript">&lt;MyTransition&gt;
+  &lt;div v-if="show"&gt;Hello&lt;/div&gt;
+&lt;/MyTransition&gt;</pre></div>
+<h2 id="transition-on-appear" tabindex="-1">Transition on Appear </h2>
+<p>If you also want to apply a transition on the initial render of a node, you can add the <code>appear</code> prop:</p>
+<div class="language-vue-html"><pre data-language="javascript">&lt;Transition appear&gt;
+  ...
+&lt;/Transition&gt;</pre></div>
+<h2 id="transition-between-elements" tabindex="-1">Transition Between Elements </h2>
+<p>In addition to toggling an element with <code>v-if</code> / <code>v-show</code>, we can also transition between two elements using <code>v-if</code> / <code>v-else</code> / <code>v-else-if</code>, as long as we make sure that there is only one element being shown at any given moment:</p>
+<div class="language-vue-html"><pre data-language="javascript">&lt;Transition&gt;
+  &lt;button v-if="docState === 'saved'"&gt;Edit&lt;/button&gt;
+  &lt;button v-else-if="docState === 'edited'"&gt;Save&lt;/button&gt;
+  &lt;button v-else-if="docState === 'editing'"&gt;Cancel&lt;/button&gt;
+&lt;/Transition&gt;</pre></div>
+<p><a href="https://sfc.vuejs.org/#eyJBcHAudnVlIjoiPHNjcmlwdCBzZXR1cD5cbmltcG9ydCB7IHJlZiB9IGZyb20gJ3Z1ZSdcblxuY29uc3QgZG9jU3RhdGUgPSByZWYoJ3NhdmVkJylcbjwvc2NyaXB0PlxuXG48dGVtcGxhdGU+XG5cdDxzcGFuIHN0eWxlPVwibWFyZ2luLXJpZ2h0OiAyMHB4XCI+Q2xpY2sgdG8gY3ljbGUgdGhyb3VnaCBzdGF0ZXM6PC9zcGFuPlxuICA8ZGl2IGNsYXNzPVwiYnRuLWNvbnRhaW5lclwiPlxuXHRcdDxUcmFuc2l0aW9uIG5hbWU9XCJzbGlkZS11cFwiPlxuICAgICAgPGJ1dHRvbiB2LWlmPVwiZG9jU3RhdGUgPT09ICdzYXZlZCdcIlxuICAgICAgICAgICAgICBAY2xpY2s9XCJkb2NTdGF0ZSA9ICdlZGl0ZWQnXCI+RWRpdDwvYnV0dG9uPlxuICAgICAgPGJ1dHRvbiB2LWVsc2UtaWY9XCJkb2NTdGF0ZSA9PT0gJ2VkaXRlZCdcIlxuICAgICAgICAgICAgICBAY2xpY2s9XCJkb2NTdGF0ZSA9ICdlZGl0aW5nJ1wiPlNhdmU8L2J1dHRvbj5cbiAgICAgIDxidXR0b24gdi1lbHNlLWlmPVwiZG9jU3RhdGUgPT09ICdlZGl0aW5nJ1wiXG4gICAgICAgICAgICAgIEBjbGljaz1cImRvY1N0YXRlID0gJ3NhdmVkJ1wiPkNhbmNlbDwvYnV0dG9uPlxuICAgIDwvVHJhbnNpdGlvbj5cbiAgPC9kaXY+XG48L3RlbXBsYXRlPlxuXG48c3R5bGU+XG4uYnRuLWNvbnRhaW5lciB7XG4gIGRpc3BsYXk6IGlubGluZS1ibG9jaztcbiAgcG9zaXRpb246IHJlbGF0aXZlO1xuICBoZWlnaHQ6IDFlbTtcbn1cblxuYnV0dG9uIHtcbiAgcG9zaXRpb246IGFic29sdXRlO1xufVxuXG4uc2xpZGUtdXAtZW50ZXItYWN0aXZlLFxuLnNsaWRlLXVwLWxlYXZlLWFjdGl2ZSB7XG4gIHRyYW5zaXRpb246IGFsbCAwLjI1cyBlYXNlLW91dDtcbn1cblxuLnNsaWRlLXVwLWVudGVyLWZyb20ge1xuICBvcGFjaXR5OiAwO1xuICB0cmFuc2Zvcm06IHRyYW5zbGF0ZVkoMzBweCk7XG59XG5cbi5zbGlkZS11cC1sZWF2ZS10byB7XG4gIG9wYWNpdHk6IDA7XG4gIHRyYW5zZm9ybTogdHJhbnNsYXRlWSgtMzBweCk7XG59XG48L3N0eWxlPiIsImltcG9ydC1tYXAuanNvbiI6IntcbiAgXCJpbXBvcnRzXCI6IHtcbiAgICBcInZ1ZVwiOiBcImh0dHBzOi8vc2ZjLnZ1ZWpzLm9yZy92dWUucnVudGltZS5lc20tYnJvd3Nlci5qc1wiXG4gIH1cbn0ifQ==" target="_blank" rel="noopener noreferrer">Try it in the Playground</a></p>
+<h2 id="transition-modes" tabindex="-1">Transition Modes </h2>
+<p>In the previous example, the entering and leaving elements are animated at the same time, and we had to make them <code>position: absolute</code> to avoid the layout issue when both elements are present in the DOM.</p>
+<p>However, in some cases this isn't an option, or simply isn't the desired behavior. We may want the leaving element to be animated out first, and for the entering element to only be inserted <strong>after</strong> the leaving animation has finished. Orchestrating such animations manually would be very complicated - luckily, we can enable this behavior by passing <code>&lt;Transition&gt;</code> a <code>mode</code> prop:</p>
+<div class="language-vue-html"><pre data-language="javascript">&lt;Transition mode="out-in"&gt;
+  ...
+&lt;/Transition&gt;</pre></div>
+<p>Here's the previous demo with <code>mode="out-in"</code>:</p>
+<p><code>&lt;Transition&gt;</code> also supports <code>mode="in-out"</code>, although it's much less frequently used.</p>
+<h2 id="transition-between-components" tabindex="-1">Transition Between Components </h2>
+<p><code>&lt;Transition&gt;</code> can also be used around <a href="../essentials/component-basics#dynamic-components">dynamic components</a>:</p>
+<div class="language-vue-html"><pre data-language="javascript">&lt;Transition name="fade" mode="out-in"&gt;
+  &lt;component :is="activeComponent"&gt;&lt;/component&gt;
+&lt;/Transition&gt;</pre></div>
+<div class="composition-api"><p><a href="https://sfc.vuejs.org/#eyJBcHAudnVlIjoiPHNjcmlwdCBzZXR1cD5cbmltcG9ydCB7IHNoYWxsb3dSZWYgfSBmcm9tICd2dWUnXG5pbXBvcnQgQ29tcEEgZnJvbSAnLi9Db21wQS52dWUnXG5pbXBvcnQgQ29tcEIgZnJvbSAnLi9Db21wQi52dWUnXG5cbi8vIHVzZSBzaGFsbG93UmVmIHRvIGF2b2lkIGNvbXBvbmVudCBiZWluZyBkZWVwbHkgb2JzZXJ2ZWRcbmNvbnN0IGFjdGl2ZUNvbXBvbmVudCA9IHNoYWxsb3dSZWYoQ29tcEEpXG48L3NjcmlwdD5cblxuPHRlbXBsYXRlPlxuXHQ8bGFiZWw+XG4gICAgPGlucHV0IHR5cGU9XCJyYWRpb1wiIHYtbW9kZWw9XCJhY3RpdmVDb21wb25lbnRcIiA6dmFsdWU9XCJDb21wQVwiPiBBXG4gIDwvbGFiZWw+XG4gIDxsYWJlbD5cbiAgICA8aW5wdXQgdHlwZT1cInJhZGlvXCIgdi1tb2RlbD1cImFjdGl2ZUNvbXBvbmVudFwiIDp2YWx1ZT1cIkNvbXBCXCI+IEJcbiAgPC9sYWJlbD5cbiAgPFRyYW5zaXRpb24gbmFtZT1cImZhZGVcIiBtb2RlPVwib3V0LWluXCI+XG4gICAgPGNvbXBvbmVudCA6aXM9XCJhY3RpdmVDb21wb25lbnRcIj48L2NvbXBvbmVudD5cbiAgPC9UcmFuc2l0aW9uPlxuPC90ZW1wbGF0ZT5cblxuPHN0eWxlPlxuLmZhZGUtZW50ZXItYWN0aXZlLFxuLmZhZGUtbGVhdmUtYWN0aXZlIHtcbiAgdHJhbnNpdGlvbjogb3BhY2l0eSAwLjVzIGVhc2U7XG59XG5cbi5mYWRlLWVudGVyLWZyb20sXG4uZmFkZS1sZWF2ZS10byB7XG4gIG9wYWNpdHk6IDA7XG59XG48L3N0eWxlPiIsImltcG9ydC1tYXAuanNvbiI6IntcbiAgXCJpbXBvcnRzXCI6IHtcbiAgICBcInZ1ZVwiOiBcImh0dHBzOi8vc2ZjLnZ1ZWpzLm9yZy92dWUucnVudGltZS5lc20tYnJvd3Nlci5qc1wiXG4gIH1cbn0iLCJDb21wQS52dWUiOiI8dGVtcGxhdGU+XG4gIDxkaXY+XG4gICAgQ29tcG9uZW50IEFcbiAgPC9kaXY+XG48L3RlbXBsYXRlPiIsIkNvbXBCLnZ1ZSI6Ijx0ZW1wbGF0ZT5cbiAgPGRpdj5cbiAgICBDb21wb25lbnQgQlxuICA8L2Rpdj5cbjwvdGVtcGxhdGU+In0=" target="_blank" rel="noopener noreferrer">Try it in the Playground</a></p></div>
+<div class="options-api"><p><a href="https://sfc.vuejs.org/#eyJBcHAudnVlIjoiPHNjcmlwdD5cbmltcG9ydCBDb21wQSBmcm9tICcuL0NvbXBBLnZ1ZSdcbmltcG9ydCBDb21wQiBmcm9tICcuL0NvbXBCLnZ1ZSdcblxuZXhwb3J0IGRlZmF1bHQge1xuICBjb21wb25lbnRzOiB7IENvbXBBLCBDb21wQiB9LFxuICBkYXRhKCkge1xuICAgIHJldHVybiB7XG4gICAgICBhY3RpdmVDb21wb25lbnQ6ICdDb21wQSdcbiAgICB9XG4gIH1cbn1cbjwvc2NyaXB0PlxuXG48dGVtcGxhdGU+XG5cdDxsYWJlbD5cbiAgICA8aW5wdXQgdHlwZT1cInJhZGlvXCIgdi1tb2RlbD1cImFjdGl2ZUNvbXBvbmVudFwiIHZhbHVlPVwiQ29tcEFcIj4gQVxuICA8L2xhYmVsPlxuICA8bGFiZWw+XG4gICAgPGlucHV0IHR5cGU9XCJyYWRpb1wiIHYtbW9kZWw9XCJhY3RpdmVDb21wb25lbnRcIiB2YWx1ZT1cIkNvbXBCXCI+IEJcbiAgPC9sYWJlbD5cbiAgPFRyYW5zaXRpb24gbmFtZT1cImZhZGVcIiBtb2RlPVwib3V0LWluXCI+XG4gICAgPGNvbXBvbmVudCA6aXM9XCJhY3RpdmVDb21wb25lbnRcIj48L2NvbXBvbmVudD5cbiAgPC9UcmFuc2l0aW9uPlxuPC90ZW1wbGF0ZT5cblxuPHN0eWxlPlxuLmZhZGUtZW50ZXItYWN0aXZlLFxuLmZhZGUtbGVhdmUtYWN0aXZlIHtcbiAgdHJhbnNpdGlvbjogb3BhY2l0eSAwLjVzIGVhc2U7XG59XG5cbi5mYWRlLWVudGVyLWZyb20sXG4uZmFkZS1sZWF2ZS10byB7XG4gIG9wYWNpdHk6IDA7XG59XG48L3N0eWxlPiIsImltcG9ydC1tYXAuanNvbiI6IntcbiAgXCJpbXBvcnRzXCI6IHtcbiAgICBcInZ1ZVwiOiBcImh0dHBzOi8vc2ZjLnZ1ZWpzLm9yZy92dWUucnVudGltZS5lc20tYnJvd3Nlci5qc1wiXG4gIH1cbn0iLCJDb21wQS52dWUiOiI8dGVtcGxhdGU+XG4gIDxkaXY+XG4gICAgQ29tcG9uZW50IEFcbiAgPC9kaXY+XG48L3RlbXBsYXRlPiIsIkNvbXBCLnZ1ZSI6Ijx0ZW1wbGF0ZT5cbiAgPGRpdj5cbiAgICBDb21wb25lbnQgQlxuICA8L2Rpdj5cbjwvdGVtcGxhdGU+In0=" target="_blank" rel="noopener noreferrer">Try it in the Playground</a></p></div>
+<h2 id="dynamic-transitions" tabindex="-1">Dynamic Transitions </h2>
+<p><code>&lt;Transition&gt;</code> props like <code>name</code> can also be dynamic! It allows us to dynamically apply different transitions based on state change:</p>
+<div class="language-vue-html"><pre data-language="javascript">&lt;Transition :name="transitionName"&gt;
+  &lt;!-- ... --&gt;
+&lt;/Transition&gt;</pre></div>
+<p>This can be useful when you've defined CSS transitions / animations using Vue's transition class conventions and want to switch between them.</p>
+<p>You can also apply different behavior in JavaScript transition hooks based on the current state of your component. Finally, the ultimate way of creating dynamic transitions is through <a href="#reusable-transitions">reusable transition components</a> that accept props to change the nature of the transition(s) to be used. It may sound cheesy, but the only limit really is your imagination.</p>
+<hr>
+<p><strong>Related</strong></p>
+<ul><li><a href="../../api/built-in-components#transition"><code>&lt;Transition&gt;</code> API reference</a></li></ul><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://vuejs.org/guide/built-ins/transition.html" class="_attribution-link" target="_blank">https://vuejs.org/guide/built-ins/transition.html</a>
+  </p>
+</div>

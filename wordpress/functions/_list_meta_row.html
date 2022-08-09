@@ -1,0 +1,53 @@
+<h1>_list_meta_row( array $entry, int $count )</h1>  <section> <p>Outputs a single row of public meta data in the Custom Fields meta box.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$entry</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> </p> </dd> <dt>$count</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/template.php/">wp-admin/includes/template.php</a> </p> <pre data-language="php">function _list_meta_row( $entry, &amp;$count ) {
+	static $update_nonce = '';
+
+	if ( is_protected_meta( $entry['meta_key'], 'post' ) ) {
+		return '';
+	}
+
+	if ( ! $update_nonce ) {
+		$update_nonce = wp_create_nonce( 'add-meta' );
+	}
+
+	$r = '';
+	++ $count;
+
+	if ( is_serialized( $entry['meta_value'] ) ) {
+		if ( is_serialized_string( $entry['meta_value'] ) ) {
+			// This is a serialized string, so we should display it.
+			$entry['meta_value'] = maybe_unserialize( $entry['meta_value'] );
+		} else {
+			// This is a serialized array/object so we should NOT display it.
+			--$count;
+			return '';
+		}
+	}
+
+	$entry['meta_key']   = esc_attr( $entry['meta_key'] );
+	$entry['meta_value'] = esc_textarea( $entry['meta_value'] ); // Using a &lt;textarea /&gt;.
+	$entry['meta_id']    = (int) $entry['meta_id'];
+
+	$delete_nonce = wp_create_nonce( 'delete-meta_' . $entry['meta_id'] );
+
+	$r .= "\n\t&lt;tr id='meta-{$entry['meta_id']}'&gt;";
+	$r .= "\n\t\t&lt;td class='left'&gt;&lt;label class='screen-reader-text' for='meta-{$entry['meta_id']}-key'&gt;" . __( 'Key' ) . "&lt;/label&gt;&lt;input name='meta[{$entry['meta_id']}][key]' id='meta-{$entry['meta_id']}-key' type='text' size='20' value='{$entry['meta_key']}' /&gt;";
+
+	$r .= "\n\t\t&lt;div class='submit'&gt;";
+	$r .= get_submit_button( __( 'Delete' ), 'deletemeta small', "deletemeta[{$entry['meta_id']}]", false, array( 'data-wp-lists' =&gt; "delete:the-list:meta-{$entry['meta_id']}::_ajax_nonce=$delete_nonce" ) );
+	$r .= "\n\t\t";
+	$r .= get_submit_button( __( 'Update' ), 'updatemeta small', "meta-{$entry['meta_id']}-submit", false, array( 'data-wp-lists' =&gt; "add:the-list:meta-{$entry['meta_id']}::_ajax_nonce-add-meta=$update_nonce" ) );
+	$r .= '&lt;/div&gt;';
+	$r .= wp_nonce_field( 'change-meta', '_ajax_nonce', false, false );
+	$r .= '&lt;/td&gt;';
+
+	$r .= "\n\t\t&lt;td&gt;&lt;label class='screen-reader-text' for='meta-{$entry['meta_id']}-value'&gt;" . __( 'Value' ) . "&lt;/label&gt;&lt;textarea name='meta[{$entry['meta_id']}][value]' id='meta-{$entry['meta_id']}-value' rows='2' cols='30'&gt;{$entry['meta_value']}&lt;/textarea&gt;&lt;/td&gt;\n\t&lt;/tr&gt;";
+	return $r;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/template.php:</span> <a href="get_submit_button">get_submit_button()</a> </td> <td class="related-desc"> <p>Returns a submit button, with provided text and appropriate class.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_textarea">esc_textarea()</a> </td> <td class="related-desc"> <p>Escaping for textarea values.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_create_nonce">wp_create_nonce()</a> </td> <td class="related-desc"> <p>Creates a cryptographic token tied to a specific action, user, user session, and window of time.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_nonce_field">wp_nonce_field()</a> </td> <td class="related-desc"> <p>Retrieve or display nonce hidden field for forms.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="is_serialized">is_serialized()</a> </td> <td class="related-desc"> <p>Check value to find if it was serialized.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="is_serialized_string">is_serialized_string()</a> </td> <td class="related-desc"> <p>Check whether serialized data is of string type.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="maybe_unserialize">maybe_unserialize()</a> </td> <td class="related-desc"> <p>Unserialize data only if it was serialized.</p> </td> </tr> <tr> <td> <span>wp-includes/meta.php:</span> <a href="is_protected_meta">is_protected_meta()</a> </td> <td class="related-desc"> <p>Determines whether a meta key is considered protected.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/template.php:</span> <a href="list_meta">list_meta()</a> </td> <td class="related-desc"> <p>Outputs a post’s public meta data in the Custom Fields meta box.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/ajax-actions.php:</span> <a href="wp_ajax_add_meta">wp_ajax_add_meta()</a> </td> <td class="related-desc"> <p>Ajax handler for adding meta.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.5.0/" alt="WordPress 2.5.0">2.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/_list_meta_row" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/_list_meta_row</a>
+  </p>
+</div>

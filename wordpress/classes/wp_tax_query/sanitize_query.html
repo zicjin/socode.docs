@@ -1,0 +1,70 @@
+<h1>WP_Tax_Query::sanitize_query( array $queries )</h1>  <section> <p>Ensure the ‘tax_query’ argument passed to the class constructor is well-formed.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Ensures that each query-level clause has a ‘relation’ key, and that each first-order clause contains all the necessary keys from <code>$defaults</code>.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$queries</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Array of queries clauses.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> Sanitized array of query clauses.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-tax-query.php/">wp-includes/class-wp-tax-query.php</a> </p> <pre data-language="php">public function sanitize_query( $queries ) {
+		$cleaned_query = array();
+
+		$defaults = array(
+			'taxonomy'         =&gt; '',
+			'terms'            =&gt; array(),
+			'field'            =&gt; 'term_id',
+			'operator'         =&gt; 'IN',
+			'include_children' =&gt; true,
+		);
+
+		foreach ( $queries as $key =&gt; $query ) {
+			if ( 'relation' === $key ) {
+				$cleaned_query['relation'] = $this-&gt;sanitize_relation( $query );
+
+				// First-order clause.
+			} elseif ( self::is_first_order_clause( $query ) ) {
+
+				$cleaned_clause          = array_merge( $defaults, $query );
+				$cleaned_clause['terms'] = (array) $cleaned_clause['terms'];
+				$cleaned_query[]         = $cleaned_clause;
+
+				/*
+				 * Keep a copy of the clause in the flate
+				 * $queried_terms array, for use in WP_Query.
+				 */
+				if ( ! empty( $cleaned_clause['taxonomy'] ) &amp;&amp; 'NOT IN' !== $cleaned_clause['operator'] ) {
+					$taxonomy = $cleaned_clause['taxonomy'];
+					if ( ! isset( $this-&gt;queried_terms[ $taxonomy ] ) ) {
+						$this-&gt;queried_terms[ $taxonomy ] = array();
+					}
+
+					/*
+					 * Backward compatibility: Only store the first
+					 * 'terms' and 'field' found for a given taxonomy.
+					 */
+					if ( ! empty( $cleaned_clause['terms'] ) &amp;&amp; ! isset( $this-&gt;queried_terms[ $taxonomy ]['terms'] ) ) {
+						$this-&gt;queried_terms[ $taxonomy ]['terms'] = $cleaned_clause['terms'];
+					}
+
+					if ( ! empty( $cleaned_clause['field'] ) &amp;&amp; ! isset( $this-&gt;queried_terms[ $taxonomy ]['field'] ) ) {
+						$this-&gt;queried_terms[ $taxonomy ]['field'] = $cleaned_clause['field'];
+					}
+				}
+
+				// Otherwise, it's a nested query, so we recurse.
+			} elseif ( is_array( $query ) ) {
+				$cleaned_subquery = $this-&gt;sanitize_query( $query );
+
+				if ( ! empty( $cleaned_subquery ) ) {
+					// All queries with children must have a relation.
+					if ( ! isset( $cleaned_subquery['relation'] ) ) {
+						$cleaned_subquery['relation'] = 'AND';
+					}
+
+					$cleaned_query[] = $cleaned_subquery;
+				}
+			}
+		}
+
+		return $cleaned_query;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-tax-query.php:</span> <a href="sanitize_relation">WP_Tax_Query::sanitize_relation()</a> </td> <td class="related-desc"> <p>Sanitize a ‘relation’ operator.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-tax-query.php:</span> <a href="is_first_order_clause">WP_Tax_Query::is_first_order_clause()</a> </td> <td class="related-desc"> <p>Determine whether a clause is first-order.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-tax-query.php:</span> <a href="sanitize_query">WP_Tax_Query::sanitize_query()</a> </td> <td class="related-desc"> <p>Ensure the ‘tax_query’ argument passed to the class constructor is well-formed.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-tax-query.php:</span> <a href="sanitize_query">WP_Tax_Query::sanitize_query()</a> </td> <td class="related-desc"> <p>Ensure the ‘tax_query’ argument passed to the class constructor is well-formed.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-tax-query.php:</span> <a href="__construct">WP_Tax_Query::__construct()</a> </td> <td class="related-desc"> <p>Constructor.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.1.0/" alt="WordPress 4.1.0">4.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_tax_query/sanitize_query" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_tax_query/sanitize_query</a>
+  </p>
+</div>

@@ -1,0 +1,107 @@
+<h1>recurse_dirsize( string $directory, string|string[] $exclude = null, int $max_execution_time = null, array $directory_cache = null )</h1>  <section> <p>Get the size of a directory recursively.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Used by <a href="get_dirsize">get_dirsize()</a> to get a directory size when it contains other directories.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$directory</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Full path of a directory.</span> </p> </dd> <dt>$exclude</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>|<span class="string[]">string[]</span>)</span> <span class="required">(Optional)</span> <span class="description"> Full path of a subdirectory to exclude from the total, or array of paths. Expected without trailing slash(es).</span> </p> <p class="default">Default value: null</p> </dd> <dt>$max_execution_time</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description"> Maximum time to run before giving up. In seconds. The timeout is global and is measured from the moment WordPress started to load.</span> </p> <p class="default">Default value: null</p> </dd> <dt>$directory_cache</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description"> Array of cached directory paths.</span> </p> <p class="default">Default value: null</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(int|false|null)</span> Size in bytes if a valid directory. False if not. Null if timeout.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/functions.php/">wp-includes/functions.php</a> </p> <pre data-language="php">function recurse_dirsize( $directory, $exclude = null, $max_execution_time = null, &amp;$directory_cache = null ) {
+	$directory  = untrailingslashit( $directory );
+	$save_cache = false;
+
+	if ( ! isset( $directory_cache ) ) {
+		$directory_cache = get_transient( 'dirsize_cache' );
+		$save_cache      = true;
+	}
+
+	if ( isset( $directory_cache[ $directory ] ) &amp;&amp; is_int( $directory_cache[ $directory ] ) ) {
+		return $directory_cache[ $directory ];
+	}
+
+	if ( ! file_exists( $directory ) || ! is_dir( $directory ) || ! is_readable( $directory ) ) {
+		return false;
+	}
+
+	if (
+		( is_string( $exclude ) &amp;&amp; $directory === $exclude ) ||
+		( is_array( $exclude ) &amp;&amp; in_array( $directory, $exclude, true ) )
+	) {
+		return false;
+	}
+
+	if ( null === $max_execution_time ) {
+		// Keep the previous behavior but attempt to prevent fatal errors from timeout if possible.
+		if ( function_exists( 'ini_get' ) ) {
+			$max_execution_time = ini_get( 'max_execution_time' );
+		} else {
+			// Disable...
+			$max_execution_time = 0;
+		}
+
+		// Leave 1 second "buffer" for other operations if $max_execution_time has reasonable value.
+		if ( $max_execution_time &gt; 10 ) {
+			$max_execution_time -= 1;
+		}
+	}
+
+	/**
+	 * Filters the amount of storage space used by one directory and all its children, in megabytes.
+	 *
+	 * Return the actual used space to short-circuit the recursive PHP file size calculation
+	 * and use something else, like a CDN API or native operating system tools for better performance.
+	 *
+	 * @since 5.6.0
+	 *
+	 * @param int|false            $space_used         The amount of used space, in bytes. Default false.
+	 * @param string               $directory          Full path of a directory.
+	 * @param string|string[]|null $exclude            Full path of a subdirectory to exclude from the total,
+	 *                                                 or array of paths.
+	 * @param int                  $max_execution_time Maximum time to run before giving up. In seconds.
+	 * @param array                $directory_cache    Array of cached directory paths.
+	 */
+	$size = apply_filters( 'pre_recurse_dirsize', false, $directory, $exclude, $max_execution_time, $directory_cache );
+
+	if ( false === $size ) {
+		$size = 0;
+
+		$handle = opendir( $directory );
+		if ( $handle ) {
+			while ( ( $file = readdir( $handle ) ) !== false ) {
+				$path = $directory . '/' . $file;
+				if ( '.' !== $file &amp;&amp; '..' !== $file ) {
+					if ( is_file( $path ) ) {
+						$size += filesize( $path );
+					} elseif ( is_dir( $path ) ) {
+						$handlesize = recurse_dirsize( $path, $exclude, $max_execution_time, $directory_cache );
+						if ( $handlesize &gt; 0 ) {
+							$size += $handlesize;
+						}
+					}
+
+					if ( $max_execution_time &gt; 0 &amp;&amp;
+						( microtime( true ) - WP_START_TIMESTAMP ) &gt; $max_execution_time
+					) {
+						// Time exceeded. Give up instead of risking a fatal timeout.
+						$size = null;
+						break;
+					}
+				}
+			}
+			closedir( $handle );
+		}
+	}
+
+	if ( ! is_array( $directory_cache ) ) {
+		$directory_cache = array();
+	}
+
+	$directory_cache[ $directory ] = $size;
+
+	// Only write the transient on the top level call and not on recursive calls.
+	if ( $save_cache ) {
+		set_transient( 'dirsize_cache', $directory_cache );
+	}
+
+	return $size;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../hooks/pre_recurse_dirsize">pre_recurse_dirsize</a> </td> <td class="related-desc"> <p>Filters the amount of storage space used by one directory and all its children, in megabytes.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="untrailingslashit">untrailingslashit()</a> </td> <td class="related-desc"> <p>Removes trailing forward slashes and backslashes if they exist.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_transient">get_transient()</a> </td> <td class="related-desc"> <p>Retrieves the value of a transient.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="set_transient">set_transient()</a> </td> <td class="related-desc"> <p>Sets/updates the value of a transient.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="recurse_dirsize">recurse_dirsize()</a> </td> <td class="related-desc"> <p>Get the size of a directory recursively.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-debug-data.php:</span> <a href="../classes/wp_debug_data/get_sizes">WP_Debug_Data::get_sizes()</a> </td> <td class="related-desc"> <p>Fetch the sizes of the WordPress directories: <code>wordpress</code> (ABSPATH), <code>plugins</code>, <code>themes</code>, and <code>uploads</code>.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="get_dirsize">get_dirsize()</a> </td> <td class="related-desc"> <p>Get the size of a directory.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="recurse_dirsize">recurse_dirsize()</a> </td> <td class="related-desc"> <p>Get the size of a directory recursively.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/mu.3.0.0/" alt="WordPress MU (3.0.0)">MU (3.0.0)</a></td> <td><span class="since-description">MU (3.0.0)</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.6.0/" alt="WordPress 5.6.0">5.6.0</a></td> <td><span class="since-description">The <code>$directory_cache</code> parameter was added.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.2.0/" alt="WordPress 5.2.0">5.2.0</a></td> <td><span class="since-description">The <code>$max_execution_time</code> parameter was added.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.3.0/" alt="WordPress 4.3.0">4.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/recurse_dirsize" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/recurse_dirsize</a>
+  </p>
+</div>

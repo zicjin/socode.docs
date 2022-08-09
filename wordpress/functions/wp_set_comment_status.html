@@ -1,0 +1,63 @@
+<h1>wp_set_comment_status( int|WP_Comment $comment_id, string $comment_status, bool $wp_error = false )</h1>  <section> <p>Sets the status of a comment.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>The <a href="../hooks/wp_set_comment_status">‘wp_set_comment_status’</a> action is called after the comment is handled. If the comment status is not in the list, then false is returned.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$comment_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>|<span class="WP_Comment"><a href="../classes/wp_comment">WP_Comment</a></span>)</span> <span class="required">(Required)</span> <span class="description">Comment ID or <a href="../classes/wp_comment">WP_Comment</a> object.</span> </p> </dd> <dt>$comment_status</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">New comment status, either 'hold', 'approve', 'spam', or 'trash'.</span> </p> </dd> <dt>$wp_error</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description">Whether to return a <a href="../classes/wp_error">WP_Error</a> object if there is a failure. </span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool|<a href="../classes/wp_error">WP_Error</a>)</span> True on success, false or <a href="../classes/wp_error">WP_Error</a> on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/comment.php/">wp-includes/comment.php</a> </p> <pre data-language="php">function wp_set_comment_status( $comment_id, $comment_status, $wp_error = false ) {
+	global $wpdb;
+
+	switch ( $comment_status ) {
+		case 'hold':
+		case '0':
+			$status = '0';
+			break;
+		case 'approve':
+		case '1':
+			$status = '1';
+			add_action( 'wp_set_comment_status', 'wp_new_comment_notify_postauthor' );
+			break;
+		case 'spam':
+			$status = 'spam';
+			break;
+		case 'trash':
+			$status = 'trash';
+			break;
+		default:
+			return false;
+	}
+
+	$comment_old = clone get_comment( $comment_id );
+
+	if ( ! $wpdb-&gt;update( $wpdb-&gt;comments, array( 'comment_approved' =&gt; $status ), array( 'comment_ID' =&gt; $comment_old-&gt;comment_ID ) ) ) {
+		if ( $wp_error ) {
+			return new WP_Error( 'db_update_error', __( 'Could not update comment status.' ), $wpdb-&gt;last_error );
+		} else {
+			return false;
+		}
+	}
+
+	clean_comment_cache( $comment_old-&gt;comment_ID );
+
+	$comment = get_comment( $comment_old-&gt;comment_ID );
+
+	/**
+	 * Fires immediately after transitioning a comment's status from one to another in the database
+	 * and removing the comment from the object cache, but prior to all status transition hooks.
+	 *
+	 * @since 1.5.0
+	 *
+	 * @param string $comment_id     Comment ID as a numeric string.
+	 * @param string $comment_status Current comment status. Possible values include
+	 *                               'hold', '0', 'approve', '1', 'spam', and 'trash'.
+	 */
+	do_action( 'wp_set_comment_status', $comment-&gt;comment_ID, $comment_status );
+
+	wp_transition_comment_status( $comment_status, $comment_old-&gt;comment_approved, $comment );
+
+	wp_update_comment_count( $comment-&gt;comment_post_ID );
+
+	return true;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/wp_set_comment_status">wp_set_comment_status</a> </td> <td class="related-desc"> <p>Fires immediately after transitioning a comment’s status from one to another in the database and removing the comment from the object cache, but prior to all status transition hooks.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="add_action">add_action()</a> </td> <td class="related-desc"> <p>Adds a callback function to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/update">wpdb::update()</a> </td> <td class="related-desc"> <p>Updates a row in the table.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="clean_comment_cache">clean_comment_cache()</a> </td> <td class="related-desc"> <p>Removes a comment from the object cache.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="wp_update_comment_count">wp_update_comment_count()</a> </td> <td class="related-desc"> <p>Updates the comment count for post(s).</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="wp_transition_comment_status">wp_transition_comment_status()</a> </td> <td class="related-desc"> <p>Calls hooks for when a comment status transition occurs.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="get_comment">get_comment()</a> </td> <td class="related-desc"> <p>Retrieves comment data given a comment ID or comment object.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../classes/wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-comments-controller.php:</span> <a href="../classes/wp_rest_comments_controller/handle_status_param">WP_REST_Comments_Controller::handle_status_param()</a> </td> <td class="related-desc"> <p>Sets the comment_status of a given comment object when creating or updating a comment.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/ajax-actions.php:</span> <a href="wp_ajax_dim_comment">wp_ajax_dim_comment()</a> </td> <td class="related-desc"> <p>Ajax handler to dim a comment.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/ajax-actions.php:</span> <a href="wp_ajax_replyto_comment">wp_ajax_replyto_comment()</a> </td> <td class="related-desc"> <p>Ajax handler for replying to a comment.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="wp_spam_comment">wp_spam_comment()</a> </td> <td class="related-desc"> <p>Marks a comment as Spam.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="wp_unspam_comment">wp_unspam_comment()</a> </td> <td class="related-desc"> <p>Removes a comment from the Spam.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="wp_trash_comment">wp_trash_comment()</a> </td> <td class="related-desc"> <p>Moves a comment to the Trash</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="wp_untrash_comment">wp_untrash_comment()</a> </td> <td class="related-desc"> <p>Removes a comment from the Trash</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/1.0.0/" alt="WordPress 1.0.0">1.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_set_comment_status" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_set_comment_status</a>
+  </p>
+</div>

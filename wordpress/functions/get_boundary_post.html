@@ -1,0 +1,57 @@
+<h1>get_boundary_post( bool $in_same_term = false, int[]|string $excluded_terms = '', bool $start = true, string $taxonomy = 'category' )</h1>  <section> <p>Retrieves the boundary post.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Boundary being either the first or last post by publish date within the constraints specified by $in_same_term or $excluded_terms.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$in_same_term</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> Whether returned post should be in a same taxonomy term. </span> </p> <p class="default">Default value: false</p> </dd> <dt>$excluded_terms</dt> <dd> <p class="desc"> <span class="type">(<span class="int[]">int[]</span>|<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> Array or comma-separated list of excluded term IDs. </span> </p> <p class="default">Default value: ''</p> </dd> <dt>$start</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> Whether to retrieve first or last post. Default true</span> </p> <p class="default">Default value: true</p> </dd> <dt>$taxonomy</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> Taxonomy, if $in_same_term is true. </span> </p> <p class="default">Default value: 'category'</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(null|array)</span> Array containing the boundary post object if successful, null otherwise.</p> </section>  <section> <h2 id="more-information">More Information</h2> <p><a href="get_boundary_post">get_boundary_post()</a> will set the post pointer to the first post.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/link-template.php/">wp-includes/link-template.php</a> </p> <pre data-language="php">function get_boundary_post( $in_same_term = false, $excluded_terms = '', $start = true, $taxonomy = 'category' ) {
+	$post = get_post();
+	if ( ! $post || ! is_single() || is_attachment() || ! taxonomy_exists( $taxonomy ) ) {
+		return null;
+	}
+
+	$query_args = array(
+		'posts_per_page'         =&gt; 1,
+		'order'                  =&gt; $start ? 'ASC' : 'DESC',
+		'update_post_term_cache' =&gt; false,
+		'update_post_meta_cache' =&gt; false,
+	);
+
+	$term_array = array();
+
+	if ( ! is_array( $excluded_terms ) ) {
+		if ( ! empty( $excluded_terms ) ) {
+			$excluded_terms = explode( ',', $excluded_terms );
+		} else {
+			$excluded_terms = array();
+		}
+	}
+
+	if ( $in_same_term || ! empty( $excluded_terms ) ) {
+		if ( $in_same_term ) {
+			$term_array = wp_get_object_terms( $post-&gt;ID, $taxonomy, array( 'fields' =&gt; 'ids' ) );
+		}
+
+		if ( ! empty( $excluded_terms ) ) {
+			$excluded_terms = array_map( 'intval', $excluded_terms );
+			$excluded_terms = array_diff( $excluded_terms, $term_array );
+
+			$inverse_terms = array();
+			foreach ( $excluded_terms as $excluded_term ) {
+				$inverse_terms[] = $excluded_term * -1;
+			}
+			$excluded_terms = $inverse_terms;
+		}
+
+		$query_args['tax_query'] = array(
+			array(
+				'taxonomy' =&gt; $taxonomy,
+				'terms'    =&gt; array_merge( $term_array, $excluded_terms ),
+			),
+		);
+	}
+
+	return get_posts( $query_args );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/query.php:</span> <a href="is_single">is_single()</a> </td> <td class="related-desc"> <p>Determines whether the query is for an existing single post.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="is_attachment">is_attachment()</a> </td> <td class="related-desc"> <p>Determines whether the query is for an existing attachment page.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="wp_get_object_terms">wp_get_object_terms()</a> </td> <td class="related-desc"> <p>Retrieves the terms associated with the given object(s), in the supplied taxonomies.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="taxonomy_exists">taxonomy_exists()</a> </td> <td class="related-desc"> <p>Determines whether the taxonomy name exists.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_posts">get_posts()</a> </td> <td class="related-desc"> <p>Retrieves an array of the latest posts, or posts matching the given criteria.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/deprecated.php:</span> <a href="get_boundary_post_rel_link">get_boundary_post_rel_link()</a> </td> <td class="related-desc"> <p>Get boundary post relational link.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.8.0/" alt="WordPress 2.8.0">2.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/get_boundary_post" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/get_boundary_post</a>
+  </p>
+</div>

@@ -1,0 +1,101 @@
+<h1>deactivate_plugins( string|string[] $plugins, bool $silent = false, bool|null $network_wide = null )</h1>  <section> <p>Deactivates a single plugin or multiple plugins.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>The deactivation hook is disabled by the plugin upgrader by using the $silent parameter.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$plugins</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>|<span class="string[]">string[]</span>)</span> <span class="required">(Required)</span> <span class="description">Single plugin or list of plugins to deactivate.</span> </p> </dd> <dt>$silent</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description">Prevent calling deactivation hooks. </span> </p> <p class="default">Default value: false</p> </dd> <dt>$network_wide</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>|<span class="null">null</span>)</span> <span class="required">(Optional)</span> <span class="description">Whether to deactivate the plugin for all sites in the network. A value of null will deactivate plugins for both the network and the current site. Multisite only. </span> </p> <p class="default">Default value: null</p> </dd> </dl> </section>  <section> <h2 id="more-information">More Information</h2> <p>This function is often used by a plugin to deactivate itself if the plugin requires the presence of certain features that are missing in environment after an administrator has activated it. This is usually the last step in a dependency-checking function.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/plugin.php/">wp-admin/includes/plugin.php</a> </p> <pre data-language="php">function deactivate_plugins( $plugins, $silent = false, $network_wide = null ) {
+	if ( is_multisite() ) {
+		$network_current = get_site_option( 'active_sitewide_plugins', array() );
+	}
+	$current    = get_option( 'active_plugins', array() );
+	$do_blog    = false;
+	$do_network = false;
+
+	foreach ( (array) $plugins as $plugin ) {
+		$plugin = plugin_basename( trim( $plugin ) );
+		if ( ! is_plugin_active( $plugin ) ) {
+			continue;
+		}
+
+		$network_deactivating = ( false !== $network_wide ) &amp;&amp; is_plugin_active_for_network( $plugin );
+
+		if ( ! $silent ) {
+			/**
+			 * Fires before a plugin is deactivated.
+			 *
+			 * If a plugin is silently deactivated (such as during an update),
+			 * this hook does not fire.
+			 *
+			 * @since 2.9.0
+			 *
+			 * @param string $plugin               Path to the plugin file relative to the plugins directory.
+			 * @param bool   $network_deactivating Whether the plugin is deactivated for all sites in the network
+			 *                                     or just the current site. Multisite only. Default false.
+			 */
+			do_action( 'deactivate_plugin', $plugin, $network_deactivating );
+		}
+
+		if ( false !== $network_wide ) {
+			if ( is_plugin_active_for_network( $plugin ) ) {
+				$do_network = true;
+				unset( $network_current[ $plugin ] );
+			} elseif ( $network_wide ) {
+				continue;
+			}
+		}
+
+		if ( true !== $network_wide ) {
+			$key = array_search( $plugin, $current, true );
+			if ( false !== $key ) {
+				$do_blog = true;
+				unset( $current[ $key ] );
+			}
+		}
+
+		if ( $do_blog &amp;&amp; wp_is_recovery_mode() ) {
+			list( $extension ) = explode( '/', $plugin );
+			wp_paused_plugins()-&gt;delete( $extension );
+		}
+
+		if ( ! $silent ) {
+			/**
+			 * Fires as a specific plugin is being deactivated.
+			 *
+			 * This hook is the "deactivation" hook used internally by register_deactivation_hook().
+			 * The dynamic portion of the hook name, `$plugin`, refers to the plugin basename.
+			 *
+			 * If a plugin is silently deactivated (such as during an update), this hook does not fire.
+			 *
+			 * @since 2.0.0
+			 *
+			 * @param bool $network_deactivating Whether the plugin is deactivated for all sites in the network
+			 *                                   or just the current site. Multisite only. Default false.
+			 */
+			do_action( "deactivate_{$plugin}", $network_deactivating );
+
+			/**
+			 * Fires after a plugin is deactivated.
+			 *
+			 * If a plugin is silently deactivated (such as during an update),
+			 * this hook does not fire.
+			 *
+			 * @since 2.9.0
+			 *
+			 * @param string $plugin               Path to the plugin file relative to the plugins directory.
+			 * @param bool   $network_deactivating Whether the plugin is deactivated for all sites in the network
+			 *                                     or just the current site. Multisite only. Default false.
+			 */
+			do_action( 'deactivated_plugin', $plugin, $network_deactivating );
+		}
+	}
+
+	if ( $do_blog ) {
+		update_option( 'active_plugins', $current );
+	}
+	if ( $do_network ) {
+		update_site_option( 'active_sitewide_plugins', $network_current );
+	}
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_is_recovery_mode">wp_is_recovery_mode()</a> </td> <td class="related-desc"> <p>Is WordPress in Recovery Mode.</p> </td> </tr> <tr> <td> <span>wp-includes/error-protection.php:</span> <a href="wp_paused_plugins">wp_paused_plugins()</a> </td> <td class="related-desc"> <p>Get the instance for storing paused plugins.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/plugin.php:</span> <a href="is_plugin_active">is_plugin_active()</a> </td> <td class="related-desc"> <p>Determines whether a plugin is active.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/plugin.php:</span> <a href="is_plugin_active_for_network">is_plugin_active_for_network()</a> </td> <td class="related-desc"> <p>Determines whether the plugin is active for the entire network.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/plugin.php:</span> <a href="../hooks/deactivate_plugin">deactivate_{$plugin}</a> </td> <td class="related-desc"> <p>Fires as a specific plugin is being deactivated.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/plugin.php:</span> <a href="../hooks/deactivated_plugin">deactivated_plugin</a> </td> <td class="related-desc"> <p>Fires after a plugin is deactivated.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_multisite">is_multisite()</a> </td> <td class="related-desc"> <p>If Multisite is enabled.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="plugin_basename">plugin_basename()</a> </td> <td class="related-desc"> <p>Gets the basename of a plugin.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="update_site_option">update_site_option()</a> </td> <td class="related-desc"> <p>Updates the value of an option that was already added for the current network.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_site_option">get_site_option()</a> </td> <td class="related-desc"> <p>Retrieve an option value for the current network based on name of option.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="update_option">update_option()</a> </td> <td class="related-desc"> <p>Updates the value of an option that was already added.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-plugins-controller.php:</span> <a href="../classes/wp_rest_plugins_controller/handle_plugin_status">WP_REST_Plugins_Controller::handle_plugin_status()</a> </td> <td class="related-desc"> <p>Handle updating a plugin’s status.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-plugin-upgrader.php:</span> <a href="../classes/plugin_upgrader/deactivate_plugin_before_upgrade">Plugin_Upgrader::deactivate_plugin_before_upgrade()</a> </td> <td class="related-desc"> <p>Deactivates a plugin before it is upgraded.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/plugin.php:</span> <a href="validate_active_plugins">validate_active_plugins()</a> </td> <td class="related-desc"> <p>Validates active plugins.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.5.0/" alt="WordPress 2.5.0">2.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/deactivate_plugin" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/deactivate_plugin</a>
+  </p>
+</div>

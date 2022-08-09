@@ -1,0 +1,59 @@
+<h1>validate_current_theme()</h1>  <section> <p>Checks that the active theme has the required files.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Standalone themes need to have a <code>templates/index.html</code> or <code>index.php</code> template file. Child themes need to have a <code>Template</code> header in the <code>style.css</code> stylesheet.</p> <p>Does not initially check the default theme, which is the fallback and should always exist. But if it doesn’t exist, it’ll fall back to the latest core default theme that does exist. Will switch theme to the fallback theme if active theme does not validate.</p> <p>You can use the <a href="../hooks/validate_current_theme">‘validate_current_theme’</a> filter to return false to disable this functionality.</p> <h3 id="see-also">See also</h3> <ul> <li><a href="../classes/wp_default_theme">WP_DEFAULT_THEME</a></li> </ul> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/theme.php/">wp-includes/theme.php</a> </p> <pre data-language="php">function validate_current_theme() {
+	/**
+	 * Filters whether to validate the active theme.
+	 *
+	 * @since 2.7.0
+	 *
+	 * @param bool $validate Whether to validate the active theme. Default true.
+	 */
+	if ( wp_installing() || ! apply_filters( 'validate_current_theme', true ) ) {
+		return true;
+	}
+
+	if (
+		! file_exists( get_template_directory() . '/templates/index.html' )
+		&amp;&amp; ! file_exists( get_template_directory() . '/block-templates/index.html' ) // Deprecated path support since 5.9.0.
+		&amp;&amp; ! file_exists( get_template_directory() . '/index.php' )
+	) {
+		// Invalid.
+	} elseif ( ! file_exists( get_template_directory() . '/style.css' ) ) {
+		// Invalid.
+	} elseif ( is_child_theme() &amp;&amp; ! file_exists( get_stylesheet_directory() . '/style.css' ) ) {
+		// Invalid.
+	} else {
+		// Valid.
+		return true;
+	}
+
+	$default = wp_get_theme( WP_DEFAULT_THEME );
+	if ( $default-&gt;exists() ) {
+		switch_theme( WP_DEFAULT_THEME );
+		return false;
+	}
+
+	/**
+	 * If we're in an invalid state but WP_DEFAULT_THEME doesn't exist,
+	 * switch to the latest core default theme that's installed.
+	 *
+	 * If it turns out that this latest core default theme is our current
+	 * theme, then there's nothing we can do about that, so we have to bail,
+	 * rather than going into an infinite loop. (This is why there are
+	 * checks against WP_DEFAULT_THEME above, also.) We also can't do anything
+	 * if it turns out there is no default theme installed. (That's `false`.)
+	 */
+	$default = WP_Theme::get_core_default_theme();
+	if ( false === $default || get_stylesheet() == $default-&gt;get_stylesheet() ) {
+		return true;
+	}
+
+	switch_theme( $default-&gt;get_stylesheet() );
+	return false;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-theme.php:</span> <a href="../classes/wp_theme/get_core_default_theme">WP_Theme::get_core_default_theme()</a> </td> <td class="related-desc"> <p>Determines the latest WordPress default theme that is installed.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_installing">wp_installing()</a> </td> <td class="related-desc"> <p>Check or set whether WordPress is in “installation” mode.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="switch_theme">switch_theme()</a> </td> <td class="related-desc"> <p>Switches the theme.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="../hooks/validate_current_theme">validate_current_theme</a> </td> <td class="related-desc"> <p>Filters whether to validate the active theme.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="get_template_directory">get_template_directory()</a> </td> <td class="related-desc"> <p>Retrieves template directory path for the active theme.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="get_stylesheet_directory">get_stylesheet_directory()</a> </td> <td class="related-desc"> <p>Retrieves stylesheet directory path for the active theme.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="is_child_theme">is_child_theme()</a> </td> <td class="related-desc"> <p>Whether a child theme is in use.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="wp_get_theme">wp_get_theme()</a> </td> <td class="related-desc"> <p>Gets a <a href="../classes/wp_theme">WP_Theme</a> object for a theme.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="get_stylesheet">get_stylesheet()</a> </td> <td class="related-desc"> <p>Retrieves name of the current stylesheet.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="../classes/wp_customize_manager/after_setup_theme">WP_Customize_Manager::after_setup_theme()</a> </td> <td class="related-desc"> <p>Callback to validate a theme once it is loaded</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/6.0.0/" alt="WordPress 6.0.0">6.0.0</a></td> <td><span class="since-description">Removed the requirement for block themes to have an <code>index.php</code> template.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/1.5.0/" alt="WordPress 1.5.0">1.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/validate_current_theme" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/validate_current_theme</a>
+  </p>
+</div>

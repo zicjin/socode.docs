@@ -1,0 +1,94 @@
+<h1>wp_network_admin_email_change_notification( string $option_name, string $new_email, string $old_email, int $network_id )</h1>  <section> <p>Sends an email to the old network admin email address when the network admin email address changes.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$option_name</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The relevant database option name.</span> </p> </dd> <dt>$new_email</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The new network admin email address.</span> </p> </dd> <dt>$old_email</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The old network admin email address.</span> </p> </dd> <dt>$network_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">ID of the network.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/ms-functions.php/">wp-includes/ms-functions.php</a> </p> <pre data-language="php">function wp_network_admin_email_change_notification( $option_name, $new_email, $old_email, $network_id ) {
+	$send = true;
+
+	// Don't send the notification to the default 'admin_email' value.
+	if ( 'you@example.com' === $old_email ) {
+		$send = false;
+	}
+
+	/**
+	 * Filters whether to send the network admin email change notification email.
+	 *
+	 * @since 4.9.0
+	 *
+	 * @param bool   $send       Whether to send the email notification.
+	 * @param string $old_email  The old network admin email address.
+	 * @param string $new_email  The new network admin email address.
+	 * @param int    $network_id ID of the network.
+	 */
+	$send = apply_filters( 'send_network_admin_email_change_email', $send, $old_email, $new_email, $network_id );
+
+	if ( ! $send ) {
+		return;
+	}
+
+	/* translators: Do not translate OLD_EMAIL, NEW_EMAIL, SITENAME, SITEURL: those are placeholders. */
+	$email_change_text = __(
+		'Hi,
+
+This notice confirms that the network admin email address was changed on ###SITENAME###.
+
+The new network admin email address is ###NEW_EMAIL###.
+
+This email has been sent to ###OLD_EMAIL###
+
+Regards,
+All at ###SITENAME###
+###SITEURL###'
+	);
+
+	$email_change_email = array(
+		'to'      =&gt; $old_email,
+		/* translators: Network admin email change notification email subject. %s: Network title. */
+		'subject' =&gt; __( '[%s] Network Admin Email Changed' ),
+		'message' =&gt; $email_change_text,
+		'headers' =&gt; '',
+	);
+	// Get network name.
+	$network_name = wp_specialchars_decode( get_site_option( 'site_name' ), ENT_QUOTES );
+
+	/**
+	 * Filters the contents of the email notification sent when the network admin email address is changed.
+	 *
+	 * @since 4.9.0
+	 *
+	 * @param array $email_change_email {
+	 *     Used to build wp_mail().
+	 *
+	 *     @type string $to      The intended recipient.
+	 *     @type string $subject The subject of the email.
+	 *     @type string $message The content of the email.
+	 *         The following strings have a special meaning and will get replaced dynamically:
+	 *         - ###OLD_EMAIL### The old network admin email address.
+	 *         - ###NEW_EMAIL### The new network admin email address.
+	 *         - ###SITENAME###  The name of the network.
+	 *         - ###SITEURL###   The URL to the site.
+	 *     @type string $headers Headers.
+	 * }
+	 * @param string $old_email  The old network admin email address.
+	 * @param string $new_email  The new network admin email address.
+	 * @param int    $network_id ID of the network.
+	 */
+	$email_change_email = apply_filters( 'network_admin_email_change_email', $email_change_email, $old_email, $new_email, $network_id );
+
+	$email_change_email['message'] = str_replace( '###OLD_EMAIL###', $old_email, $email_change_email['message'] );
+	$email_change_email['message'] = str_replace( '###NEW_EMAIL###', $new_email, $email_change_email['message'] );
+	$email_change_email['message'] = str_replace( '###SITENAME###', $network_name, $email_change_email['message'] );
+	$email_change_email['message'] = str_replace( '###SITEURL###', home_url(), $email_change_email['message'] );
+
+	wp_mail(
+		$email_change_email['to'],
+		sprintf(
+			$email_change_email['subject'],
+			$network_name
+		),
+		$email_change_email['message'],
+		$email_change_email['headers']
+	);
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="../hooks/send_network_admin_email_change_email">send_network_admin_email_change_email</a> </td> <td class="related-desc"> <p>Filters whether to send the network admin email change notification email.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="../hooks/network_admin_email_change_email">network_admin_email_change_email</a> </td> <td class="related-desc"> <p>Filters the contents of the email notification sent when the network admin email address is changed.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_specialchars_decode">wp_specialchars_decode()</a> </td> <td class="related-desc"> <p>Converts a number of HTML entities into their special characters.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_mail">wp_mail()</a> </td> <td class="related-desc"> <p>Sends an email, similar to PHP’s mail function.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="home_url">home_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL for the current site where the front end is accessible.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_site_option">get_site_option()</a> </td> <td class="related-desc"> <p>Retrieve an option value for the current network based on name of option.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.9.0/" alt="WordPress 4.9.0">4.9.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_network_admin_email_change_notification" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_network_admin_email_change_notification</a>
+  </p>
+</div>

@@ -1,0 +1,56 @@
+<h1>WP_Term_Query::parse_orderby( string $orderby_raw )</h1>  <section> <p>Parse and sanitize ‘orderby’ keys passed to the term query.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$orderby_raw</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Alias for the field to order by.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string|false)</span> Value to used in the ORDER clause. False otherwise.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-term-query.php/">wp-includes/class-wp-term-query.php</a> </p> <pre data-language="php">protected function parse_orderby( $orderby_raw ) {
+		$_orderby           = strtolower( $orderby_raw );
+		$maybe_orderby_meta = false;
+
+		if ( in_array( $_orderby, array( 'term_id', 'name', 'slug', 'term_group' ), true ) ) {
+			$orderby = "t.$_orderby";
+		} elseif ( in_array( $_orderby, array( 'count', 'parent', 'taxonomy', 'term_taxonomy_id', 'description' ), true ) ) {
+			$orderby = "tt.$_orderby";
+		} elseif ( 'term_order' === $_orderby ) {
+			$orderby = 'tr.term_order';
+		} elseif ( 'include' === $_orderby &amp;&amp; ! empty( $this-&gt;query_vars['include'] ) ) {
+			$include = implode( ',', wp_parse_id_list( $this-&gt;query_vars['include'] ) );
+			$orderby = "FIELD( t.term_id, $include )";
+		} elseif ( 'slug__in' === $_orderby &amp;&amp; ! empty( $this-&gt;query_vars['slug'] ) &amp;&amp; is_array( $this-&gt;query_vars['slug'] ) ) {
+			$slugs   = implode( "', '", array_map( 'sanitize_title_for_query', $this-&gt;query_vars['slug'] ) );
+			$orderby = "FIELD( t.slug, '" . $slugs . "')";
+		} elseif ( 'none' === $_orderby ) {
+			$orderby = '';
+		} elseif ( empty( $_orderby ) || 'id' === $_orderby || 'term_id' === $_orderby ) {
+			$orderby = 't.term_id';
+		} else {
+			$orderby = 't.name';
+
+			// This may be a value of orderby related to meta.
+			$maybe_orderby_meta = true;
+		}
+
+		/**
+		 * Filters the ORDERBY clause of the terms query.
+		 *
+		 * @since 2.8.0
+		 *
+		 * @param string   $orderby    `ORDERBY` clause of the terms query.
+		 * @param array    $args       An array of term query arguments.
+		 * @param string[] $taxonomies An array of taxonomy names.
+		 */
+		$orderby = apply_filters( 'get_terms_orderby', $orderby, $this-&gt;query_vars, $this-&gt;query_vars['taxonomy'] );
+
+		// Run after the 'get_terms_orderby' filter for backward compatibility.
+		if ( $maybe_orderby_meta ) {
+			$maybe_orderby_meta = $this-&gt;parse_orderby_meta( $_orderby );
+			if ( $maybe_orderby_meta ) {
+				$orderby = $maybe_orderby_meta;
+			}
+		}
+
+		return $orderby;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-term-query.php:</span> <a href="parse_orderby_meta">WP_Term_Query::parse_orderby_meta()</a> </td> <td class="related-desc"> <p>Generate the ORDER BY clause for an ‘orderby’ param that is potentially related to a meta query.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_parse_id_list">wp_parse_id_list()</a> </td> <td class="related-desc"> <p>Cleans up an array, comma- or space-separated list of IDs.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-term-query.php:</span> <a href="../../hooks/get_terms_orderby">get_terms_orderby</a> </td> <td class="related-desc"> <p>Filters the ORDERBY clause of the terms query.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-term-query.php:</span> <a href="get_terms">WP_Term_Query::get_terms()</a> </td> <td class="related-desc"> <p>Retrieves the query results.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.6.0/" alt="WordPress 4.6.0">4.6.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_term_query/parse_orderby" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_term_query/parse_orderby</a>
+  </p>
+</div>

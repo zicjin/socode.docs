@@ -1,0 +1,140 @@
+<h1>wp_kses_hair( string $attr, string[] $allowed_protocols )</h1>  <section> <p>Builds an attribute list from string containing attributes.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>This function does a lot of work. It parses an attribute list into an array with attribute data, and tries to do the right thing even if it gets weird input. It will add quotes around attribute values that don’t have any quotes or apostrophes around them, to make it easier to produce HTML code that will conform to W3C’s HTML specification. It will also remove bad URL protocols from attribute values. It also reduces duplicate attributes by using the attribute defined first (<code>foo='bar' foo='baz'</code> will result in <code>foo='bar'</code>).</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$attr</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Attribute list from HTML element to closing HTML element tag.</span> </p> </dd> <dt>$allowed_protocols</dt> <dd> <p class="desc"> <span class="type">(<span class="string[]">string[]</span>)</span> <span class="required">(Required)</span> <span class="description">Array of allowed URL protocols.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array[])</span> Array of attribute information after parsing.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/kses.php/">wp-includes/kses.php</a> </p> <pre data-language="php">function wp_kses_hair( $attr, $allowed_protocols ) {
+	$attrarr  = array();
+	$mode     = 0;
+	$attrname = '';
+	$uris     = wp_kses_uri_attributes();
+
+	// Loop through the whole attribute list.
+
+	while ( strlen( $attr ) != 0 ) {
+		$working = 0; // Was the last operation successful?
+
+		switch ( $mode ) {
+			case 0:
+				if ( preg_match( '/^([_a-zA-Z][-_a-zA-Z0-9:.]*)/', $attr, $match ) ) {
+					$attrname = $match[1];
+					$working  = 1;
+					$mode     = 1;
+					$attr     = preg_replace( '/^[_a-zA-Z][-_a-zA-Z0-9:.]*/', '', $attr );
+				}
+
+				break;
+
+			case 1:
+				if ( preg_match( '/^\s*=\s*/', $attr ) ) { // Equals sign.
+					$working = 1;
+					$mode    = 2;
+					$attr    = preg_replace( '/^\s*=\s*/', '', $attr );
+					break;
+				}
+
+				if ( preg_match( '/^\s+/', $attr ) ) { // Valueless.
+					$working = 1;
+					$mode    = 0;
+					if ( false === array_key_exists( $attrname, $attrarr ) ) {
+						$attrarr[ $attrname ] = array(
+							'name'  =&gt; $attrname,
+							'value' =&gt; '',
+							'whole' =&gt; $attrname,
+							'vless' =&gt; 'y',
+						);
+					}
+					$attr = preg_replace( '/^\s+/', '', $attr );
+				}
+
+				break;
+
+			case 2:
+				if ( preg_match( '%^"([^"]*)"(\s+|/?$)%', $attr, $match ) ) {
+					// "value"
+					$thisval = $match[1];
+					if ( in_array( strtolower( $attrname ), $uris, true ) ) {
+						$thisval = wp_kses_bad_protocol( $thisval, $allowed_protocols );
+					}
+
+					if ( false === array_key_exists( $attrname, $attrarr ) ) {
+						$attrarr[ $attrname ] = array(
+							'name'  =&gt; $attrname,
+							'value' =&gt; $thisval,
+							'whole' =&gt; "$attrname=\"$thisval\"",
+							'vless' =&gt; 'n',
+						);
+					}
+					$working = 1;
+					$mode    = 0;
+					$attr    = preg_replace( '/^"[^"]*"(\s+|$)/', '', $attr );
+					break;
+				}
+
+				if ( preg_match( "%^'([^']*)'(\s+|/?$)%", $attr, $match ) ) {
+					// 'value'
+					$thisval = $match[1];
+					if ( in_array( strtolower( $attrname ), $uris, true ) ) {
+						$thisval = wp_kses_bad_protocol( $thisval, $allowed_protocols );
+					}
+
+					if ( false === array_key_exists( $attrname, $attrarr ) ) {
+						$attrarr[ $attrname ] = array(
+							'name'  =&gt; $attrname,
+							'value' =&gt; $thisval,
+							'whole' =&gt; "$attrname='$thisval'",
+							'vless' =&gt; 'n',
+						);
+					}
+					$working = 1;
+					$mode    = 0;
+					$attr    = preg_replace( "/^'[^']*'(\s+|$)/", '', $attr );
+					break;
+				}
+
+				if ( preg_match( "%^([^\s\"']+)(\s+|/?$)%", $attr, $match ) ) {
+					// value
+					$thisval = $match[1];
+					if ( in_array( strtolower( $attrname ), $uris, true ) ) {
+						$thisval = wp_kses_bad_protocol( $thisval, $allowed_protocols );
+					}
+
+					if ( false === array_key_exists( $attrname, $attrarr ) ) {
+						$attrarr[ $attrname ] = array(
+							'name'  =&gt; $attrname,
+							'value' =&gt; $thisval,
+							'whole' =&gt; "$attrname=\"$thisval\"",
+							'vless' =&gt; 'n',
+						);
+					}
+					// We add quotes to conform to W3C's HTML spec.
+					$working = 1;
+					$mode    = 0;
+					$attr    = preg_replace( "%^[^\s\"']+(\s+|$)%", '', $attr );
+				}
+
+				break;
+		} // End switch.
+
+		if ( 0 == $working ) { // Not well-formed, remove and try again.
+			$attr = wp_kses_html_error( $attr );
+			$mode = 0;
+		}
+	} // End while.
+
+	if ( 1 == $mode &amp;&amp; false === array_key_exists( $attrname, $attrarr ) ) {
+		// Special case, for when the attribute list ends with a valueless
+		// attribute like "selected".
+		$attrarr[ $attrname ] = array(
+			'name'  =&gt; $attrname,
+			'value' =&gt; '',
+			'whole' =&gt; $attrname,
+			'vless' =&gt; 'y',
+		);
+	}
+
+	return $attrarr;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/kses.php:</span> <a href="wp_kses_uri_attributes">wp_kses_uri_attributes()</a> </td> <td class="related-desc"> <p>Returns an array of HTML attribute names whose value contains a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/kses.php:</span> <a href="wp_kses_bad_protocol">wp_kses_bad_protocol()</a> </td> <td class="related-desc"> <p>Sanitizes a string and removed disallowed URL protocols.</p> </td> </tr> <tr> <td> <span>wp-includes/kses.php:</span> <a href="wp_kses_html_error">wp_kses_html_error()</a> </td> <td class="related-desc"> <p>Handles parsing errors in <code>wp_kses_hair()</code>.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_rel_callback">wp_rel_callback()</a> </td> <td class="related-desc"> <p>Callback to add a rel attribute to HTML A element.</p> </td> </tr> <tr> <td> <span>wp-includes/embed.php:</span> <a href="wp_filter_oembed_iframe_title_attribute">wp_filter_oembed_iframe_title_attribute()</a> </td> <td class="related-desc"> <p>Filters the given oEmbed HTML to make sure iframes have a title attribute.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_targeted_link_rel_callback">wp_targeted_link_rel_callback()</a> </td> <td class="related-desc"> <p>Callback to add <code>rel="noopener"</code> string to HTML A element.</p> </td> </tr> <tr> <td> <span>wp-includes/kses.php:</span> <a href="wp_kses_attr">wp_kses_attr()</a> </td> <td class="related-desc"> <p>Removes all attributes, if none are allowed for this element.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/1.0.0/" alt="WordPress 1.0.0">1.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_kses_hair" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_kses_hair</a>
+  </p>
+</div>

@@ -1,0 +1,99 @@
+<h1>get_the_category_list( string $separator = '', string $parents = '', int $post_id = false )</h1>  <section> <p>Retrieves category list for a post in either HTML list or custom format.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Generally used for quick, delimited (e.g. comma-separated) lists of categories, as part of a post entry meta.</p> <p>For a more powerful, list-based function, see <a href="wp_list_categories">wp_list_categories()</a>.</p> <h3 id="see-also">See also</h3> <ul> <li><a href="wp_list_categories">wp_list_categories()</a></li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$separator</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> Separator between the categories. By default, the links are placed in an unordered list. An empty string will result in the default behavior.</span> </p> <p class="default">Default value: ''</p> </dd> <dt>$parents</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> How to display the parents.</span> </p> <p class="default">Default value: ''</p> </dd> <dt>$post_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description"> Post ID to retrieve categories.</span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> Category list for a post.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/category-template.php/">wp-includes/category-template.php</a> </p> <pre data-language="php">function get_the_category_list( $separator = '', $parents = '', $post_id = false ) {
+	global $wp_rewrite;
+
+	if ( ! is_object_in_taxonomy( get_post_type( $post_id ), 'category' ) ) {
+		/** This filter is documented in wp-includes/category-template.php */
+		return apply_filters( 'the_category', '', $separator, $parents );
+	}
+
+	/**
+	 * Filters the categories before building the category list.
+	 *
+	 * @since 4.4.0
+	 *
+	 * @param WP_Term[] $categories An array of the post's categories.
+	 * @param int|bool  $post_id    ID of the post we're retrieving categories for.
+	 *                              When `false`, we assume the current post in the loop.
+	 */
+	$categories = apply_filters( 'the_category_list', get_the_category( $post_id ), $post_id );
+
+	if ( empty( $categories ) ) {
+		/** This filter is documented in wp-includes/category-template.php */
+		return apply_filters( 'the_category', __( 'Uncategorized' ), $separator, $parents );
+	}
+
+	$rel = ( is_object( $wp_rewrite ) &amp;&amp; $wp_rewrite-&gt;using_permalinks() ) ? 'rel="category tag"' : 'rel="category"';
+
+	$thelist = '';
+	if ( '' === $separator ) {
+		$thelist .= '&lt;ul class="post-categories"&gt;';
+		foreach ( $categories as $category ) {
+			$thelist .= "\n\t&lt;li&gt;";
+			switch ( strtolower( $parents ) ) {
+				case 'multiple':
+					if ( $category-&gt;parent ) {
+						$thelist .= get_category_parents( $category-&gt;parent, true, $separator );
+					}
+					$thelist .= '&lt;a href="' . esc_url( get_category_link( $category-&gt;term_id ) ) . '" ' . $rel . '&gt;' . $category-&gt;name . '&lt;/a&gt;&lt;/li&gt;';
+					break;
+				case 'single':
+					$thelist .= '&lt;a href="' . esc_url( get_category_link( $category-&gt;term_id ) ) . '"  ' . $rel . '&gt;';
+					if ( $category-&gt;parent ) {
+						$thelist .= get_category_parents( $category-&gt;parent, false, $separator );
+					}
+					$thelist .= $category-&gt;name . '&lt;/a&gt;&lt;/li&gt;';
+					break;
+				case '':
+				default:
+					$thelist .= '&lt;a href="' . esc_url( get_category_link( $category-&gt;term_id ) ) . '" ' . $rel . '&gt;' . $category-&gt;name . '&lt;/a&gt;&lt;/li&gt;';
+			}
+		}
+		$thelist .= '&lt;/ul&gt;';
+	} else {
+		$i = 0;
+		foreach ( $categories as $category ) {
+			if ( 0 &lt; $i ) {
+				$thelist .= $separator;
+			}
+			switch ( strtolower( $parents ) ) {
+				case 'multiple':
+					if ( $category-&gt;parent ) {
+						$thelist .= get_category_parents( $category-&gt;parent, true, $separator );
+					}
+					$thelist .= '&lt;a href="' . esc_url( get_category_link( $category-&gt;term_id ) ) . '" ' . $rel . '&gt;' . $category-&gt;name . '&lt;/a&gt;';
+					break;
+				case 'single':
+					$thelist .= '&lt;a href="' . esc_url( get_category_link( $category-&gt;term_id ) ) . '" ' . $rel . '&gt;';
+					if ( $category-&gt;parent ) {
+						$thelist .= get_category_parents( $category-&gt;parent, false, $separator );
+					}
+					$thelist .= "$category-&gt;name&lt;/a&gt;";
+					break;
+				case '':
+				default:
+					$thelist .= '&lt;a href="' . esc_url( get_category_link( $category-&gt;term_id ) ) . '" ' . $rel . '&gt;' . $category-&gt;name . '&lt;/a&gt;';
+			}
+			++$i;
+		}
+	}
+
+	/**
+	 * Filters the category or list of categories.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @param string $thelist   List of categories for the current post.
+	 * @param string $separator Separator used between the categories.
+	 * @param string $parents   How to display the category parents. Accepts 'multiple',
+	 *                          'single', or empty.
+	 */
+	return apply_filters( 'the_category', $thelist, $separator, $parents );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/category-template.php:</span> <a href="../hooks/the_category_list">the_category_list</a> </td> <td class="related-desc"> <p>Filters the categories before building the category list.</p> </td> </tr> <tr> <td> <span>wp-includes/category-template.php:</span> <a href="get_the_category">get_the_category()</a> </td> <td class="related-desc"> <p>Retrieves post categories.</p> </td> </tr> <tr> <td> <span>wp-includes/category-template.php:</span> <a href="get_category_parents">get_category_parents()</a> </td> <td class="related-desc"> <p>Retrieves category parents with separator.</p> </td> </tr> <tr> <td> <span>wp-includes/category-template.php:</span> <a href="get_category_link">get_category_link()</a> </td> <td class="related-desc"> <p>Retrieves category link URL.</p> </td> </tr> <tr> <td> <span>wp-includes/category-template.php:</span> <a href="../hooks/the_category">the_category</a> </td> <td class="related-desc"> <p>Filters the category or list of categories.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="is_object_in_taxonomy">is_object_in_taxonomy()</a> </td> <td class="related-desc"> <p>Determines if the given object type is associated with the given taxonomy.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post_type">get_post_type()</a> </td> <td class="related-desc"> <p>Retrieves the post type of the current post or of a given post.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-rewrite.php:</span> <a href="../classes/wp_rewrite/using_permalinks">WP_Rewrite::using_permalinks()</a> </td> <td class="related-desc"> <p>Determines whether permalinks are being used.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/category-template.php:</span> <a href="the_category">the_category()</a> </td> <td class="related-desc"> <p>Displays category list for a post in either HTML list or custom format.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/1.5.1/" alt="WordPress 1.5.1">1.5.1</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/get_the_category_list" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/get_the_category_list</a>
+  </p>
+</div>

@@ -1,0 +1,151 @@
+<h1>wp_send_user_request( string $request_id )</h1>  <section> <p>Send a confirmation request email to confirm an action.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>If the request is not already pending, it will be updated.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$request_id</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">ID of the request created via <a href="wp_create_user_request">wp_create_user_request()</a>.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(true|<a href="../classes/wp_error">WP_Error</a>)</span> True on success, <code>WP_Error</code> on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/user.php/">wp-includes/user.php</a> </p> <pre data-language="php">function wp_send_user_request( $request_id ) {
+	$request_id = absint( $request_id );
+	$request    = wp_get_user_request( $request_id );
+
+	if ( ! $request ) {
+		return new WP_Error( 'invalid_request', __( 'Invalid personal data request.' ) );
+	}
+
+	// Localize message content for user; fallback to site default for visitors.
+	if ( ! empty( $request-&gt;user_id ) ) {
+		$locale = get_user_locale( $request-&gt;user_id );
+	} else {
+		$locale = get_locale();
+	}
+
+	$switched_locale = switch_to_locale( $locale );
+
+	$email_data = array(
+		'request'     =&gt; $request,
+		'email'       =&gt; $request-&gt;email,
+		'description' =&gt; wp_user_request_action_description( $request-&gt;action_name ),
+		'confirm_url' =&gt; add_query_arg(
+			array(
+				'action'      =&gt; 'confirmaction',
+				'request_id'  =&gt; $request_id,
+				'confirm_key' =&gt; wp_generate_user_request_key( $request_id ),
+			),
+			wp_login_url()
+		),
+		'sitename'    =&gt; wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES ),
+		'siteurl'     =&gt; home_url(),
+	);
+
+	/* translators: Confirm privacy data request notification email subject. 1: Site title, 2: Name of the action. */
+	$subject = sprintf( __( '[%1$s] Confirm Action: %2$s' ), $email_data['sitename'], $email_data['description'] );
+
+	/**
+	 * Filters the subject of the email sent when an account action is attempted.
+	 *
+	 * @since 4.9.6
+	 *
+	 * @param string $subject    The email subject.
+	 * @param string $sitename   The name of the site.
+	 * @param array  $email_data {
+	 *     Data relating to the account action email.
+	 *
+	 *     @type WP_User_Request $request     User request object.
+	 *     @type string          $email       The email address this is being sent to.
+	 *     @type string          $description Description of the action being performed so the user knows what the email is for.
+	 *     @type string          $confirm_url The link to click on to confirm the account action.
+	 *     @type string          $sitename    The site name sending the mail.
+	 *     @type string          $siteurl     The site URL sending the mail.
+	 * }
+	 */
+	$subject = apply_filters( 'user_request_action_email_subject', $subject, $email_data['sitename'], $email_data );
+
+	/* translators: Do not translate DESCRIPTION, CONFIRM_URL, SITENAME, SITEURL: those are placeholders. */
+	$content = __(
+		'Howdy,
+
+A request has been made to perform the following action on your account:
+
+     ###DESCRIPTION###
+
+To confirm this, please click on the following link:
+###CONFIRM_URL###
+
+You can safely ignore and delete this email if you do not want to
+take this action.
+
+Regards,
+All at ###SITENAME###
+###SITEURL###'
+	);
+
+	/**
+	 * Filters the text of the email sent when an account action is attempted.
+	 *
+	 * The following strings have a special meaning and will get replaced dynamically:
+	 *
+	 * ###DESCRIPTION### Description of the action being performed so the user knows what the email is for.
+	 * ###CONFIRM_URL### The link to click on to confirm the account action.
+	 * ###SITENAME###    The name of the site.
+	 * ###SITEURL###     The URL to the site.
+	 *
+	 * @since 4.9.6
+	 *
+	 * @param string $content Text in the email.
+	 * @param array  $email_data {
+	 *     Data relating to the account action email.
+	 *
+	 *     @type WP_User_Request $request     User request object.
+	 *     @type string          $email       The email address this is being sent to.
+	 *     @type string          $description Description of the action being performed so the user knows what the email is for.
+	 *     @type string          $confirm_url The link to click on to confirm the account action.
+	 *     @type string          $sitename    The site name sending the mail.
+	 *     @type string          $siteurl     The site URL sending the mail.
+	 * }
+	 */
+	$content = apply_filters( 'user_request_action_email_content', $content, $email_data );
+
+	$content = str_replace( '###DESCRIPTION###', $email_data['description'], $content );
+	$content = str_replace( '###CONFIRM_URL###', esc_url_raw( $email_data['confirm_url'] ), $content );
+	$content = str_replace( '###EMAIL###', $email_data['email'], $content );
+	$content = str_replace( '###SITENAME###', $email_data['sitename'], $content );
+	$content = str_replace( '###SITEURL###', esc_url_raw( $email_data['siteurl'] ), $content );
+
+	$headers = '';
+
+	/**
+	 * Filters the headers of the email sent when an account action is attempted.
+	 *
+	 * @since 5.4.0
+	 *
+	 * @param string|array $headers    The email headers.
+	 * @param string       $subject    The email subject.
+	 * @param string       $content    The email content.
+	 * @param int          $request_id The request ID.
+	 * @param array        $email_data {
+	 *     Data relating to the account action email.
+	 *
+	 *     @type WP_User_Request $request     User request object.
+	 *     @type string          $email       The email address this is being sent to.
+	 *     @type string          $description Description of the action being performed so the user knows what the email is for.
+	 *     @type string          $confirm_url The link to click on to confirm the account action.
+	 *     @type string          $sitename    The site name sending the mail.
+	 *     @type string          $siteurl     The site URL sending the mail.
+	 * }
+	 */
+	$headers = apply_filters( 'user_request_action_email_headers', $headers, $subject, $content, $request_id, $email_data );
+
+	$email_sent = wp_mail( $email_data['email'], $subject, $content, $headers );
+
+	if ( $switched_locale ) {
+		restore_previous_locale();
+	}
+
+	if ( ! $email_sent ) {
+		return new WP_Error( 'privacy_email_error', __( 'Unable to send personal data export confirmation email.' ) );
+	}
+
+	return true;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/user.php:</span> <a href="wp_get_user_request">wp_get_user_request()</a> </td> <td class="related-desc"> <p>Returns the user request object for the specified request ID.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="../hooks/user_request_action_email_headers">user_request_action_email_headers</a> </td> <td class="related-desc"> <p>Filters the headers of the email sent when an account action is attempted.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="wp_generate_user_request_key">wp_generate_user_request_key()</a> </td> <td class="related-desc"> <p>Returns a confirmation key for a user action and stores the hashed version for future comparison.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="wp_user_request_action_description">wp_user_request_action_description()</a> </td> <td class="related-desc"> <p>Gets action description from the name and return a string.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="../hooks/user_request_action_email_subject">user_request_action_email_subject</a> </td> <td class="related-desc"> <p>Filters the subject of the email sent when an account action is attempted.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="../hooks/user_request_action_email_content">user_request_action_email_content</a> </td> <td class="related-desc"> <p>Filters the text of the email sent when an account action is attempted.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="restore_previous_locale">restore_previous_locale()</a> </td> <td class="related-desc"> <p>Restores the translations according to the previous locale.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="switch_to_locale">switch_to_locale()</a> </td> <td class="related-desc"> <p>Switches the translations according to the given locale.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="get_user_locale">get_user_locale()</a> </td> <td class="related-desc"> <p>Retrieves the locale of a user.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="get_locale">get_locale()</a> </td> <td class="related-desc"> <p>Retrieves the current locale.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_url_raw">esc_url_raw()</a> </td> <td class="related-desc"> <p>Performs <a href="esc_url">esc_url()</a> for database or redirect usage.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_specialchars_decode">wp_specialchars_decode()</a> </td> <td class="related-desc"> <p>Converts a number of HTML entities into their special characters.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_mail">wp_mail()</a> </td> <td class="related-desc"> <p>Sends an email, similar to PHP’s mail function.</p> </td> </tr> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="wp_login_url">wp_login_url()</a> </td> <td class="related-desc"> <p>Retrieves the login URL.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="absint">absint()</a> </td> <td class="related-desc"> <p>Convert a value to non-negative integer.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="add_query_arg">add_query_arg()</a> </td> <td class="related-desc"> <p>Retrieves a modified URL query string.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="home_url">home_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL for the current site where the front end is accessible.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../classes/wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/privacy-tools.php:</span> <a href="_wp_privacy_resend_request">_wp_privacy_resend_request()</a> </td> <td class="related-desc"> <p>Resend an existing request and return the result.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/privacy-tools.php:</span> <a href="_wp_personal_data_handle_actions">_wp_personal_data_handle_actions()</a> </td> <td class="related-desc"> <p>Handle list table actions.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.9.6/" alt="WordPress 4.9.6">4.9.6</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_send_user_request" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_send_user_request</a>
+  </p>
+</div>

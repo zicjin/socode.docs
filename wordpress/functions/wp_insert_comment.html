@@ -1,0 +1,86 @@
+<h1>wp_insert_comment( array $commentdata )</h1>  <section> <p>Inserts a comment into the database.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$commentdata</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Array of arguments for inserting a new comment. <ul class="param-hash">
+<li>
+<b>'comment_agent'</b><br><i><span class="type">(string)</span></i> The HTTP user agent of the <code>$comment_author</code> when the comment was submitted. Default empty.</li> <li>
+<b>'comment_approved'</b><br><i><span class="type">(int|string)</span></i> Whether the comment has been approved. Default 1.</li> <li>
+<b>'comment_author'</b><br><i><span class="type">(string)</span></i> The name of the author of the comment. Default empty.</li> <li>
+<b>'comment_author_email'</b><br><i><span class="type">(string)</span></i> The email address of the <code>$comment_author</code>. Default empty.</li> <li>
+<b>'comment_author_IP'</b><br><i><span class="type">(string)</span></i> The IP address of the <code>$comment_author</code>. Default empty.</li> <li>
+<b>'comment_author_url'</b><br><i><span class="type">(string)</span></i> The URL address of the <code>$comment_author</code>. Default empty.</li> <li>
+<b>'comment_content'</b><br><i><span class="type">(string)</span></i> The content of the comment. Default empty.</li> <li>
+<b>'comment_date'</b><br><i><span class="type">(string)</span></i> The date the comment was submitted. To set the date manually, <code>$comment_date_gmt</code> must also be specified. Default is the current time.</li> <li>
+<b>'comment_date_gmt'</b><br><i><span class="type">(string)</span></i> The date the comment was submitted in the GMT timezone. Default is <code>$comment_date</code> in the site's GMT timezone.</li> <li>
+<b>'comment_karma'</b><br><i><span class="type">(int)</span></i> The karma of the comment. Default 0.</li> <li>
+<b>'comment_parent'</b><br><i><span class="type">(int)</span></i> ID of this comment's parent, if any. Default 0.</li> <li>
+<b>'comment_post_ID'</b><br><i><span class="type">(int)</span></i> ID of the post that relates to the comment, if any. Default 0.</li> <li>
+<b>'comment_type'</b><br><i><span class="type">(string)</span></i> Comment type. Default 'comment'.</li> <li>
+<b>'comment_meta'</b><br><i><span class="type">(array)</span></i> Optional. Array of key/value pairs to be stored in commentmeta for the new comment.</li> <li>
+<b>'user_id'</b><br><i><span class="type">(int)</span></i> ID of the user who submitted the comment. Default 0.</li> </ul> </span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(int|false)</span> The new comment's ID on success, false on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/comment.php/">wp-includes/comment.php</a> </p> <pre data-language="php">function wp_insert_comment( $commentdata ) {
+	global $wpdb;
+	$data = wp_unslash( $commentdata );
+
+	$comment_author       = ! isset( $data['comment_author'] ) ? '' : $data['comment_author'];
+	$comment_author_email = ! isset( $data['comment_author_email'] ) ? '' : $data['comment_author_email'];
+	$comment_author_url   = ! isset( $data['comment_author_url'] ) ? '' : $data['comment_author_url'];
+	$comment_author_IP    = ! isset( $data['comment_author_IP'] ) ? '' : $data['comment_author_IP'];
+
+	$comment_date     = ! isset( $data['comment_date'] ) ? current_time( 'mysql' ) : $data['comment_date'];
+	$comment_date_gmt = ! isset( $data['comment_date_gmt'] ) ? get_gmt_from_date( $comment_date ) : $data['comment_date_gmt'];
+
+	$comment_post_ID  = ! isset( $data['comment_post_ID'] ) ? 0 : $data['comment_post_ID'];
+	$comment_content  = ! isset( $data['comment_content'] ) ? '' : $data['comment_content'];
+	$comment_karma    = ! isset( $data['comment_karma'] ) ? 0 : $data['comment_karma'];
+	$comment_approved = ! isset( $data['comment_approved'] ) ? 1 : $data['comment_approved'];
+	$comment_agent    = ! isset( $data['comment_agent'] ) ? '' : $data['comment_agent'];
+	$comment_type     = empty( $data['comment_type'] ) ? 'comment' : $data['comment_type'];
+	$comment_parent   = ! isset( $data['comment_parent'] ) ? 0 : $data['comment_parent'];
+
+	$user_id = ! isset( $data['user_id'] ) ? 0 : $data['user_id'];
+
+	$compacted = compact( 'comment_post_ID', 'comment_author', 'comment_author_email', 'comment_author_url', 'comment_author_IP', 'comment_date', 'comment_date_gmt', 'comment_content', 'comment_karma', 'comment_approved', 'comment_agent', 'comment_type', 'comment_parent', 'user_id' );
+	if ( ! $wpdb-&gt;insert( $wpdb-&gt;comments, $compacted ) ) {
+		return false;
+	}
+
+	$id = (int) $wpdb-&gt;insert_id;
+
+	if ( 1 == $comment_approved ) {
+		wp_update_comment_count( $comment_post_ID );
+
+		$data = array();
+		foreach ( array( 'server', 'gmt', 'blog' ) as $timezone ) {
+			$data[] = "lastcommentmodified:$timezone";
+		}
+		wp_cache_delete_multiple( $data, 'timeinfo' );
+	}
+
+	clean_comment_cache( $id );
+
+	$comment = get_comment( $id );
+
+	// If metadata is provided, store it.
+	if ( isset( $commentdata['comment_meta'] ) &amp;&amp; is_array( $commentdata['comment_meta'] ) ) {
+		foreach ( $commentdata['comment_meta'] as $meta_key =&gt; $meta_value ) {
+			add_comment_meta( $comment-&gt;comment_ID, $meta_key, $meta_value, true );
+		}
+	}
+
+	/**
+	 * Fires immediately after a comment is inserted into the database.
+	 *
+	 * @since 2.8.0
+	 *
+	 * @param int        $id      The comment ID.
+	 * @param WP_Comment $comment Comment object.
+	 */
+	do_action( 'wp_insert_comment', $id, $comment );
+
+	return $id;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/cache.php:</span> <a href="wp_cache_delete_multiple">wp_cache_delete_multiple()</a> </td> <td class="related-desc"> <p>Deletes multiple values from the cache in one call.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_unslash">wp_unslash()</a> </td> <td class="related-desc"> <p>Removes slashes from a string or recursively removes slashes from strings within an array.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="get_gmt_from_date">get_gmt_from_date()</a> </td> <td class="related-desc"> <p>Given a date in the timezone of the site, returns that date in UTC.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="current_time">current_time()</a> </td> <td class="related-desc"> <p>Retrieves the current time based on specified type.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/insert">wpdb::insert()</a> </td> <td class="related-desc"> <p>Inserts a row into the table.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="clean_comment_cache">clean_comment_cache()</a> </td> <td class="related-desc"> <p>Removes a comment from the object cache.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="wp_update_comment_count">wp_update_comment_count()</a> </td> <td class="related-desc"> <p>Updates the comment count for post(s).</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/wp_insert_comment">wp_insert_comment</a> </td> <td class="related-desc"> <p>Fires immediately after a comment is inserted into the database.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="add_comment_meta">add_comment_meta()</a> </td> <td class="related-desc"> <p>Adds meta data field to a comment.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="get_comment">get_comment()</a> </td> <td class="related-desc"> <p>Retrieves comment data given a comment ID or comment object.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-comments-controller.php:</span> <a href="../classes/wp_rest_comments_controller/create_item">WP_REST_Comments_Controller::create_item()</a> </td> <td class="related-desc"> <p>Creates a comment.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="wp_new_comment">wp_new_comment()</a> </td> <td class="related-desc"> <p>Adds a new comment to the database.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.0/" alt="WordPress 5.5.0">5.5.0</a></td> <td><span class="since-description">Default value for <code>$comment_type</code> argument changed to <code>comment</code>.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.4.0/" alt="WordPress 4.4.0">4.4.0</a></td> <td><span class="since-description">Introduced the <code>$comment_meta</code> argument.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.0.0/" alt="WordPress 2.0.0">2.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_insert_comment" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_insert_comment</a>
+  </p>
+</div>

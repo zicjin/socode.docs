@@ -1,0 +1,67 @@
+<h1>wp_count_posts( string $type = 'post', string $perm = '' )</h1>  <section> <p>Count number of posts of a post type and if user has permissions to view.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>This function provides an efficient method of finding the amount of post’s type a blog has. Another method is to count the amount of items in <a href="get_posts">get_posts()</a>, but that method has a lot of overhead with doing so. Therefore, when developing for 2.5+, use this function instead.</p> <p>The $perm parameter checks for ‘readable’ value and if the user can read private posts, it will display that for the user that is signed in.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$type</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> Post type to retrieve count. </span> </p> <p class="default">Default value: 'post'</p> </dd> <dt>$perm</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> 'readable' or empty. </span> </p> <p class="default">Default value: ''</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(stdClass)</span> Number of posts for each status.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/post.php/">wp-includes/post.php</a> </p> <pre data-language="php">function wp_count_posts( $type = 'post', $perm = '' ) {
+	global $wpdb;
+
+	if ( ! post_type_exists( $type ) ) {
+		return new stdClass;
+	}
+
+	$cache_key = _count_posts_cache_key( $type, $perm );
+
+	$counts = wp_cache_get( $cache_key, 'counts' );
+	if ( false !== $counts ) {
+		// We may have cached this before every status was registered.
+		foreach ( get_post_stati() as $status ) {
+			if ( ! isset( $counts-&gt;{$status} ) ) {
+				$counts-&gt;{$status} = 0;
+			}
+		}
+
+		/** This filter is documented in wp-includes/post.php */
+		return apply_filters( 'wp_count_posts', $counts, $type, $perm );
+	}
+
+	$query = "SELECT post_status, COUNT( * ) AS num_posts FROM {$wpdb-&gt;posts} WHERE post_type = %s";
+
+	if ( 'readable' === $perm &amp;&amp; is_user_logged_in() ) {
+		$post_type_object = get_post_type_object( $type );
+		if ( ! current_user_can( $post_type_object-&gt;cap-&gt;read_private_posts ) ) {
+			$query .= $wpdb-&gt;prepare(
+				" AND (post_status != 'private' OR ( post_author = %d AND post_status = 'private' ))",
+				get_current_user_id()
+			);
+		}
+	}
+
+	$query .= ' GROUP BY post_status';
+
+	$results = (array) $wpdb-&gt;get_results( $wpdb-&gt;prepare( $query, $type ), ARRAY_A );
+	$counts  = array_fill_keys( get_post_stati(), 0 );
+
+	foreach ( $results as $row ) {
+		$counts[ $row['post_status'] ] = $row['num_posts'];
+	}
+
+	$counts = (object) $counts;
+	wp_cache_set( $cache_key, $counts, 'counts' );
+
+	/**
+	 * Modify returned post counts by status for the current post type.
+	 *
+	 * @since 3.7.0
+	 *
+	 * @param stdClass $counts An object containing the current post_type's post
+	 *                         counts by status.
+	 * @param string   $type   Post type.
+	 * @param string   $perm   The permission to determine if the posts are 'readable'
+	 *                         by the current user.
+	 */
+	return apply_filters( 'wp_count_posts', $counts, $type, $perm );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/cache.php:</span> <a href="wp_cache_get">wp_cache_get()</a> </td> <td class="related-desc"> <p>Retrieves the cache contents from the cache by key and group.</p> </td> </tr> <tr> <td> <span>wp-includes/cache.php:</span> <a href="wp_cache_set">wp_cache_set()</a> </td> <td class="related-desc"> <p>Saves the data to the cache.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="is_user_logged_in">is_user_logged_in()</a> </td> <td class="related-desc"> <p>Determines whether the current visitor is a logged in user.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="get_current_user_id">get_current_user_id()</a> </td> <td class="related-desc"> <p>Gets the current user’s ID.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="_count_posts_cache_key">_count_posts_cache_key()</a> </td> <td class="related-desc"> <p>Return the cache key for <a href="wp_count_posts">wp_count_posts()</a> based on the passed arguments.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../hooks/wp_count_posts">wp_count_posts</a> </td> <td class="related-desc"> <p>Modify returned post counts by status for the current post type.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="post_type_exists">post_type_exists()</a> </td> <td class="related-desc"> <p>Determines whether a post type is registered.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post_stati">get_post_stati()</a> </td> <td class="related-desc"> <p>Get a list of post statuses.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post_type_object">get_post_type_object()</a> </td> <td class="related-desc"> <p>Retrieves a post type object by name.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/get_results">wpdb::get_results()</a> </td> <td class="related-desc"> <p>Retrieves an entire SQL result set from the database (i.e., many rows).</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/prepare">wpdb::prepare()</a> </td> <td class="related-desc"> <p>Prepares a SQL query for safe execution.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/dashboard.php:</span> <a href="wp_dashboard_right_now">wp_dashboard_right_now()</a> </td> <td class="related-desc"> <p>Dashboard widget that displays some basic stats about the site.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/post.php:</span> <a href="get_available_post_statuses">get_available_post_statuses()</a> </td> <td class="related-desc"> <p>Returns all the possible statuses for a post type.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-posts-list-table.php:</span> <a href="../classes/wp_posts_list_table/get_views">WP_Posts_List_Table::get_views()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-posts-list-table.php:</span> <a href="../classes/wp_posts_list_table/prepare_items">WP_Posts_List_Table::prepare_items()</a> </td> <td class="related-desc"> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.5.0/" alt="WordPress 2.5.0">2.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_count_posts" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_count_posts</a>
+  </p>
+</div>

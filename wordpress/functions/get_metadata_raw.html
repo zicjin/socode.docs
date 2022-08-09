@@ -1,0 +1,77 @@
+<h1>get_metadata_raw( string $meta_type, int $object_id, string $meta_key = '', bool $single = false )</h1>  <section> <p>Retrieves raw metadata value for the specified object.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$meta_type</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Type of object metadata is for. Accepts 'post', 'comment', 'term', 'user', or any other object type with an associated meta table.</span> </p> </dd> <dt>$object_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">ID of the object metadata is for.</span> </p> </dd> <dt>$meta_key</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> Metadata key. If not specified, retrieve all metadata for the specified object. </span> </p> <p class="default">Default value: ''</p> </dd> <dt>$single</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> If true, return only the first value of the specified <code>$meta_key</code>. This parameter has no effect if <code>$meta_key</code> is not specified. </span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(mixed)</span> An array of values if <code>$single</code> is false. The value of the meta field if <code>$single</code> is true. False for an invalid <code>$object_id</code> (non-numeric, zero, or negative value), or if <code>$meta_type</code> is not specified. Null if the value does not exist.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/meta.php/">wp-includes/meta.php</a> </p> <pre data-language="php">function get_metadata_raw( $meta_type, $object_id, $meta_key = '', $single = false ) {
+	if ( ! $meta_type || ! is_numeric( $object_id ) ) {
+		return false;
+	}
+
+	$object_id = absint( $object_id );
+	if ( ! $object_id ) {
+		return false;
+	}
+
+	/**
+	 * Short-circuits the return value of a meta field.
+	 *
+	 * The dynamic portion of the hook name, `$meta_type`, refers to the meta object type
+	 * (post, comment, term, user, or any other type with an associated meta table).
+	 * Returning a non-null value will effectively short-circuit the function.
+	 *
+	 * Possible filter names include:
+	 *
+	 *  - `get_post_metadata`
+	 *  - `get_comment_metadata`
+	 *  - `get_term_metadata`
+	 *  - `get_user_metadata`
+	 *
+	 * @since 3.1.0
+	 * @since 5.5.0 Added the `$meta_type` parameter.
+	 *
+	 * @param mixed  $value     The value to return, either a single metadata value or an array
+	 *                          of values depending on the value of `$single`. Default null.
+	 * @param int    $object_id ID of the object metadata is for.
+	 * @param string $meta_key  Metadata key.
+	 * @param bool   $single    Whether to return only the first value of the specified `$meta_key`.
+	 * @param string $meta_type Type of object metadata is for. Accepts 'post', 'comment', 'term', 'user',
+	 *                          or any other object type with an associated meta table.
+	 */
+	$check = apply_filters( "get_{$meta_type}_metadata", null, $object_id, $meta_key, $single, $meta_type );
+	if ( null !== $check ) {
+		if ( $single &amp;&amp; is_array( $check ) ) {
+			return $check[0];
+		} else {
+			return $check;
+		}
+	}
+
+	$meta_cache = wp_cache_get( $object_id, $meta_type . '_meta' );
+
+	if ( ! $meta_cache ) {
+		$meta_cache = update_meta_cache( $meta_type, array( $object_id ) );
+		if ( isset( $meta_cache[ $object_id ] ) ) {
+			$meta_cache = $meta_cache[ $object_id ];
+		} else {
+			$meta_cache = null;
+		}
+	}
+
+	if ( ! $meta_key ) {
+		return $meta_cache;
+	}
+
+	if ( isset( $meta_cache[ $meta_key ] ) ) {
+		if ( $single ) {
+			return maybe_unserialize( $meta_cache[ $meta_key ][0] );
+		} else {
+			return array_map( 'maybe_unserialize', $meta_cache[ $meta_key ] );
+		}
+	}
+
+	return null;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/cache.php:</span> <a href="wp_cache_get">wp_cache_get()</a> </td> <td class="related-desc"> <p>Retrieves the cache contents from the cache by key and group.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="absint">absint()</a> </td> <td class="related-desc"> <p>Convert a value to non-negative integer.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="maybe_unserialize">maybe_unserialize()</a> </td> <td class="related-desc"> <p>Unserialize data only if it was serialized.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/meta.php:</span> <a href="update_meta_cache">update_meta_cache()</a> </td> <td class="related-desc"> <p>Updates the metadata cache for the specified objects.</p> </td> </tr> <tr> <td> <span>wp-includes/meta.php:</span> <a href="../hooks/get_meta_type_metadata">get_{$meta_type}_metadata</a> </td> <td class="related-desc"> <p>Short-circuits the return value of a meta field.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/fields/class-wp-rest-meta-fields.php:</span> <a href="../classes/wp_rest_meta_fields/delete_meta_value">WP_REST_Meta_Fields::delete_meta_value()</a> </td> <td class="related-desc"> <p>Deletes a meta value for an object.</p> </td> </tr> <tr> <td> <span>wp-includes/meta.php:</span> <a href="get_metadata">get_metadata()</a> </td> <td class="related-desc"> <p>Retrieves the value of a metadata field for the specified object type and ID.</p> </td> </tr> <tr> <td> <span>wp-includes/meta.php:</span> <a href="update_metadata">update_metadata()</a> </td> <td class="related-desc"> <p>Updates metadata for the specified object. If no value already exists for the specified object ID and metadata key, the metadata will be added.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.0/" alt="WordPress 5.5.0">5.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/get_metadata_raw" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/get_metadata_raw</a>
+  </p>
+</div>

@@ -1,0 +1,91 @@
+<h1>WP_List_Table::comments_bubble( int $post_id, int $pending_comments )</h1>  <section> <p>Displays a comment count bubble.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$post_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">The post ID.</span> </p> </dd> <dt>$pending_comments</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">Number of pending comments.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-list-table.php/">wp-admin/includes/class-wp-list-table.php</a> </p> <pre data-language="php">protected function comments_bubble( $post_id, $pending_comments ) {
+		$approved_comments = get_comments_number();
+
+		$approved_comments_number = number_format_i18n( $approved_comments );
+		$pending_comments_number  = number_format_i18n( $pending_comments );
+
+		$approved_only_phrase = sprintf(
+			/* translators: %s: Number of comments. */
+			_n( '%s comment', '%s comments', $approved_comments ),
+			$approved_comments_number
+		);
+
+		$approved_phrase = sprintf(
+			/* translators: %s: Number of comments. */
+			_n( '%s approved comment', '%s approved comments', $approved_comments ),
+			$approved_comments_number
+		);
+
+		$pending_phrase = sprintf(
+			/* translators: %s: Number of comments. */
+			_n( '%s pending comment', '%s pending comments', $pending_comments ),
+			$pending_comments_number
+		);
+
+		if ( ! $approved_comments &amp;&amp; ! $pending_comments ) {
+			// No comments at all.
+			printf(
+				'&lt;span aria-hidden="true"&gt;&amp;#8212;&lt;/span&gt;&lt;span class="screen-reader-text"&gt;%s&lt;/span&gt;',
+				__( 'No comments' )
+			);
+		} elseif ( $approved_comments &amp;&amp; 'trash' === get_post_status( $post_id ) ) {
+			// Don't link the comment bubble for a trashed post.
+			printf(
+				'&lt;span class="post-com-count post-com-count-approved"&gt;&lt;span class="comment-count-approved" aria-hidden="true"&gt;%s&lt;/span&gt;&lt;span class="screen-reader-text"&gt;%s&lt;/span&gt;&lt;/span&gt;',
+				$approved_comments_number,
+				$pending_comments ? $approved_phrase : $approved_only_phrase
+			);
+		} elseif ( $approved_comments ) {
+			// Link the comment bubble to approved comments.
+			printf(
+				'&lt;a href="%s" class="post-com-count post-com-count-approved"&gt;&lt;span class="comment-count-approved" aria-hidden="true"&gt;%s&lt;/span&gt;&lt;span class="screen-reader-text"&gt;%s&lt;/span&gt;&lt;/a&gt;',
+				esc_url(
+					add_query_arg(
+						array(
+							'p'              =&gt; $post_id,
+							'comment_status' =&gt; 'approved',
+						),
+						admin_url( 'edit-comments.php' )
+					)
+				),
+				$approved_comments_number,
+				$pending_comments ? $approved_phrase : $approved_only_phrase
+			);
+		} else {
+			// Don't link the comment bubble when there are no approved comments.
+			printf(
+				'&lt;span class="post-com-count post-com-count-no-comments"&gt;&lt;span class="comment-count comment-count-no-comments" aria-hidden="true"&gt;%s&lt;/span&gt;&lt;span class="screen-reader-text"&gt;%s&lt;/span&gt;&lt;/span&gt;',
+				$approved_comments_number,
+				$pending_comments ? __( 'No approved comments' ) : __( 'No comments' )
+			);
+		}
+
+		if ( $pending_comments ) {
+			printf(
+				'&lt;a href="%s" class="post-com-count post-com-count-pending"&gt;&lt;span class="comment-count-pending" aria-hidden="true"&gt;%s&lt;/span&gt;&lt;span class="screen-reader-text"&gt;%s&lt;/span&gt;&lt;/a&gt;',
+				esc_url(
+					add_query_arg(
+						array(
+							'p'              =&gt; $post_id,
+							'comment_status' =&gt; 'moderated',
+						),
+						admin_url( 'edit-comments.php' )
+					)
+				),
+				$pending_comments_number,
+				$pending_phrase
+			);
+		} else {
+			printf(
+				'&lt;span class="post-com-count post-com-count-pending post-com-count-no-pending"&gt;&lt;span class="comment-count comment-count-no-pending" aria-hidden="true"&gt;%s&lt;/span&gt;&lt;span class="screen-reader-text"&gt;%s&lt;/span&gt;&lt;/span&gt;',
+				$pending_comments_number,
+				$approved_comments ? __( 'No pending comments' ) : __( 'No comments' )
+			);
+		}
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/_n">_n()</a> </td> <td class="related-desc"> <p>Translates and retrieves the singular or plural form based on the supplied number.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/add_query_arg">add_query_arg()</a> </td> <td class="related-desc"> <p>Retrieves a modified URL query string.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/number_format_i18n">number_format_i18n()</a> </td> <td class="related-desc"> <p>Convert float number to format based on the locale.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="../../functions/admin_url">admin_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the admin area for the current site.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/get_post_status">get_post_status()</a> </td> <td class="related-desc"> <p>Retrieve the post status based on the post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/comment-template.php:</span> <a href="../../functions/get_comments_number">get_comments_number()</a> </td> <td class="related-desc"> <p>Retrieves the amount of comments a post has.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.1.0/" alt="WordPress 3.1.0">3.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_list_table/comments_bubble" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_list_table/comments_bubble</a>
+  </p>
+</div>

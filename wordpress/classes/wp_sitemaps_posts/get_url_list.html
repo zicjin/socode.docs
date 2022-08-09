@@ -1,0 +1,88 @@
+<h1>WP_Sitemaps_Posts::get_url_list( int $page_num, string $object_subtype = '' )</h1>  <section> <p>Gets a URL list for a post type sitemap.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$page_num</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">Page of results.</span> </p> </dd> <dt>$object_subtype</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> Post type name. </span> </p> <p class="default">Default value: ''</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array[])</span> Array of URL information for a sitemap.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/sitemaps/providers/class-wp-sitemaps-posts.php/">wp-includes/sitemaps/providers/class-wp-sitemaps-posts.php</a> </p> <pre data-language="php">public function get_url_list( $page_num, $object_subtype = '' ) {
+		// Restores the more descriptive, specific name for use within this method.
+		$post_type = $object_subtype;
+
+		// Bail early if the queried post type is not supported.
+		$supported_types = $this-&gt;get_object_subtypes();
+
+		if ( ! isset( $supported_types[ $post_type ] ) ) {
+			return array();
+		}
+
+		/**
+		 * Filters the posts URL list before it is generated.
+		 *
+		 * Returning a non-null value will effectively short-circuit the generation,
+		 * returning that value instead.
+		 *
+		 * @since 5.5.0
+		 *
+		 * @param array[]|null $url_list  The URL list. Default null.
+		 * @param string       $post_type Post type name.
+		 * @param int          $page_num  Page of results.
+		 */
+		$url_list = apply_filters(
+			'wp_sitemaps_posts_pre_url_list',
+			null,
+			$post_type,
+			$page_num
+		);
+
+		if ( null !== $url_list ) {
+			return $url_list;
+		}
+
+		$args          = $this-&gt;get_posts_query_args( $post_type );
+		$args['paged'] = $page_num;
+
+		$query = new WP_Query( $args );
+
+		$url_list = array();
+
+		/*
+		 * Add a URL for the homepage in the pages sitemap.
+		 * Shows only on the first page if the reading settings are set to display latest posts.
+		 */
+		if ( 'page' === $post_type &amp;&amp; 1 === $page_num &amp;&amp; 'posts' === get_option( 'show_on_front' ) ) {
+			// Extract the data needed for home URL to add to the array.
+			$sitemap_entry = array(
+				'loc' =&gt; home_url( '/' ),
+			);
+
+			/**
+			 * Filters the sitemap entry for the home page when the 'show_on_front' option equals 'posts'.
+			 *
+			 * @since 5.5.0
+			 *
+			 * @param array $sitemap_entry Sitemap entry for the home page.
+			 */
+			$sitemap_entry = apply_filters( 'wp_sitemaps_posts_show_on_front_entry', $sitemap_entry );
+			$url_list[]    = $sitemap_entry;
+		}
+
+		foreach ( $query-&gt;posts as $post ) {
+			$sitemap_entry = array(
+				'loc' =&gt; get_permalink( $post ),
+			);
+
+			/**
+			 * Filters the sitemap entry for an individual post.
+			 *
+			 * @since 5.5.0
+			 *
+			 * @param array   $sitemap_entry Sitemap entry for the post.
+			 * @param WP_Post $post          Post object.
+			 * @param string  $post_type     Name of the post_type.
+			 */
+			$sitemap_entry = apply_filters( 'wp_sitemaps_posts_entry', $sitemap_entry, $post, $post_type );
+			$url_list[]    = $sitemap_entry;
+		}
+
+		return $url_list;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/sitemaps/providers/class-wp-sitemaps-posts.php:</span> <a href="get_posts_query_args">WP_Sitemaps_Posts::get_posts_query_args()</a> </td> <td class="related-desc"> <p>Returns the query args for retrieving posts to list in the sitemap.</p> </td> </tr> <tr> <td> <span>wp-includes/sitemaps/providers/class-wp-sitemaps-posts.php:</span> <a href="get_object_subtypes">WP_Sitemaps_Posts::get_object_subtypes()</a> </td> <td class="related-desc"> <p>Returns the public post types, which excludes nav_items and similar types.</p> </td> </tr> <tr> <td> <span>wp-includes/sitemaps/providers/class-wp-sitemaps-posts.php:</span> <a href="../../hooks/wp_sitemaps_posts_pre_url_list">wp_sitemaps_posts_pre_url_list</a> </td> <td class="related-desc"> <p>Filters the posts URL list before it is generated.</p> </td> </tr> <tr> <td> <span>wp-includes/sitemaps/providers/class-wp-sitemaps-posts.php:</span> <a href="../../hooks/wp_sitemaps_posts_show_on_front_entry">wp_sitemaps_posts_show_on_front_entry</a> </td> <td class="related-desc"> <p>Filters the sitemap entry for the home page when the ‘show_on_front’ option equals ‘posts’.</p> </td> </tr> <tr> <td> <span>wp-includes/sitemaps/providers/class-wp-sitemaps-posts.php:</span> <a href="../../hooks/wp_sitemaps_posts_entry">wp_sitemaps_posts_entry</a> </td> <td class="related-desc"> <p>Filters the sitemap entry for an individual post.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-query.php:</span> <a href="../wp_query/__construct">WP_Query::__construct()</a> </td> <td class="related-desc"> <p>Constructor.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="../../functions/home_url">home_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL for the current site where the front end is accessible.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="../../functions/get_permalink">get_permalink()</a> </td> <td class="related-desc"> <p>Retrieves the full permalink for the current post or post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../../functions/get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.9.0/" alt="WordPress 5.9.0">5.9.0</a></td> <td><span class="since-description">Renamed <code>$post_type</code> to <code>$object_subtype</code> to match parent class for PHP 8 named parameter support.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.0/" alt="WordPress 5.5.0">5.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_sitemaps_posts/get_url_list" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_sitemaps_posts/get_url_list</a>
+  </p>
+</div>

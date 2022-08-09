@@ -1,0 +1,56 @@
+<h1 data-toc="native-ios-symbolication" id="native-ios-symbolication.md">Symbolicating iOS crash reports</h1>
+<p id="6948d04">Debugging an iOS application crash sometimes involves analyzing crash reports. More info about crash reports can be found in the <a href="https://developer.apple.com/library/archive/technotes/tn2151/_index.html" id="a8342174" data-external="true" rel="noopener noreferrer">Apple documentation</a>.</p>
+<p id="3d6128a7">Crash reports generally require symbolication to become properly readable: symbolication turns machine code addresses into human-readable source locations. The document below describes some specific details of symbolicating crash reports from iOS applications using Kotlin.</p>
+<section class="chapter"><h2 id="producing-dsym-for-release-kotlin-binaries" data-toc="native-ios-symbolication#producing-dsym-for-release-kotlin-binaries">Producing .dSYM for release Kotlin binaries</h2>
+<p id="ff62b3bf">To symbolicate addresses in Kotlin code (e.g. for stack trace elements corresponding to Kotlin code) <code class="code ">.dSYM</code> bundle for Kotlin code is required.</p>
+<p id="e361708f">By default, Kotlin/Native compiler produces <code class="code ">.dSYM</code> for release (i.e. optimized) binaries on Darwin platforms. This can be disabled with <code class="code ">-Xadd-light-debug=disable</code> compiler flag. At the same time, this option is disabled by default for other platforms. To enable it, use the <code class="code ">-Xadd-light-debug=enable</code> compiler option.</p>
+<div class="tabs" id="907aa854" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="62bd7a26" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">kotlin {
+    targets.withType&lt;org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget&gt; {
+        binaries.all {
+            freeCompilerArgs += "-Xadd-light-debug={enable|disable}"
+        }
+    }
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="215c6491" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">kotlin {
+    targets.withType(org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget) {
+        binaries.all {
+            freeCompilerArgs += "-Xadd-light-debug={enable|disable}"
+        }
+    }
+}
+</pre></div>
+</div>
+<p id="234facd7">In projects created from IntelliJ IDEA or AppCode templates these <code class="code ">.dSYM</code> bundles are then discovered by Xcode automatically.</p></section><section class="chapter"><h2 id="make-frameworks-static-when-using-rebuild-from-bitcode" data-toc="native-ios-symbolication#make-frameworks-static-when-using-rebuild-from-bitcode">Make frameworks static when using rebuild from bitcode</h2>
+<p id="536049e3">Rebuilding Kotlin-produced framework from bitcode invalidates the original <code class="code ">.dSYM</code>. If it is performed locally, make sure the updated <code class="code ">.dSYM</code> is used when symbolicating crash reports.</p>
+<p id="429216ac">If rebuilding is performed on App Store side, then <code class="code ">.dSYM</code> of rebuilt <em id="d8b1e301" class="">dynamic</em> framework seems discarded and not downloadable from App Store Connect. In this case, it may be required to make the framework static.</p>
+<div class="tabs" id="57350916" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="49e4643" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">kotlin {
+    targets.withType&lt;org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget&gt; {
+        binaries.withType&lt;org.jetbrains.kotlin.gradle.plugin.mpp.Framework&gt; {
+            isStatic = true
+        }
+    }
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="49dae074" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">kotlin {
+    targets.withType(org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget) {
+        binaries.withType(org.jetbrains.kotlin.gradle.plugin.mpp.Framework) {
+            isStatic = true
+        }
+    }
+}
+</pre></div>
+</div></section><section class="chapter"><h2 id="decode-inlined-stack-frames" data-toc="native-ios-symbolication#decode-inlined-stack-frames">Decode inlined stack frames</h2>
+<p id="c9ef28af">Xcode doesn't seem to properly decode stack trace elements of inlined function calls (these aren't only Kotlin <code class="code ">inline</code> functions but also functions that are inlined when optimizing machine code). So some stack trace elements may be missing. If this is the case, consider using <code class="code ">lldb</code> to process crash report that is already symbolicated by Xcode, for example:</p>
+<pre class="code" data-language="bash">$ lldb -b -o "script import lldb.macosx" -o "crashlog file.crash"
+</pre>
+<p id="c2f21927">This command should output crash report that is additionally processed and includes inlined stack trace elements.</p>
+<p id="4389dcc4">More details can be found in <a href="https://lldb.llvm.org/use/symbolication.html" id="7f2ce9e8" data-external="true" rel="noopener noreferrer">LLDB documentation</a>.</p></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="native-debugging">Debugging Kotlin/Native</a> <a class="navigation-links__next" href="native-improving-compilation-time">Tips for improving Kotlin/Native compilation times</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/native-ios-symbolication.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/native-ios-symbolication.html</a>
+  </p>
+</div>

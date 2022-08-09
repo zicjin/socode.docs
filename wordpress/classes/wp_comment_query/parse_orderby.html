@@ -1,0 +1,60 @@
+<h1>WP_Comment_Query::parse_orderby( string $orderby )</h1>  <section> <p>Parse and sanitize ‘orderby’ keys passed to the comment query.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$orderby</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Alias for the field to order by.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string|false)</span> Value to used in the ORDER clause. False otherwise.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-comment-query.php/">wp-includes/class-wp-comment-query.php</a> </p> <pre data-language="php">protected function parse_orderby( $orderby ) {
+		global $wpdb;
+
+		$allowed_keys = array(
+			'comment_agent',
+			'comment_approved',
+			'comment_author',
+			'comment_author_email',
+			'comment_author_IP',
+			'comment_author_url',
+			'comment_content',
+			'comment_date',
+			'comment_date_gmt',
+			'comment_ID',
+			'comment_karma',
+			'comment_parent',
+			'comment_post_ID',
+			'comment_type',
+			'user_id',
+		);
+
+		if ( ! empty( $this-&gt;query_vars['meta_key'] ) ) {
+			$allowed_keys[] = $this-&gt;query_vars['meta_key'];
+			$allowed_keys[] = 'meta_value';
+			$allowed_keys[] = 'meta_value_num';
+		}
+
+		$meta_query_clauses = $this-&gt;meta_query-&gt;get_clauses();
+		if ( $meta_query_clauses ) {
+			$allowed_keys = array_merge( $allowed_keys, array_keys( $meta_query_clauses ) );
+		}
+
+		$parsed = false;
+		if ( $this-&gt;query_vars['meta_key'] === $orderby || 'meta_value' === $orderby ) {
+			$parsed = "$wpdb-&gt;commentmeta.meta_value";
+		} elseif ( 'meta_value_num' === $orderby ) {
+			$parsed = "$wpdb-&gt;commentmeta.meta_value+0";
+		} elseif ( 'comment__in' === $orderby ) {
+			$comment__in = implode( ',', array_map( 'absint', $this-&gt;query_vars['comment__in'] ) );
+			$parsed      = "FIELD( {$wpdb-&gt;comments}.comment_ID, $comment__in )";
+		} elseif ( in_array( $orderby, $allowed_keys, true ) ) {
+
+			if ( isset( $meta_query_clauses[ $orderby ] ) ) {
+				$meta_clause = $meta_query_clauses[ $orderby ];
+				$parsed      = sprintf( 'CAST(%s.meta_value AS %s)', esc_sql( $meta_clause['alias'] ), esc_sql( $meta_clause['cast'] ) );
+			} else {
+				$parsed = "$wpdb-&gt;comments.$orderby";
+			}
+		}
+
+		return $parsed;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_sql">esc_sql()</a> </td> <td class="related-desc"> <p>Escapes data for use in a MySQL query.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-comment-query.php:</span> <a href="get_comment_ids">WP_Comment_Query::get_comment_ids()</a> </td> <td class="related-desc"> <p>Used internally to get a list of comment IDs matching the query vars.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.2.0/" alt="WordPress 4.2.0">4.2.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_comment_query/parse_orderby" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_comment_query/parse_orderby</a>
+  </p>
+</div>

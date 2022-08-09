@@ -1,0 +1,45 @@
+<h1>wp_check_post_hierarchy_for_loops( int $post_parent, int $post_ID )</h1>  <section> <p>Check the given subset of the post hierarchy for hierarchy loops.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Prevents loops from forming and breaks those that it finds. Attached to the <a href="../hooks/wp_insert_post_parent">‘wp_insert_post_parent’</a> filter.</p> <h3 id="see-also">See also</h3> <ul> <li><a href="wp_find_hierarchy_loop">wp_find_hierarchy_loop()</a></li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$post_parent</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">ID of the parent for the post we're checking.</span> </p> </dd> <dt>$post_ID</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">ID of the post we're checking.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(int)</span> The new post_parent for the post, 0 otherwise.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/post.php/">wp-includes/post.php</a> </p> <pre data-language="php">function wp_check_post_hierarchy_for_loops( $post_parent, $post_ID ) {
+	// Nothing fancy here - bail.
+	if ( ! $post_parent ) {
+		return 0;
+	}
+
+	// New post can't cause a loop.
+	if ( ! $post_ID ) {
+		return $post_parent;
+	}
+
+	// Can't be its own parent.
+	if ( $post_parent == $post_ID ) {
+		return 0;
+	}
+
+	// Now look for larger loops.
+	$loop = wp_find_hierarchy_loop( 'wp_get_post_parent_id', $post_ID, $post_parent );
+	if ( ! $loop ) {
+		return $post_parent; // No loop.
+	}
+
+	// Setting $post_parent to the given value causes a loop.
+	if ( isset( $loop[ $post_ID ] ) ) {
+		return 0;
+	}
+
+	// There's a loop, but it doesn't contain $post_ID. Break the loop.
+	foreach ( array_keys( $loop ) as $loop_member ) {
+		wp_update_post(
+			array(
+				'ID'          =&gt; $loop_member,
+				'post_parent' =&gt; 0,
+			)
+		);
+	}
+
+	return $post_parent;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_find_hierarchy_loop">wp_find_hierarchy_loop()</a> </td> <td class="related-desc"> <p>Find hierarchy loops using a callback function that maps object IDs to parent IDs.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_update_post">wp_update_post()</a> </td> <td class="related-desc"> <p>Update a post with new post data.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.1.0/" alt="WordPress 3.1.0">3.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_check_post_hierarchy_for_loops" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_check_post_hierarchy_for_loops</a>
+  </p>
+</div>

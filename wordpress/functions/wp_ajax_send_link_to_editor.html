@@ -1,0 +1,62 @@
+<h1>wp_ajax_send_link_to_editor()</h1>  <section> <p>Ajax handler for sending a link to the editor.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Generates the HTML to send a non-image embed link to the editor.</p> <p>Backward compatible with the following filters:</p> <ul> <li>file_send_to_editor_url</li> <li>audio_send_to_editor_url</li> <li>video_send_to_editor_url</li> </ul> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/ajax-actions.php/">wp-admin/includes/ajax-actions.php</a> </p> <pre data-language="php">function wp_ajax_send_link_to_editor() {
+	global $post, $wp_embed;
+
+	check_ajax_referer( 'media-send-to-editor', 'nonce' );
+
+	$src = wp_unslash( $_POST['src'] );
+	if ( ! $src ) {
+		wp_send_json_error();
+	}
+
+	if ( ! strpos( $src, '://' ) ) {
+		$src = 'http://' . $src;
+	}
+
+	$src = esc_url_raw( $src );
+	if ( ! $src ) {
+		wp_send_json_error();
+	}
+
+	$link_text = trim( wp_unslash( $_POST['link_text'] ) );
+	if ( ! $link_text ) {
+		$link_text = wp_basename( $src );
+	}
+
+	$post = get_post( isset( $_POST['post_id'] ) ? $_POST['post_id'] : 0 );
+
+	// Ping WordPress for an embed.
+	$check_embed = $wp_embed-&gt;run_shortcode( '[embed]' . $src . '[/embed]' );
+
+	// Fallback that WordPress creates when no oEmbed was found.
+	$fallback = $wp_embed-&gt;maybe_make_link( $src );
+
+	if ( $check_embed !== $fallback ) {
+		// TinyMCE view for [embed] will parse this.
+		$html = '[embed]' . $src . '[/embed]';
+	} elseif ( $link_text ) {
+		$html = '&lt;a href="' . esc_url( $src ) . '"&gt;' . $link_text . '&lt;/a&gt;';
+	} else {
+		$html = '';
+	}
+
+	// Figure out what filter to run:
+	$type = 'file';
+	$ext  = preg_replace( '/^.+?\.([^.]+)$/', '$1', $src );
+	if ( $ext ) {
+		$ext_type = wp_ext2type( $ext );
+		if ( 'audio' === $ext_type || 'video' === $ext_type ) {
+			$type = $ext_type;
+		}
+	}
+
+	/** This filter is documented in wp-admin/includes/media.php */
+	$html = apply_filters( "{$type}_send_to_editor_url", $html, $src, $link_text );
+
+	wp_send_json_success( $html );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="../hooks/type_send_to_editor_url">{$type}_send_to_editor_url</a> </td> <td class="related-desc"> <p>Filters the URL sent to the editor for a specific media type.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_unslash">wp_unslash()</a> </td> <td class="related-desc"> <p>Removes slashes from a string or recursively removes slashes from strings within an array.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_basename">wp_basename()</a> </td> <td class="related-desc"> <p>i18n-friendly version of basename().</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_url_raw">esc_url_raw()</a> </td> <td class="related-desc"> <p>Performs <a href="esc_url">esc_url()</a> for database or redirect usage.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="check_ajax_referer">check_ajax_referer()</a> </td> <td class="related-desc"> <p>Verifies the Ajax request to prevent processing requests external of the blog.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_send_json_error">wp_send_json_error()</a> </td> <td class="related-desc"> <p>Send a JSON response back to an Ajax request, indicating failure.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_send_json_success">wp_send_json_success()</a> </td> <td class="related-desc"> <p>Send a JSON response back to an Ajax request, indicating success.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_ext2type">wp_ext2type()</a> </td> <td class="related-desc"> <p>Retrieve the file type based on the extension name.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-embed.php:</span> <a href="../classes/wp_embed/maybe_make_link">WP_Embed::maybe_make_link()</a> </td> <td class="related-desc"> <p>Conditionally makes a hyperlink based on an internal class variable.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-embed.php:</span> <a href="../classes/wp_embed/run_shortcode">WP_Embed::run_shortcode()</a> </td> <td class="related-desc"> <p>Processes the [embed] shortcode.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.5.0/" alt="WordPress 3.5.0">3.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_ajax_send_link_to_editor" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_ajax_send_link_to_editor</a>
+  </p>
+</div>

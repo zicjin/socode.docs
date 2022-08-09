@@ -1,0 +1,113 @@
+<h1>wp_read_video_metadata( string $file )</h1>  <section> <p>Retrieves metadata from a video file’s ID3 tags.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$file</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Path to file.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array|false)</span> Returns array of metadata, if found.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/media.php/">wp-admin/includes/media.php</a> </p> <pre data-language="php">function wp_read_video_metadata( $file ) {
+	if ( ! file_exists( $file ) ) {
+		return false;
+	}
+
+	$metadata = array();
+
+	if ( ! defined( 'GETID3_TEMP_DIR' ) ) {
+		define( 'GETID3_TEMP_DIR', get_temp_dir() );
+	}
+
+	if ( ! class_exists( 'getID3', false ) ) {
+		require ABSPATH . WPINC . '/ID3/getid3.php';
+	}
+
+	$id3 = new getID3();
+	// Required to get the `created_timestamp` value.
+	$id3-&gt;options_audiovideo_quicktime_ReturnAtomData = true; // phpcs:ignore WordPress.NamingConventions.ValidVariableName
+
+	$data = $id3-&gt;analyze( $file );
+
+	if ( isset( $data['video']['lossless'] ) ) {
+		$metadata['lossless'] = $data['video']['lossless'];
+	}
+
+	if ( ! empty( $data['video']['bitrate'] ) ) {
+		$metadata['bitrate'] = (int) $data['video']['bitrate'];
+	}
+
+	if ( ! empty( $data['video']['bitrate_mode'] ) ) {
+		$metadata['bitrate_mode'] = $data['video']['bitrate_mode'];
+	}
+
+	if ( ! empty( $data['filesize'] ) ) {
+		$metadata['filesize'] = (int) $data['filesize'];
+	}
+
+	if ( ! empty( $data['mime_type'] ) ) {
+		$metadata['mime_type'] = $data['mime_type'];
+	}
+
+	if ( ! empty( $data['playtime_seconds'] ) ) {
+		$metadata['length'] = (int) round( $data['playtime_seconds'] );
+	}
+
+	if ( ! empty( $data['playtime_string'] ) ) {
+		$metadata['length_formatted'] = $data['playtime_string'];
+	}
+
+	if ( ! empty( $data['video']['resolution_x'] ) ) {
+		$metadata['width'] = (int) $data['video']['resolution_x'];
+	}
+
+	if ( ! empty( $data['video']['resolution_y'] ) ) {
+		$metadata['height'] = (int) $data['video']['resolution_y'];
+	}
+
+	if ( ! empty( $data['fileformat'] ) ) {
+		$metadata['fileformat'] = $data['fileformat'];
+	}
+
+	if ( ! empty( $data['video']['dataformat'] ) ) {
+		$metadata['dataformat'] = $data['video']['dataformat'];
+	}
+
+	if ( ! empty( $data['video']['encoder'] ) ) {
+		$metadata['encoder'] = $data['video']['encoder'];
+	}
+
+	if ( ! empty( $data['video']['codec'] ) ) {
+		$metadata['codec'] = $data['video']['codec'];
+	}
+
+	if ( ! empty( $data['audio'] ) ) {
+		unset( $data['audio']['streams'] );
+		$metadata['audio'] = $data['audio'];
+	}
+
+	if ( empty( $metadata['created_timestamp'] ) ) {
+		$created_timestamp = wp_get_media_creation_timestamp( $data );
+
+		if ( false !== $created_timestamp ) {
+			$metadata['created_timestamp'] = $created_timestamp;
+		}
+	}
+
+	wp_add_id3_tag_data( $metadata, $data );
+
+	$file_format = isset( $metadata['fileformat'] ) ? $metadata['fileformat'] : null;
+
+	/**
+	 * Filters the array of metadata retrieved from a video.
+	 *
+	 * In core, usually this selection is what is stored.
+	 * More complete data can be parsed from the `$data` parameter.
+	 *
+	 * @since 4.9.0
+	 *
+	 * @param array  $metadata       Filtered Video metadata.
+	 * @param string $file           Path to video file.
+	 * @param string $file_format    File format of video, as analyzed by getID3.
+	 * @param array  $data           Raw metadata from getID3.
+	 */
+	return apply_filters( 'wp_read_video_metadata', $metadata, $file, $file_format, $data );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="wp_get_media_creation_timestamp">wp_get_media_creation_timestamp()</a> </td> <td class="related-desc"> <p>Parses creation date from media metadata.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="../hooks/wp_read_video_metadata">wp_read_video_metadata</a> </td> <td class="related-desc"> <p>Filters the array of metadata retrieved from a video.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="wp_add_id3_tag_data">wp_add_id3_tag_data()</a> </td> <td class="related-desc"> <p>Parses ID3v2, ID3v1, and getID3 comments to extract usable data.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="get_temp_dir">get_temp_dir()</a> </td> <td class="related-desc"> <p>Determine a writable directory for temporary files.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/image.php:</span> <a href="wp_generate_attachment_metadata">wp_generate_attachment_metadata()</a> </td> <td class="related-desc"> <p>Generate attachment meta data and create image sub-sizes for images.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.6.0/" alt="WordPress 3.6.0">3.6.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_read_video_metadata" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_read_video_metadata</a>
+  </p>
+</div>

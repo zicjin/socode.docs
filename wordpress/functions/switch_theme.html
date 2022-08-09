@@ -1,0 +1,100 @@
+<h1>switch_theme( string $stylesheet )</h1>  <section> <p>Switches the theme.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Accepts one argument: $stylesheet of the theme. It also accepts an additional function signature of two arguments: $template then $stylesheet. This is for backward compatibility.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$stylesheet</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Stylesheet name.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/theme.php/">wp-includes/theme.php</a> </p> <pre data-language="php">function switch_theme( $stylesheet ) {
+	global $wp_theme_directories, $wp_customize, $sidebars_widgets;
+
+	$requirements = validate_theme_requirements( $stylesheet );
+	if ( is_wp_error( $requirements ) ) {
+		wp_die( $requirements );
+	}
+
+	$_sidebars_widgets = null;
+	if ( 'wp_ajax_customize_save' === current_action() ) {
+		$old_sidebars_widgets_data_setting = $wp_customize-&gt;get_setting( 'old_sidebars_widgets_data' );
+		if ( $old_sidebars_widgets_data_setting ) {
+			$_sidebars_widgets = $wp_customize-&gt;post_value( $old_sidebars_widgets_data_setting );
+		}
+	} elseif ( is_array( $sidebars_widgets ) ) {
+		$_sidebars_widgets = $sidebars_widgets;
+	}
+
+	if ( is_array( $_sidebars_widgets ) ) {
+		set_theme_mod(
+			'sidebars_widgets',
+			array(
+				'time' =&gt; time(),
+				'data' =&gt; $_sidebars_widgets,
+			)
+		);
+	}
+
+	$nav_menu_locations = get_theme_mod( 'nav_menu_locations' );
+	update_option( 'theme_switch_menu_locations', $nav_menu_locations );
+
+	if ( func_num_args() &gt; 1 ) {
+		$stylesheet = func_get_arg( 1 );
+	}
+
+	$old_theme = wp_get_theme();
+	$new_theme = wp_get_theme( $stylesheet );
+	$template  = $new_theme-&gt;get_template();
+
+	if ( wp_is_recovery_mode() ) {
+		$paused_themes = wp_paused_themes();
+		$paused_themes-&gt;delete( $old_theme-&gt;get_stylesheet() );
+		$paused_themes-&gt;delete( $old_theme-&gt;get_template() );
+	}
+
+	update_option( 'template', $template );
+	update_option( 'stylesheet', $stylesheet );
+
+	if ( count( $wp_theme_directories ) &gt; 1 ) {
+		update_option( 'template_root', get_raw_theme_root( $template, true ) );
+		update_option( 'stylesheet_root', get_raw_theme_root( $stylesheet, true ) );
+	} else {
+		delete_option( 'template_root' );
+		delete_option( 'stylesheet_root' );
+	}
+
+	$new_name = $new_theme-&gt;get( 'Name' );
+
+	update_option( 'current_theme', $new_name );
+
+	// Migrate from the old mods_{name} option to theme_mods_{slug}.
+	if ( is_admin() &amp;&amp; false === get_option( 'theme_mods_' . $stylesheet ) ) {
+		$default_theme_mods = (array) get_option( 'mods_' . $new_name );
+		if ( ! empty( $nav_menu_locations ) &amp;&amp; empty( $default_theme_mods['nav_menu_locations'] ) ) {
+			$default_theme_mods['nav_menu_locations'] = $nav_menu_locations;
+		}
+		add_option( "theme_mods_$stylesheet", $default_theme_mods );
+	} else {
+		/*
+		 * Since retrieve_widgets() is called when initializing a theme in the Customizer,
+		 * we need to remove the theme mods to avoid overwriting changes made via
+		 * the Customizer when accessing wp-admin/widgets.php.
+		 */
+		if ( 'wp_ajax_customize_save' === current_action() ) {
+			remove_theme_mod( 'sidebars_widgets' );
+		}
+	}
+
+	update_option( 'theme_switched', $old_theme-&gt;get_stylesheet() );
+
+	/**
+	 * Fires after the theme is switched.
+	 *
+	 * @since 1.5.0
+	 * @since 4.5.0 Introduced the `$old_theme` parameter.
+	 *
+	 * @param string   $new_name  Name of the new theme.
+	 * @param WP_Theme $new_theme WP_Theme instance of the new theme.
+	 * @param WP_Theme $old_theme WP_Theme instance of the old theme.
+	 */
+	do_action( 'switch_theme', $new_name, $new_theme, $old_theme );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/theme.php:</span> <a href="validate_theme_requirements">validate_theme_requirements()</a> </td> <td class="related-desc"> <p>Validates the theme requirements for WordPress version and PHP version.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_is_recovery_mode">wp_is_recovery_mode()</a> </td> <td class="related-desc"> <p>Is WordPress in Recovery Mode.</p> </td> </tr> <tr> <td> <span>wp-includes/error-protection.php:</span> <a href="wp_paused_themes">wp_paused_themes()</a> </td> <td class="related-desc"> <p>Get the instance for storing paused extensions.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="set_theme_mod">set_theme_mod()</a> </td> <td class="related-desc"> <p>Updates theme modification value for the active theme.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="remove_theme_mod">remove_theme_mod()</a> </td> <td class="related-desc"> <p>Removes theme modification name from active theme list.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="get_theme_mod">get_theme_mod()</a> </td> <td class="related-desc"> <p>Retrieves theme modification value for the active theme.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="get_raw_theme_root">get_raw_theme_root()</a> </td> <td class="related-desc"> <p>Gets the raw theme root relative to the content directory with no filters applied.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="../hooks/switch_theme">switch_theme</a> </td> <td class="related-desc"> <p>Fires after the theme is switched.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="wp_get_theme">wp_get_theme()</a> </td> <td class="related-desc"> <p>Gets a <a href="../classes/wp_theme">WP_Theme</a> object for a theme.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_admin">is_admin()</a> </td> <td class="related-desc"> <p>Determines whether the current request is for an administrative interface page.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_die">wp_die()</a> </td> <td class="related-desc"> <p>Kills WordPress execution and displays HTML page with an error message.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="current_action">current_action()</a> </td> <td class="related-desc"> <p>Retrieves the name of the current action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="update_option">update_option()</a> </td> <td class="related-desc"> <p>Updates the value of an option that was already added.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="delete_option">delete_option()</a> </td> <td class="related-desc"> <p>Removes option by name. Prevents removal of protected WordPress options.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="add_option">add_option()</a> </td> <td class="related-desc"> <p>Adds a new option.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="../classes/wp_customize_manager/save_changeset_post">WP_Customize_Manager::save_changeset_post()</a> </td> <td class="related-desc"> <p>Saves the post for the loaded changeset.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-theme-upgrader.php:</span> <a href="../classes/theme_upgrader/current_after">Theme_Upgrader::current_after()</a> </td> <td class="related-desc"> <p>Turn off maintenance mode after upgrading the active theme.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="validate_current_theme">validate_current_theme()</a> </td> <td class="related-desc"> <p>Checks that the active theme has the required files.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.5.0/" alt="WordPress 2.5.0">2.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/switch_theme" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/switch_theme</a>
+  </p>
+</div>

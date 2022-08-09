@@ -1,0 +1,80 @@
+<h1>get_media_states( WP_Post $post )</h1>  <section> <p>Retrieves an array of media states from an attachment.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$post</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Post"><a href="../classes/wp_post">WP_Post</a></span>)</span> <span class="required">(Required)</span> <span class="description">The attachment to retrieve states for.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string[])</span> Array of media state labels keyed by their state.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/template.php/">wp-admin/includes/template.php</a> </p> <pre data-language="php">function get_media_states( $post ) {
+	static $header_images;
+
+	$media_states = array();
+	$stylesheet   = get_option( 'stylesheet' );
+
+	if ( current_theme_supports( 'custom-header' ) ) {
+		$meta_header = get_post_meta( $post-&gt;ID, '_wp_attachment_is_custom_header', true );
+
+		if ( is_random_header_image() ) {
+			if ( ! isset( $header_images ) ) {
+				$header_images = wp_list_pluck( get_uploaded_header_images(), 'attachment_id' );
+			}
+
+			if ( $meta_header === $stylesheet &amp;&amp; in_array( $post-&gt;ID, $header_images, true ) ) {
+				$media_states[] = __( 'Header Image' );
+			}
+		} else {
+			$header_image = get_header_image();
+
+			// Display "Header Image" if the image was ever used as a header image.
+			if ( ! empty( $meta_header ) &amp;&amp; $meta_header === $stylesheet &amp;&amp; wp_get_attachment_url( $post-&gt;ID ) !== $header_image ) {
+				$media_states[] = __( 'Header Image' );
+			}
+
+			// Display "Current Header Image" if the image is currently the header image.
+			if ( $header_image &amp;&amp; wp_get_attachment_url( $post-&gt;ID ) === $header_image ) {
+				$media_states[] = __( 'Current Header Image' );
+			}
+		}
+
+		if ( get_theme_support( 'custom-header', 'video' ) &amp;&amp; has_header_video() ) {
+			$mods = get_theme_mods();
+			if ( isset( $mods['header_video'] ) &amp;&amp; $post-&gt;ID === $mods['header_video'] ) {
+				$media_states[] = __( 'Current Header Video' );
+			}
+		}
+	}
+
+	if ( current_theme_supports( 'custom-background' ) ) {
+		$meta_background = get_post_meta( $post-&gt;ID, '_wp_attachment_is_custom_background', true );
+
+		if ( ! empty( $meta_background ) &amp;&amp; $meta_background === $stylesheet ) {
+			$media_states[] = __( 'Background Image' );
+
+			$background_image = get_background_image();
+			if ( $background_image &amp;&amp; wp_get_attachment_url( $post-&gt;ID ) === $background_image ) {
+				$media_states[] = __( 'Current Background Image' );
+			}
+		}
+	}
+
+	if ( (int) get_option( 'site_icon' ) === $post-&gt;ID ) {
+		$media_states[] = __( 'Site Icon' );
+	}
+
+	if ( (int) get_theme_mod( 'custom_logo' ) === $post-&gt;ID ) {
+		$media_states[] = __( 'Logo' );
+	}
+
+	/**
+	 * Filters the default media display states for items in the Media list table.
+	 *
+	 * @since 3.2.0
+	 * @since 4.8.0 Added the `$post` parameter.
+	 *
+	 * @param string[] $media_states An array of media states. Default 'Header Image',
+	 *                               'Background Image', 'Site Icon', 'Logo'.
+	 * @param WP_Post  $post         The current attachment object.
+	 */
+	return apply_filters( 'display_media_states', $media_states, $post );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/theme.php:</span> <a href="has_header_video">has_header_video()</a> </td> <td class="related-desc"> <p>Checks whether a header video is set or not.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/template.php:</span> <a href="../hooks/display_media_states">display_media_states</a> </td> <td class="related-desc"> <p>Filters the default media display states for items in the Media list table.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="current_theme_supports">current_theme_supports()</a> </td> <td class="related-desc"> <p>Checks a theme’s support for a given feature.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="get_theme_support">get_theme_support()</a> </td> <td class="related-desc"> <p>Gets the theme support arguments passed when registering that support.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="is_random_header_image">is_random_header_image()</a> </td> <td class="related-desc"> <p>Checks if random header image is in use.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="get_uploaded_header_images">get_uploaded_header_images()</a> </td> <td class="related-desc"> <p>Gets the header images uploaded for the active theme.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="get_header_image">get_header_image()</a> </td> <td class="related-desc"> <p>Retrieves header image for custom header.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="get_background_image">get_background_image()</a> </td> <td class="related-desc"> <p>Retrieves background image for custom background.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="get_theme_mods">get_theme_mods()</a> </td> <td class="related-desc"> <p>Retrieves all theme modifications.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="get_theme_mod">get_theme_mod()</a> </td> <td class="related-desc"> <p>Retrieves theme modification value for the active theme.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_list_pluck">wp_list_pluck()</a> </td> <td class="related-desc"> <p>Plucks a certain field out of each object or array in an array.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_get_attachment_url">wp_get_attachment_url()</a> </td> <td class="related-desc"> <p>Retrieve the URL for an attachment.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post_meta">get_post_meta()</a> </td> <td class="related-desc"> <p>Retrieves a post meta field for the given post ID.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/template.php:</span> <a href="_media_states">_media_states()</a> </td> <td class="related-desc"> <p>Outputs the attachment media states as HTML.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="wp_prepare_attachment_for_js">wp_prepare_attachment_for_js()</a> </td> <td class="related-desc"> <p>Prepares an attachment post object for JS, where it is expected to be JSON-encoded and fit into an Attachment model.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.6.0/" alt="WordPress 5.6.0">5.6.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/get_media_states" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/get_media_states</a>
+  </p>
+</div>

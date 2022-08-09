@@ -1,0 +1,69 @@
+<h1>WP_Customize_Nav_Menu_Item_Setting::filter_wp_get_nav_menu_items( WP_Post[] $items, WP_Term $menu, array $args )</h1>  <section> <p>Filters the <a href="../../functions/wp_get_nav_menu_items">wp_get_nav_menu_items()</a> result to supply the previewed menu items.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <h3 id="see-also">See also</h3> <ul> <li><a href="../../functions/wp_get_nav_menu_items">wp_get_nav_menu_items()</a></li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$items</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Post[]"><a href="../wp_post">WP_Post</a>[]</span>)</span> <span class="required">(Required)</span> <span class="description">An array of menu item post objects.</span> </p> </dd> <dt>$menu</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Term"><a href="../wp_term">WP_Term</a></span>)</span> <span class="required">(Required)</span> <span class="description">The menu object.</span> </p> </dd> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">An array of arguments used to retrieve menu item objects.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../wp_post">WP_Post</a>[])</span> Array of menu item objects.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/customize/class-wp-customize-nav-menu-item-setting.php/">wp-includes/customize/class-wp-customize-nav-menu-item-setting.php</a> </p> <pre data-language="php">public function filter_wp_get_nav_menu_items( $items, $menu, $args ) {
+		$this_item                = $this-&gt;value();
+		$current_nav_menu_term_id = null;
+		if ( isset( $this_item['nav_menu_term_id'] ) ) {
+			$current_nav_menu_term_id = $this_item['nav_menu_term_id'];
+			unset( $this_item['nav_menu_term_id'] );
+		}
+
+		$should_filter = (
+			$menu-&gt;term_id === $this-&gt;original_nav_menu_term_id
+			||
+			$menu-&gt;term_id === $current_nav_menu_term_id
+		);
+		if ( ! $should_filter ) {
+			return $items;
+		}
+
+		// Handle deleted menu item, or menu item moved to another menu.
+		$should_remove = (
+			false === $this_item
+			||
+			( isset( $this_item['_invalid'] ) &amp;&amp; true === $this_item['_invalid'] )
+			||
+			(
+				$this-&gt;original_nav_menu_term_id === $menu-&gt;term_id
+				&amp;&amp;
+				$current_nav_menu_term_id !== $this-&gt;original_nav_menu_term_id
+			)
+		);
+		if ( $should_remove ) {
+			$filtered_items = array();
+			foreach ( $items as $item ) {
+				if ( $item-&gt;db_id !== $this-&gt;post_id ) {
+					$filtered_items[] = $item;
+				}
+			}
+			return $filtered_items;
+		}
+
+		$mutated       = false;
+		$should_update = (
+			is_array( $this_item )
+			&amp;&amp;
+			$current_nav_menu_term_id === $menu-&gt;term_id
+		);
+		if ( $should_update ) {
+			foreach ( $items as $item ) {
+				if ( $item-&gt;db_id === $this-&gt;post_id ) {
+					foreach ( get_object_vars( $this-&gt;value_as_wp_post_nav_menu_item() ) as $key =&gt; $value ) {
+						$item-&gt;$key = $value;
+					}
+					$mutated = true;
+				}
+			}
+
+			// Not found so we have to append it..
+			if ( ! $mutated ) {
+				$items[] = $this-&gt;value_as_wp_post_nav_menu_item();
+			}
+		}
+
+		return $items;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/customize/class-wp-customize-nav-menu-item-setting.php:</span> <a href="value_as_wp_post_nav_menu_item">WP_Customize_Nav_Menu_Item_Setting::value_as_wp_post_nav_menu_item()</a> </td> <td class="related-desc"> <p>Get the value emulated into a <a href="../wp_post">WP_Post</a> and set up as a nav_menu_item.</p> </td> </tr> <tr> <td> <span>wp-includes/customize/class-wp-customize-nav-menu-item-setting.php:</span> <a href="value">WP_Customize_Nav_Menu_Item_Setting::value()</a> </td> <td class="related-desc"> <p>Get the instance data for a given nav_menu_item setting.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.3.0/" alt="WordPress 4.3.0">4.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_customize_nav_menu_item_setting/filter_wp_get_nav_menu_items" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_customize_nav_menu_item_setting/filter_wp_get_nav_menu_items</a>
+  </p>
+</div>

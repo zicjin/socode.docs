@@ -1,0 +1,1050 @@
+<h1 data-toc="flow" id="flow.md">Asynchronous Flow</h1>
+<p id="684bd9da">A suspending function asynchronously returns a single value, but how can we return multiple asynchronously computed values? This is where Kotlin Flows come in.</p>
+<section class="chapter"><h2 id="representing-multiple-values" data-toc="flow#representing-multiple-values">Representing multiple values</h2>
+<p id="a5567b8e">Multiple values can be represented in Kotlin using <a href="collections-overview" id="d2f4e8ee" data-external="true" rel="noopener noreferrer">collections</a>. For example, we can have a <code class="code ">simple</code> function that returns a <a href="../api/latest/jvm/stdlib/kotlin.collections/-list/index" id="f2e87dcd" data-external="true" rel="noopener noreferrer">List</a> of three numbers and then print them all using <a href="../api/latest/jvm/stdlib/kotlin.collections/for-each" id="9bc1051f" data-external="true" rel="noopener noreferrer">forEach</a>:</p>
+<pre class="code" data-language="kotlin">fun simple(): List&lt;Int&gt; = listOf(1, 2, 3)
+ 
+fun main() {
+    simple().forEach { value -&gt; println(value) } 
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="fe8b735f"><p id="e3daf26b">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-01.kt" id="62df9637" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="f5cd895c">This code outputs:</p>
+<pre class="code" data-language="plaintext">1
+2
+3
+</pre>
+<section class="chapter"><h3 id="sequences" data-toc="flow#sequences">Sequences</h3>
+<p id="726bf700">If we are computing the numbers with some CPU-consuming blocking code (each computation taking 100ms), then we can represent the numbers using a <a href="../api/latest/jvm/stdlib/kotlin.sequences/index" id="35b0fe94" data-external="true" rel="noopener noreferrer">Sequence</a>:</p>
+<pre class="code" data-language="kotlin">fun simple(): Sequence&lt;Int&gt; = sequence { // sequence builder
+    for (i in 1..3) {
+        Thread.sleep(100) // pretend we are computing it
+        yield(i) // yield next value
+    }
+}
+
+fun main() {
+    simple().forEach { value -&gt; println(value) } 
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="a2b78e07"><p id="ac30bde">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-02.kt" id="5f955e" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="752a0d25">This code outputs the same numbers, but it waits 100ms before printing each one.</p></section><section class="chapter"><h3 id="suspending-functions" data-toc="flow#suspending-functions">Suspending functions</h3>
+<p id="2b9f3872">However, this computation blocks the main thread that is running the code. When these values are computed by asynchronous code we can mark the <code class="code ">simple</code> function with a <code class="code ">suspend</code> modifier, so that it can perform its work without blocking and return the result as a list:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*                 
+                           
+//sampleStart
+suspend fun simple(): List&lt;Int&gt; {
+    delay(1000) // pretend we are doing something asynchronous here
+    return listOf(1, 2, 3)
+}
+
+fun main() = runBlocking&lt;Unit&gt; {
+    simple().forEach { value -&gt; println(value) } 
+}
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="2e7e5dc4"><p id="953e0735">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-03.kt" id="d7741357" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="bc819e92">This code prints the numbers after waiting for a second.</p></section><section class="chapter"><h3 id="flows" data-toc="flow#flows">Flows</h3>
+<p id="a16400fc">Using the <code class="code ">List&lt;Int&gt;</code> result type, means we can only return all the values at once. To represent the stream of values that are being asynchronously computed, we can use a <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-flow/index.html" id="addf4d37" data-external="true" rel="noopener noreferrer"><code class="code ">Flow&lt;Int&gt;</code></a> type just like we would use the <code class="code ">Sequence&lt;Int&gt;</code> type for synchronously computed values:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+//sampleStart               
+fun simple(): Flow&lt;Int&gt; = flow { // flow builder
+    for (i in 1..3) {
+        delay(100) // pretend we are doing something useful here
+        emit(i) // emit next value
+    }
+}
+
+fun main() = runBlocking&lt;Unit&gt; {
+    // Launch a concurrent coroutine to check if the main thread is blocked
+    launch {
+        for (k in 1..3) {
+            println("I'm not blocked $k")
+            delay(100)
+        }
+    }
+    // Collect the flow
+    simple().collect { value -&gt; println(value) } 
+}
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="a7cf68d5"><p id="40f64a80">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-04.kt" id="34bb8fa" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="6f1b5e9f">This code waits 100ms before printing each number without blocking the main thread. This is verified by printing "I'm not blocked" every 100ms from a separate coroutine that is running in the main thread:</p>
+<pre class="code" data-language="plaintext">I'm not blocked 1
+1
+I'm not blocked 2
+2
+I'm not blocked 3
+3
+</pre>
+<p id="741f5693">Notice the following differences in the code with the <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-flow/index.html" id="bcefa1aa" data-external="true" rel="noopener noreferrer">Flow</a> from the earlier examples:</p>
+<ul class="list _ul" id="58e28367">
+<li class="list__item" id="e7aae2c4"><p>A builder function for <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-flow/index.html" id="df514315" data-external="true" rel="noopener noreferrer">Flow</a> type is called <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flow.html" id="53a43b5a" data-external="true" rel="noopener noreferrer">flow</a>.</p></li>
+<li class="list__item" id="8cf208cf"><p>Code inside the <code class="code ">flow { ... }</code> builder block can suspend.</p></li>
+<li class="list__item" id="2e85bd79"><p>The <code class="code ">simple</code> function is no longer marked with <code class="code ">suspend</code> modifier.</p></li>
+<li class="list__item" id="6f7bf1b8"><p>Values are <em id="632c3f47" class="">emitted</em> from the flow using <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-flow-collector/emit.html" id="e64a6949" data-external="true" rel="noopener noreferrer">emit</a> function.</p></li>
+<li class="list__item" id="890435cc"><p>Values are <em id="be14285c" class="">collected</em> from the flow using <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/collect.html" id="96a9b230" data-external="true" rel="noopener noreferrer">collect</a> function.</p></li>
+</ul>
+<aside data-type="note" class="prompt" data-title="" id="79753d33"><p id="d67ac8c9">We can replace <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/delay.html" id="1e4f7a67" data-external="true" rel="noopener noreferrer">delay</a> with <code class="code ">Thread.sleep</code> in the body of <code class="code ">simple</code>'s <code class="code ">flow { ... }</code> and see that the main thread is blocked in this case.</p></aside></section></section><section class="chapter"><h2 id="flows-are-cold" data-toc="flow#flows-are-cold">Flows are cold</h2>
+<p id="4a3cc795">Flows are <em id="dc1cafea" class="">cold</em> streams similar to sequences — the code inside a <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flow.html" id="3acb6c1e" data-external="true" rel="noopener noreferrer">flow</a> builder does not run until the flow is collected. This becomes clear in the following example:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+//sampleStart      
+fun simple(): Flow&lt;Int&gt; = flow { 
+    println("Flow started")
+    for (i in 1..3) {
+        delay(100)
+        emit(i)
+    }
+}
+
+fun main() = runBlocking&lt;Unit&gt; {
+    println("Calling simple function...")
+    val flow = simple()
+    println("Calling collect...")
+    flow.collect { value -&gt; println(value) } 
+    println("Calling collect again...")
+    flow.collect { value -&gt; println(value) } 
+}
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="8e71d007"><p id="554a7ae9">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-05.kt" id="9fef68de" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="8cab09eb">Which prints:</p>
+<pre class="code" data-language="plaintext">Calling simple function...
+Calling collect...
+Flow started
+1
+2
+3
+Calling collect again...
+Flow started
+1
+2
+3
+</pre>
+<p id="c61a1bb1">This is a key reason the <code class="code ">simple</code> function (which returns a flow) is not marked with <code class="code ">suspend</code> modifier. By itself, <code class="code ">simple()</code> call returns quickly and does not wait for anything. The flow starts every time it is collected, that is why we see "Flow started" when we call <code class="code ">collect</code> again.</p></section><section class="chapter"><h2 id="flow-cancellation-basics" data-toc="flow#flow-cancellation-basics">Flow cancellation basics</h2>
+<p id="d864300d">Flow adheres to the general cooperative cancellation of coroutines. As usual, flow collection can be cancelled when the flow is suspended in a cancellable suspending function (like <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/delay.html" id="22cf9880" data-external="true" rel="noopener noreferrer">delay</a>). The following example shows how the flow gets cancelled on a timeout when running in a <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/with-timeout-or-null.html" id="73aa4dbb" data-external="true" rel="noopener noreferrer">withTimeoutOrNull</a> block and stops executing its code:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+//sampleStart           
+fun simple(): Flow&lt;Int&gt; = flow { 
+    for (i in 1..3) {
+        delay(100)          
+        println("Emitting $i")
+        emit(i)
+    }
+}
+
+fun main() = runBlocking&lt;Unit&gt; {
+    withTimeoutOrNull(250) { // Timeout after 250ms 
+        simple().collect { value -&gt; println(value) } 
+    }
+    println("Done")
+}
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="136c20d8"><p id="28db2d77">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-06.kt" id="1f5210fe" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="50492835">Notice how only two numbers get emitted by the flow in the <code class="code ">simple</code> function, producing the following output:</p>
+<pre class="code" data-language="plaintext">Emitting 1
+1
+Emitting 2
+2
+Done
+</pre>
+<p id="1cf45138">See <a href="#flow-cancellation-checks" id="efa3027">Flow cancellation checks</a> section for more details.</p></section><section class="chapter"><h2 id="flow-builders" data-toc="flow#flow-builders">Flow builders</h2>
+<p id="7dbe9845">The <code class="code ">flow { ... }</code> builder from the previous examples is the most basic one. There are other builders for easier declaration of flows:</p>
+<ul class="list _ul" id="ae0fe677">
+<li class="list__item" id="9b45486"><p><a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flow-of.html" id="8e21165d" data-external="true" rel="noopener noreferrer">flowOf</a> builder that defines a flow emitting a fixed set of values.</p></li>
+<li class="list__item" id="560fb316"><p>Various collections and sequences can be converted to flows using <code class="code ">.asFlow()</code> extension functions.</p></li>
+</ul>
+<p id="8072a1cd">So, the example that prints the numbers from 1 to 3 from a flow can be written as:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+fun main() = runBlocking&lt;Unit&gt; {
+//sampleStart
+    // Convert an integer range to a flow
+    (1..3).asFlow().collect { value -&gt; println(value) }
+//sampleEnd 
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="8dbbbc39"><p id="d26e0aff">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-07.kt" id="f293068c" data-external="true" rel="noopener noreferrer">here</a>.</p></aside></section><section class="chapter"><h2 id="intermediate-flow-operators" data-toc="flow#intermediate-flow-operators">Intermediate flow operators</h2>
+<p id="474ea434">Flows can be transformed with operators, just as you would with collections and sequences. Intermediate operators are applied to an upstream flow and return a downstream flow. These operators are cold, just like flows are. A call to such an operator is not a suspending function itself. It works quickly, returning the definition of a new transformed flow.</p>
+<p id="4f1089b5">The basic operators have familiar names like <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/map.html" id="5f9cf48b" data-external="true" rel="noopener noreferrer">map</a> and <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/filter.html" id="44d6039b" data-external="true" rel="noopener noreferrer">filter</a>. The important difference to sequences is that blocks of code inside these operators can call suspending functions.</p>
+<p id="20ce72ea">For example, a flow of incoming requests can be mapped to the results with the <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/map.html" id="c7791570" data-external="true" rel="noopener noreferrer">map</a> operator, even when performing a request is a long-running operation that is implemented by a suspending function:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+//sampleStart           
+suspend fun performRequest(request: Int): String {
+    delay(1000) // imitate long-running asynchronous work
+    return "response $request"
+}
+
+fun main() = runBlocking&lt;Unit&gt; {
+    (1..3).asFlow() // a flow of requests
+        .map { request -&gt; performRequest(request) }
+        .collect { response -&gt; println(response) }
+}
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="c1a1105b"><p id="a62459a6">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-08.kt" id="64751051" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="639d4bdc">It produces the following three lines, each line appearing after each second:</p>
+<pre class="code" data-language="plaintext">response 1
+response 2
+response 3
+</pre>
+<section class="chapter"><h3 id="transform-operator" data-toc="flow#transform-operator">Transform operator</h3>
+<p id="6a3ae7cf">Among the flow transformation operators, the most general one is called <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/transform.html" id="2cb948ec" data-external="true" rel="noopener noreferrer">transform</a>. It can be used to imitate simple transformations like <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/map.html" id="5b11f992" data-external="true" rel="noopener noreferrer">map</a> and <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/filter.html" id="b20ab50" data-external="true" rel="noopener noreferrer">filter</a>, as well as implement more complex transformations. Using the <code class="code ">transform</code> operator, we can <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-flow-collector/emit.html" id="58dadc06" data-external="true" rel="noopener noreferrer">emit</a> arbitrary values an arbitrary number of times.</p>
+<p id="4551a6e3">For example, using <code class="code ">transform</code> we can emit a string before performing a long-running asynchronous request and follow it with a response:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+suspend fun performRequest(request: Int): String {
+    delay(1000) // imitate long-running asynchronous work
+    return "response $request"
+}
+
+fun main() = runBlocking&lt;Unit&gt; {
+//sampleStart
+    (1..3).asFlow() // a flow of requests
+        .transform { request -&gt;
+            emit("Making request $request") 
+            emit(performRequest(request)) 
+        }
+        .collect { response -&gt; println(response) }
+//sampleEnd
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="e6a5b783"><p id="737d0d7e">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-09.kt" id="fb7ae0e3" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="453a7572">The output of this code is:</p>
+<pre class="code" data-language="plaintext">Making request 1
+response 1
+Making request 2
+response 2
+Making request 3
+response 3
+</pre></section><section class="chapter"><h3 id="size-limiting-operators" data-toc="flow#size-limiting-operators">Size-limiting operators</h3>
+<p id="bb46ff7f">Size-limiting intermediate operators like <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/take.html" id="5849e24f" data-external="true" rel="noopener noreferrer">take</a> cancel the execution of the flow when the corresponding limit is reached. Cancellation in coroutines is always performed by throwing an exception, so that all the resource-management functions (like <code class="code ">try { ... } finally { ... }</code> blocks) operate normally in case of cancellation:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+//sampleStart
+fun numbers(): Flow&lt;Int&gt; = flow {
+    try {                          
+        emit(1)
+        emit(2) 
+        println("This line will not execute")
+        emit(3)    
+    } finally {
+        println("Finally in numbers")
+    }
+}
+
+fun main() = runBlocking&lt;Unit&gt; {
+    numbers() 
+        .take(2) // take only the first two
+        .collect { value -&gt; println(value) }
+}            
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="94efa5d"><p id="7c0e2409">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-10.kt" id="d08074c5" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="ebfe8ece">The output of this code clearly shows that the execution of the <code class="code ">flow { ... }</code> body in the <code class="code ">numbers()</code> function stopped after emitting the second number:</p>
+<pre class="code" data-language="plaintext">1
+2
+Finally in numbers
+</pre></section></section><section class="chapter"><h2 id="terminal-flow-operators" data-toc="flow#terminal-flow-operators">Terminal flow operators</h2>
+<p id="746cea47">Terminal operators on flows are <em id="a57e5e30" class="">suspending functions</em> that start a collection of the flow. The <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/collect.html" id="3194dfe1" data-external="true" rel="noopener noreferrer">collect</a> operator is the most basic one, but there are other terminal operators, which can make it easier:</p>
+<ul class="list _ul" id="d003d6bc">
+<li class="list__item" id="9de07c5a"><p>Conversion to various collections like <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/to-list.html" id="ac2f46b2" data-external="true" rel="noopener noreferrer">toList</a> and <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/to-set.html" id="75bdb6ee" data-external="true" rel="noopener noreferrer">toSet</a>.</p></li>
+<li class="list__item" id="57ec6bfb"><p>Operators to get the <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/first.html" id="b8577d51" data-external="true" rel="noopener noreferrer">first</a> value and to ensure that a flow emits a <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/single.html" id="176c4960" data-external="true" rel="noopener noreferrer">single</a> value.</p></li>
+<li class="list__item" id="ff9bc7"><p>Reducing a flow to a value with <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/reduce.html" id="4e15e1" data-external="true" rel="noopener noreferrer">reduce</a> and <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/fold.html" id="96ba30c1" data-external="true" rel="noopener noreferrer">fold</a>.</p></li>
+</ul>
+<p id="da8981d7">For example:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+fun main() = runBlocking&lt;Unit&gt; {
+//sampleStart         
+    val sum = (1..5).asFlow()
+        .map { it * it } // squares of numbers from 1 to 5                           
+        .reduce { a, b -&gt; a + b } // sum them (terminal operator)
+    println(sum)
+//sampleEnd     
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="43484373"><p id="843c4f4a">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-11.kt" id="356c6195" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="e08bc300">Prints a single number:</p>
+<pre class="code" data-language="plaintext">55
+</pre></section><section class="chapter"><h2 id="flows-are-sequential" data-toc="flow#flows-are-sequential">Flows are sequential</h2>
+<p id="4895a4b1">Each individual collection of a flow is performed sequentially unless special operators that operate on multiple flows are used. The collection works directly in the coroutine that calls a terminal operator. No new coroutines are launched by default. Each emitted value is processed by all the intermediate operators from upstream to downstream and is then delivered to the terminal operator after.</p>
+<p id="c7385412">See the following example that filters the even integers and maps them to strings:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+fun main() = runBlocking&lt;Unit&gt; {
+//sampleStart         
+    (1..5).asFlow()
+        .filter {
+            println("Filter $it")
+            it % 2 == 0              
+        }              
+        .map { 
+            println("Map $it")
+            "string $it"
+        }.collect { 
+            println("Collect $it")
+        }    
+//sampleEnd                  
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="5080be7b"><p id="79f6ffa7">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-12.kt" id="cf1f819d" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="2878ebed">Producing:</p>
+<pre class="code" data-language="plaintext">Filter 1
+Filter 2
+Map 2
+Collect string 2
+Filter 3
+Filter 4
+Map 4
+Collect string 4
+Filter 5
+</pre></section><section class="chapter"><h2 id="flow-context" data-toc="flow#flow-context">Flow context</h2>
+<p id="c5c53f79">Collection of a flow always happens in the context of the calling coroutine. For example, if there is a <code class="code ">simple</code> flow, then the following code runs in the context specified by the author of this code, regardless of the implementation details of the <code class="code ">simple</code> flow:</p>
+<pre class="code" data-language="kotlin">withContext(context) {
+    simple().collect { value -&gt;
+        println(value) // run in the specified context 
+    }
+}
+</pre>
+<p id="3dcc6f35">This property of a flow is called <em id="50c58cd7" class="">context preservation</em>.</p>
+<p id="404707af">So, by default, code in the <code class="code ">flow { ... }</code> builder runs in the context that is provided by a collector of the corresponding flow. For example, consider the implementation of a <code class="code ">simple</code> function that prints the thread it is called on and emits three numbers:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+fun log(msg: String) = println("[${Thread.currentThread().name}] $msg")
+           
+//sampleStart
+fun simple(): Flow&lt;Int&gt; = flow {
+    log("Started simple flow")
+    for (i in 1..3) {
+        emit(i)
+    }
+}  
+
+fun main() = runBlocking&lt;Unit&gt; {
+    simple().collect { value -&gt; log("Collected $value") } 
+}            
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="c8c5d98d"><p id="2589559c">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-13.kt" id="9f9df4c" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="cdd78a49">Running this code produces:</p>
+<pre class="code" data-language="plaintext">[main @coroutine#1] Started simple flow
+[main @coroutine#1] Collected 1
+[main @coroutine#1] Collected 2
+[main @coroutine#1] Collected 3
+</pre>
+<p id="15b1d8d0">Since <code class="code ">simple().collect</code> is called from the main thread, the body of <code class="code ">simple</code>'s flow is also called in the main thread. This is the perfect default for fast-running or asynchronous code that does not care about the execution context and does not block the caller.</p>
+<section class="chapter"><h3 id="wrong-emission-withcontext" data-toc="flow#wrong-emission-withcontext">Wrong emission withContext</h3>
+<p id="454ee0be">However, the long-running CPU-consuming code might need to be executed in the context of <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-dispatchers/-default.html" id="8e86be60" data-external="true" rel="noopener noreferrer">Dispatchers.Default</a> and UI-updating code might need to be executed in the context of <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-dispatchers/-main.html" id="c692dd24" data-external="true" rel="noopener noreferrer">Dispatchers.Main</a>. Usually, <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/with-context.html" id="447a499e" data-external="true" rel="noopener noreferrer">withContext</a> is used to change the context in the code using Kotlin coroutines, but code in the <code class="code ">flow { ... }</code> builder has to honor the context preservation property and is not allowed to <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-flow-collector/emit.html" id="b6674c49" data-external="true" rel="noopener noreferrer">emit</a> from a different context.</p>
+<p id="2eef5fc9">Try running the following code:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+                      
+//sampleStart
+fun simple(): Flow&lt;Int&gt; = flow {
+    // The WRONG way to change context for CPU-consuming code in flow builder
+    kotlinx.coroutines.withContext(Dispatchers.Default) {
+        for (i in 1..3) {
+            Thread.sleep(100) // pretend we are computing it in CPU-consuming way
+            emit(i) // emit next value
+        }
+    }
+}
+
+fun main() = runBlocking&lt;Unit&gt; {
+    simple().collect { value -&gt; println(value) } 
+}            
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="f2251157"><p id="d02dc0">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-14.kt" id="6cfefa1b" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="e67cb5d5">This code produces the following exception:</p>
+<pre class="code" data-language="plaintext">Exception in thread "main" java.lang.IllegalStateException: Flow invariant is violated:
+		Flow was collected in [CoroutineId(1), "coroutine#1":BlockingCoroutine{Active}@5511c7f8, BlockingEventLoop@2eac3323],
+		but emission happened in [CoroutineId(1), "coroutine#1":DispatchedCoroutine{Active}@2dae0000, Dispatchers.Default].
+		Please refer to 'flow' documentation or use 'flowOn' instead
+	at ...
+</pre></section><section class="chapter"><h3 id="flowon-operator" data-toc="flow#flowon-operator">flowOn operator</h3>
+<p id="195907e3">The exception refers to the <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flow-on.html" id="44deeb19" data-external="true" rel="noopener noreferrer">flowOn</a> function that shall be used to change the context of the flow emission. The correct way to change the context of a flow is shown in the example below, which also prints the names of the corresponding threads to show how it all works:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+fun log(msg: String) = println("[${Thread.currentThread().name}] $msg")
+           
+//sampleStart
+fun simple(): Flow&lt;Int&gt; = flow {
+    for (i in 1..3) {
+        Thread.sleep(100) // pretend we are computing it in CPU-consuming way
+        log("Emitting $i")
+        emit(i) // emit next value
+    }
+}.flowOn(Dispatchers.Default) // RIGHT way to change context for CPU-consuming code in flow builder
+
+fun main() = runBlocking&lt;Unit&gt; {
+    simple().collect { value -&gt;
+        log("Collected $value") 
+    } 
+}            
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="f1f90981"><p id="b4a5785b">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-15.kt" id="59047a1f" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="7989c6ab">Notice how <code class="code ">flow { ... }</code> works in the background thread, while collection happens in the main thread:</p>
+<p id="4de2ebc1">Another thing to observe here is that the <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flow-on.html" id="439f177a" data-external="true" rel="noopener noreferrer">flowOn</a> operator has changed the default sequential nature of the flow. Now collection happens in one coroutine ("coroutine#1") and emission happens in another coroutine ("coroutine#2") that is running in another thread concurrently with the collecting coroutine. The <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flow-on.html" id="87ff88ca" data-external="true" rel="noopener noreferrer">flowOn</a> operator creates another coroutine for an upstream flow when it has to change the <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-coroutine-dispatcher/index.html" id="3ca9a59b" data-external="true" rel="noopener noreferrer">CoroutineDispatcher</a> in its context.</p></section></section><section class="chapter"><h2 id="buffering" data-toc="flow#buffering">Buffering</h2>
+<p id="6eea5c4">Running different parts of a flow in different coroutines can be helpful from the standpoint of the overall time it takes to collect the flow, especially when long-running asynchronous operations are involved. For example, consider a case when the emission by a <code class="code ">simple</code> flow is slow, taking 100 ms to produce an element; and collector is also slow, taking 300 ms to process an element. Let's see how long it takes to collect such a flow with three numbers:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+import kotlin.system.*
+
+//sampleStart
+fun simple(): Flow&lt;Int&gt; = flow {
+    for (i in 1..3) {
+        delay(100) // pretend we are asynchronously waiting 100 ms
+        emit(i) // emit next value
+    }
+}
+
+fun main() = runBlocking&lt;Unit&gt; { 
+    val time = measureTimeMillis {
+        simple().collect { value -&gt; 
+            delay(300) // pretend we are processing it for 300 ms
+            println(value) 
+        } 
+    }   
+    println("Collected in $time ms")
+}
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="869094b8"><p id="15a3723f">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-16.kt" id="56bdfd89" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="160293fb">It produces something like this, with the whole collection taking around 1200 ms (three numbers, 400 ms for each):</p>
+<pre class="code" data-language="plaintext">1
+2
+3
+Collected in 1220 ms
+</pre>
+<p id="84e78e21">We can use a <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/buffer.html" id="743d8abe" data-external="true" rel="noopener noreferrer">buffer</a> operator on a flow to run emitting code of the <code class="code ">simple</code> flow concurrently with collecting code, as opposed to running them sequentially:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+import kotlin.system.*
+
+fun simple(): Flow&lt;Int&gt; = flow {
+    for (i in 1..3) {
+        delay(100) // pretend we are asynchronously waiting 100 ms
+        emit(i) // emit next value
+    }
+}
+
+fun main() = runBlocking&lt;Unit&gt; { 
+//sampleStart
+    val time = measureTimeMillis {
+        simple()
+            .buffer() // buffer emissions, don't wait
+            .collect { value -&gt; 
+                delay(300) // pretend we are processing it for 300 ms
+                println(value) 
+            } 
+    }   
+    println("Collected in $time ms")
+//sampleEnd
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="ac71be81"><p id="30119758">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-17.kt" id="45612f63" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="835572e3">It produces the same numbers just faster, as we have effectively created a processing pipeline, having to only wait 100 ms for the first number and then spending only 300 ms to process each number. This way it takes around 1000 ms to run:</p>
+<pre class="code" data-language="plaintext">1
+2
+3
+Collected in 1071 ms
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="be3038c9"><p id="cfdd3337">Note that the <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flow-on.html" id="61f4ea93" data-external="true" rel="noopener noreferrer">flowOn</a> operator uses the same buffering mechanism when it has to change a <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-coroutine-dispatcher/index.html" id="5a956ddf" data-external="true" rel="noopener noreferrer">CoroutineDispatcher</a>, but here we explicitly request buffering without changing the execution context.</p></aside><section class="chapter"><h3 id="conflation" data-toc="flow#conflation">Conflation</h3>
+<p id="6fecb599">When a flow represents partial results of the operation or operation status updates, it may not be necessary to process each value, but instead, only most recent ones. In this case, the <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/conflate.html" id="e4a0e5b2" data-external="true" rel="noopener noreferrer">conflate</a> operator can be used to skip intermediate values when a collector is too slow to process them. Building on the previous example:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+import kotlin.system.*
+
+fun simple(): Flow&lt;Int&gt; = flow {
+    for (i in 1..3) {
+        delay(100) // pretend we are asynchronously waiting 100 ms
+        emit(i) // emit next value
+    }
+}
+
+fun main() = runBlocking&lt;Unit&gt; { 
+//sampleStart
+    val time = measureTimeMillis {
+        simple()
+            .conflate() // conflate emissions, don't process each one
+            .collect { value -&gt; 
+                delay(300) // pretend we are processing it for 300 ms
+                println(value) 
+            } 
+    }   
+    println("Collected in $time ms")
+//sampleEnd
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="3cc224ae"><p id="dfc5435">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-18.kt" id="efc2e39c" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="c9144430">We see that while the first number was still being processed the second, and third were already produced, so the second one was <em id="1a1e6536" class="">conflated</em> and only the most recent (the third one) was delivered to the collector:</p>
+<pre class="code" data-language="plaintext">1
+3
+Collected in 758 ms
+</pre></section><section class="chapter"><h3 id="processing-the-latest-value" data-toc="flow#processing-the-latest-value">Processing the latest value</h3>
+<p id="911c8a1c">Conflation is one way to speed up processing when both the emitter and collector are slow. It does it by dropping emitted values. The other way is to cancel a slow collector and restart it every time a new value is emitted. There is a family of <code class="code ">xxxLatest</code> operators that perform the same essential logic of a <code class="code ">xxx</code> operator, but cancel the code in their block on a new value. Let's try changing <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/conflate.html" id="c5c77482" data-external="true" rel="noopener noreferrer">conflate</a> to <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/collect-latest.html" id="b2a00e44" data-external="true" rel="noopener noreferrer">collectLatest</a> in the previous example:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+import kotlin.system.*
+
+fun simple(): Flow&lt;Int&gt; = flow {
+    for (i in 1..3) {
+        delay(100) // pretend we are asynchronously waiting 100 ms
+        emit(i) // emit next value
+    }
+}
+
+fun main() = runBlocking&lt;Unit&gt; { 
+//sampleStart
+    val time = measureTimeMillis {
+        simple()
+            .collectLatest { value -&gt; // cancel &amp; restart on the latest value
+                println("Collecting $value") 
+                delay(300) // pretend we are processing it for 300 ms
+                println("Done $value") 
+            } 
+    }   
+    println("Collected in $time ms")
+//sampleEnd
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="329603d1"><p id="571321d2">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-19.kt" id="99354883" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="66cb00b7">Since the body of <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/collect-latest.html" id="6466fca1" data-external="true" rel="noopener noreferrer">collectLatest</a> takes 300 ms, but new values are emitted every 100 ms, we see that the block is run on every value, but completes only for the last value:</p>
+<pre class="code" data-language="plaintext">Collecting 1
+Collecting 2
+Collecting 3
+Done 3
+Collected in 741 ms
+</pre></section></section><section class="chapter"><h2 id="composing-multiple-flows" data-toc="flow#composing-multiple-flows">Composing multiple flows</h2>
+<p id="bdfcde9b">There are lots of ways to compose multiple flows.</p>
+<section class="chapter"><h3 id="zip" data-toc="flow#zip">Zip</h3>
+<p id="d6d3435e">Just like the <a href="../api/latest/jvm/stdlib/kotlin.sequences/zip" id="1bc1afb9" data-external="true" rel="noopener noreferrer">Sequence.zip</a> extension function in the Kotlin standard library, flows have a <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/zip.html" id="44633f0e" data-external="true" rel="noopener noreferrer">zip</a> operator that combines the corresponding values of two flows:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+fun main() = runBlocking&lt;Unit&gt; { 
+//sampleStart                                                                           
+    val nums = (1..3).asFlow() // numbers 1..3
+    val strs = flowOf("one", "two", "three") // strings 
+    nums.zip(strs) { a, b -&gt; "$a -&gt; $b" } // compose a single string
+        .collect { println(it) } // collect and print
+//sampleEnd
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="d17815f"><p id="eb195772">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-20.kt" id="6aea439d" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="56922024">This example prints:</p>
+<pre class="code" data-language="plaintext">1 -&gt; one
+2 -&gt; two
+3 -&gt; three
+</pre></section><section class="chapter"><h3 id="combine" data-toc="flow#combine">Combine</h3>
+<p id="3a999dfe">When flow represents the most recent value of a variable or operation (see also the related section on <a href="#conflation" id="ca643ca2">conflation</a>), it might be needed to perform a computation that depends on the most recent values of the corresponding flows and to recompute it whenever any of the upstream flows emit a value. The corresponding family of operators is called <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/combine.html" id="a61ac2fe" data-external="true" rel="noopener noreferrer">combine</a>.</p>
+<p id="6f35af9c">For example, if the numbers in the previous example update every 300ms, but strings update every 400 ms, then zipping them using the <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/zip.html" id="90bb2c97" data-external="true" rel="noopener noreferrer">zip</a> operator will still produce the same result, albeit results that are printed every 400 ms:</p>
+<aside data-type="note" class="prompt" data-title="" id="a4c7ddd1"><p id="cc10cf0f">We use a <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/on-each.html" id="9d0f4827" data-external="true" rel="noopener noreferrer">onEach</a> intermediate operator in this example to delay each element and make the code that emits sample flows more declarative and shorter.</p></aside><pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+fun main() = runBlocking&lt;Unit&gt; { 
+//sampleStart                                                                           
+    val nums = (1..3).asFlow().onEach { delay(300) } // numbers 1..3 every 300 ms
+    val strs = flowOf("one", "two", "three").onEach { delay(400) } // strings every 400 ms
+    val startTime = System.currentTimeMillis() // remember the start time 
+    nums.zip(strs) { a, b -&gt; "$a -&gt; $b" } // compose a single string with "zip"
+        .collect { value -&gt; // collect and print 
+            println("$value at ${System.currentTimeMillis() - startTime} ms from start") 
+        } 
+//sampleEnd
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="97fc8914"><p id="1358795e">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-21.kt" id="663dc31c" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="a316f289">However, when using a <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/combine.html" id="1f71f49e" data-external="true" rel="noopener noreferrer">combine</a> operator here instead of a <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/zip.html" id="ea2a9a2" data-external="true" rel="noopener noreferrer">zip</a>:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+fun main() = runBlocking&lt;Unit&gt; { 
+//sampleStart                                                                           
+    val nums = (1..3).asFlow().onEach { delay(300) } // numbers 1..3 every 300 ms
+    val strs = flowOf("one", "two", "three").onEach { delay(400) } // strings every 400 ms          
+    val startTime = System.currentTimeMillis() // remember the start time 
+    nums.combine(strs) { a, b -&gt; "$a -&gt; $b" } // compose a single string with "combine"
+        .collect { value -&gt; // collect and print 
+            println("$value at ${System.currentTimeMillis() - startTime} ms from start") 
+        } 
+//sampleEnd
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="c467f2"><p id="4d439e3f">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-22.kt" id="6f928d07" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="a56f4b32">We get quite a different output, where a line is printed at each emission from either <code class="code ">nums</code> or <code class="code ">strs</code> flows:</p>
+<pre class="code" data-language="plaintext">1 -&gt; one at 452 ms from start
+2 -&gt; one at 651 ms from start
+2 -&gt; two at 854 ms from start
+3 -&gt; two at 952 ms from start
+3 -&gt; three at 1256 ms from start
+</pre></section></section><section class="chapter"><h2 id="flattening-flows" data-toc="flow#flattening-flows">Flattening flows</h2>
+<p id="366fb6d5">Flows represent asynchronously received sequences of values, so it is quite easy to get in a situation where each value triggers a request for another sequence of values. For example, we can have the following function that returns a flow of two strings 500 ms apart:</p>
+<pre class="code" data-language="kotlin">fun requestFlow(i: Int): Flow&lt;String&gt; = flow {
+    emit("$i: First") 
+    delay(500) // wait 500 ms
+    emit("$i: Second")    
+}
+</pre>
+<p id="a33fb8db">Now if we have a flow of three integers and call <code class="code ">requestFlow</code> for each of them like this:</p>
+<pre class="code" data-language="kotlin">(1..3).asFlow().map { requestFlow(it) }
+</pre>
+<p id="151796ed">Then we end up with a flow of flows (<code class="code ">Flow&lt;Flow&lt;String&gt;&gt;</code>) that needs to be <em id="270db9d4" class="">flattened</em> into a single flow for further processing. Collections and sequences have <a href="../api/latest/jvm/stdlib/kotlin.sequences/flatten" id="9b3a8b80" data-external="true" rel="noopener noreferrer">flatten</a> and <a href="../api/latest/jvm/stdlib/kotlin.sequences/flat-map" id="89c7127" data-external="true" rel="noopener noreferrer">flatMap</a> operators for this. However, due to the asynchronous nature of flows they call for different <em id="d60f50db" class="">modes</em> of flattening, as such, there is a family of flattening operators on flows.</p>
+<section class="chapter"><h3 id="flatmapconcat" data-toc="flow#flatmapconcat">flatMapConcat</h3>
+<p id="846ca4ee">Concatenating mode is implemented by <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flat-map-concat.html" id="f47b1096" data-external="true" rel="noopener noreferrer">flatMapConcat</a> and <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flatten-concat.html" id="d9bcdc26" data-external="true" rel="noopener noreferrer">flattenConcat</a> operators. They are the most direct analogues of the corresponding sequence operators. They wait for the inner flow to complete before starting to collect the next one as the following example shows:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+fun requestFlow(i: Int): Flow&lt;String&gt; = flow {
+    emit("$i: First") 
+    delay(500) // wait 500 ms
+    emit("$i: Second")    
+}
+
+fun main() = runBlocking&lt;Unit&gt; { 
+//sampleStart
+    val startTime = System.currentTimeMillis() // remember the start time 
+    (1..3).asFlow().onEach { delay(100) } // a number every 100 ms 
+        .flatMapConcat { requestFlow(it) }                                                                           
+        .collect { value -&gt; // collect and print 
+            println("$value at ${System.currentTimeMillis() - startTime} ms from start") 
+        } 
+//sampleEnd
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="cdc903d5"><p id="6d424015">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-23.kt" id="805fc2b8" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="33bb8df7">The sequential nature of <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flat-map-concat.html" id="d9728419" data-external="true" rel="noopener noreferrer">flatMapConcat</a> is clearly seen in the output:</p>
+<pre class="code" data-language="plaintext">1: First at 121 ms from start
+1: Second at 622 ms from start
+2: First at 727 ms from start
+2: Second at 1227 ms from start
+3: First at 1328 ms from start
+3: Second at 1829 ms from start
+</pre></section><section class="chapter"><h3 id="flatmapmerge" data-toc="flow#flatmapmerge">flatMapMerge</h3>
+<p id="d582661f">Another flattening mode is to concurrently collect all the incoming flows and merge their values into a single flow so that values are emitted as soon as possible. It is implemented by <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flat-map-merge.html" id="ce434ee5" data-external="true" rel="noopener noreferrer">flatMapMerge</a> and <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flatten-merge.html" id="6b69051b" data-external="true" rel="noopener noreferrer">flattenMerge</a> operators. They both accept an optional <code class="code ">concurrency</code> parameter that limits the number of concurrent flows that are collected at the same time (it is equal to <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-d-e-f-a-u-l-t_-c-o-n-c-u-r-r-e-n-c-y.html" id="b250cc96" data-external="true" rel="noopener noreferrer">DEFAULT_CONCURRENCY</a> by default).</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+fun requestFlow(i: Int): Flow&lt;String&gt; = flow {
+    emit("$i: First") 
+    delay(500) // wait 500 ms
+    emit("$i: Second")    
+}
+
+fun main() = runBlocking&lt;Unit&gt; { 
+//sampleStart
+    val startTime = System.currentTimeMillis() // remember the start time 
+    (1..3).asFlow().onEach { delay(100) } // a number every 100 ms 
+        .flatMapMerge { requestFlow(it) }                                                                           
+        .collect { value -&gt; // collect and print 
+            println("$value at ${System.currentTimeMillis() - startTime} ms from start") 
+        } 
+//sampleEnd
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="e444d82b"><p id="e4706cd7">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-24.kt" id="d768d181" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="848cfb20">The concurrent nature of <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flat-map-merge.html" id="5dda6dd2" data-external="true" rel="noopener noreferrer">flatMapMerge</a> is obvious:</p>
+<pre class="code" data-language="plaintext">1: First at 136 ms from start
+2: First at 231 ms from start
+3: First at 333 ms from start
+1: Second at 639 ms from start
+2: Second at 732 ms from start
+3: Second at 833 ms from start
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="204184e5"><p id="cdceef58">Note that the <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flat-map-merge.html" id="25db046b" data-external="true" rel="noopener noreferrer">flatMapMerge</a> calls its block of code (<code class="code ">{ requestFlow(it) }</code> in this example) sequentially, but collects the resulting flows concurrently, it is the equivalent of performing a sequential <code class="code ">map { requestFlow(it) }</code> first and then calling <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flatten-merge.html" id="5df8df12" data-external="true" rel="noopener noreferrer">flattenMerge</a> on the result.</p></aside></section><section class="chapter"><h3 id="flatmaplatest" data-toc="flow#flatmaplatest">flatMapLatest</h3>
+<p id="50b92bf8">In a similar way to the <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/collect-latest.html" id="b9473064" data-external="true" rel="noopener noreferrer">collectLatest</a> operator, that was shown in <a href="#processing-the-latest-value" id="40ce85bd">"Processing the latest value"</a> section, there is the corresponding "Latest" flattening mode where a collection of the previous flow is cancelled as soon as new flow is emitted. It is implemented by the <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flat-map-latest.html" id="7cd78532" data-external="true" rel="noopener noreferrer">flatMapLatest</a> operator.</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+fun requestFlow(i: Int): Flow&lt;String&gt; = flow {
+    emit("$i: First") 
+    delay(500) // wait 500 ms
+    emit("$i: Second")    
+}
+
+fun main() = runBlocking&lt;Unit&gt; { 
+//sampleStart
+    val startTime = System.currentTimeMillis() // remember the start time 
+    (1..3).asFlow().onEach { delay(100) } // a number every 100 ms 
+        .flatMapLatest { requestFlow(it) }                                                                           
+        .collect { value -&gt; // collect and print 
+            println("$value at ${System.currentTimeMillis() - startTime} ms from start") 
+        } 
+//sampleEnd
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="a8a17e81"><p id="f3a67aeb">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-25.kt" id="30ddca9a" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="6642d1e1">The output here in this example is a good demonstration of how <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flat-map-latest.html" id="74dbf27" data-external="true" rel="noopener noreferrer">flatMapLatest</a> works:</p>
+<pre class="code" data-language="plaintext">1: First at 142 ms from start
+2: First at 322 ms from start
+3: First at 425 ms from start
+3: Second at 931 ms from start
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="cf5a8387"><p id="ec6aa46e">Note that <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flat-map-latest.html" id="dca0efd5" data-external="true" rel="noopener noreferrer">flatMapLatest</a> cancels all the code in its block (<code class="code ">{ requestFlow(it) }</code> in this example) on a new value. It makes no difference in this particular example, because the call to <code class="code ">requestFlow</code> itself is fast, not-suspending, and cannot be cancelled. However, it would show up if we were to use suspending functions like <code class="code ">delay</code> in there.</p></aside></section></section><section class="chapter"><h2 id="flow-exceptions" data-toc="flow#flow-exceptions">Flow exceptions</h2>
+<p id="4701a8f6">Flow collection can complete with an exception when an emitter or code inside the operators throw an exception. There are several ways to handle these exceptions.</p>
+<section class="chapter"><h3 id="collector-try-and-catch" data-toc="flow#collector-try-and-catch">Collector try and catch</h3>
+<p id="7802b878">A collector can use Kotlin's <a href="exceptions" id="9c5a0c32" data-external="true" rel="noopener noreferrer"><code class="code ">try/catch</code></a> block to handle exceptions:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+//sampleStart
+fun simple(): Flow&lt;Int&gt; = flow {
+    for (i in 1..3) {
+        println("Emitting $i")
+        emit(i) // emit next value
+    }
+}
+
+fun main() = runBlocking&lt;Unit&gt; {
+    try {
+        simple().collect { value -&gt;         
+            println(value)
+            check(value &lt;= 1) { "Collected $value" }
+        }
+    } catch (e: Throwable) {
+        println("Caught $e")
+    } 
+}            
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="3bb13dea"><p id="71058c4b">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-26.kt" id="4136e098" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="4ad9eaf1">This code successfully catches an exception in <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/collect.html" id="499118bb" data-external="true" rel="noopener noreferrer">collect</a> terminal operator and, as we see, no more values are emitted after that:</p>
+<pre class="code" data-language="plaintext">Emitting 1
+1
+Emitting 2
+2
+Caught java.lang.IllegalStateException: Collected 2
+</pre></section><section class="chapter"><h3 id="everything-is-caught" data-toc="flow#everything-is-caught">Everything is caught</h3>
+<p id="4144e814">The previous example actually catches any exception happening in the emitter or in any intermediate or terminal operators. For example, let's change the code so that emitted values are <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/map.html" id="288ec0de" data-external="true" rel="noopener noreferrer">mapped</a> to strings, but the corresponding code produces an exception:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+//sampleStart
+fun simple(): Flow&lt;String&gt; = 
+    flow {
+        for (i in 1..3) {
+            println("Emitting $i")
+            emit(i) // emit next value
+        }
+    }
+    .map { value -&gt;
+        check(value &lt;= 1) { "Crashed on $value" }                 
+        "string $value"
+    }
+
+fun main() = runBlocking&lt;Unit&gt; {
+    try {
+        simple().collect { value -&gt; println(value) }
+    } catch (e: Throwable) {
+        println("Caught $e")
+    } 
+}            
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="38ec7161"><p id="fb9454fe">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-27.kt" id="a2a4b2e2" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="3d789998">This exception is still caught and collection is stopped:</p>
+<pre class="code" data-language="plaintext">Emitting 1
+string 1
+Emitting 2
+Caught java.lang.IllegalStateException: Crashed on 2
+</pre></section></section><section class="chapter"><h2 id="exception-transparency" data-toc="flow#exception-transparency">Exception transparency</h2>
+<p id="f8831c04">But how can code of the emitter encapsulate its exception handling behavior?</p>
+<p id="6df5af01">Flows must be <em id="61a55f00" class="">transparent to exceptions</em> and it is a violation of the exception transparency to <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-flow-collector/emit.html" id="19327a51" data-external="true" rel="noopener noreferrer">emit</a> values in the <code class="code ">flow { ... }</code> builder from inside of a <code class="code ">try/catch</code> block. This guarantees that a collector throwing an exception can always catch it using <code class="code ">try/catch</code> as in the previous example.</p>
+<p id="ba87a293">The emitter can use a <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/catch.html" id="a840092d" data-external="true" rel="noopener noreferrer">catch</a> operator that preserves this exception transparency and allows encapsulation of its exception handling. The body of the <code class="code ">catch</code> operator can analyze an exception and react to it in different ways depending on which exception was caught:</p>
+<ul class="list _ul" id="293417f3">
+<li class="list__item" id="3e991b22"><p>Exceptions can be rethrown using <code class="code ">throw</code>.</p></li>
+<li class="list__item" id="71695fb8"><p>Exceptions can be turned into emission of values using <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-flow-collector/emit.html" id="f79c7751" data-external="true" rel="noopener noreferrer">emit</a> from the body of <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/catch.html" id="90fceefa" data-external="true" rel="noopener noreferrer">catch</a>.</p></li>
+<li class="list__item" id="9db57040"><p>Exceptions can be ignored, logged, or processed by some other code.</p></li>
+</ul>
+<p id="7e96bafb">For example, let us emit the text on catching an exception:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+fun simple(): Flow&lt;String&gt; = 
+    flow {
+        for (i in 1..3) {
+            println("Emitting $i")
+            emit(i) // emit next value
+        }
+    }
+    .map { value -&gt;
+        check(value &lt;= 1) { "Crashed on $value" }                 
+        "string $value"
+    }
+
+fun main() = runBlocking&lt;Unit&gt; {
+//sampleStart
+    simple()
+        .catch { e -&gt; emit("Caught $e") } // emit on exception
+        .collect { value -&gt; println(value) }
+//sampleEnd
+}            
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="d450d5fc"><p id="6e60a74a">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-28.kt" id="7057010f" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="aab5eb97">The output of the example is the same, even though we do not have <code class="code ">try/catch</code> around the code anymore.</p>
+<section class="chapter"><h3 id="transparent-catch" data-toc="flow#transparent-catch">Transparent catch</h3>
+<p id="2f098596">The <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/catch.html" id="dbf6a664" data-external="true" rel="noopener noreferrer">catch</a> intermediate operator, honoring exception transparency, catches only upstream exceptions (that is an exception from all the operators above <code class="code ">catch</code>, but not below it). If the block in <code class="code ">collect { ... }</code> (placed below <code class="code ">catch</code>) throws an exception then it escapes:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+//sampleStart
+fun simple(): Flow&lt;Int&gt; = flow {
+    for (i in 1..3) {
+        println("Emitting $i")
+        emit(i)
+    }
+}
+
+fun main() = runBlocking&lt;Unit&gt; {
+    simple()
+        .catch { e -&gt; println("Caught $e") } // does not catch downstream exceptions
+        .collect { value -&gt;
+            check(value &lt;= 1) { "Collected $value" }                 
+            println(value) 
+        }
+}            
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="2a4f65cb"><p id="fe56dbf9">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-29.kt" id="c06f47cc" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="14e003a">A "Caught ..." message is not printed despite there being a <code class="code ">catch</code> operator:</p>
+<pre class="code" data-language="plaintext">Emitting 1
+1
+Emitting 2
+Exception in thread "main" java.lang.IllegalStateException: Collected 2
+	at ...
+</pre></section><section class="chapter"><h3 id="catching-declaratively" data-toc="flow#catching-declaratively">Catching declaratively</h3>
+<p id="9cbb1b21">We can combine the declarative nature of the <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/catch.html" id="d5323ffb" data-external="true" rel="noopener noreferrer">catch</a> operator with a desire to handle all the exceptions, by moving the body of the <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/collect.html" id="64460064" data-external="true" rel="noopener noreferrer">collect</a> operator into <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/on-each.html" id="84ef8ff7" data-external="true" rel="noopener noreferrer">onEach</a> and putting it before the <code class="code ">catch</code> operator. Collection of this flow must be triggered by a call to <code class="code ">collect()</code> without parameters:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+fun simple(): Flow&lt;Int&gt; = flow {
+    for (i in 1..3) {
+        println("Emitting $i")
+        emit(i)
+    }
+}
+
+fun main() = runBlocking&lt;Unit&gt; {
+//sampleStart
+    simple()
+        .onEach { value -&gt;
+            check(value &lt;= 1) { "Collected $value" }                 
+            println(value) 
+        }
+        .catch { e -&gt; println("Caught $e") }
+        .collect()
+//sampleEnd
+}            
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="94bb87d9"><p id="1a0b0c74">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-30.kt" id="a9586022" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="e146e057">Now we can see that a "Caught ..." message is printed and so we can catch all the exceptions without explicitly using a <code class="code ">try/catch</code> block:</p>
+<pre class="code" data-language="plaintext">Emitting 1
+1
+Emitting 2
+Caught java.lang.IllegalStateException: Collected 2
+</pre></section></section><section class="chapter"><h2 id="flow-completion" data-toc="flow#flow-completion">Flow completion</h2>
+<p id="ae219d8e">When flow collection completes (normally or exceptionally) it may need to execute an action. As you may have already noticed, it can be done in two ways: imperative or declarative.</p>
+<section class="chapter"><h3 id="imperative-finally-block" data-toc="flow#imperative-finally-block">Imperative finally block</h3>
+<p id="d6126ae0">In addition to <code class="code ">try</code>/<code class="code ">catch</code>, a collector can also use a <code class="code ">finally</code> block to execute an action upon <code class="code ">collect</code> completion.</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+//sampleStart
+fun simple(): Flow&lt;Int&gt; = (1..3).asFlow()
+
+fun main() = runBlocking&lt;Unit&gt; {
+    try {
+        simple().collect { value -&gt; println(value) }
+    } finally {
+        println("Done")
+    }
+}            
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="30c68875"><p id="49490e15">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-31.kt" id="fba950df" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="6c919cc6">This code prints three numbers produced by the <code class="code ">simple</code> flow followed by a "Done" string:</p>
+<pre class="code" data-language="plaintext">1
+2
+3
+Done
+</pre></section><section class="chapter"><h3 id="declarative-handling" data-toc="flow#declarative-handling">Declarative handling</h3>
+<p id="f7e87374">For the declarative approach, flow has <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/on-completion.html" id="b9e61c08" data-external="true" rel="noopener noreferrer">onCompletion</a> intermediate operator that is invoked when the flow has completely collected.</p>
+<p id="40003aaa">The previous example can be rewritten using an <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/on-completion.html" id="3efe9809" data-external="true" rel="noopener noreferrer">onCompletion</a> operator and produces the same output:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+fun simple(): Flow&lt;Int&gt; = (1..3).asFlow()
+
+fun main() = runBlocking&lt;Unit&gt; {
+//sampleStart
+    simple()
+        .onCompletion { println("Done") }
+        .collect { value -&gt; println(value) }
+//sampleEnd
+}            
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="ed264813"><p id="d125018f">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-32.kt" id="ce8fcb81" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="5e098aa">The key advantage of <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/on-completion.html" id="cde4e210" data-external="true" rel="noopener noreferrer">onCompletion</a> is a nullable <code class="code ">Throwable</code> parameter of the lambda that can be used to determine whether the flow collection was completed normally or exceptionally. In the following example the <code class="code ">simple</code> flow throws an exception after emitting the number 1:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+//sampleStart
+fun simple(): Flow&lt;Int&gt; = flow {
+    emit(1)
+    throw RuntimeException()
+}
+
+fun main() = runBlocking&lt;Unit&gt; {
+    simple()
+        .onCompletion { cause -&gt; if (cause != null) println("Flow completed exceptionally") }
+        .catch { cause -&gt; println("Caught exception") }
+        .collect { value -&gt; println(value) }
+}            
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="69165ee8"><p id="8c0a7651">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-33.kt" id="7cd9216d" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="1386e126">As you may expect, it prints:</p>
+<pre class="code" data-language="plaintext">1
+Flow completed exceptionally
+Caught exception
+</pre>
+<p id="ddc2242e">The <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/on-completion.html" id="851ad4ab" data-external="true" rel="noopener noreferrer">onCompletion</a> operator, unlike <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/catch.html" id="aece0ecd" data-external="true" rel="noopener noreferrer">catch</a>, does not handle the exception. As we can see from the above example code, the exception still flows downstream. It will be delivered to further <code class="code ">onCompletion</code> operators and can be handled with a <code class="code ">catch</code> operator.</p></section><section class="chapter"><h3 id="successful-completion" data-toc="flow#successful-completion">Successful completion</h3>
+<p id="4c885882">Another difference with <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/catch.html" id="c802d702" data-external="true" rel="noopener noreferrer">catch</a> operator is that <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/on-completion.html" id="efa86cb9" data-external="true" rel="noopener noreferrer">onCompletion</a> sees all exceptions and receives a <code class="code ">null</code> exception only on successful completion of the upstream flow (without cancellation or failure).</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+//sampleStart
+fun simple(): Flow&lt;Int&gt; = (1..3).asFlow()
+
+fun main() = runBlocking&lt;Unit&gt; {
+    simple()
+        .onCompletion { cause -&gt; println("Flow completed with $cause") }
+        .collect { value -&gt;
+            check(value &lt;= 1) { "Collected $value" }                 
+            println(value) 
+        }
+}
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="bfd8c97a"><p id="506bbe20">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-34.kt" id="eae64f38" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="657d517">We can see the completion cause is not null, because the flow was aborted due to downstream exception:</p>
+<pre class="code" data-language="plaintext">1
+Flow completed with java.lang.IllegalStateException: Collected 2
+Exception in thread "main" java.lang.IllegalStateException: Collected 2
+</pre></section></section><section class="chapter"><h2 id="imperative-versus-declarative" data-toc="flow#imperative-versus-declarative">Imperative versus declarative</h2>
+<p id="ec4262bc">Now we know how to collect flow, and handle its completion and exceptions in both imperative and declarative ways. The natural question here is, which approach is preferred and why? As a library, we do not advocate for any particular approach and believe that both options are valid and should be selected according to your own preferences and code style.</p></section><section class="chapter"><h2 id="launching-flow" data-toc="flow#launching-flow">Launching flow</h2>
+<p id="ad54f0cf">It is easy to use flows to represent asynchronous events that are coming from some source. In this case, we need an analogue of the <code class="code ">addEventListener</code> function that registers a piece of code with a reaction for incoming events and continues further work. The <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/on-each.html" id="9aa25301" data-external="true" rel="noopener noreferrer">onEach</a> operator can serve this role. However, <code class="code ">onEach</code> is an intermediate operator. We also need a terminal operator to collect the flow. Otherwise, just calling <code class="code ">onEach</code> has no effect.</p>
+<p id="c2998b99">If we use the <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/collect.html" id="9c782cc9" data-external="true" rel="noopener noreferrer">collect</a> terminal operator after <code class="code ">onEach</code>, then the code after it will wait until the flow is collected:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+//sampleStart
+// Imitate a flow of events
+fun events(): Flow&lt;Int&gt; = (1..3).asFlow().onEach { delay(100) }
+
+fun main() = runBlocking&lt;Unit&gt; {
+    events()
+        .onEach { event -&gt; println("Event: $event") }
+        .collect() // &lt;--- Collecting the flow waits
+    println("Done")
+}            
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="ef245bd8"><p id="4cf2a426">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-35.kt" id="ca455657" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="6ebd130b">As you can see, it prints:</p>
+<pre class="code" data-language="plaintext">Event: 1
+Event: 2
+Event: 3
+Done
+</pre>
+<p id="dd05b010">The <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/launch-in.html" id="2ebaffe5" data-external="true" rel="noopener noreferrer">launchIn</a> terminal operator comes in handy here. By replacing <code class="code ">collect</code> with <code class="code ">launchIn</code> we can launch a collection of the flow in a separate coroutine, so that execution of further code immediately continues:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+// Imitate a flow of events
+fun events(): Flow&lt;Int&gt; = (1..3).asFlow().onEach { delay(100) }
+
+//sampleStart
+fun main() = runBlocking&lt;Unit&gt; {
+    events()
+        .onEach { event -&gt; println("Event: $event") }
+        .launchIn(this) // &lt;--- Launching the flow in a separate coroutine
+    println("Done")
+}            
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="e7c2c427"><p id="59cd47e3">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-36.kt" id="8789fc87" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="2bc8bd10">It prints:</p>
+<pre class="code" data-language="plaintext">Done
+Event: 1
+Event: 2
+Event: 3
+</pre>
+<p id="c975b65f">The required parameter to <code class="code ">launchIn</code> must specify a <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-coroutine-scope/index.html" id="8f7b6bcd" data-external="true" rel="noopener noreferrer">CoroutineScope</a> in which the coroutine to collect the flow is launched. In the above example this scope comes from the <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/run-blocking.html" id="dd63eaa4" data-external="true" rel="noopener noreferrer">runBlocking</a> coroutine builder, so while the flow is running, this <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/run-blocking.html" id="b64608d0" data-external="true" rel="noopener noreferrer">runBlocking</a> scope waits for completion of its child coroutine and keeps the main function from returning and terminating this example.</p>
+<p id="61dfc87a">In actual applications a scope will come from an entity with a limited lifetime. As soon as the lifetime of this entity is terminated the corresponding scope is cancelled, cancelling the collection of the corresponding flow. This way the pair of <code class="code ">onEach { ... }.launchIn(scope)</code> works like the <code class="code ">addEventListener</code>. However, there is no need for the corresponding <code class="code ">removeEventListener</code> function, as cancellation and structured concurrency serve this purpose.</p>
+<p id="bbdc83a5">Note that <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/launch-in.html" id="7c298786" data-external="true" rel="noopener noreferrer">launchIn</a> also returns a <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-job/index.html" id="89516be1" data-external="true" rel="noopener noreferrer">Job</a>, which can be used to <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/cancel.html" id="5ed0ebcd" data-external="true" rel="noopener noreferrer">cancel</a> the corresponding flow collection coroutine only without cancelling the whole scope or to <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-job/join.html" id="a72d5ef5" data-external="true" rel="noopener noreferrer">join</a> it.</p>
+<section class="chapter"><h3 id="flow-cancellation-checks" data-toc="flow#flow-cancellation-checks">Flow cancellation checks</h3>
+<p id="81cd925c">For convenience, the <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/flow.html" id="5ec97522" data-external="true" rel="noopener noreferrer">flow</a> builder performs additional <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/ensure-active.html" id="208e277a" data-external="true" rel="noopener noreferrer">ensureActive</a> checks for cancellation on each emitted value. It means that a busy loop emitting from a <code class="code ">flow { ... }</code> is cancellable:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+//sampleStart           
+fun foo(): Flow&lt;Int&gt; = flow { 
+    for (i in 1..5) {
+        println("Emitting $i") 
+        emit(i) 
+    }
+}
+
+fun main() = runBlocking&lt;Unit&gt; {
+    foo().collect { value -&gt; 
+        if (value == 3) cancel()  
+        println(value)
+    } 
+}
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="94231991"><p id="9b20e0e">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-37.kt" id="4f58b08" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="d78e892d">We get only numbers up to 3 and a <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-cancellation-exception/index.html" id="c2cf67a4" data-external="true" rel="noopener noreferrer">CancellationException</a> after trying to emit number 4:</p>
+<pre class="code" data-language="plaintext">Emitting 1
+1
+Emitting 2
+2
+Emitting 3
+3
+Emitting 4
+Exception in thread "main" kotlinx.coroutines.JobCancellationException: BlockingCoroutine was cancelled; job="coroutine#1":BlockingCoroutine{Cancelled}@6d7b4f4c
+</pre>
+<p id="988e28d6">However, most other flow operators do not do additional cancellation checks on their own for performance reasons. For example, if you use <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/as-flow.html" id="18c9630f" data-external="true" rel="noopener noreferrer">IntRange.asFlow</a> extension to write the same busy loop and don't suspend anywhere, then there are no checks for cancellation:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+//sampleStart           
+fun main() = runBlocking&lt;Unit&gt; {
+    (1..5).asFlow().collect { value -&gt; 
+        if (value == 3) cancel()  
+        println(value)
+    } 
+}
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="6238719"><p id="4806e66a">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-38.kt" id="20d05f29" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="dc50c4c4">All numbers from 1 to 5 are collected and cancellation gets detected only before return from <code class="code ">runBlocking</code>:</p>
+<pre class="code" data-language="plaintext">1
+2
+3
+4
+5
+Exception in thread "main" kotlinx.coroutines.JobCancellationException: BlockingCoroutine was cancelled; job="coroutine#1":BlockingCoroutine{Cancelled}@3327bd23
+</pre>
+<section class="chapter"><h4 id="making-busy-flow-cancellable" data-toc="flow#making-busy-flow-cancellable">Making busy flow cancellable</h4>
+<p id="cb2c4887">In the case where you have a busy loop with coroutines you must explicitly check for cancellation. You can add <code class="code ">.onEach { currentCoroutineContext().ensureActive() }</code>, but there is a ready-to-use <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/cancellable.html" id="58b9069c" data-external="true" rel="noopener noreferrer">cancellable</a> operator provided to do that:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+
+//sampleStart           
+fun main() = runBlocking&lt;Unit&gt; {
+    (1..5).asFlow().cancellable().collect { value -&gt; 
+        if (value == 3) cancel()  
+        println(value)
+    } 
+}
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="52ceeffb"><p id="64a7531f">You can get the full code from <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-flow-39.kt" id="54fb5c9" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="50112897">With the <code class="code ">cancellable</code> operator only the numbers from 1 to 3 are collected:</p>
+<pre class="code" data-language="plaintext">1
+2
+3
+Exception in thread "main" kotlinx.coroutines.JobCancellationException: BlockingCoroutine was cancelled; job="coroutine#1":BlockingCoroutine{Cancelled}@5ec0a365
+</pre></section></section></section><section class="chapter"><h2 id="flow-and-reactive-streams" data-toc="flow#flow-and-reactive-streams">Flow and Reactive Streams</h2>
+<p id="9d704636">For those who are familiar with <a href="https://www.reactive-streams.org/" id="dca3f7ea" data-external="true" rel="noopener noreferrer">Reactive Streams</a> or reactive frameworks such as RxJava and project Reactor, design of the Flow may look very familiar.</p>
+<p id="8e2d20ef">Indeed, its design was inspired by Reactive Streams and its various implementations. But Flow main goal is to have as simple design as possible, be Kotlin and suspension friendly and respect structured concurrency. Achieving this goal would be impossible without reactive pioneers and their tremendous work. You can read the complete story in <a href="https://medium.com/@elizarov/reactive-streams-and-kotlin-flows-bfd12772cda4" id="a4ea5f83" data-external="true" rel="noopener noreferrer">Reactive Streams and Kotlin Flows</a> article.</p>
+<p id="a15b68dd">While being different, conceptually, Flow <em id="404c7593" class="">is</em> a reactive stream and it is possible to convert it to the reactive (spec and TCK compliant) Publisher and vice versa. Such converters are provided by <code class="code ">kotlinx.coroutines</code> out-of-the-box and can be found in corresponding reactive modules (<code class="code ">kotlinx-coroutines-reactive</code> for Reactive Streams, <code class="code ">kotlinx-coroutines-reactor</code> for Project Reactor and <code class="code ">kotlinx-coroutines-rx2</code>/<code class="code ">kotlinx-coroutines-rx3</code> for RxJava2/RxJava3). Integration modules include conversions from and to <code class="code ">Flow</code>, integration with Reactor's <code class="code ">Context</code> and suspension-friendly ways to work with various reactive entities.</p></section><div class="last-modified"> Last modified: 02 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="coroutine-context-and-dispatchers">Coroutine context and dispatchers</a> <a class="navigation-links__next" href="channels">Channels</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/flow.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/flow.html</a>
+  </p>
+</div>

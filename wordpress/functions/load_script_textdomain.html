@@ -1,0 +1,127 @@
+<h1>load_script_textdomain( string $handle, string $domain = 'default', string $path = null )</h1>  <section> <p>Loads the script translated strings.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <h3 id="see-also">See also</h3> <ul> <li><a href="../classes/wp_scripts/set_translations">WP_Scripts::set_translations()</a></li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$handle</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Name of the script to register a translation domain to.</span> </p> </dd> <dt>$domain</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> Text domain. </span> </p> <p class="default">Default value: 'default'</p> </dd> <dt>$path</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> The full file path to the directory containing translation files.</span> </p> <p class="default">Default value: null</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string|false)</span> The translated strings in JSON encoding on success, false if the script textdomain could not be loaded.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/l10n.php/">wp-includes/l10n.php</a> </p> <pre data-language="php">function load_script_textdomain( $handle, $domain = 'default', $path = null ) {
+	$wp_scripts = wp_scripts();
+
+	if ( ! isset( $wp_scripts-&gt;registered[ $handle ] ) ) {
+		return false;
+	}
+
+	$path   = untrailingslashit( $path );
+	$locale = determine_locale();
+
+	// If a path was given and the handle file exists simply return it.
+	$file_base       = 'default' === $domain ? $locale : $domain . '-' . $locale;
+	$handle_filename = $file_base . '-' . $handle . '.json';
+
+	if ( $path ) {
+		$translations = load_script_translations( $path . '/' . $handle_filename, $handle, $domain );
+
+		if ( $translations ) {
+			return $translations;
+		}
+	}
+
+	$src = $wp_scripts-&gt;registered[ $handle ]-&gt;src;
+
+	if ( ! preg_match( '|^(https?:)?//|', $src ) &amp;&amp; ! ( $wp_scripts-&gt;content_url &amp;&amp; 0 === strpos( $src, $wp_scripts-&gt;content_url ) ) ) {
+		$src = $wp_scripts-&gt;base_url . $src;
+	}
+
+	$relative       = false;
+	$languages_path = WP_LANG_DIR;
+
+	$src_url     = wp_parse_url( $src );
+	$content_url = wp_parse_url( content_url() );
+	$plugins_url = wp_parse_url( plugins_url() );
+	$site_url    = wp_parse_url( site_url() );
+
+	// If the host is the same or it's a relative URL.
+	if (
+		( ! isset( $content_url['path'] ) || strpos( $src_url['path'], $content_url['path'] ) === 0 ) &amp;&amp;
+		( ! isset( $src_url['host'] ) || ! isset( $content_url['host'] ) || $src_url['host'] === $content_url['host'] )
+	) {
+		// Make the src relative the specific plugin or theme.
+		if ( isset( $content_url['path'] ) ) {
+			$relative = substr( $src_url['path'], strlen( $content_url['path'] ) );
+		} else {
+			$relative = $src_url['path'];
+		}
+		$relative = trim( $relative, '/' );
+		$relative = explode( '/', $relative );
+
+		$languages_path = WP_LANG_DIR . '/' . $relative[0];
+
+		$relative = array_slice( $relative, 2 ); // Remove plugins/&lt;plugin name&gt; or themes/&lt;theme name&gt;.
+		$relative = implode( '/', $relative );
+	} elseif (
+		( ! isset( $plugins_url['path'] ) || strpos( $src_url['path'], $plugins_url['path'] ) === 0 ) &amp;&amp;
+		( ! isset( $src_url['host'] ) || ! isset( $plugins_url['host'] ) || $src_url['host'] === $plugins_url['host'] )
+	) {
+		// Make the src relative the specific plugin.
+		if ( isset( $plugins_url['path'] ) ) {
+			$relative = substr( $src_url['path'], strlen( $plugins_url['path'] ) );
+		} else {
+			$relative = $src_url['path'];
+		}
+		$relative = trim( $relative, '/' );
+		$relative = explode( '/', $relative );
+
+		$languages_path = WP_LANG_DIR . '/plugins';
+
+		$relative = array_slice( $relative, 1 ); // Remove &lt;plugin name&gt;.
+		$relative = implode( '/', $relative );
+	} elseif ( ! isset( $src_url['host'] ) || ! isset( $site_url['host'] ) || $src_url['host'] === $site_url['host'] ) {
+		if ( ! isset( $site_url['path'] ) ) {
+			$relative = trim( $src_url['path'], '/' );
+		} elseif ( ( strpos( $src_url['path'], trailingslashit( $site_url['path'] ) ) === 0 ) ) {
+			// Make the src relative to the WP root.
+			$relative = substr( $src_url['path'], strlen( $site_url['path'] ) );
+			$relative = trim( $relative, '/' );
+		}
+	}
+
+	/**
+	 * Filters the relative path of scripts used for finding translation files.
+	 *
+	 * @since 5.0.2
+	 *
+	 * @param string|false $relative The relative path of the script. False if it could not be determined.
+	 * @param string       $src      The full source URL of the script.
+	 */
+	$relative = apply_filters( 'load_script_textdomain_relative_path', $relative, $src );
+
+	// If the source is not from WP.
+	if ( false === $relative ) {
+		return load_script_translations( false, $handle, $domain );
+	}
+
+	// Translations are always based on the unminified filename.
+	if ( substr( $relative, -7 ) === '.min.js' ) {
+		$relative = substr( $relative, 0, -7 ) . '.js';
+	}
+
+	$md5_filename = $file_base . '-' . md5( $relative ) . '.json';
+
+	if ( $path ) {
+		$translations = load_script_translations( $path . '/' . $md5_filename, $handle, $domain );
+
+		if ( $translations ) {
+			return $translations;
+		}
+	}
+
+	$translations = load_script_translations( $languages_path . '/' . $md5_filename, $handle, $domain );
+
+	if ( $translations ) {
+		return $translations;
+	}
+
+	return load_script_translations( false, $handle, $domain );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="load_script_translations">load_script_translations()</a> </td> <td class="related-desc"> <p>Loads the translation data for the given script handle and text domain.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../hooks/load_script_textdomain_relative_path">load_script_textdomain_relative_path</a> </td> <td class="related-desc"> <p>Filters the relative path of scripts used for finding translation files.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="determine_locale">determine_locale()</a> </td> <td class="related-desc"> <p>Determine the current locale desired for the request.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_parse_url">wp_parse_url()</a> </td> <td class="related-desc"> <p>A wrapper for PHP’s parse_url() function that handles consistency in the return values across PHP versions.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.wp-scripts.php:</span> <a href="wp_scripts">wp_scripts()</a> </td> <td class="related-desc"> <p>Initialize $wp_scripts if it has not been set.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="untrailingslashit">untrailingslashit()</a> </td> <td class="related-desc"> <p>Removes trailing forward slashes and backslashes if they exist.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="trailingslashit">trailingslashit()</a> </td> <td class="related-desc"> <p>Appends a trailing slash.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="content_url">content_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the content directory.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="plugins_url">plugins_url()</a> </td> <td class="related-desc"> <p>Retrieves a URL within the plugins or mu-plugins directory.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="site_url">site_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL for the current site where WordPress application files (e.g. wp-blog-header.php or the wp-admin/ folder) are accessible.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class.wp-scripts.php:</span> <a href="../classes/wp_scripts/print_translations">WP_Scripts::print_translations()</a> </td> <td class="related-desc"> <p>Prints translations set for a specific handle.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.1.0/" alt="WordPress 5.1.0">5.1.0</a></td> <td><span class="since-description">The <code>$domain</code> parameter was made optional.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.0.2/" alt="WordPress 5.0.2">5.0.2</a></td> <td><span class="since-description">Uses <a href="load_script_translations">load_script_translations()</a> to load translation data.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.0.0/" alt="WordPress 5.0.0">5.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/load_script_textdomain" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/load_script_textdomain</a>
+  </p>
+</div>

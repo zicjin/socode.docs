@@ -1,0 +1,46 @@
+<h1>convert_smilies( string $text )</h1>  <section> <p>Converts text equivalent of smilies to images.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Will only convert smilies if the option ‘use_smilies’ is true and the global used in the function isn’t empty.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$text</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Content to convert smilies from text.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> Converted content with text smilies replaced with images.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/formatting.php/">wp-includes/formatting.php</a> </p> <pre data-language="php">function convert_smilies( $text ) {
+	global $wp_smiliessearch;
+	$output = '';
+	if ( get_option( 'use_smilies' ) &amp;&amp; ! empty( $wp_smiliessearch ) ) {
+		// HTML loop taken from texturize function, could possible be consolidated.
+		$textarr = preg_split( '/(&lt;.*&gt;)/U', $text, -1, PREG_SPLIT_DELIM_CAPTURE ); // Capture the tags as well as in between.
+		$stop    = count( $textarr ); // Loop stuff.
+
+		// Ignore proessing of specific tags.
+		$tags_to_ignore       = 'code|pre|style|script|textarea';
+		$ignore_block_element = '';
+
+		for ( $i = 0; $i &lt; $stop; $i++ ) {
+			$content = $textarr[ $i ];
+
+			// If we're in an ignore block, wait until we find its closing tag.
+			if ( '' === $ignore_block_element &amp;&amp; preg_match( '/^&lt;(' . $tags_to_ignore . ')[^&gt;]*&gt;/', $content, $matches ) ) {
+				$ignore_block_element = $matches[1];
+			}
+
+			// If it's not a tag and not in ignore block.
+			if ( '' === $ignore_block_element &amp;&amp; strlen( $content ) &gt; 0 &amp;&amp; '&lt;' !== $content[0] ) {
+				$content = preg_replace_callback( $wp_smiliessearch, 'translate_smiley', $content );
+			}
+
+			// Did we exit ignore block?
+			if ( '' !== $ignore_block_element &amp;&amp; '&lt;/' . $ignore_block_element . '&gt;' === $content ) {
+				$ignore_block_element = '';
+			}
+
+			$output .= $content;
+		}
+	} else {
+		// Return default text.
+		$output = $text;
+	}
+	return $output;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/block-template.php:</span> <a href="get_the_block_template_html">get_the_block_template_html()</a> </td> <td class="related-desc"> <p>Returns the markup for the current template.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/0.71/" alt="WordPress 0.71">0.71</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/convert_smilies" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/convert_smilies</a>
+  </p>
+</div>

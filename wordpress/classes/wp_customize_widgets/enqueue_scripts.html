@@ -1,0 +1,189 @@
+<h1>WP_Customize_Widgets::enqueue_scripts()</h1>  <section> <p>Enqueues scripts and styles for Customizer panel and export data to JavaScript.</p> </section> <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-customize-widgets.php/">wp-includes/class-wp-customize-widgets.php</a> </p> <pre data-language="php">public function enqueue_scripts() {
+		global $wp_scripts, $wp_registered_sidebars, $wp_registered_widgets;
+
+		wp_enqueue_style( 'customize-widgets' );
+		wp_enqueue_script( 'customize-widgets' );
+
+		/** This action is documented in wp-admin/admin-header.php */
+		do_action( 'admin_enqueue_scripts', 'widgets.php' );
+
+		/*
+		 * Export available widgets with control_tpl removed from model
+		 * since plugins need templates to be in the DOM.
+		 */
+		$available_widgets = array();
+
+		foreach ( $this-&gt;get_available_widgets() as $available_widget ) {
+			unset( $available_widget['control_tpl'] );
+			$available_widgets[] = $available_widget;
+		}
+
+		$widget_reorder_nav_tpl = sprintf(
+			'&lt;div class="widget-reorder-nav"&gt;&lt;span class="move-widget" tabindex="0"&gt;%1$s&lt;/span&gt;&lt;span class="move-widget-down" tabindex="0"&gt;%2$s&lt;/span&gt;&lt;span class="move-widget-up" tabindex="0"&gt;%3$s&lt;/span&gt;&lt;/div&gt;',
+			__( 'Move to another area&amp;hellip;' ),
+			__( 'Move down' ),
+			__( 'Move up' )
+		);
+
+		$move_widget_area_tpl = str_replace(
+			array( '{description}', '{btn}' ),
+			array(
+				__( 'Select an area to move this widget into:' ),
+				_x( 'Move', 'Move widget' ),
+			),
+			'&lt;div class="move-widget-area"&gt;
+				&lt;p class="description"&gt;{description}&lt;/p&gt;
+				&lt;ul class="widget-area-select"&gt;
+					&lt;% _.each( sidebars, function ( sidebar ){ %&gt;
+						&lt;li class="" data-id="&lt;%- sidebar.id %&gt;" title="&lt;%- sidebar.description %&gt;" tabindex="0"&gt;&lt;%- sidebar.name %&gt;&lt;/li&gt;
+					&lt;% }); %&gt;
+				&lt;/ul&gt;
+				&lt;div class="move-widget-actions"&gt;
+					&lt;button class="move-widget-btn button" type="button"&gt;{btn}&lt;/button&gt;
+				&lt;/div&gt;
+			&lt;/div&gt;'
+		);
+
+		/*
+		 * Gather all strings in PHP that may be needed by JS on the client.
+		 * Once JS i18n is implemented (in #20491), this can be removed.
+		 */
+		$some_non_rendered_areas_messages    = array();
+		$some_non_rendered_areas_messages[1] = html_entity_decode(
+			__( 'Your theme has 1 other widget area, but this particular page does not display it.' ),
+			ENT_QUOTES,
+			get_bloginfo( 'charset' )
+		);
+		$registered_sidebar_count            = count( $wp_registered_sidebars );
+		for ( $non_rendered_count = 2; $non_rendered_count &lt; $registered_sidebar_count; $non_rendered_count++ ) {
+			$some_non_rendered_areas_messages[ $non_rendered_count ] = html_entity_decode(
+				sprintf(
+					/* translators: %s: The number of other widget areas registered but not rendered. */
+					_n(
+						'Your theme has %s other widget area, but this particular page does not display it.',
+						'Your theme has %s other widget areas, but this particular page does not display them.',
+						$non_rendered_count
+					),
+					number_format_i18n( $non_rendered_count )
+				),
+				ENT_QUOTES,
+				get_bloginfo( 'charset' )
+			);
+		}
+
+		if ( 1 === $registered_sidebar_count ) {
+			$no_areas_shown_message = html_entity_decode(
+				sprintf(
+					__( 'Your theme has 1 widget area, but this particular page does not display it.' )
+				),
+				ENT_QUOTES,
+				get_bloginfo( 'charset' )
+			);
+		} else {
+			$no_areas_shown_message = html_entity_decode(
+				sprintf(
+					/* translators: %s: The total number of widget areas registered. */
+					_n(
+						'Your theme has %s widget area, but this particular page does not display it.',
+						'Your theme has %s widget areas, but this particular page does not display them.',
+						$registered_sidebar_count
+					),
+					number_format_i18n( $registered_sidebar_count )
+				),
+				ENT_QUOTES,
+				get_bloginfo( 'charset' )
+			);
+		}
+
+		$settings = array(
+			'registeredSidebars'          =&gt; array_values( $wp_registered_sidebars ),
+			'registeredWidgets'           =&gt; $wp_registered_widgets,
+			'availableWidgets'            =&gt; $available_widgets, // @todo Merge this with registered_widgets.
+			'l10n'                        =&gt; array(
+				'saveBtnLabel'     =&gt; __( 'Apply' ),
+				'saveBtnTooltip'   =&gt; __( 'Save and preview changes before publishing them.' ),
+				'removeBtnLabel'   =&gt; __( 'Remove' ),
+				'removeBtnTooltip' =&gt; __( 'Keep widget settings and move it to the inactive widgets' ),
+				'error'            =&gt; __( 'An error has occurred. Please reload the page and try again.' ),
+				'widgetMovedUp'    =&gt; __( 'Widget moved up' ),
+				'widgetMovedDown'  =&gt; __( 'Widget moved down' ),
+				'navigatePreview'  =&gt; __( 'You can navigate to other pages on your site while using the Customizer to view and edit the widgets displayed on those pages.' ),
+				'someAreasShown'   =&gt; $some_non_rendered_areas_messages,
+				'noAreasShown'     =&gt; $no_areas_shown_message,
+				'reorderModeOn'    =&gt; __( 'Reorder mode enabled' ),
+				'reorderModeOff'   =&gt; __( 'Reorder mode closed' ),
+				'reorderLabelOn'   =&gt; esc_attr__( 'Reorder widgets' ),
+				/* translators: %d: The number of widgets found. */
+				'widgetsFound'     =&gt; __( 'Number of widgets found: %d' ),
+				'noWidgetsFound'   =&gt; __( 'No widgets found.' ),
+			),
+			'tpl'                         =&gt; array(
+				'widgetReorderNav' =&gt; $widget_reorder_nav_tpl,
+				'moveWidgetArea'   =&gt; $move_widget_area_tpl,
+			),
+			'selectiveRefreshableWidgets' =&gt; $this-&gt;get_selective_refreshable_widgets(),
+		);
+
+		foreach ( $settings['registeredWidgets'] as &amp;$registered_widget ) {
+			unset( $registered_widget['callback'] ); // May not be JSON-serializeable.
+		}
+
+		$wp_scripts-&gt;add_data(
+			'customize-widgets',
+			'data',
+			sprintf( 'var _wpCustomizeWidgetsSettings = %s;', wp_json_encode( $settings ) )
+		);
+
+		/*
+		 * TODO: Update 'wp-customize-widgets' to not rely so much on things in
+		 * 'customize-widgets'. This will let us skip most of the above and not
+		 * enqueue 'customize-widgets' which saves bytes.
+		 */
+
+		if ( wp_use_widgets_block_editor() ) {
+			$block_editor_context = new WP_Block_Editor_Context(
+				array(
+					'name' =&gt; 'core/customize-widgets',
+				)
+			);
+
+			$editor_settings = get_block_editor_settings(
+				get_legacy_widget_block_editor_settings(),
+				$block_editor_context
+			);
+
+			wp_add_inline_script(
+				'wp-customize-widgets',
+				sprintf(
+					'wp.domReady( function() {
+					   wp.customizeWidgets.initialize( "widgets-customizer", %s );
+					} );',
+					wp_json_encode( $editor_settings )
+				)
+			);
+
+			// Preload server-registered block schemas.
+			wp_add_inline_script(
+				'wp-blocks',
+				'wp.blocks.unstable__bootstrapServerSideBlockDefinitions(' . wp_json_encode( get_block_editor_server_block_settings() ) . ');'
+			);
+
+			wp_add_inline_script(
+				'wp-blocks',
+				sprintf( 'wp.blocks.setCategories( %s );', wp_json_encode( get_block_categories( $block_editor_context ) ) ),
+				'after'
+			);
+
+			wp_enqueue_script( 'wp-customize-widgets' );
+			wp_enqueue_style( 'wp-customize-widgets' );
+
+			/** This action is documented in edit-form-blocks.php */
+			do_action( 'enqueue_block_editor_assets' );
+		}
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-block-editor-context.php:</span> <a href="../wp_block_editor_context/__construct">WP_Block_Editor_Context::__construct()</a> </td> <td class="related-desc"> <p>Constructor.</p> </td> </tr> <tr> <td> <span>wp-includes/block-editor.php:</span> <a href="../../functions/get_block_editor_settings">get_block_editor_settings()</a> </td> <td class="related-desc"> <p>Returns the contextualized block editor settings for a selected editor context.</p> </td> </tr> <tr> <td> <span>wp-includes/block-editor.php:</span> <a href="../../functions/get_legacy_widget_block_editor_settings">get_legacy_widget_block_editor_settings()</a> </td> <td class="related-desc"> <p>Returns the block editor settings needed to use the Legacy Widget block which is not registered by default.</p> </td> </tr> <tr> <td> <span>wp-includes/widgets.php:</span> <a href="../../functions/wp_use_widgets_block_editor">wp_use_widgets_block_editor()</a> </td> <td class="related-desc"> <p>Whether or not to use the block editor to manage widgets. Defaults to true unless a theme has removed support for widgets-block-editor or a plugin has filtered the return value of this function.</p> </td> </tr> <tr> <td> <span>wp-admin/edit-form-blocks.php:</span> <a href="../../hooks/enqueue_block_editor_assets">enqueue_block_editor_assets</a> </td> <td class="related-desc"> <p>Fires after block assets have been enqueued for the editing interface.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/post.php:</span> <a href="../../functions/get_block_editor_server_block_settings">get_block_editor_server_block_settings()</a> </td> <td class="related-desc"> <p>Prepares server-registered blocks for the block editor.</p> </td> </tr> <tr> <td> <span>wp-includes/block-editor.php:</span> <a href="../../functions/get_block_categories">get_block_categories()</a> </td> <td class="related-desc"> <p>Returns all the categories for block types that will be shown in the block editor.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.wp-scripts.php:</span> <a href="../../functions/wp_add_inline_script">wp_add_inline_script()</a> </td> <td class="related-desc"> <p>Adds extra code to a registered script.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-widgets.php:</span> <a href="get_selective_refreshable_widgets">WP_Customize_Widgets::get_selective_refreshable_widgets()</a> </td> <td class="related-desc"> <p>List whether each registered widget can be use selective refresh.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_json_encode">wp_json_encode()</a> </td> <td class="related-desc"> <p>Encode a variable into JSON, with some sanity checks.</p> </td> </tr> <tr> <td> <span>wp-admin/admin-header.php:</span> <a href="../../hooks/admin_enqueue_scripts">admin_enqueue_scripts</a> </td> <td class="related-desc"> <p>Enqueue scripts for all admin pages.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/_x">_x()</a> </td> <td class="related-desc"> <p>Retrieve translated string with gettext context.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/_n">_n()</a> </td> <td class="related-desc"> <p>Translates and retrieves the singular or plural form based on the supplied number.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/esc_attr__">esc_attr__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text and escapes it for safe use in an attribute.</p> </td> </tr> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="../../functions/get_bloginfo">get_bloginfo()</a> </td> <td class="related-desc"> <p>Retrieves information about the current site.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.wp-scripts.php:</span> <a href="../../functions/wp_enqueue_script">wp_enqueue_script()</a> </td> <td class="related-desc"> <p>Enqueue a script.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/number_format_i18n">number_format_i18n()</a> </td> <td class="related-desc"> <p>Convert float number to format based on the locale.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.wp-styles.php:</span> <a href="../../functions/wp_enqueue_style">wp_enqueue_style()</a> </td> <td class="related-desc"> <p>Enqueue a CSS stylesheet.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-widgets.php:</span> <a href="get_available_widgets">WP_Customize_Widgets::get_available_widgets()</a> </td> <td class="related-desc"> <p>Builds up an index of all available widgets for use in Backbone models.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.9.0/" alt="WordPress 3.9.0">3.9.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_customize_widgets/enqueue_scripts" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_customize_widgets/enqueue_scripts</a>
+  </p>
+</div>

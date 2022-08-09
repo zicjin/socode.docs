@@ -1,0 +1,89 @@
+<h1>make_site_theme_from_oldschool( string $theme_name, string $template )</h1>  <section> <p>Creates a site theme from an existing theme.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2>  </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$theme_name</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The name of the theme.</span> </p> </dd> <dt>$template</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The directory name of the theme.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/upgrade.php/">wp-admin/includes/upgrade.php</a> </p> <pre data-language="php">function make_site_theme_from_oldschool( $theme_name, $template ) {
+	$home_path = get_home_path();
+	$site_dir  = WP_CONTENT_DIR . "/themes/$template";
+
+	if ( ! file_exists( "$home_path/index.php" ) ) {
+		return false;
+	}
+
+	/*
+	 * Copy files from the old locations to the site theme.
+	 * TODO: This does not copy arbitrary include dependencies. Only the standard WP files are copied.
+	 */
+	$files = array(
+		'index.php'             =&gt; 'index.php',
+		'wp-layout.css'         =&gt; 'style.css',
+		'wp-comments.php'       =&gt; 'comments.php',
+		'wp-comments-popup.php' =&gt; 'comments-popup.php',
+	);
+
+	foreach ( $files as $oldfile =&gt; $newfile ) {
+		if ( 'index.php' === $oldfile ) {
+			$oldpath = $home_path;
+		} else {
+			$oldpath = ABSPATH;
+		}
+
+		// Check to make sure it's not a new index.
+		if ( 'index.php' === $oldfile ) {
+			$index = implode( '', file( "$oldpath/$oldfile" ) );
+			if ( strpos( $index, 'WP_USE_THEMES' ) !== false ) {
+				if ( ! copy( WP_CONTENT_DIR . '/themes/' . WP_DEFAULT_THEME . '/index.php', "$site_dir/$newfile" ) ) {
+					return false;
+				}
+
+				// Don't copy anything.
+				continue;
+			}
+		}
+
+		if ( ! copy( "$oldpath/$oldfile", "$site_dir/$newfile" ) ) {
+			return false;
+		}
+
+		chmod( "$site_dir/$newfile", 0777 );
+
+		// Update the blog header include in each file.
+		$lines = explode( "\n", implode( '', file( "$site_dir/$newfile" ) ) );
+		if ( $lines ) {
+			$f = fopen( "$site_dir/$newfile", 'w' );
+
+			foreach ( $lines as $line ) {
+				if ( preg_match( '/require.*wp-blog-header/', $line ) ) {
+					$line = '//' . $line;
+				}
+
+				// Update stylesheet references.
+				$line = str_replace( "&lt;?php echo __get_option('siteurl'); ?&gt;/wp-layout.css", "&lt;?php bloginfo('stylesheet_url'); ?&gt;", $line );
+
+				// Update comments template inclusion.
+				$line = str_replace( "&lt;?php include(ABSPATH . 'wp-comments.php'); ?&gt;", '&lt;?php comments_template(); ?&gt;', $line );
+
+				fwrite( $f, "{$line}\n" );
+			}
+			fclose( $f );
+		}
+	}
+
+	// Add a theme header.
+	$header = "/*\nTheme Name: $theme_name\nTheme URI: " . __get_option( 'siteurl' ) . "\nDescription: A theme automatically created by the update.\nVersion: 1.0\nAuthor: Moi\n*/\n";
+
+	$stylelines = file_get_contents( "$site_dir/style.css" );
+	if ( $stylelines ) {
+		$f = fopen( "$site_dir/style.css", 'w' );
+
+		fwrite( $f, $header );
+		fwrite( $f, $stylelines );
+		fclose( $f );
+	}
+
+	return true;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/file.php:</span> <a href="get_home_path">get_home_path()</a> </td> <td class="related-desc"> <p>Gets the absolute filesystem path to the root of the WordPress installation.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/upgrade.php:</span> <a href="make_site_theme">make_site_theme()</a> </td> <td class="related-desc"> <p>Creates a site theme.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/1.5.0/" alt="WordPress 1.5.0">1.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/make_site_theme_from_oldschool" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/make_site_theme_from_oldschool</a>
+  </p>
+</div>

@@ -1,0 +1,96 @@
+<h1>wp_get_update_data()</h1>  <section> <p>Collect counts and UI strings for available updates</p> </section> <div class="content-toc">  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/update.php/">wp-includes/update.php</a> </p> <pre data-language="php">function wp_get_update_data() {
+	$counts = array(
+		'plugins'      =&gt; 0,
+		'themes'       =&gt; 0,
+		'wordpress'    =&gt; 0,
+		'translations' =&gt; 0,
+	);
+
+	$plugins = current_user_can( 'update_plugins' );
+
+	if ( $plugins ) {
+		$update_plugins = get_site_transient( 'update_plugins' );
+
+		if ( ! empty( $update_plugins-&gt;response ) ) {
+			$counts['plugins'] = count( $update_plugins-&gt;response );
+		}
+	}
+
+	$themes = current_user_can( 'update_themes' );
+
+	if ( $themes ) {
+		$update_themes = get_site_transient( 'update_themes' );
+
+		if ( ! empty( $update_themes-&gt;response ) ) {
+			$counts['themes'] = count( $update_themes-&gt;response );
+		}
+	}
+
+	$core = current_user_can( 'update_core' );
+
+	if ( $core &amp;&amp; function_exists( 'get_core_updates' ) ) {
+		$update_wordpress = get_core_updates( array( 'dismissed' =&gt; false ) );
+
+		if ( ! empty( $update_wordpress )
+			&amp;&amp; ! in_array( $update_wordpress[0]-&gt;response, array( 'development', 'latest' ), true )
+			&amp;&amp; current_user_can( 'update_core' )
+		) {
+			$counts['wordpress'] = 1;
+		}
+	}
+
+	if ( ( $core || $plugins || $themes ) &amp;&amp; wp_get_translation_updates() ) {
+		$counts['translations'] = 1;
+	}
+
+	$counts['total'] = $counts['plugins'] + $counts['themes'] + $counts['wordpress'] + $counts['translations'];
+	$titles          = array();
+
+	if ( $counts['wordpress'] ) {
+		/* translators: %d: Number of available WordPress updates. */
+		$titles['wordpress'] = sprintf( __( '%d WordPress Update' ), $counts['wordpress'] );
+	}
+
+	if ( $counts['plugins'] ) {
+		/* translators: %d: Number of available plugin updates. */
+		$titles['plugins'] = sprintf( _n( '%d Plugin Update', '%d Plugin Updates', $counts['plugins'] ), $counts['plugins'] );
+	}
+
+	if ( $counts['themes'] ) {
+		/* translators: %d: Number of available theme updates. */
+		$titles['themes'] = sprintf( _n( '%d Theme Update', '%d Theme Updates', $counts['themes'] ), $counts['themes'] );
+	}
+
+	if ( $counts['translations'] ) {
+		$titles['translations'] = __( 'Translation Updates' );
+	}
+
+	$update_title = $titles ? esc_attr( implode( ', ', $titles ) ) : '';
+
+	$update_data = array(
+		'counts' =&gt; $counts,
+		'title'  =&gt; $update_title,
+	);
+	/**
+	 * Filters the returned array of update data for plugins, themes, and WordPress core.
+	 *
+	 * @since 3.5.0
+	 *
+	 * @param array $update_data {
+	 *     Fetched update data.
+	 *
+	 *     @type array   $counts       An array of counts for available plugin, theme, and WordPress updates.
+	 *     @type string  $update_title Titles of available updates.
+	 * }
+	 * @param array $titles An array of update counts and UI strings for available updates.
+	 */
+	return apply_filters( 'wp_get_update_data', $update_data, $titles );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/update.php:</span> <a href="get_core_updates">get_core_updates()</a> </td> <td class="related-desc"> <p>Gets available core updates.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="_n">_n()</a> </td> <td class="related-desc"> <p>Translates and retrieves the singular or plural form based on the supplied number.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/update.php:</span> <a href="wp_get_translation_updates">wp_get_translation_updates()</a> </td> <td class="related-desc"> <p>Retrieves a list of all language updates available.</p> </td> </tr> <tr> <td> <span>wp-includes/update.php:</span> <a href="../hooks/wp_get_update_data">wp_get_update_data</a> </td> <td class="related-desc"> <p>Filters the returned array of update data for plugins, themes, and WordPress core.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_site_transient">get_site_transient()</a> </td> <td class="related-desc"> <p>Retrieves the value of a site transient.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-plugins-list-table.php:</span> <a href="../classes/wp_plugins_list_table/prepare_items">WP_Plugins_List_Table::prepare_items()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-ms-themes-list-table.php:</span> <a href="../classes/wp_ms_themes_list_table/prepare_items">WP_MS_Themes_List_Table::prepare_items()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-plugin-install-list-table.php:</span> <a href="../classes/wp_plugin_install_list_table/prepare_items">WP_Plugin_Install_List_Table::prepare_items()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="../classes/wp_customize_manager/enqueue_control_scripts">WP_Customize_Manager::enqueue_control_scripts()</a> </td> <td class="related-desc"> <p>Enqueues scripts for customize controls.</p> </td> </tr> <tr> <td> <span>wp-includes/admin-bar.php:</span> <a href="wp_admin_bar_updates_menu">wp_admin_bar_updates_menu()</a> </td> <td class="related-desc"> <p>Provides an update link if theme/plugin/core updates are available.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.3.0/" alt="WordPress 3.3.0">3.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_get_update_data" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_get_update_data</a>
+  </p>
+</div>

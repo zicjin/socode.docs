@@ -1,0 +1,281 @@
+<h1 data-toc="whatsnew13" id="whatsnew13.md">What's new in Kotlin 1.3</h1>
+<p id="d02bfa39"><em id="54cf7d1a" class="">Release date: 29 October 2018</em></p>
+<section class="chapter"><h2 id="coroutines-release" data-toc="whatsnew13#coroutines-release">Coroutines release</h2>
+<p id="6520127f">After some long and extensive battle testing, coroutines are now released! It means that from Kotlin 1.3 the language support and the API are <a href="components-stability" id="29a1e315">fully stable</a>. Check out the new <a href="coroutines-overview" id="e55c5d9e">coroutines overview</a> page.</p>
+<p id="3c5ff9c0">Kotlin 1.3 introduces callable references on suspend-functions and support of coroutines in the reflection API.</p></section><section class="chapter"><h2 id="kotlin-native" data-toc="whatsnew13#kotlin-native">Kotlin/Native</h2>
+<p id="657344e8">Kotlin 1.3 continues to improve and polish the Native target. See the <a href="native-overview" id="82cf0e79">Kotlin/Native overview</a> for details.</p></section><section class="chapter"><h2 id="multiplatform-projects" data-toc="whatsnew13#multiplatform-projects">Multiplatform projects</h2>
+<p id="6e988134">In 1.3, we've completely reworked the model of multiplatform projects in order to improve expressiveness and flexibility, and to make sharing common code easier. Also, Kotlin/Native is now supported as one of the targets!</p>
+<p id="5aceef91">The key differences to the old model are:</p>
+<ul class="list _ul" id="3e65e076">
+<li class="list__item" id="19ee83f5"><p>In the old model, common and platform-specific code needed to be placed in separate modules, linked by <code class="code ">expectedBy</code> dependencies. Now, common and platform-specific code is placed in different source roots of the same module, making projects easier to configure.</p></li>
+<li class="list__item" id="b410bcc9"><p>There is now a large number of <a href="multiplatform-dsl-reference#targets" id="88ece38a">preset platform configurations</a> for different supported platforms.</p></li>
+<li class="list__item" id="11cdbf88"><p>The <a href="multiplatform-add-dependencies" id="599dce9e">dependencies configuration</a> has been changed; dependencies are now specified separately for each source root.</p></li>
+<li class="list__item" id="3a4405b7"><p>Source sets can now be shared between an arbitrary subset of platforms (for example, in a module that targets JS, Android and iOS, you can have a source set that is shared only between Android and iOS).</p></li>
+<li class="list__item" id="19f34a4"><p><a href="multiplatform-publish-lib" id="cab30a73">Publishing multiplatform libraries</a> is now supported.</p></li>
+</ul>
+<p id="c7e544d1">For more information, please refer to the <a href="multiplatform" id="c726f33a">multiplatform programming documentation</a>.</p></section><section class="chapter"><h2 id="contracts" data-toc="whatsnew13#contracts">Contracts</h2>
+<p id="53c300d4">The Kotlin compiler does extensive static analysis to provide warnings and reduce boilerplate. One of the most notable features is smartcasts — with the ability to perform a cast automatically based on the performed type checks:</p>
+<pre class="code" data-language="kotlin">fun foo(s: String?) {
+    if (s != null) s.length // Compiler automatically casts 's' to 'String'
+}
+</pre>
+<p id="3576b0bc">However, as soon as these checks are extracted in a separate function, all the smartcasts immediately disappear:</p>
+<pre class="code" data-language="kotlin">fun String?.isNotNull(): Boolean = this != null
+
+fun foo(s: String?) {
+    if (s.isNotNull()) s.length // No smartcast :(
+}
+</pre>
+<p id="4acf9f49">To improve the behavior in such cases, Kotlin 1.3 introduces experimental mechanism called <em id="aa8166de" class="">contracts</em>.</p>
+<p id="1795c9b4"><em id="7c044e79" class="">Contracts</em> allow a function to explicitly describe its behavior in a way which is understood by the compiler. Currently, two wide classes of cases are supported:</p>
+<ul class="list _ul" id="a77de2c2"><li class="list__item" id="bf56a419"><p>Improving smartcasts analysis by declaring the relation between a function's call outcome and the passed arguments values:</p></li></ul>
+<pre class="code" data-language="kotlin">fun require(condition: Boolean) {
+    // This is a syntax form which tells the compiler:
+    // "if this function returns successfully, then the passed 'condition' is true"
+    contract { returns() implies condition }
+    if (!condition) throw IllegalArgumentException(...)
+}
+
+fun foo(s: String?) {
+    require(s is String)
+    // s is smartcast to 'String' here, because otherwise
+    // 'require' would have thrown an exception
+}
+</pre>
+<ul class="list _ul" id="44d80f93"><li class="list__item" id="47fdeadb"><p>Improving the variable initialization analysis in the presence of high-order functions:</p></li></ul>
+<pre class="code" data-language="kotlin">fun synchronize(lock: Any?, block: () -&gt; Unit) {
+    // It tells the compiler:
+    // "This function will invoke 'block' here and now, and exactly one time"
+    contract { callsInPlace(block, EXACTLY_ONCE) }
+}
+
+fun foo() {
+    val x: Int
+    synchronize(lock) {
+        x = 42 // Compiler knows that lambda passed to 'synchronize' is called
+               // exactly once, so no reassignment is reported
+    }
+    println(x) // Compiler knows that lambda will be definitely called, performing
+               // initialization, so 'x' is considered to be initialized here
+}
+</pre>
+<section class="chapter"><h3 id="contracts-in-stdlib" data-toc="whatsnew13#contracts-in-stdlib">Contracts in stdlib</h3>
+<p id="78c22fb5"><code class="code ">stdlib</code> already makes use of contracts, which leads to improvements in the analyses described above. This part of contracts is <b id="497e2dd0" class="">stable</b>, meaning that you can benefit from the improved analysis right now without any additional opt-ins:</p>
+<pre class="code" data-language="kotlin">//sampleStart
+fun bar(x: String?) {
+    if (!x.isNullOrEmpty()) {
+        println("length of '$x' is ${x.length}") // Yay, smartcast to not-null!
+    }
+}
+//sampleEnd
+fun main() {
+    bar(null)
+    bar("42")
+}
+</pre></section><section class="chapter"><h3 id="custom-contracts" data-toc="whatsnew13#custom-contracts">Custom contracts</h3>
+<p id="fca87c2e">It is possible to declare contracts for your own functions, but this feature is <b id="1cfc0ecf" class="">experimental,</b> as the current syntax is in a state of early prototype and will most probably be changed. Also please note that currently the Kotlin compiler does not verify contracts, so it's the responsibility of the programmer to write correct and sound contracts.</p>
+<p id="98402c0c">Custom contracts are introduced by a call to <code class="code ">contract</code> stdlib function, which provides DSL scope:</p>
+<pre class="code" data-language="kotlin">fun String?.isNullOrEmpty(): Boolean {
+    contract {
+        returns(false) implies (this@isNullOrEmpty != null)
+    }
+    return this == null || isEmpty()
+}
+</pre>
+<p id="f5f06b49">See the details on the syntax as well as the compatibility notice in the <a href="https://github.com/Kotlin/KEEP/blob/master/proposals/kotlin-contracts.md" id="59bf5bc" data-external="true" rel="noopener noreferrer">KEEP</a>.</p></section></section><section class="chapter"><h2 id="capturing-when-subject-in-a-variable" data-toc="whatsnew13#capturing-when-subject-in-a-variable">Capturing when subject in a variable</h2>
+<p id="62c3748f">In Kotlin 1.3, it is now possible to capture the <code class="code ">when</code> subject into a variable:</p>
+<pre class="code" data-language="kotlin">fun Request.getBody() =
+        when (val response = executeRequest()) {
+            is Success -&gt; response.body
+            is HttpError -&gt; throw HttpException(response.status)
+        }
+</pre>
+<p id="7db527d">While it was already possible to extract this variable just before <code class="code ">when</code>, <code class="code ">val</code> in <code class="code ">when</code> has its scope properly restricted to the body of <code class="code ">when</code>, and so preventing namespace pollution. <a href="control-flow#when-expression" id="d3db352">See the full documentation on <code class="code ">when</code> here</a>.</p></section><section class="chapter"><h2 id="jvmstatic-and-jvmfield-in-companions-of-interfaces" data-toc="whatsnew13#jvmstatic-and-jvmfield-in-companions-of-interfaces">@JvmStatic and @JvmField in companions of interfaces</h2>
+<p id="da72a48d">With Kotlin 1.3, it is possible to mark members of a <code class="code ">companion</code> object of interfaces with annotations <code class="code ">@JvmStatic</code> and <code class="code ">@JvmField</code>. In the classfile, such members will be lifted to the corresponding interface and marked as <code class="code ">static</code>.</p>
+<p id="291e2838">For example, the following Kotlin code:</p>
+<pre class="code" data-language="kotlin">interface Foo {
+    companion object {
+        @JvmField
+        val answer: Int = 42
+
+        @JvmStatic
+        fun sayHello() {
+            println("Hello, world!")
+        }
+    }
+}
+</pre>
+<p id="404741f1">It is equivalent to this Java code:</p>
+<pre class="code" data-language="java">interface Foo {
+    public static int answer = 42;
+    public static void sayHello() {
+        // ...
+    }
+}
+</pre></section><section class="chapter"><h2 id="nested-declarations-in-annotation-classes" data-toc="whatsnew13#nested-declarations-in-annotation-classes">Nested declarations in annotation classes</h2>
+<p id="904ef14f">In Kotlin 1.3, it is possible for annotations to have nested classes, interfaces, objects, and companions:</p>
+<pre class="code" data-language="kotlin">annotation class Foo {
+    enum class Direction { UP, DOWN, LEFT, RIGHT }
+    
+    annotation class Bar
+
+    companion object {
+        fun foo(): Int = 42
+        val bar: Int = 42
+    }
+}
+</pre></section><section class="chapter"><h2 id="parameterless-main" data-toc="whatsnew13#parameterless-main">Parameterless main</h2>
+<p id="b43efd87">By convention, the entry point of a Kotlin program is a function with a signature like <code class="code ">main(args: Array&lt;String&gt;)</code>, where <code class="code ">args</code> represent the command-line arguments passed to the program. However, not every application supports command-line arguments, so this parameter often ends up not being used.</p>
+<p id="7c353530">Kotlin 1.3 introduced a simpler form of <code class="code ">main</code> which takes no parameters. Now “Hello, World” in Kotlin is 19 characters shorter!</p>
+<pre class="code" data-language="kotlin">fun main() {
+    println("Hello, world!")
+}
+</pre></section><section class="chapter"><h2 id="functions-with-big-arity" data-toc="whatsnew13#functions-with-big-arity">Functions with big arity</h2>
+<p id="17a8cc14">In Kotlin, functional types are represented as generic classes taking a different number of parameters: <code class="code ">Function0&lt;R&gt;</code>, <code class="code ">Function1&lt;P0, R&gt;</code>, <code class="code ">Function2&lt;P0, P1, R&gt;</code>, ... This approach has a problem in that this list is finite, and it currently ends with <code class="code ">Function22</code>.</p>
+<p id="43030c5e">Kotlin 1.3 relaxes this limitation and adds support for functions with bigger arity:</p>
+<pre class="code" data-language="kotlin">fun trueEnterpriseComesToKotlin(block: (Any, Any, ... /* 42 more */, Any) -&gt; Any) {
+    block(Any(), Any(), ..., Any())
+}
+</pre></section><section class="chapter"><h2 id="progressive-mode" data-toc="whatsnew13#progressive-mode">Progressive mode</h2>
+<p id="1c734505">Kotlin cares a lot about stability and backward compatibility of code: Kotlin compatibility policy says that breaking changes (e.g., a change which makes the code that used to compile fine, not compile anymore) can be introduced only in the major releases (<b id="4595ea0a" class="">1.2</b>, <b id="b99d2f1c" class="">1.3</b>, etc.).</p>
+<p id="ccb946ee">We believe that a lot of users could use a much faster cycle where critical compiler bug fixes arrive immediately, making the code more safe and correct. So, Kotlin 1.3 introduces the <em id="84d6e4f7" class="">progressive</em> compiler mode, which can be enabled by passing the argument <code class="code ">-progressive</code> to the compiler.</p>
+<p id="dbd9482f">In the progressive mode, some fixes in language semantics can arrive immediately. All these fixes have two important properties:</p>
+<ul class="list _ul" id="3c099236">
+<li class="list__item" id="d86b53c"><p>They preserve backward compatibility of source code with older compilers, meaning that all the code which is compilable by the progressive compiler will be compiled fine by non-progressive one.</p></li>
+<li class="list__item" id="dae2bd16"><p>They only make code <em id="45c0b864" class="">safer</em> in some sense — e.g., some unsound smartcast can be forbidden, behavior of the generated code may be changed to be more predictable/stable, and so on.</p></li>
+</ul>
+<p id="a203ecd8">Enabling the progressive mode can require you to rewrite some of your code, but it shouldn't be too much — all the fixes enabled under progressive are carefully handpicked, reviewed, and provided with tooling migration assistance. We expect that the progressive mode will be a nice choice for any actively maintained codebases which are updated to the latest language versions quickly.</p></section><section class="chapter"><h2 id="inline-classes" data-toc="whatsnew13#inline-classes">Inline classes</h2>
+<aside data-type="warning" class="prompt" data-title="" id="ed84df35"><p id="e8798839">Inline classes are in <a href="components-stability" id="8682eacc">Alpha</a>. They may change incompatibly and require manual migration in the future. We appreciate your feedback on it in <a href="https://youtrack.jetbrains.com/issues/KT" id="7448f236" data-external="true" rel="noopener noreferrer">YouTrack</a>. See details in the <a href="inline-classes" id="41ae10d5">reference</a>.</p></aside><p id="a71fe59f">Kotlin 1.3 introduces a new kind of declaration — <code class="code ">inline class</code>. Inline classes can be viewed as a restricted version of the usual classes, in particular, inline classes must have exactly one property:</p>
+<pre class="code" data-language="kotlin">inline class Name(val s: String)
+</pre>
+<p id="dc14ca2c">The Kotlin compiler will use this restriction to aggressively optimize runtime representation of inline classes and substitute their instances with the value of the underlying property where possible removing constructor calls, GC pressure, and enabling other optimizations:</p>
+<pre class="code" data-language="kotlin">inline class Name(val s: String)
+//sampleStart
+fun main() {
+    // In the next line no constructor call happens, and
+    // at the runtime 'name' contains just string "Kotlin"
+    val name = Name("Kotlin")
+    println(name.s) 
+}
+//sampleEnd
+</pre>
+<p id="4b182dd3">See <a href="inline-classes" id="d0dec5c7">reference</a> for inline classes for details.</p></section><section class="chapter"><h2 id="unsigned-integers" data-toc="whatsnew13#unsigned-integers">Unsigned integers</h2>
+<aside data-type="warning" class="prompt" data-title="" id="ffa9603e"><p id="55b9f96f">Unsigned integers are in <a href="components-stability" id="20152d55">Beta</a>. Their implementation is almost stable, but migration steps may be required in the future. We'll do our best to minimize any changes you will have to make.</p></aside><p id="96cfdf9b">Kotlin 1.3 introduces unsigned integer types:</p>
+<ul class="list _ul" id="2a66b13b">
+<li class="list__item" id="1f2192d2"><p><code class="code ">kotlin.UByte</code>: an unsigned 8-bit integer, ranges from 0 to 255</p></li>
+<li class="list__item" id="dd7cff5"><p><code class="code ">kotlin.UShort</code>: an unsigned 16-bit integer, ranges from 0 to 65535</p></li>
+<li class="list__item" id="fc793983"><p><code class="code ">kotlin.UInt</code>: an unsigned 32-bit integer, ranges from 0 to 2^32 - 1</p></li>
+<li class="list__item" id="bba2ff23"><p><code class="code ">kotlin.ULong</code>: an unsigned 64-bit integer, ranges from 0 to 2^64 - 1</p></li>
+</ul>
+<p id="69aabd49">Most of the functionality of signed types are supported for unsigned counterparts too:</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+// You can define unsigned types using literal suffixes
+val uint = 42u 
+val ulong = 42uL
+val ubyte: UByte = 255u
+
+// You can convert signed types to unsigned and vice versa via stdlib extensions:
+val int = uint.toInt()
+val byte = ubyte.toByte()
+val ulong2 = byte.toULong()
+
+// Unsigned types support similar operators:
+val x = 20u + 22u
+val y = 1u shl 8
+val z = "128".toUByte()
+val range = 1u..5u
+//sampleEnd
+println("ubyte: $ubyte, byte: $byte, ulong2: $ulong2")
+println("x: $x, y: $y, z: $z, range: $range")
+}
+</pre>
+<p id="9039b236">See <a href="basic-types#unsigned-integers" id="709a2750">reference</a> for details.</p></section><section class="chapter"><h2 id="jvmdefault" data-toc="whatsnew13#jvmdefault">@JvmDefault</h2>
+<aside data-type="warning" class="prompt" data-title="" id="ff0cae6f"><p id="83a3220d"><code class="code ">@JvmDefault</code> is <a href="components-stability" id="e5ce8308">Experimental</a>. It may be dropped or changed at any time. Use it only for evaluation purposes. We appreciate your feedback on it in <a href="https://youtrack.jetbrains.com/issues/KT" id="2a8b445e" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="26305be6">Kotlin targets a wide range of the Java versions, including Java 6 and Java 7, where default methods in the interfaces are not allowed. For your convenience, the Kotlin compiler works around that limitation, but this workaround isn't compatible with the <code class="code ">default</code> methods, introduced in Java 8.</p>
+<p id="12d60e66">This could be an issue for Java-interoperability, so Kotlin 1.3 introduces the <code class="code ">@JvmDefault</code> annotation. Methods annotated with this annotation will be generated as <code class="code ">default</code> methods for JVM:</p>
+<pre class="code" data-language="kotlin">interface Foo {
+    // Will be generated as 'default' method
+    @JvmDefault
+    fun foo(): Int = 42
+}
+</pre>
+<aside data-type="warning" class="prompt" data-title="" id="65e821fd"><p id="cc28f0c9">Warning! Annotating your API with <code class="code ">@JvmDefault</code> has serious implications on binary compatibility. Make sure to carefully read the <a href="../api/latest/jvm/stdlib/kotlin.jvm/-jvm-default/index" id="8399331e" data-external="true" rel="noopener noreferrer">reference page</a> before using <code class="code ">@JvmDefault</code> in production.</p></aside></section><section class="chapter"><h2 id="standard-library" data-toc="whatsnew13#standard-library">Standard library</h2>
+<section class="chapter"><h3 id="multiplatform-random" data-toc="whatsnew13#multiplatform-random">Multiplatform random</h3>
+<p id="136ca3e8">Prior to Kotlin 1.3, there was no uniform way to generate random numbers on all platforms — we had to resort to platform-specific solutions like <code class="code ">java.util.Random</code> on JVM. This release fixes this issue by introducing the class <code class="code ">kotlin.random.Random</code>, which is available on all platforms:</p>
+<pre class="code" data-language="kotlin">import kotlin.random.Random
+
+fun main() {
+//sampleStart
+    val number = Random.nextInt(42)  // number is in range [0, limit)
+    println(number)
+//sampleEnd
+}
+</pre></section><section class="chapter"><h3 id="isnullorempty-and-orempty-extensions" data-toc="whatsnew13#isnullorempty-and-orempty-extensions">isNullOrEmpty and orEmpty extensions</h3>
+<p id="27f8bbd5"><code class="code ">isNullOrEmpty</code> and <code class="code ">orEmpty</code> extensions for some types are already present in stdlib. The first one returns <code class="code ">true</code> if the receiver is <code class="code ">null</code> or empty, and the second one falls back to an empty instance if the receiver is <code class="code ">null</code>. Kotlin 1.3 provides similar extensions on collections, maps, and arrays of objects.</p></section><section class="chapter"><h3 id="copy-elements-between-two-existing-arrays" data-toc="whatsnew13#copy-elements-between-two-existing-arrays">Copy elements between two existing arrays</h3>
+<p id="88d9aaaa">The <code class="code ">array.copyInto(targetArray, targetOffset, startIndex, endIndex)</code> functions for the existing array types, including the unsigned arrays, make it easier to implement array-based containers in pure Kotlin.</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val sourceArr = arrayOf("k", "o", "t", "l", "i", "n")
+    val targetArr = sourceArr.copyInto(arrayOfNulls&lt;String&gt;(6), 3, startIndex = 3, endIndex = 6)
+    println(targetArr.contentToString())
+    
+    sourceArr.copyInto(targetArr, startIndex = 0, endIndex = 3)
+    println(targetArr.contentToString())
+//sampleEnd
+}
+</pre></section><section class="chapter"><h3 id="associatewith" data-toc="whatsnew13#associatewith">associateWith</h3>
+<p id="aa687375">It is quite a common situation to have a list of keys and want to build a map by associating each of these keys with some value. It was possible to do it before with the <code class="code ">associate { it to getValue(it) }</code> function, but now we’re introducing a more efficient and easy to explore alternative: <code class="code ">keys.associateWith { getValue(it) }</code>.</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val keys = 'a'..'f'
+    val map = keys.associateWith { it.toString().repeat(5).capitalize() }
+    map.forEach { println(it) }
+//sampleEnd
+}
+</pre></section><section class="chapter"><h3 id="ifempty-and-ifblank-functions" data-toc="whatsnew13#ifempty-and-ifblank-functions">ifEmpty and ifBlank functions</h3>
+<p id="b850739e">Collections, maps, object arrays, char sequences, and sequences now have an <code class="code ">ifEmpty</code> function, which allows specifying a fallback value that will be used instead of the receiver if it is empty:</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    fun printAllUppercase(data: List&lt;String&gt;) {
+        val result = data
+        .filter { it.all { c -&gt; c.isUpperCase() } }
+            .ifEmpty { listOf("&lt;no uppercase&gt;") }
+        result.forEach { println(it) }
+    }
+    
+    printAllUppercase(listOf("foo", "Bar"))
+    printAllUppercase(listOf("FOO", "BAR"))
+//sampleEnd
+}
+</pre>
+<p id="11004b9f">Char sequences and strings in addition have an <code class="code ">ifBlank</code> extension that does the same thing as <code class="code ">ifEmpty</code> but checks for a string being all whitespace instead of empty.</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val s = "    \n"
+    println(s.ifBlank { "&lt;blank&gt;" })
+    println(s.ifBlank { null })
+//sampleEnd
+}
+</pre></section><section class="chapter"><h3 id="sealed-classes-in-reflection" data-toc="whatsnew13#sealed-classes-in-reflection">Sealed classes in reflection</h3>
+<p id="70c2b0df">We’ve added a new API to <code class="code ">kotlin-reflect</code> that can be used to enumerate all the direct subtypes of a <code class="code ">sealed</code> class, namely <code class="code ">KClass.sealedSubclasses</code>.</p></section><section class="chapter"><h3 id="smaller-changes" data-toc="whatsnew13#smaller-changes">Smaller changes</h3>
+<ul class="list _ul" id="a75931a4">
+<li class="list__item" id="fe8e4b83"><p><code class="code ">Boolean</code> type now has companion.</p></li>
+<li class="list__item" id="c9688c9a"><p><code class="code ">Any?.hashCode()</code> extension that returns 0 for <code class="code ">null</code>.</p></li>
+<li class="list__item" id="2890f5fe"><p><code class="code ">Char</code> now provides <code class="code ">MIN_VALUE</code> and <code class="code ">MAX_VALUE</code> constants.</p></li>
+<li class="list__item" id="c0eb84f2"><p><code class="code ">SIZE_BYTES</code> and <code class="code ">SIZE_BITS</code> constants in primitive type companions.</p></li>
+</ul></section></section><section class="chapter"><h2 id="tooling" data-toc="whatsnew13#tooling">Tooling</h2>
+<section class="chapter"><h3 id="code-style-support-in-ide" data-toc="whatsnew13#code-style-support-in-ide">Code style support in IDE</h3>
+<p id="2a1e801c">Kotlin 1.3 introduces support for the <a href="coding-conventions" id="a6dc8f6">recommended code style</a> in IntelliJ IDEA. Check out <a href="code-style-migration-guide" id="1f716974">this page</a> for the migration guidelines.</p></section><section class="chapter"><h3 id="kotlinx-serialization" data-toc="whatsnew13#kotlinx-serialization">kotlinx.serialization</h3>
+<p id="299d14bb"><a href="https://github.com/Kotlin/kotlinx.serialization" id="b64031c2" data-external="true" rel="noopener noreferrer">kotlinx.serialization</a> is a library which provides multiplatform support for (de)serializing objects in Kotlin. Previously, it was a separate project, but since Kotlin 1.3, it ships with the Kotlin compiler distribution on par with the other compiler plugins. The main difference is that you don't need to manually watch out for the Serialization IDE Plugin being compatible with the Kotlin IDE plugin version you're using: now the Kotlin IDE plugin already includes serialization!</p>
+<p id="62d0e85">See here for <a href="https://github.com/Kotlin/kotlinx.serialization#current-project-status" id="1b9bf862" data-external="true" rel="noopener noreferrer">details</a>.</p>
+<aside data-type="warning" class="prompt" data-title="" id="56b1878"><p id="730a4426">Even though kotlinx.serialization now ships with the Kotlin Compiler distribution, it is still considered to be an experimental feature in Kotlin 1.3.</p></aside></section><section class="chapter"><h3 id="scripting-update" data-toc="whatsnew13#scripting-update">Scripting update</h3>
+<aside data-type="warning" class="prompt" data-title="" id="72ec5e7b"><p id="bc3d5309">Scripting is <a href="components-stability" id="1cf6cdac">Experimental</a>. It may be dropped or changed at any time. Use it only for evaluation purposes. We appreciate your feedback on it in <a href="https://youtrack.jetbrains.com/issues/KT" id="da358b6e" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="ca353644">Kotlin 1.3 continues to evolve and improve scripting API, introducing some experimental support for scripts customization, such as adding external properties, providing static or dynamic dependencies, and so on.</p>
+<p id="c5b18583">For additional details, please consult the <a href="https://github.com/Kotlin/KEEP/blob/master/proposals/scripting-support.md" id="1d483fde" data-external="true" rel="noopener noreferrer">KEEP-75</a>.</p></section><section class="chapter"><h3 id="scratches-support" data-toc="whatsnew13#scratches-support">Scratches support</h3>
+<p id="3ab9a82">Kotlin 1.3 introduces support for runnable Kotlin <em id="9d811e35" class="">scratch files</em>. <em id="c67e50e0" class="">Scratch file</em> is a kotlin script file with the .kts extension that you can run and get evaluation results directly in the editor.</p>
+<p id="83a144cf">Consult the general <a href="https://www.jetbrains.com/help/idea/scratches.html" id="efaa7ba" data-external="true" rel="noopener noreferrer">Scratches documentation</a> for details.</p></section></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="whatsnew14">What's new in Kotlin 1.4</a> <a class="navigation-links__next" href="whatsnew12">What's new in Kotlin 1.2</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/whatsnew13.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/whatsnew13.html</a>
+  </p>
+</div>

@@ -1,0 +1,62 @@
+<h1>unzip_file( string $file, string $to )</h1>  <section> <p>Unzips a specified ZIP file to a location on the filesystem via the WordPress Filesystem Abstraction.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Assumes that <a href="wp_filesystem">WP_Filesystem()</a> has already been called and set up. Does not extract a root-level __MACOSX directory, if present.</p> <p>Attempts to increase the PHP memory limit to 256M before uncompressing. However, the most memory required shouldn’t be much larger than the archive itself.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$file</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Full path and filename of ZIP archive.</span> </p> </dd> <dt>$to</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Full path on the filesystem to extract archive to.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(true|<a href="../classes/wp_error">WP_Error</a>)</span> True on success, <a href="../classes/wp_error">WP_Error</a> on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/file.php/">wp-admin/includes/file.php</a> </p> <pre data-language="php">function unzip_file( $file, $to ) {
+	global $wp_filesystem;
+
+	if ( ! $wp_filesystem || ! is_object( $wp_filesystem ) ) {
+		return new WP_Error( 'fs_unavailable', __( 'Could not access filesystem.' ) );
+	}
+
+	// Unzip can use a lot of memory, but not this much hopefully.
+	wp_raise_memory_limit( 'admin' );
+
+	$needed_dirs = array();
+	$to          = trailingslashit( $to );
+
+	// Determine any parent directories needed (of the upgrade directory).
+	if ( ! $wp_filesystem-&gt;is_dir( $to ) ) { // Only do parents if no children exist.
+		$path = preg_split( '![/\\\]!', untrailingslashit( $to ) );
+		for ( $i = count( $path ); $i &gt;= 0; $i-- ) {
+			if ( empty( $path[ $i ] ) ) {
+				continue;
+			}
+
+			$dir = implode( '/', array_slice( $path, 0, $i + 1 ) );
+			if ( preg_match( '!^[a-z]:$!i', $dir ) ) { // Skip it if it looks like a Windows Drive letter.
+				continue;
+			}
+
+			if ( ! $wp_filesystem-&gt;is_dir( $dir ) ) {
+				$needed_dirs[] = $dir;
+			} else {
+				break; // A folder exists, therefore we don't need to check the levels below this.
+			}
+		}
+	}
+
+	/**
+	 * Filters whether to use ZipArchive to unzip archives.
+	 *
+	 * @since 3.0.0
+	 *
+	 * @param bool $ziparchive Whether to use ZipArchive. Default true.
+	 */
+	if ( class_exists( 'ZipArchive', false ) &amp;&amp; apply_filters( 'unzip_file_use_ziparchive', true ) ) {
+		$result = _unzip_file_ziparchive( $file, $to, $needed_dirs );
+		if ( true === $result ) {
+			return $result;
+		} elseif ( is_wp_error( $result ) ) {
+			if ( 'incompatible_archive' !== $result-&gt;get_error_code() ) {
+				return $result;
+			}
+		}
+	}
+	// Fall through to PclZip if ZipArchive is not available, or encountered an error opening the file.
+	return _unzip_file_pclzip( $file, $to, $needed_dirs );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_raise_memory_limit">wp_raise_memory_limit()</a> </td> <td class="related-desc"> <p>Attempts to raise the PHP memory limit for memory intensive processes.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/file.php:</span> <a href="_unzip_file_ziparchive">_unzip_file_ziparchive()</a> </td> <td class="related-desc"> <p>Attempts to unzip an archive using the ZipArchive class.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/file.php:</span> <a href="_unzip_file_pclzip">_unzip_file_pclzip()</a> </td> <td class="related-desc"> <p>Attempts to unzip an archive using the PclZip library.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/file.php:</span> <a href="../hooks/unzip_file_use_ziparchive">unzip_file_use_ziparchive</a> </td> <td class="related-desc"> <p>Filters whether to use ZipArchive to unzip archives.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="trailingslashit">trailingslashit()</a> </td> <td class="related-desc"> <p>Appends a trailing slash.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="untrailingslashit">untrailingslashit()</a> </td> <td class="related-desc"> <p>Removes trailing forward slashes and backslashes if they exist.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../classes/wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-upgrader.php:</span> <a href="../classes/wp_upgrader/unpack_package">WP_Upgrader::unpack_package()</a> </td> <td class="related-desc"> <p>Unpack a compressed package file.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.5.0/" alt="WordPress 2.5.0">2.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/unzip_file" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/unzip_file</a>
+  </p>
+</div>

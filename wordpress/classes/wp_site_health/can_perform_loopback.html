@@ -1,0 +1,69 @@
+<h1>WP_Site_Health::can_perform_loopback()</h1>  <section> <p>Run a loopback test on our site.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Loopbacks are what WordPress uses to communicate with itself to start up WP_Cron, scheduled posts, make sure plugin or theme edits don’t cause site failures and similar.</p> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(object)</span> The test results.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-site-health.php/">wp-admin/includes/class-wp-site-health.php</a> </p> <pre data-language="php">public function can_perform_loopback() {
+		$body    = array( 'site-health' =&gt; 'loopback-test' );
+		$cookies = wp_unslash( $_COOKIE );
+		$timeout = 10;
+		$headers = array(
+			'Cache-Control' =&gt; 'no-cache',
+		);
+		/** This filter is documented in wp-includes/class-wp-http-streams.php */
+		$sslverify = apply_filters( 'https_local_ssl_verify', false );
+
+		// Include Basic auth in loopback requests.
+		if ( isset( $_SERVER['PHP_AUTH_USER'] ) &amp;&amp; isset( $_SERVER['PHP_AUTH_PW'] ) ) {
+			$headers['Authorization'] = 'Basic ' . base64_encode( wp_unslash( $_SERVER['PHP_AUTH_USER'] ) . ':' . wp_unslash( $_SERVER['PHP_AUTH_PW'] ) );
+		}
+
+		$url = site_url( 'wp-cron.php' );
+
+		/*
+		 * A post request is used for the wp-cron.php loopback test to cause the file
+		 * to finish early without triggering cron jobs. This has two benefits:
+		 * - cron jobs are not triggered a second time on the site health page,
+		 * - the loopback request finishes sooner providing a quicker result.
+		 *
+		 * Using a POST request causes the loopback to differ slightly to the standard
+		 * GET request WordPress uses for wp-cron.php loopback requests but is close
+		 * enough. See https://core.trac.wordpress.org/ticket/52547
+		 */
+		$r = wp_remote_post( $url, compact( 'body', 'cookies', 'headers', 'timeout', 'sslverify' ) );
+
+		if ( is_wp_error( $r ) ) {
+			return (object) array(
+				'status'  =&gt; 'critical',
+				'message' =&gt; sprintf(
+					'%s&lt;br&gt;%s',
+					__( 'The loopback request to your site failed, this means features relying on them are not currently working as expected.' ),
+					sprintf(
+						/* translators: 1: The WordPress error message. 2: The WordPress error code. */
+						__( 'Error: %1$s (%2$s)' ),
+						$r-&gt;get_error_message(),
+						$r-&gt;get_error_code()
+					)
+				),
+			);
+		}
+
+		if ( 200 !== wp_remote_retrieve_response_code( $r ) ) {
+			return (object) array(
+				'status'  =&gt; 'recommended',
+				'message' =&gt; sprintf(
+					/* translators: %d: The HTTP response code returned. */
+					__( 'The loopback request returned an unexpected http status code, %d, it was not possible to determine if this will prevent features from working as expected.' ),
+					wp_remote_retrieve_response_code( $r )
+				),
+			);
+		}
+
+		return (object) array(
+			'status'  =&gt; 'good',
+			'message' =&gt; __( 'The loopback request to your site completed successfully.' ),
+		);
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/wp_unslash">wp_unslash()</a> </td> <td class="related-desc"> <p>Removes slashes from a string or recursively removes slashes from strings within an array.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-http-streams.php:</span> <a href="../../hooks/https_local_ssl_verify">https_local_ssl_verify</a> </td> <td class="related-desc"> <p>Filters whether SSL should be verified for local HTTP API requests.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="../../functions/site_url">site_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL for the current site where WordPress application files (e.g. wp-blog-header.php or the wp-admin/ folder) are accessible.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="../../functions/wp_remote_post">wp_remote_post()</a> </td> <td class="related-desc"> <p>Performs an HTTP request using the POST method and returns its response.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="../../functions/wp_remote_retrieve_response_code">wp_remote_retrieve_response_code()</a> </td> <td class="related-desc"> <p>Retrieve only the response code from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-site-health.php:</span> <a href="get_test_loopback_requests">WP_Site_Health::get_test_loopback_requests()</a> </td> <td class="related-desc"> <p>Test if loopbacks work as expected.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.2.0/" alt="WordPress 5.2.0">5.2.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_site_health/can_perform_loopback" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_site_health/can_perform_loopback</a>
+  </p>
+</div>

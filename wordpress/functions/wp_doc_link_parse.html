@@ -1,0 +1,64 @@
+<h1>wp_doc_link_parse( string $content )</h1>   <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$content</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/misc.php/">wp-admin/includes/misc.php</a> </p> <pre data-language="php">function wp_doc_link_parse( $content ) {
+	if ( ! is_string( $content ) || empty( $content ) ) {
+		return array();
+	}
+
+	if ( ! function_exists( 'token_get_all' ) ) {
+		return array();
+	}
+
+	$tokens           = token_get_all( $content );
+	$count            = count( $tokens );
+	$functions        = array();
+	$ignore_functions = array();
+
+	for ( $t = 0; $t &lt; $count - 2; $t++ ) {
+		if ( ! is_array( $tokens[ $t ] ) ) {
+			continue;
+		}
+
+		if ( T_STRING === $tokens[ $t ][0] &amp;&amp; ( '(' === $tokens[ $t + 1 ] || '(' === $tokens[ $t + 2 ] ) ) {
+			// If it's a function or class defined locally, there's not going to be any docs available.
+			if ( ( isset( $tokens[ $t - 2 ][1] ) &amp;&amp; in_array( $tokens[ $t - 2 ][1], array( 'function', 'class' ), true ) )
+				|| ( isset( $tokens[ $t - 2 ][0] ) &amp;&amp; T_OBJECT_OPERATOR === $tokens[ $t - 1 ][0] )
+			) {
+				$ignore_functions[] = $tokens[ $t ][1];
+			}
+
+			// Add this to our stack of unique references.
+			$functions[] = $tokens[ $t ][1];
+		}
+	}
+
+	$functions = array_unique( $functions );
+	sort( $functions );
+
+	/**
+	 * Filters the list of functions and classes to be ignored from the documentation lookup.
+	 *
+	 * @since 2.8.0
+	 *
+	 * @param string[] $ignore_functions Array of names of functions and classes to be ignored.
+	 */
+	$ignore_functions = apply_filters( 'documentation_ignore_functions', $ignore_functions );
+
+	$ignore_functions = array_unique( $ignore_functions );
+
+	$out = array();
+
+	foreach ( $functions as $function ) {
+		if ( in_array( $function, $ignore_functions, true ) ) {
+			continue;
+		}
+
+		$out[] = $function;
+	}
+
+	return $out;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/misc.php:</span> <a href="../hooks/documentation_ignore_functions">documentation_ignore_functions</a> </td> <td class="related-desc"> <p>Filters the list of functions and classes to be ignored from the documentation lookup.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.8.0/" alt="WordPress 2.8.0">2.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_doc_link_parse" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_doc_link_parse</a>
+  </p>
+</div>

@@ -1,0 +1,52 @@
+<h1>WP_Customize_Widgets::filter_dynamic_sidebar_params( array $params )</h1>  <section> <p>Inject selective refresh data attributes into widget container elements.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <h3 id="see-also">See also</h3> <ul> <li><a href="../wp_customize_nav_menus/filter_wp_nav_menu_args">WP_Customize_Nav_Menus::filter_wp_nav_menu_args()</a></li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$params</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Dynamic sidebar params. <ul class="param-hash">
+<li>
+<b>'args'</b><br><i><span class="type">(array)</span></i> Sidebar args.</li> <li>
+<b>'widget_args'</b><br><i><span class="type">(array)</span></i> Widget args.</li> </ul> </span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> Params.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-customize-widgets.php/">wp-includes/class-wp-customize-widgets.php</a> </p> <pre data-language="php">public function filter_dynamic_sidebar_params( $params ) {
+		$sidebar_args = array_merge(
+			array(
+				'before_widget' =&gt; '',
+				'after_widget'  =&gt; '',
+			),
+			$params[0]
+		);
+
+		// Skip widgets not in a registered sidebar or ones which lack a proper wrapper element to attach the data-* attributes to.
+		$matches  = array();
+		$is_valid = (
+			isset( $sidebar_args['id'] )
+			&amp;&amp;
+			is_registered_sidebar( $sidebar_args['id'] )
+			&amp;&amp;
+			( isset( $this-&gt;current_dynamic_sidebar_id_stack[0] ) &amp;&amp; $this-&gt;current_dynamic_sidebar_id_stack[0] === $sidebar_args['id'] )
+			&amp;&amp;
+			preg_match( '#^&lt;(?P&lt;tag_name&gt;\w+)#', $sidebar_args['before_widget'], $matches )
+		);
+		if ( ! $is_valid ) {
+			return $params;
+		}
+		$this-&gt;before_widget_tags_seen[ $matches['tag_name'] ] = true;
+
+		$context = array(
+			'sidebar_id' =&gt; $sidebar_args['id'],
+		);
+		if ( isset( $this-&gt;context_sidebar_instance_number ) ) {
+			$context['sidebar_instance_number'] = $this-&gt;context_sidebar_instance_number;
+		} elseif ( isset( $sidebar_args['id'] ) &amp;&amp; isset( $this-&gt;sidebar_instance_count[ $sidebar_args['id'] ] ) ) {
+			$context['sidebar_instance_number'] = $this-&gt;sidebar_instance_count[ $sidebar_args['id'] ];
+		}
+
+		$attributes                    = sprintf( ' data-customize-partial-id="%s"', esc_attr( 'widget[' . $sidebar_args['widget_id'] . ']' ) );
+		$attributes                   .= ' data-customize-partial-type="widget"';
+		$attributes                   .= sprintf( ' data-customize-partial-placement-context="%s"', esc_attr( wp_json_encode( $context ) ) );
+		$attributes                   .= sprintf( ' data-customize-widget-id="%s"', esc_attr( $sidebar_args['widget_id'] ) );
+		$sidebar_args['before_widget'] = preg_replace( '#^(&lt;\w+)#', '$1 ' . $attributes, $sidebar_args['before_widget'] );
+
+		$params[0] = $sidebar_args;
+		return $params;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/widgets.php:</span> <a href="../../functions/is_registered_sidebar">is_registered_sidebar()</a> </td> <td class="related-desc"> <p>Checks if a sidebar is registered.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_json_encode">wp_json_encode()</a> </td> <td class="related-desc"> <p>Encode a variable into JSON, with some sanity checks.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.5.0/" alt="WordPress 4.5.0">4.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_customize_widgets/filter_dynamic_sidebar_params" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_customize_widgets/filter_dynamic_sidebar_params</a>
+  </p>
+</div>

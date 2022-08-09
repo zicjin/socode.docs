@@ -1,0 +1,354 @@
+<h1>   <span>Changelog for Elixir v1.13</span> </h1> <p>The focus behind Elixir v1.13 has been on tooling, mainly tooling related to code formatting, code fragments, code reflection, and code recompilation. A lot of this functionality will directly impact developers working on large codebases and provide meaningful quality of life improvements for those working on Elixir tooling and environments, such as IDEs, notebooks, etc.</p>
+<h2 id="semantic-recompilation" class="section-heading">  Semantic recompilation </h2> <p>Elixir v1.13 comes with many improvements to the compiler, so it recompiles your files less frequently. In particular:</p>
+<ul>
+<li><p>The digest of the files are considered in addition to their size. This avoids recompiling many files when switching or rebasing branches.</p></li>
+<li><p>Changing your <code class="inline">mix.exs</code> will no longer trigger a full recompilation, unless you specifically change the configurations used by the Elixir compiler (<code class="inline">:elixirc_paths</code> and <code class="inline">:elixirc_options</code>).</p></li>
+<li><p>Changing compile-time configuration files (<code class="inline">config/config.exs</code> and any other file imported from it) now only recompiles the project files that depend on the reconfigured applications, instead of a full recompilation. However, if you change the configuration of your application itself, the whole project is still recompiled.</p></li>
+<li><p>Adding, updating or removing a dependency now only recompiles the project files that depend on the modified a dependency.</p></li>
+<li><p>If your project has both Erlang and Elixir files, changing an Erlang file will now recompile only the Elixir files that depend on it.</p></li>
+</ul>
+<p>In a nutshell, Elixir went from triggering full recompilations whenever any of <code class="inline">mix.exs</code>, <code class="inline">config/config.exs</code>, <code class="inline">src/*</code>, and <code class="inline">mix.lock</code> changed on disk to semantic recompilations. Now it only fully recompiles when:</p>
+<ul>
+<li>you change the compilation options in <code class="inline">mix.exs</code>
+</li>
+<li>you change the configuration for the current project in <code class="inline">config/config.exs</code>
+</li>
+</ul>
+<h2 id="mix-xref" class="section-heading">  mix xref </h2> <p><a href="https://hexdocs.pm/mix/1.13/Mix.Tasks.Xref.html"><code class="inline">mix xref</code></a> is a tool that analyzes relationships between files. By analyzing the compile-time and runtime dependencies between files, it allows developers to understand what files have to be recompiled whenever a file changes.</p>
+<p>Elixir v1.13 comes with many improvements to <a href="https://hexdocs.pm/mix/1.13/Mix.Tasks.Xref.html"><code class="inline">mix xref</code></a>, such as:</p>
+<ul>
+<li><p><code class="inline">mix xref graph</code> now supports <code class="inline">--label</code> to be set to "compile-connected", which returns all compile-time dependencies that lead to additional transitive dependencies.</p></li>
+<li><p>A new <code class="inline">mix xref trace FILE</code> subcommand receives a file and returns all dependencies in said file, including the line and what caused said dependency (a function/macro call, an alias, a struct, etc).</p></li>
+<li><p>All <a href="https://hexdocs.pm/mix/1.13/Mix.Tasks.Xref.html"><code class="inline">mix xref</code></a> subcommands support the <code class="inline">--fail-above</code> flag, which allows you to enforce your project has at most a certain number of compile-time cycles, transitive compile-time dependencies, etc.</p></li>
+<li><p><code class="inline">mix xref graph</code> now supports multiple <code class="inline">--sink</code> and <code class="inline">--source</code> to be given.</p></li>
+</ul>
+<p>With these improvements, it has become simpler to understand the impact code recompilation has in our codebases and how to limit it.</p>
+<h2 id="code-fragments" class="section-heading">  Code fragments </h2> <p>The <a href="code"><code class="inline">Code</code></a> module got a companion module called <a href="code.fragment"><code class="inline">Code.Fragment</code></a>, which hosts functions that work on incomplete code, as is often the scenario in editors, interactive shells, etc. The module contains different heuristics to analyze the source code and return context informational.</p>
+<p>Thanks to these improvements, <a href="https://hexdocs.pm/iex/1.13/IEx.html"><code class="inline">IEx</code></a>' autocomplete got several quality of life improvements, such as the autocompletion of sigils, structs, and paths. For example, typing <code class="inline">~&lt;TAB&gt;</code> now shows:</p>
+<pre data-language="elixir">iex(1)&gt; ~
+~C (sigil_C)    ~D (sigil_D)    ~N (sigil_N)    ~R (sigil_R)
+~S (sigil_S)    ~T (sigil_T)    ~U (sigil_U)    ~W (sigil_W)
+~c (sigil_c)    ~r (sigil_r)    ~s (sigil_s)    ~w (sigil_w)
+</pre>
+<p>Adding the sigil letter and pressing tab then shows the available delimiters:</p>
+<pre data-language="elixir">iex(1)&gt; ~r
+"      """    '      '''    (      /      &lt;      [      {      |
+</pre>
+<p>Similarly, <code class="inline">%&lt;TAB&gt;</code> now shows only the available structs (exceptions excluded), instead of all modules:</p>
+<pre data-language="elixir">iex(1)&gt; %File.St
+File.Stat      File.Stream</pre>
+<p>Once you define the struct, you can hit <code class="inline">tab</code> to show all struct fields available:</p>
+<pre data-language="elixir">iex(1)&gt; %URI{
+authority:    fragment:     host:         path:         port:
+query:        scheme:       userinfo:</pre>
+<p>As you fill a field in, the already filled fields no longer show up:</p>
+<pre data-language="elixir">iex(1)&gt; %URI{path: "/example",
+authority:    fragment:     host:         port:         query:
+scheme:       userinfo:</pre>
+<p>Along the same lines, <a href="syntaxerror"><code class="inline">SyntaxError</code></a> and <a href="tokenmissingerror"><code class="inline">TokenMissingError</code></a> were improved to show a code snippet whenever possible:</p>
+<pre data-language="elixir">$ elixir -e "hello + * world"
+** (SyntaxError) nofile:1:9: syntax error before: '*'
+    |
+  1 | hello + * world
+    |         ^</pre>
+<p>Finally, new compilation tracers have been added, alongside a handful of functions in <a href="module"><code class="inline">Module</code></a> to retrieve module metadata, which can be used to enrich suggestions in programming environments.</p>
+<h2 id="extended-code-formatting" class="section-heading">  Extended code formatting </h2> <p>The <a href="https://hexdocs.pm/mix/1.13/Mix.Tasks.Format.html"><code class="inline">mix format</code></a> task has been augmented with the notion of plugins. Plugins can teach the formatter how to format new files and how to format sigils, via the <a href="https://hexdocs.pm/mix/1.13/Mix.Tasks.Format.html"><code class="inline">Mix.Tasks.Format</code></a> behaviour.</p>
+<p>For example, imagine that your project uses Markdown in two distinct ways: via a custom <code class="inline">~M</code> sigil and via files with the <code class="inline">.md</code> and <code class="inline">.markdown</code> extensions. A custom plugin would look like this:</p>
+<pre data-language="elixir">defmodule MixMarkdownFormatter do
+  @behaviour Mix.Tasks.Format
+
+  def features(_opts) do
+    [sigils: [:M], extensions: [".md", ".markdown"]]
+  end
+
+  def format(contents, opts) do
+    # logic that formats markdown
+  end
+end</pre>
+<p>Now any application can use your formatter as follows:</p>
+<pre data-language="elixir"># .formatter.exs
+[
+  # Define the desired plugins
+  plugins: [MixMarkdownFormatter],
+  # Remember to update the inputs list to include the new extensions
+  inputs: ["{mix,.formatter}.exs", "{config,lib,test}/**/*.{ex,exs}", "posts/*.{md,markdown}"]
+]</pre>
+<p>Finally, the <a href="code"><code class="inline">Code</code></a> module has also been augmented with two functions: <a href="code#string_to_quoted_with_comments/2"><code class="inline">Code.string_to_quoted_with_comments/2</code></a> and <a href="code#quoted_to_algebra/2"><code class="inline">Code.quoted_to_algebra/2</code></a>. Those functions allow someone to retrieve the Elixir AST with their original source code comments, and then convert this AST to formatted code. In other words, those functions provide a wrapper around the Elixir Code Formatter, supporting developers who wish to create tools that directly manipulate and custom format Elixir source code.</p>
+<h2 id="v1-13-4-2022-04-07" class="section-heading">  v1.13.4 (2022-04-07) </h2> <p>This release has been verified to work with Erlang/OTP 25 RC2.</p>
+<h3 id="1-enhancements" class="section-heading">  1. Enhancements </h3> <h4>Elixir</h4>
+<ul>
+<li>[Code] Allow iodata to be returned in sigil formatting functions</li>
+<li>[Code] Pass opening delimiter information to sigil formatting functions</li>
+</ul>
+<h3 id="2-bug-fixes" class="section-heading">  2. Bug fixes </h3> <h4>Elixir</h4>
+<ul>
+<li>[Kernel] Tweak type unification to fix infinite loop with recursive vars</li>
+<li>[Kernel] Add compile-time dependencies on <code class="inline">require</code>
+</li>
+<li>[Registry] Make <a href="registry"><code class="inline">Registry</code></a> send work with named triplets</li>
+</ul>
+<h3 id="3-deprecations" class="section-heading">  3. Deprecations </h3> <h4>Mix</h4>
+<ul><li>[mix rebar] Deprecate Rebar 2 as it no longer works on Erlang/OTP 25</li></ul>
+<h2 id="v1-13-3-2022-02-09" class="section-heading">  v1.13.3 (2022-02-09) </h2> <h3 id="1-enhancements-1" class="section-heading">  1. Enhancements </h3> <h4>Mix</h4>
+<ul>
+<li>[mix format] Supply file and line to formatter plugins</li>
+<li>[mix format] Support embedded Elixir expressions inside formatter plugins</li>
+</ul>
+<h3 id="2-bug-fixes-1" class="section-heading">  2. Bug fixes </h3> <h4>Elixir</h4>
+<ul>
+<li>[Code] Fix duplicate bindings causing errors during evaluation</li>
+<li>[Kernel] Make sure signatures stored in the Documentation chunk does not contain newlines</li>
+<li>[Kernel] Fix infinite loop when compiling guards with recursive map access</li>
+<li>[Macro] Fix error on <a href="macro#to_string/1"><code class="inline">Macro.to_string/1</code></a> when the plain alias <code class="inline">Elixir</code> is given</li>
+<li>[String] Fix error for certain codepoint combinations in <a href="string#split_at/2"><code class="inline">String.split_at/2</code></a>
+</li>
+</ul>
+<h4>Mix</h4>
+<ul>
+<li>[mix compile] Recompile project files when exports from dependencies change</li>
+<li>[mix test] Fix total coverage always showing in red even when above the threshold</li>
+</ul>
+<h2 id="v1-13-2-2022-01-13" class="section-heading">  v1.13.2 (2022-01-13) </h2> <h3 id="1-enhancements-2" class="section-heading">  1. Enhancements </h3> <h4>Mix</h4>
+<ul>
+<li>[mix format] Allow plugins to also format <code class="inline">.ex</code> and <code class="inline">.exs</code> files</li>
+<li>[mix release] Allow bypassing application mode validation in release spec</li>
+<li>[mix test] Print a message when the suite fails due to the coverage threshold</li>
+</ul>
+<h3 id="2-bug-fixes-2" class="section-heading">  2. Bug fixes </h3> <h4>Elixir</h4>
+<ul>
+<li>[Code] Do not emit warnings on <a href="code.fragment#container_cursor_to_quoted/2"><code class="inline">Code.Fragment.container_cursor_to_quoted/2</code></a>
+</li>
+<li>[Kernel] Fix a crash when a for-comprehension with <code class="inline">:uniq</code> was used inside another comprehension with <code class="inline">:uniq</code>
+</li>
+<li>[Kernel] Ensure <code class="inline">env.context_modules</code> is properly set inside optimized <code class="inline">defmodule</code>
+</li>
+<li>[Keyword] Deprecate the recently added <code class="inline">Keyword.map/2</code> as it is equivalent to <a href="keyword#new/2"><code class="inline">Keyword.new/2</code></a>
+</li>
+<li>[Map] Deprecate the recently added <code class="inline">Map.map/2</code> as it is equivalent to <a href="map#new/2"><code class="inline">Map.new/2</code></a>
+</li>
+<li>[Protocol] Warn on zero arity callbacks inside protocols</li>
+</ul>
+<h2 id="v1-13-1-2021-12-14" class="section-heading">  v1.13.1 (2021-12-14) </h2> <h3 id="1-bug-fixes" class="section-heading">  1. Bug fixes </h3> <h4>Elixir</h4>
+<ul>
+<li>[Code] Do not show code snippets in <a href="syntaxerror"><code class="inline">SyntaxError</code></a> and <a href="tokenmissingerror"><code class="inline">TokenMissingError</code></a> if line is empty</li>
+<li>[Exception] Do not fail blaming <a href="argumenterror"><code class="inline">ArgumentError</code></a> for improper lists on <a href="kernel#apply/3"><code class="inline">apply/3</code></a>
+</li>
+<li>[Macro] Set a max <code class="inline">line_length</code> for <a href="macro#to_string/1"><code class="inline">Macro.to_string/1</code></a>
+</li>
+<li>[Macro] Fix formatting of lists on module attributes for <a href="macro#to_string/1"><code class="inline">Macro.to_string/1</code></a>
+</li>
+<li>[String] Fix incorrect codepoint byte counting in <code class="inline">slice</code> with negative positions in ranges</li>
+<li>[Task] Ensure async streams can be consumed from another process than the one that creates them</li>
+<li>[URI] Undeprecate <a href="uri#parse/1"><code class="inline">URI.parse/1</code></a> as <a href="uri#new/1"><code class="inline">URI.new/1</code></a> is too strict in many common cases</li>
+<li>[URI] Make sure <a href="uri#new/1"><code class="inline">URI.new/1</code></a> returns nil for empty paths</li>
+</ul>
+<h4>IEx</h4>
+<ul><li>[IEx] Make sure the <code class="inline">--version</code> flag halts IEx</li></ul>
+<h4>Mix</h4>
+<ul><li>[Mix] Make protocol consolidation part of the <a href="https://hexdocs.pm/mix/1.13/Mix.html#install/2"><code class="inline">Mix.install/2</code></a> cache</li></ul>
+<h2 id="v1-13-0-2021-12-03" class="section-heading">  v1.13.0 (2021-12-03) </h2> <h3 id="1-enhancements-3" class="section-heading">  1. Enhancements </h3> <h4>EEx</h4>
+<ul><li>[EEx] Add <code class="inline">:parser_options</code> to EEx functions</li></ul>
+<h4>Elixir</h4>
+<ul>
+<li>[Calendar] Add <a href="calendar#c:year_of_era/3"><code class="inline">Calendar.year_of_era/3</code></a> to support calendars where the beginning of a new era does not align with the beginning of a new year</li>
+<li>[CLI] Support <code class="inline">--short-version</code> on the CLI that does not boot the VM</li>
+<li>[Code] Add <a href="code#string_to_quoted_with_comments/2"><code class="inline">Code.string_to_quoted_with_comments/2</code></a> and <a href="code#quoted_to_algebra/2"><code class="inline">Code.quoted_to_algebra/2</code></a>
+</li>
+<li>[Code] Add more <code class="inline">:token_metadata</code> to aliases and remote calls when parsing strings</li>
+<li>[Code] Add <a href="code.fragment"><code class="inline">Code.Fragment</code></a> module to provide best-effort information from code fragments. The module currently provides an updated <a href="code.fragment#cursor_context/2"><code class="inline">Code.Fragment.cursor_context/2</code></a> with operator support and <a href="code.fragment#surround_context/2"><code class="inline">Code.Fragment.surround_context/2</code></a> which looks at a given position in a fragment and find its surrounding delimiters</li>
+<li>[Code] Allow custom sigil formatting on <a href="code#format_string!/2"><code class="inline">Code.format_string!/2</code></a>
+</li>
+<li>[Code] Add <code class="inline">{:on_module, bytecode, :none}</code> trace to compilation tracers</li>
+<li>[Enum] Optimize <a href="enum#concat/1"><code class="inline">Enum.concat/1</code></a> for lists of lists</li>
+<li>[Enum] Add <a href="enum#slide/3"><code class="inline">Enum.slide/3</code></a>
+</li>
+<li>[Exception] Better format Elixir exceptions in Erlang</li>
+<li>[Inspect] Allow default inspect fun to be set globally with <a href="inspect.opts#default_inspect_fun/1"><code class="inline">Inspect.Opts.default_inspect_fun/1</code></a>
+</li>
+<li>[IO] Allow <code class="inline">:eof</code> to be given as limit to <a href="io#getn/2"><code class="inline">IO.getn/2</code></a>
+</li>
+<li>[Kernel] Support the <code class="inline">:sigils</code> option in <code class="inline">import Mod, only: :sigils</code> and allow the sigil modifiers to be also digits</li>
+<li>[Kernel] Make <code class="inline">get_in</code> consistently abort and return <code class="inline">nil</code> when <code class="inline">nil</code> values are found (previously Elixir would raise an error in this case). This allows a user to use <code class="inline">get_in</code> as a safe navigation operator.</li>
+<li>[Kernel] Improve compilation times by reducing the amount of copies of the AST across compiler processes</li>
+<li>[Kernel] Raise if trying to define a module with a slash in its name</li>
+<li>[Kernel] Warn when <code class="inline">?\</code> is used and there is no need for a escape character</li>
+<li>[Kernel] Track structs in typespecs as export deps instead of compile-time deps</li>
+<li>[Kernel] Add power operator (<a href="kernel#**/2"><code class="inline">**/2</code></a>)</li>
+<li>[Keyword] Add <a href="keyword#validate/2"><code class="inline">Keyword.validate/2</code></a>
+</li>
+<li>[Keyword] Implement <a href="keyword#filter/2"><code class="inline">Keyword.filter/2</code></a> and <code class="inline">Keyword.map/2</code>
+</li>
+<li>[List] Add <a href="list#keyfind!/3"><code class="inline">List.keyfind!/3</code></a>
+</li>
+<li>[Macro] Add <a href="macro#prewalker/1"><code class="inline">Macro.prewalker/1</code></a> and <a href="macro#postwalker/1"><code class="inline">Macro.postwalker/1</code></a>
+</li>
+<li>[Macro.Env] Add the following reflection functions: <code class="inline">required?/2</code>, <code class="inline">lookup_import/2</code>, <code class="inline">fetch_alias/2</code>, and <code class="inline">fetch_macro_alias/2</code>
+</li>
+<li>[Map] Implement <a href="map#filter/2"><code class="inline">Map.filter/2</code></a> and <code class="inline">Map.map/2</code>
+</li>
+<li>[Module] Support <code class="inline">:nillify_clauses</code> in <a href="module#get_definition/3"><code class="inline">Module.get_definition/3</code></a>
+</li>
+<li>[Module] Add <a href="module#attributes_in/1"><code class="inline">Module.attributes_in/1</code></a> and <a href="module#overridables_in/1"><code class="inline">Module.overridables_in/1</code></a>
+</li>
+<li>[OptionParser] Add "did you mean?" suggestions to <a href="optionparser.parseerror"><code class="inline">OptionParser.ParseError</code></a> messages</li>
+<li>[Record] Add record reflection via <code class="inline">@__records__</code>
+</li>
+<li>[Task] Add <a href="task#completed/1"><code class="inline">Task.completed/1</code></a>
+</li>
+<li>[Task] Add <a href="task#ignore/1"><code class="inline">Task.ignore/1</code></a> to keep a task running but ignoring all of its results</li>
+<li>[Task] Reduce the amount of copying <code class="inline">Task.async*</code> functions</li>
+<li>[URI] Add <a href="uri#new/1"><code class="inline">URI.new/1</code></a> and <a href="uri#new!/1"><code class="inline">URI.new!/1</code></a>
+</li>
+</ul>
+<h4>ExUnit</h4>
+<ul>
+<li>[ExUnit] Show hint if comparing different but equivalent strings</li>
+<li>[ExUnit.CaptureIO] Add <code class="inline">with_io/3</code> to return result with captured io</li>
+<li>[ExUnit.CaptureLog] Add <code class="inline">with_log/2</code> to return result with captured logs</li>
+</ul>
+<h4>IEx</h4>
+<ul>
+<li>[IEx.Autocomplete] Add path autocompletion whenever when the cursor follows <code class="inline">"./</code> or <code class="inline">"/</code> or <code class="inline">"DRIVER:</code> where <code class="inline">DRIVER</code> is a single letter</li>
+<li>[IEx.Autocomplete] Add autocompletion for sigils, struct names, and struct fields</li>
+<li>[IEx.Helpers] Allow multiple modules to be given to <code class="inline">r/1</code>
+</li>
+</ul>
+<h4>Logger</h4>
+<ul>
+<li>[Logger] Add <a href="https://hexdocs.pm/logger/1.13/Logger.html#put_application_level/2"><code class="inline">Logger.put_application_level/2</code></a>
+</li>
+<li>[Logger] Print all log levels in accordance to Erlang/OTP. This also means <code class="inline">[warn]</code> is now shown as <code class="inline">[warning]</code>
+</li>
+</ul>
+<h4>Mix</h4>
+<ul>
+<li>[Mix] Add <code class="inline">MIX_INSTALL_FORCE</code> environment variable support</li>
+<li>[Mix] Support <code class="inline">:config</code> and <code class="inline">:system_env</code> in <a href="https://hexdocs.pm/mix/1.13/Mix.html#install/2"><code class="inline">Mix.install/2</code></a>
+</li>
+<li>[Mix] Add <a href="https://hexdocs.pm/mix/1.13/Mix.html#installed?/0"><code class="inline">Mix.installed?/0</code></a>
+</li>
+<li>[Mix.Shell] Add <code class="inline">:default</code> option to <code class="inline">Mix.Shell.yes?</code>
+</li>
+<li>[mix archive.install] Run <code class="inline">loadconfig</code> before building archive</li>
+<li>[mix compile] Move Elixir version check to before deps are compiled, in order to give feedback earlier</li>
+<li>[mix compile.elixir] Do not recompile files if their modification time change but their contents are still the same and the .beam files are still on disk</li>
+<li>[mix compile.elixir] Do not recompile all Elixir sources when Erlang modules change, only dependent ones</li>
+<li>[mix compile.elixir] Do not recompile Elixir files if <code class="inline">mix.exs</code> changes, instead recompile only files using <a href="https://hexdocs.pm/mix/1.13/Mix.Project.html"><code class="inline">Mix.Project</code></a> or trigger a recompilation if a compiler option changes</li>
+<li>[mix compile.elixir] Only recompile needed files when a dependency is added, updated or removed</li>
+<li>[mix compile.elixir] Only recompile needed files when a dependency is configured</li>
+<li>[mix deps] Add <code class="inline">:subdir</code> option to git deps</li>
+<li>[mix escript.install] Run <code class="inline">loadconfig</code> before building escript</li>
+<li>[mix format] Support <code class="inline">:plugins</code> in <a href="https://hexdocs.pm/mix/1.13/Mix.Tasks.Format.html"><code class="inline">mix format</code></a> that can hook into custom extensions and sigils</li>
+<li>[mix format] Add <a href="https://hexdocs.pm/mix/1.13/Mix.Tasks.Format.html#formatter_for_file/2"><code class="inline">Mix.Tasks.Format.formatter_for_file/2</code></a>
+</li>
+<li>[mix local.rebar] No longer support <code class="inline">sub_dirs</code> in Rebar 2 to help migration towards Rebar 3</li>
+<li>[mix local.rebar] Support <code class="inline">--if-missing</code> option when installing Rebar</li>
+<li>[mix local.rebar] Set <code class="inline">REBAR_PROFILE=prod</code> when compiling Rebar dependencies</li>
+<li>[mix test] Support <code class="inline">--profile-require=time</code> to profile the time loading test files themselves</li>
+<li>[mix test] Allow filtering modules from coverage using regex</li>
+<li>[mix test] Allow the exit status of ExUnit to be configured and set the default to 2</li>
+<li>[mix test] Exit with a status of 3 when coverage falls below threshold</li>
+<li>[mix test] Write failed manifest when suite fails due to --warnings-as-errors</li>
+<li>[mix test] Ignore <code class="inline">MIX_TEST_PARTITION</code> when partitions set to 1</li>
+<li>[mix xref] Support multiple sinks and sources in <code class="inline">mix xref graph</code>
+</li>
+<li>[mix xref] Add <code class="inline">trace</code> subcommand to print compilation dependencies between files</li>
+<li>[mix xref] Add <code class="inline">--fail-above</code> option to <a href="https://hexdocs.pm/mix/1.13/Mix.Tasks.Xref.html"><code class="inline">mix xref</code></a>
+</li>
+<li>[mix xref] Add <code class="inline">--label compile-connected</code> to <a href="https://hexdocs.pm/mix/1.13/Mix.Tasks.Xref.html"><code class="inline">mix xref</code></a>
+</li>
+</ul>
+<h3 id="2-bug-fixes-3" class="section-heading">  2. Bug fixes </h3> <h4>EEx</h4>
+<ul>
+<li>[EEx] Accept comments in EEx between do and the first clause</li>
+<li>[EEx] Accept EEx expressions where <code class="inline">-&gt;</code> is followed by newline</li>
+</ul>
+<h4>Elixir</h4>
+<ul>
+<li>[Application] Allow any expression as first argument of <code class="inline">compile_env</code>
+</li>
+<li>[Application] Warn if <code class="inline">Application.compile_env</code> or <code class="inline">Application.compile_env!</code> are called without a require</li>
+<li>[Code] Make sure <code class="inline">:static_atoms_encoder</code> in <a href="code#string_to_quoted/2"><code class="inline">Code.string_to_quoted/2</code></a> also applies to quoted keyword keys</li>
+<li>[Code] Ensure bindings with no context are returned as atoms instead of <code class="inline">{binding, nil}</code> in eval operations</li>
+<li>[Inspect] Fix a bug when inspecting a non-binary bitstring with colors</li>
+<li>[Kernel] Reject bidirectional formatting characters in strings and comments</li>
+<li>[Kernel] Support escaping of terminators in uppercase sigils heredocs for consistency</li>
+<li>[Kernel] Raise if <code class="inline">__CALLER__</code> or <code class="inline">__ENV__</code> or <code class="inline">__STACKTRACE__</code> are used in match</li>
+<li>[Kernel] Improve error message on invalid argument for <code class="inline">byte_size</code> from binary concat</li>
+<li>[Kernel] Raise when aliasing non-Elixir modules without <code class="inline">:as</code>
+</li>
+<li>[Kernel] Allow <code class="inline">unquote_splicing</code> inside <code class="inline">%{...}</code> without parens</li>
+<li>[Kernel] Ensure that waiting on a struct expansion inside a typespec is correctly tracked as waiting time in the compiler</li>
+<li>[Kernel] Correctly parse the atom <code class="inline">.</code> as a keyword list key</li>
+<li>[Kernel] Do not leak variables from the first generator in <code class="inline">with</code> and <code class="inline">for</code> special forms</li>
+<li>[Kernel] Fix column number on strings with NFD characters</li>
+<li>[Kernel] Fix a bug where a combination of dynamic line in <code class="inline">quote</code> with <code class="inline">unquote</code> of remote calls would emit invalid AST metadata</li>
+<li>[OptionParser] Validate switch types/modifiers early on to give more precise feedback</li>
+<li>[Protocol] Add <code class="inline">defdelegate</code> to the list of unallowed macros inside protocols as protocols do not allow function definitions</li>
+<li>[Protocol] Warn if <code class="inline">@callback</code>, <code class="inline">@macrocallback</code> and <code class="inline">@optional_callbacks</code> are defined inside protocol</li>
+<li>[Protocol] Ensure protocol metadata is deterministic on consolidation</li>
+<li>[Range] Always show step when range is descending</li>
+<li>[String] Update Unicode database to version 14.0</li>
+<li>[URI] Only percent decode if followed by hex digits (according to <a href="https://url.spec.whatwg.org/#percent-decode">https://url.spec.whatwg.org/#percent-decode</a>)</li>
+<li>[Version] Ensure proper precedence of <code class="inline">and</code>/<code class="inline">or</code> in version requirements</li>
+</ul>
+<h4>ExUnit</h4>
+<ul>
+<li>[ExUnit] Fix formatter and counters from <a href="https://hexdocs.pm/ex_unit/1.13/ExUnit.html#run/0"><code class="inline">ExUnit.run/0</code></a> to consider all tests in a module whenever if a module's <code class="inline">setup_all</code> fails</li>
+<li>[ExUnit] Allow doctests newlines to be terminated by CRLF</li>
+</ul>
+<h4>IEx</h4>
+<ul>
+<li>[IEx] Fix the loss of <code class="inline">.iex.exs</code> context after a pry session</li>
+<li>[IEx] Stop evaluator before exiting IEx server to avoid evaluators leaking</li>
+</ul>
+<h4>Logger</h4>
+<ul>
+<li>[Logger] Raise clear error message for invalid <code class="inline">:compile_time_purge_matching</code> configuration</li>
+<li>[Logger] Fix a bug where Logger would not reset its discard counter under some scenarios</li>
+</ul>
+<h4>Mix</h4>
+<ul>
+<li>[mix compile.elixir] Track transitive runtime dependencies coming from local/path dependencies</li>
+<li>[mix compile.elixir] Recompile file if <code class="inline">@external_resource</code> is deleted</li>
+<li>[mix compile.elixir] Print number of compiling files on all compiler cycles. This will make the <code class="inline">Compiling N files (.ex)</code> show up multiple times if necessary</li>
+<li>[mix deps] Raise if local dep is unavailable while compiling</li>
+<li>[mix deps.unlock] Fix blank output when unlocking a dependency that is not locked</li>
+<li>[mix local.install] Do not respect <code class="inline">MIX_DEPS_PATH</code> for install commands</li>
+<li>[mix release] Improve release scripts by making sure shell errors cascade (this is done by avoiding exporting and defining variables in a single step)</li>
+<li>[mix release] Do not boot release if <code class="inline">RELEASE_COOKIE</code> is empty</li>
+<li>[mix release] Allow releases running as a daemon to be restarted</li>
+<li>[mix release] Raise proper error message when non-serializable values are in configs</li>
+<li>[mix test] Fix coverage engine to also tag <code class="inline">case</code>, <code class="inline">cond</code>, and <code class="inline">receive</code> branches where the right side is a literal</li>
+</ul>
+<h3 id="3-soft-deprecations-no-warnings-emitted" class="section-heading">  3. Soft-deprecations (no warnings emitted) </h3> <h4>Elixir</h4>
+<ul>
+<li>[Code] Environment options in <a href="code#eval_quoted/3"><code class="inline">Code.eval_quoted/3</code></a> and <a href="code#eval_string/3"><code class="inline">Code.eval_string/3</code></a>, such as <code class="inline">:aliases</code> and <code class="inline">:tracers</code>, have been deprecated in favor of passing an environment</li>
+<li>[IO] <code class="inline">:all</code> on <code class="inline">IO.getn</code> is deprecated in favor of <code class="inline">:eof</code>
+</li>
+<li>[URI] <a href="uri#parse/1"><code class="inline">URI.parse/1</code></a> is deprecated in favor of <a href="uri#new/1"><code class="inline">URI.new/1</code></a> and <a href="uri#new!/1"><code class="inline">URI.new!/1</code></a>
+</li>
+</ul>
+<h4>Mix</h4>
+<ul><li>[mix format] <a href="https://hexdocs.pm/mix/1.13/Mix.Tasks.Format.html#formatter_opts_for_file/2"><code class="inline">Mix.Tasks.Format.formatter_opts_for_file/2</code></a> is deprecated in favor of <a href="https://hexdocs.pm/mix/1.13/Mix.Tasks.Format.html#formatter_for_file/2"><code class="inline">Mix.Tasks.Format.formatter_for_file/2</code></a>
+</li></ul>
+<h3 id="4-hard-deprecations" class="section-heading">  4. Hard-deprecations </h3> <h4>Elixir</h4>
+<ul>
+<li>[Code] <code class="inline">Code.cursor_context/2</code> is deprecated, use <a href="code.fragment#cursor_context/2"><code class="inline">Code.Fragment.cursor_context/2</code></a> instead</li>
+<li>[Macro] <a href="macro#to_string/2"><code class="inline">Macro.to_string/2</code></a> is deprecated, use <a href="macro#to_string/1"><code class="inline">Macro.to_string/1</code></a> instead</li>
+<li>[System] <a href="system#get_pid/0"><code class="inline">System.get_pid/0</code></a> is deprecated, use <a href="system#pid/0"><code class="inline">System.pid/0</code></a> instead</li>
+<li>[Version] Using <code class="inline">!</code> or <code class="inline">!=</code> in version requirements is deprecated, use <code class="inline">~&gt;</code> or <code class="inline">&gt;=</code> instead</li>
+</ul>
+<h4>Mix</h4>
+<ul>
+<li>[mix escript.build] <code class="inline">:strip_beam</code> option is deprecated in favor of <code class="inline">:strip_beams</code>
+</li>
+<li>[Mix] <code class="inline">:exit_code</code> in <a href="https://hexdocs.pm/mix/1.13/Mix.html#raise/2"><code class="inline">Mix.raise/2</code></a> has been deprecated in favor of <code class="inline">:exit_status</code>
+</li>
+<li>[Mix.Config] <a href="https://hexdocs.pm/mix/1.13/Mix.Config.html"><code class="inline">Mix.Config</code></a> is deprecated in favor of <a href="config"><code class="inline">Config</code></a> module</li>
+</ul>
+<h2 id="v1-12" class="section-heading">  v1.12 </h2> <p>The CHANGELOG for v1.12 releases can be found <a href="https://github.com/elixir-lang/elixir/blob/v1.12/CHANGELOG.md">in the v1.12 branch</a>.</p> <div class="bottom-actions"> <div class="bottom-actions-item"> <a href="writing-documentation" class="bottom-actions-button" rel="prev"> <span class="subheader"> ← Previous Page </span> <span class="title"> Writing Documentation </span> </a> </div>  </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://hexdocs.pm/elixir/1.13.4/changelog.html" class="_attribution-link" target="_blank">https://hexdocs.pm/elixir/1.13.4/changelog.html</a>
+  </p>
+</div>

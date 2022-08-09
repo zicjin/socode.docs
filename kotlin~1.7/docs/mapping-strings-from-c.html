@@ -1,0 +1,198 @@
+<h1 data-toc="mapping-strings-from-c" id="mapping-strings-from-c.md">Mapping Strings from C – tutorial</h1>
+<p id="ad4d2376">This is the last tutorial in the series. The first tutorial of the series is <a href="mapping-primitive-data-types-from-c" id="92b8cd42">Mapping primitive data types from C</a>. There are also <a href="mapping-struct-union-types-from-c" id="32b65163">Mapping struct and union types from C</a> and <a href="mapping-function-pointers-from-c" id="d75c826b">Mapping function pointers from C</a> tutorials.</p>
+<p id="b820dd70">In this tutorial, you'll see how to deal with C strings in Kotlin/Native. You will learn how to:</p>
+<ul class="list _ul" id="8e713476">
+<li class="list__item" id="40bdacb6"><p><a href="#pass-kotlin-string-to-c" id="d175ccb5">Pass a Kotlin string to C</a></p></li>
+<li class="list__item" id="6ab750e"><p><a href="#read-c-strings-in-kotlin" id="93ba3abf">Read a C string in Kotlin</a></p></li>
+<li class="list__item" id="5de7d613"><p><a href="#receive-c-string-bytes-from-kotlin" id="3d7cb207">Receive C string bytes into a Kotlin string</a></p></li>
+</ul>
+<section class="chapter"><h2 id="working-with-c-strings" data-toc="mapping-strings-from-c#working-with-c-strings">Working with C strings</h2>
+<p id="e852238e">There is no dedicated type in C language for strings. A developer knows from a method signature or the documentation, whether a given <code class="code ">char *</code> means a C string in the context. Strings in the C language are null-terminated, a trailing zero character <code class="code ">\0</code> is added at the end of a bytes sequence to mark a string termination. Usually, <a href="https://en.wikipedia.org/wiki/UTF-8" id="4c2d0478" data-external="true" rel="noopener noreferrer">UTF-8 encoded strings</a> are used. The UTF-8 encoding uses variable width characters, and it is backward compatible with <a href="https://en.wikipedia.org/wiki/ASCII" id="f0b4bcf6" data-external="true" rel="noopener noreferrer">ASCII</a>. Kotlin/Native uses UTF-8 character encoding by default.</p>
+<p id="68be0e4d">The best way to understand the mapping between C and Kotlin languages is to try it out on a small example. Create a small library headers for that. First, create a <code class="code ">lib.h</code> file with the following declaration of functions that deal with the C strings:</p>
+<pre class="code" data-language="c">#ifndef LIB2_H_INCLUDED
+#define LIB2_H_INCLUDED
+
+void pass_string(char* str);
+char* return_string();
+int copy_string(char* str, int size);
+
+#endif
+</pre>
+<p id="c8b57691">In the example, you see the most popular ways to pass or receive a string in the C language. Take the return of <code class="code ">return_string</code> with care. In general, it is best to make sure you use the right function to dispose the returned <code class="code ">char*</code> with the right <code class="code ">free(..)</code> function call.</p>
+<p id="82826f9f">Kotlin/Native comes with the <code class="code ">cinterop</code> tool; the tool generates bindings between the C language and Kotlin. It uses a <code class="code ">.def</code> file to specify a C library to import. More details on this are in the <a href="native-c-interop" id="417dc855">Interop with C Libraries</a> tutorial. The quickest way to try out C API mapping is to have all C declarations in the <code class="code ">interop.def</code> file, without creating any <code class="code ">.h</code> of <code class="code ">.c</code> files at all. Then place the C declarations in a <code class="code ">interop.def</code> file after the special <code class="code ">---</code> separator line:</p>
+<pre class="code" data-language="c">headers = lib.h
+---
+
+void pass_string(char* str) {
+}
+
+char* return_string() {
+  return "C stirng";
+}
+
+int copy_string(char* str, int size) {
+  *str++ = 'C';
+  *str++ = ' ';
+  *str++ = 'K';
+  *str++ = '/';
+  *str++ = 'N';
+  *str++ = 0;
+  return 0;
+}
+
+</pre>
+<p id="b014f633">The <code class="code ">interop.def</code> file is enough to compile and run the application or open it in an IDE. Now it is time to create project files, open the project in <a href="https://jetbrains.com/idea" id="b4d416f7" data-external="true" rel="noopener noreferrer">IntelliJ IDEA</a> and run it.</p></section><section class="chapter"><h2 id="inspect-generated-kotlin-apis-for-a-c-library" data-toc="mapping-strings-from-c#inspect-generated-kotlin-apis-for-a-c-library">Inspect generated Kotlin APIs for a C library</h2>
+<p id="1eaa4c8c">While it is possible to use the command line, either directly or by combining it with a script file (such as <code class="code ">.sh</code> or <code class="code ">.bat</code> file), this approach doesn't scale well for big projects that have hundreds of files and libraries. It is then better to use the Kotlin/Native compiler with a build system, as it helps to download and cache the Kotlin/Native compiler binaries and libraries with transitive dependencies and run the compiler and tests. Kotlin/Native can use the <a href="https://gradle.org" id="af942f99" data-external="true" rel="noopener noreferrer">Gradle</a> build system through the <a href="multiplatform-discover-project#multiplatform-plugin" id="254357d1">kotlin-multiplatform</a> plugin.</p>
+<p id="af8c64a2">We covered the basics of setting up an IDE compatible project with Gradle in the <a href="native-gradle" id="80cc18e7">A Basic Kotlin/Native Application</a> tutorial. Please check it out if you are looking for detailed first steps and instructions on how to start a new Kotlin/Native project and open it in IntelliJ IDEA. In this tutorial, we'll look at the advanced C interop related usages of Kotlin/Native and <a href="multiplatform-discover-project#multiplatform-plugin" id="1360999b">multiplatform</a> builds with Gradle.</p>
+<p id="dc089ce2">First, create a project folder. All the paths in this tutorial will be relative to this folder. Sometimes the missing directories will have to be created before any new files can be added.</p>
+<p id="4f33a4fa">Use the following <code class="code ">build.gradle(.kts)</code> Gradle build file:</p>
+<div class="tabs" id="dd2a99c8" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="6a77e3df" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">plugins {
+    kotlin("multiplatform") version "1.7.10"
+}
+
+repositories {
+    mavenCentral()
+}
+
+kotlin {
+  linuxX64("native") { // on Linux
+  // macosX64("native") { // on x86_64 macOS
+  // macosArm64("native") { // on Apple Silicon macOS
+  // mingwX64("native") { // on Windows
+    val main by compilations.getting
+    val interop by main.cinterops.creating
+    
+    binaries {
+      executable()
+    }
+  }
+}
+
+tasks.wrapper {
+  gradleVersion = "6.7.1"
+  distributionType = Wrapper.DistributionType.BIN
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="e8c5e3d4" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">plugins {
+    id 'org.jetbrains.kotlin.multiplatform' version '1.7.10'
+}
+
+repositories {
+    mavenCentral()
+}
+
+kotlin {
+  linuxX64('native') { // on Linux
+  // macosX64("native") { // on x86_64 macOS
+  // macosArm64("native") { // on Apple Silicon macOS
+  // mingwX64('native') { // on Windows
+    compilations.main.cinterops {
+      interop 
+    }
+    
+    binaries {
+      executable()
+    }
+  }
+}
+
+wrapper {
+  gradleVersion = '6.7.1'
+  distributionType = 'BIN'
+}
+</pre></div>
+</div>
+<p id="9fa4ad0e">The project file configures the C interop as an additional step of the build. Let's move the <code class="code ">interop.def</code> file to the <code class="code ">src/nativeInterop/cinterop</code> directory. Gradle recommends using conventions instead of configurations, for example, the source files are expected to be in the <code class="code ">src/nativeMain/kotlin</code> folder. By default, all the symbols from C are imported to the <code class="code ">interop</code> package, you may want to import the whole package in our <code class="code ">.kt</code> files. Check out the <a href="multiplatform-discover-project#multiplatform-plugin" id="a7af7cd1">kotlin-multiplatform</a> plugin documentation to learn about all the different ways you could configure it.</p>
+<p id="354d857">Let's create a <code class="code ">src/nativeMain/kotlin/hello.kt</code> stub file with the following content to see how C string declarations are visible from Kotlin:</p>
+<pre class="code" data-language="kotlin">import interop.*
+
+fun main() {
+  println("Hello Kotlin/Native!")
+  
+  pass_string(/*fix me*/)
+  val useMe = return_string()
+  val useMe2 = copy_string(/*fix me*/)
+}
+</pre>
+<p id="85c1ab21">Now you are ready to <a href="native-get-started" id="3017f7ad">open the project in IntelliJ IDEA</a> and to see how to fix the example project. While doing that, see how C strings are mapped into Kotlin/Native.</p></section><section class="chapter"><h2 id="strings-in-kotlin" data-toc="mapping-strings-from-c#strings-in-kotlin">Strings in Kotlin</h2>
+<p id="fe858fc3">With the help of IntelliJ IDEA's <b id="1bc3c302" class="">Go to | Declaration</b> or compiler errors, you see the following generated API for the C functions:</p>
+<pre class="code" data-language="kotlin">fun pass_string(str: CValuesRef&lt;ByteVar /* = ByteVarOf&lt;Byte&gt; */&gt;?)
+fun return_string(): CPointer&lt;ByteVar /* = ByteVarOf&lt;Byte&gt; */&gt;?
+fun copy_string(str: CValuesRef&lt;ByteVar /* = ByteVarOf&lt;Byte&gt; */&gt;?, size: Int): Int
+</pre>
+<p id="5f2cd2e6">These declarations look clear. All <code class="code ">char *</code> pointers are turned into <code class="code ">str: CValuesRef&lt;ByteVar&gt;?</code> for parameters and to <code class="code ">CPointer&lt;ByteVar&gt;?</code> in return types. Kotlin turns <code class="code ">char</code> type into <code class="code ">kotlin.Byte</code> type, as it is usually an 8-bit signed value.</p>
+<p id="d46f2ac0">In the generated Kotlin declarations, you see that <code class="code ">str</code> is represented as <code class="code ">CValuesRef&lt;ByteVar/&gt;?</code>. The type is nullable, and you can simply pass Kotlin <code class="code ">null</code> as the parameter value.</p></section><section class="chapter"><h2 id="pass-kotlin-string-to-c" data-toc="mapping-strings-from-c#pass-kotlin-string-to-c">Pass Kotlin string to C</h2>
+<p id="6a25a82a">Let's try to use the API from Kotlin. Call <code class="code ">pass_string</code> first:</p>
+<pre class="code" data-language="kotlin">fun passStringToC() {
+  val str = "this is a Kotlin String"
+  pass_string(str.cstr)
+}
+</pre>
+<p id="730df1e7">Passing a Kotlin string to C is easy, thanks to the fact that there is <code class="code ">String.cstr</code> <a href="extensions#extension-properties" id="26df4d3a">extension property</a> in Kotlin for it. There is also <code class="code ">String.wcstr</code> for cases when you need UTF-16 wide characters.</p></section><section class="chapter"><h2 id="read-c-strings-in-kotlin" data-toc="mapping-strings-from-c#read-c-strings-in-kotlin">Read C Strings in Kotlin</h2>
+<p id="593ae189">This time you'll take a returned <code class="code ">char *</code> from the <code class="code ">return_string</code> function and turn it into a Kotlin string. For that, do the following in Kotlin:</p>
+<pre class="code" data-language="kotlin">fun passStringToC() {
+  val stringFromC = return_string()?.toKString()
+  
+  println("Returned from C: $stringFromC")
+}
+</pre>
+<p id="494cbca6">This code uses the <code class="code ">toKString()</code> extension function above. Please do not miss out the <code class="code ">toString()</code> function. The <code class="code ">toKString()</code> has two overloaded extension functions in Kotlin:</p>
+<pre class="code" data-language="kotlin">fun CPointer&lt;ByteVar&gt;.toKString(): String
+fun CPointer&lt;ShortVar&gt;.toKString(): String
+</pre>
+<p id="abbe9bd7">The first extension takes a <code class="code ">char *</code> as a UTF-8 string and turns it into a String. The second function does the same but for wide UTF-16 strings.</p></section><section class="chapter"><h2 id="receive-c-string-bytes-from-kotlin" data-toc="mapping-strings-from-c#receive-c-string-bytes-from-kotlin">Receive C string bytes from Kotlin</h2>
+<p id="bb1196fb">This time we will ask a C function to write us a C string to a given buffer. The function is called <code class="code ">copy_string</code>. It takes a pointer to the location writing characters and the allowed buffer size. The function returns something to indicate if it has succeeded or failed. Let's assume <code class="code ">0</code> means it succeeded, and the supplied buffer was big enough:</p>
+<pre class="code" data-language="kotlin">fun sendString() {
+  val buf = ByteArray(255)
+  buf.usePinned { pinned -&gt;
+    if (copy_string(pinned.addressOf(0), buf.size - 1) != 0) {
+      throw Error("Failed to read string from C")
+    }
+  }
+
+  val copiedStringFromC = buf.decodeToString()
+  println("Message from C: $copiedStringFromC")
+}
+
+</pre>
+<p id="d107d600">First of all, you need to have a native pointer to pass to the C function. Use the <code class="code ">usePinned</code> extension function to temporarily pin the native memory address of the byte array. The C function fills in the byte array with data. Use another extension function <code class="code ">ByteArray.decodeToString()</code> to turn the byte array into a Kotlin <code class="code ">String</code>, assuming UTF-8 encoding.</p></section><section class="chapter"><h2 id="fix-the-code" data-toc="mapping-strings-from-c#fix-the-code">Fix the Code</h2>
+<p id="fe1d256b">You've now seen all the definitions and it is time to fix the code. Run the <code class="code ">runDebugExecutableNative</code> Gradle task <a href="native-get-started" id="7aae10e8">in the IDE</a> or use the following command to run the code:</p>
+<pre class="code" data-language="bash">./gradlew runDebugExecutableNative
+</pre>
+<p id="4bf74595">The code in the final <code class="code ">hello.kt</code> file may look like this:</p>
+<pre class="code" data-language="kotlin">import interop.*
+import kotlinx.cinterop.*
+
+fun main() {
+  println("Hello Kotlin/Native!")
+
+  val str = "this is a Kotlin String"
+  pass_string(str.cstr)
+
+  val useMe = return_string()?.toKString() ?: error("null pointer returned")
+  println(useMe)
+
+  val copyFromC = ByteArray(255).usePinned { pinned -&gt;
+
+    val useMe2 = copy_string(pinned.addressOf(0), pinned.get().size - 1)
+    if (useMe2 != 0) throw Error("Failed to read string from C")
+    pinned.get().decodeToString()
+  }
+
+  println(copyFromC)
+}
+</pre></section><section class="chapter"><h2 id="next-steps" data-toc="mapping-strings-from-c#next-steps">Next steps</h2>
+<p id="40d890a1">Continue to explore more C language types and their representation in Kotlin/Native in our other tutorials:</p>
+<ul class="list _ul" id="3be25ab1">
+<li class="list__item" id="776656d2"><p><a href="mapping-primitive-data-types-from-c" id="1a279a74">Mapping primitive data types from C</a></p></li>
+<li class="list__item" id="f97f23c3"><p><a href="mapping-struct-union-types-from-c" id="6f441a05">Mapping struct and union types from C</a></p></li>
+<li class="list__item" id="81109ffc"><p><a href="mapping-function-pointers-from-c" id="ac973866">Mapping function pointers from C</a></p></li>
+</ul>
+<p id="14415b07">The <a href="native-c-interop" id="8e78f452">C Interop documentation</a> documentation covers more advanced scenarios of the interop.</p></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="mapping-function-pointers-from-c">Mapping function pointers from C – tutorial</a> <a class="navigation-links__next" href="native-app-with-c-and-libcurl">Create an app using C Interop and libcurl – tutorial</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/mapping-strings-from-c.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/mapping-strings-from-c.html</a>
+  </p>
+</div>

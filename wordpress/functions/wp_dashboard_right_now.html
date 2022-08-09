@@ -1,0 +1,149 @@
+<h1>wp_dashboard_right_now()</h1>  <section> <p>Dashboard widget that displays some basic stats about the site.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Formerly ‘Right Now’. A streamlined ‘At a Glance’ as of 3.8.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/dashboard.php/">wp-admin/includes/dashboard.php</a> </p> <pre data-language="php">function wp_dashboard_right_now() {
+	?&gt;
+	&lt;div class="main"&gt;
+	&lt;ul&gt;
+	&lt;?php
+	// Posts and Pages.
+	foreach ( array( 'post', 'page' ) as $post_type ) {
+		$num_posts = wp_count_posts( $post_type );
+
+		if ( $num_posts &amp;&amp; $num_posts-&gt;publish ) {
+			if ( 'post' === $post_type ) {
+				/* translators: %s: Number of posts. */
+				$text = _n( '%s Post', '%s Posts', $num_posts-&gt;publish );
+			} else {
+				/* translators: %s: Number of pages. */
+				$text = _n( '%s Page', '%s Pages', $num_posts-&gt;publish );
+			}
+
+			$text             = sprintf( $text, number_format_i18n( $num_posts-&gt;publish ) );
+			$post_type_object = get_post_type_object( $post_type );
+
+			if ( $post_type_object &amp;&amp; current_user_can( $post_type_object-&gt;cap-&gt;edit_posts ) ) {
+				printf( '&lt;li class="%1$s-count"&gt;&lt;a href="edit.php?post_type=%1$s"&gt;%2$s&lt;/a&gt;&lt;/li&gt;', $post_type, $text );
+			} else {
+				printf( '&lt;li class="%1$s-count"&gt;&lt;span&gt;%2$s&lt;/span&gt;&lt;/li&gt;', $post_type, $text );
+			}
+		}
+	}
+
+	// Comments.
+	$num_comm = wp_count_comments();
+
+	if ( $num_comm &amp;&amp; ( $num_comm-&gt;approved || $num_comm-&gt;moderated ) ) {
+		/* translators: %s: Number of comments. */
+		$text = sprintf( _n( '%s Comment', '%s Comments', $num_comm-&gt;approved ), number_format_i18n( $num_comm-&gt;approved ) );
+		?&gt;
+		&lt;li class="comment-count"&gt;
+			&lt;a href="edit-comments.php"&gt;&lt;?php echo $text; ?&gt;&lt;/a&gt;
+		&lt;/li&gt;
+		&lt;?php
+		$moderated_comments_count_i18n = number_format_i18n( $num_comm-&gt;moderated );
+		/* translators: %s: Number of comments. */
+		$text = sprintf( _n( '%s Comment in moderation', '%s Comments in moderation', $num_comm-&gt;moderated ), $moderated_comments_count_i18n );
+		?&gt;
+		&lt;li class="comment-mod-count&lt;?php echo ! $num_comm-&gt;moderated ? ' hidden' : ''; ?&gt;"&gt;
+			&lt;a href="edit-comments.php?comment_status=moderated" class="comments-in-moderation-text"&gt;&lt;?php echo $text; ?&gt;&lt;/a&gt;
+		&lt;/li&gt;
+		&lt;?php
+	}
+
+	/**
+	 * Filters the array of extra elements to list in the 'At a Glance'
+	 * dashboard widget.
+	 *
+	 * Prior to 3.8.0, the widget was named 'Right Now'. Each element
+	 * is wrapped in list-item tags on output.
+	 *
+	 * @since 3.8.0
+	 *
+	 * @param string[] $items Array of extra 'At a Glance' widget items.
+	 */
+	$elements = apply_filters( 'dashboard_glance_items', array() );
+
+	if ( $elements ) {
+		echo '&lt;li&gt;' . implode( "&lt;/li&gt;\n&lt;li&gt;", $elements ) . "&lt;/li&gt;\n";
+	}
+
+	?&gt;
+	&lt;/ul&gt;
+	&lt;?php
+	update_right_now_message();
+
+	// Check if search engines are asked not to index this site.
+	if ( ! is_network_admin() &amp;&amp; ! is_user_admin()
+		&amp;&amp; current_user_can( 'manage_options' ) &amp;&amp; ! get_option( 'blog_public' )
+	) {
+
+		/**
+		 * Filters the link title attribute for the 'Search engines discouraged'
+		 * message displayed in the 'At a Glance' dashboard widget.
+		 *
+		 * Prior to 3.8.0, the widget was named 'Right Now'.
+		 *
+		 * @since 3.0.0
+		 * @since 4.5.0 The default for `$title` was updated to an empty string.
+		 *
+		 * @param string $title Default attribute text.
+		 */
+		$title = apply_filters( 'privacy_on_link_title', '' );
+
+		/**
+		 * Filters the link label for the 'Search engines discouraged' message
+		 * displayed in the 'At a Glance' dashboard widget.
+		 *
+		 * Prior to 3.8.0, the widget was named 'Right Now'.
+		 *
+		 * @since 3.0.0
+		 *
+		 * @param string $content Default text.
+		 */
+		$content = apply_filters( 'privacy_on_link_text', __( 'Search engines discouraged' ) );
+
+		$title_attr = '' === $title ? '' : " title='$title'";
+
+		echo "&lt;p class='search-engines-info'&gt;&lt;a href='options-reading.php'$title_attr&gt;$content&lt;/a&gt;&lt;/p&gt;";
+	}
+	?&gt;
+	&lt;/div&gt;
+	&lt;?php
+	/*
+	 * activity_box_end has a core action, but only prints content when multisite.
+	 * Using an output buffer is the only way to really check if anything's displayed here.
+	 */
+	ob_start();
+
+	/**
+	 * Fires at the end of the 'At a Glance' dashboard widget.
+	 *
+	 * Prior to 3.8.0, the widget was named 'Right Now'.
+	 *
+	 * @since 2.5.0
+	 */
+	do_action( 'rightnow_end' );
+
+	/**
+	 * Fires at the end of the 'At a Glance' dashboard widget.
+	 *
+	 * Prior to 3.8.0, the widget was named 'Right Now'.
+	 *
+	 * @since 2.0.0
+	 */
+	do_action( 'activity_box_end' );
+
+	$actions = ob_get_clean();
+
+	if ( ! empty( $actions ) ) :
+		?&gt;
+	&lt;div class="sub"&gt;
+		&lt;?php echo $actions; ?&gt;
+	&lt;/div&gt;
+		&lt;?php
+	endif;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/update.php:</span> <a href="update_right_now_message">update_right_now_message()</a> </td> <td class="related-desc"> <p>Displays WordPress version and active theme in the ‘At a Glance’ dashboard widget.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/dashboard.php:</span> <a href="../hooks/dashboard_glance_items">dashboard_glance_items</a> </td> <td class="related-desc"> <p>Filters the array of extra elements to list in the ‘At a Glance’ dashboard widget.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/dashboard.php:</span> <a href="../hooks/privacy_on_link_title">privacy_on_link_title</a> </td> <td class="related-desc"> <p>Filters the link title attribute for the ‘Search engines discouraged’ message displayed in the ‘At a Glance’ dashboard widget.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/dashboard.php:</span> <a href="../hooks/privacy_on_link_text">privacy_on_link_text</a> </td> <td class="related-desc"> <p>Filters the link label for the ‘Search engines discouraged’ message displayed in the ‘At a Glance’ dashboard widget.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/dashboard.php:</span> <a href="../hooks/rightnow_end">rightnow_end</a> </td> <td class="related-desc"> <p>Fires at the end of the ‘At a Glance’ dashboard widget.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/dashboard.php:</span> <a href="../hooks/activity_box_end">activity_box_end</a> </td> <td class="related-desc"> <p>Fires at the end of the ‘At a Glance’ dashboard widget.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="_n">_n()</a> </td> <td class="related-desc"> <p>Translates and retrieves the singular or plural form based on the supplied number.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_network_admin">is_network_admin()</a> </td> <td class="related-desc"> <p>Whether the current request is for the network administrative interface.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_user_admin">is_user_admin()</a> </td> <td class="related-desc"> <p>Whether the current request is for a user admin screen.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="number_format_i18n">number_format_i18n()</a> </td> <td class="related-desc"> <p>Convert float number to format based on the locale.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_count_posts">wp_count_posts()</a> </td> <td class="related-desc"> <p>Count number of posts of a post type and if user has permissions to view.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post_type_object">get_post_type_object()</a> </td> <td class="related-desc"> <p>Retrieves a post type object by name.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="wp_count_comments">wp_count_comments()</a> </td> <td class="related-desc"> <p>Retrieves the total comment counts for the whole site or a single post.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.7.0/" alt="WordPress 2.7.0">2.7.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_dashboard_right_now" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_dashboard_right_now</a>
+  </p>
+</div>

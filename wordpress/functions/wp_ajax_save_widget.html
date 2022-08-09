@@ -1,0 +1,105 @@
+<h1>wp_ajax_save_widget()</h1>  <section> <p>Ajax handler for saving a widget.</p> </section> <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/ajax-actions.php/">wp-admin/includes/ajax-actions.php</a> </p> <pre data-language="php">function wp_ajax_save_widget() {
+	global $wp_registered_widgets, $wp_registered_widget_controls, $wp_registered_widget_updates;
+
+	check_ajax_referer( 'save-sidebar-widgets', 'savewidgets' );
+
+	if ( ! current_user_can( 'edit_theme_options' ) || ! isset( $_POST['id_base'] ) ) {
+		wp_die( -1 );
+	}
+
+	unset( $_POST['savewidgets'], $_POST['action'] );
+
+	/**
+	 * Fires early when editing the widgets displayed in sidebars.
+	 *
+	 * @since 2.8.0
+	 */
+	do_action( 'load-widgets.php' ); // phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores
+
+	/**
+	 * Fires early when editing the widgets displayed in sidebars.
+	 *
+	 * @since 2.8.0
+	 */
+	do_action( 'widgets.php' ); // phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores
+
+	/** This action is documented in wp-admin/widgets.php */
+	do_action( 'sidebar_admin_setup' );
+
+	$id_base      = wp_unslash( $_POST['id_base'] );
+	$widget_id    = wp_unslash( $_POST['widget-id'] );
+	$sidebar_id   = $_POST['sidebar'];
+	$multi_number = ! empty( $_POST['multi_number'] ) ? (int) $_POST['multi_number'] : 0;
+	$settings     = isset( $_POST[ 'widget-' . $id_base ] ) &amp;&amp; is_array( $_POST[ 'widget-' . $id_base ] ) ? $_POST[ 'widget-' . $id_base ] : false;
+	$error        = '&lt;p&gt;' . __( 'An error has occurred. Please reload the page and try again.' ) . '&lt;/p&gt;';
+
+	$sidebars = wp_get_sidebars_widgets();
+	$sidebar  = isset( $sidebars[ $sidebar_id ] ) ? $sidebars[ $sidebar_id ] : array();
+
+	// Delete.
+	if ( isset( $_POST['delete_widget'] ) &amp;&amp; $_POST['delete_widget'] ) {
+
+		if ( ! isset( $wp_registered_widgets[ $widget_id ] ) ) {
+			wp_die( $error );
+		}
+
+		$sidebar = array_diff( $sidebar, array( $widget_id ) );
+		$_POST   = array(
+			'sidebar'            =&gt; $sidebar_id,
+			'widget-' . $id_base =&gt; array(),
+			'the-widget-id'      =&gt; $widget_id,
+			'delete_widget'      =&gt; '1',
+		);
+
+		/** This action is documented in wp-admin/widgets.php */
+		do_action( 'delete_widget', $widget_id, $sidebar_id, $id_base );
+
+	} elseif ( $settings &amp;&amp; preg_match( '/__i__|%i%/', key( $settings ) ) ) {
+		if ( ! $multi_number ) {
+			wp_die( $error );
+		}
+
+		$_POST[ 'widget-' . $id_base ] = array( $multi_number =&gt; reset( $settings ) );
+		$widget_id                     = $id_base . '-' . $multi_number;
+		$sidebar[]                     = $widget_id;
+	}
+	$_POST['widget-id'] = $sidebar;
+
+	foreach ( (array) $wp_registered_widget_updates as $name =&gt; $control ) {
+
+		if ( $name == $id_base ) {
+			if ( ! is_callable( $control['callback'] ) ) {
+				continue;
+			}
+
+			ob_start();
+				call_user_func_array( $control['callback'], $control['params'] );
+			ob_end_clean();
+			break;
+		}
+	}
+
+	if ( isset( $_POST['delete_widget'] ) &amp;&amp; $_POST['delete_widget'] ) {
+		$sidebars[ $sidebar_id ] = $sidebar;
+		wp_set_sidebars_widgets( $sidebars );
+		echo "deleted:$widget_id";
+		wp_die();
+	}
+
+	if ( ! empty( $_POST['add_new'] ) ) {
+		wp_die();
+	}
+
+	$form = $wp_registered_widget_controls[ $widget_id ];
+	if ( $form ) {
+		call_user_func_array( $form['callback'], $form['params'] );
+	}
+
+	wp_die();
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/widgets-form.php:</span> <a href="../hooks/delete_widget">delete_widget</a> </td> <td class="related-desc"> <p>Fires immediately after a widget has been marked for deletion.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/ajax-actions.php:</span> <a href="../hooks/load-widgets-php">load-widgets.php</a> </td> <td class="related-desc"> <p>Fires early when editing the widgets displayed in sidebars.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/ajax-actions.php:</span> <a href="../hooks/widgets-php">widgets.php</a> </td> <td class="related-desc"> <p>Fires early when editing the widgets displayed in sidebars.</p> </td> </tr> <tr> <td> <span>wp-admin/widgets-form.php:</span> <a href="../hooks/sidebar_admin_setup">sidebar_admin_setup</a> </td> <td class="related-desc"> <p>Fires early before the Widgets administration screen loads, after scripts are enqueued.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_unslash">wp_unslash()</a> </td> <td class="related-desc"> <p>Removes slashes from a string or recursively removes slashes from strings within an array.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="check_ajax_referer">check_ajax_referer()</a> </td> <td class="related-desc"> <p>Verifies the Ajax request to prevent processing requests external of the blog.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_die">wp_die()</a> </td> <td class="related-desc"> <p>Kills WordPress execution and displays HTML page with an error message.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/widgets.php:</span> <a href="wp_get_sidebars_widgets">wp_get_sidebars_widgets()</a> </td> <td class="related-desc"> <p>Retrieve full list of sidebars and their widget instance IDs.</p> </td> </tr> <tr> <td> <span>wp-includes/widgets.php:</span> <a href="wp_set_sidebars_widgets">wp_set_sidebars_widgets()</a> </td> <td class="related-desc"> <p>Set the sidebar widget option to update sidebars.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.1.0/" alt="WordPress 3.1.0">3.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_ajax_save_widget" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_ajax_save_widget</a>
+  </p>
+</div>

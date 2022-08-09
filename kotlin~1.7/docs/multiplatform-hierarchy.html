@@ -1,0 +1,67 @@
+<h1 data-toc="multiplatform-hierarchy" id="multiplatform-hierarchy.md">Hierarchical project structure</h1>
+<p id="f594a736">With Kotlin 1.6.20, every new multiplatform project comes with a hierarchical project structure. This means that source sets form a hierarchy for sharing the common code among several targets. It opens up a variety of opportunities, including using platform-dependent libraries in common source sets and the ability to share code when creating multiplatform libraries.</p>
+<p id="245d4907">To get a default hierarchical project structure in your projects, <a href="releases#update-to-a-new-release" id="48669275">update to the latest release</a>. If you need to keep using an earlier version than 1.6.20, you can still enable this feature manually. For this, add the following to your <code class="code ">gradle.properties</code>:</p>
+<pre class="code" data-language="none">kotlin.mpp.enableGranularSourceSetsMetadata=true
+kotlin.native.enableDependencyPropagation=false
+</pre>
+<section class="chapter"><h2 id="for-multiplatform-project-authors" data-toc="multiplatform-hierarchy#for-multiplatform-project-authors">For multiplatform project authors</h2>
+<p id="bae6f0b7">With the new hierarchical project structure support, you can share code among some, but not all, <a href="multiplatform-dsl-reference#targets" id="ccd8343a">targets</a> in a multiplatform project.</p>
+<p id="95d599e4">You can also use platform-dependent libraries, such as <code class="code ">UIKit</code> and <code class="code ">POSIX</code>, in source sets shared among several native targets. One popular case is having access to iOS-specific dependencies like <code class="code ">Foundation</code> when sharing code across all iOS targets. The new structure helps you share more native code without being limited by platform-specific dependencies.</p>
+<p id="3a864dfc">By using the hierarchical structure along with platform-dependent libraries in shared source sets, you can eliminate the need to use workarounds to get IDE support for sharing source sets among several native targets, for example <code class="code ">iosArm64</code> and <code class="code ">iosX64</code>:</p>
+<div class="code-collapse" data-lang="kotlin" data-is-expanded="false" data-synopsis="// workaround 1: select iOS target platform depending on the Xcode environment variables">// workaround 1: select iOS target platform depending on the Xcode environment variables kotlin { val iOSTarget: (String, KotlinNativeTarget.() -&gt; Unit) -&gt; KotlinNativeTarget = if (System.getenv("SDK_NAME")?.startsWith("iphoneos") == true) ::iosArm64 else ::iosX64 iOSTarget("ios") } </div>
+<div class="code-collapse" data-lang="bash" data-is-expanded="false" data-synopsis="# workaround 2: make symbolic links to use one source set for two targets"># workaround 2: make symbolic links to use one source set for two targets ln -s iosMain iosArm64Main &amp;&amp; ln -s iosMain iosX64Main </div>
+<p id="f2605ba2">Instead of doing this, you can create a hierarchical structure with <a href="multiplatform-share-on-platforms#use-target-shortcuts" id="e233d33d">target shortcuts</a> available for typical multi-target scenarios, or you can manually declare and connect the source sets. For example, you can create two iOS targets and a shared source set with the <code class="code ">ios()</code> shortcut:</p>
+<pre class="code" data-language="kotlin">kotlin {
+    ios() // iOS device and simulator targets; iosMain and iosTest source sets
+}
+</pre>
+<p id="1efa1ab1">The Kotlin toolchain will provide the correct default dependencies and locate the API surface area available in the shared code. This prevents cases like the use of a macOS-specific function in code shared for Windows.</p></section><section class="chapter"><h2 id="for-library-authors" data-toc="multiplatform-hierarchy#for-library-authors">For library authors</h2>
+<p id="dba1c125">A hierarchical project structure allows for reusing code in similar targets, as well as publishing and consuming libraries with granular APIs targeting similar platforms.</p>
+<p id="b4e4e050">The Kotlin toolchain will automatically figure out the API available in the consumer source set while checking for unsafe usages, like using an API meant for the JVM in JS code.</p>
+<ul class="list _ul" id="f542dea1"><li class="list__item" id="eb4f78b3">
+<p id="8900f705">Libraries published with the new hierarchical project structure are only compatible with projects that already have a hierarchical project structure. To enable compatibility with non-hierarchical projects, add the following to the <code class="code ">gradle.properties</code> file in your library project:</p>
+<pre class="code" data-language="none">kotlin.mpp.enableCompatibilityMetadataVariant=true
+</pre>
+</li></ul>
+<aside data-type="warning" class="prompt" data-title="" id="50b22650"><p id="2bd46da1">In this case, only source code from the <code class="code ">commonMain</code> source set is compiled with the legacy metadata compiler. If you use platform-specific code in <code class="code ">commonMain</code>, its compilation to the legacy format will fail.</p></aside><ul class="list _ul" id="a7a528e"><li class="list__item" id="26db65c6"><p>Libraries published without the hierarchical project structure can't be used in a shared native source set. For example, users with <code class="code ">ios()</code> shortcuts in their <code class="code ">build.gradle.(kts)</code> files won't be able to use your library in their iOS-shared code.</p></li></ul>
+<p id="dd626fb0">See <a href="#compatibility" id="1d28c413">Compatibility</a> for more details.</p></section><section class="chapter"><h2 id="compatibility" data-toc="multiplatform-hierarchy#compatibility">Compatibility</h2>
+<p id="e1578f5f">Compatibility between multiplatform projects and libraries is determined as follows:</p>
+<div class="table-wrapper"><table class=" wide" id="662262fc">
+<thead><tr class="ijRowHead" id="431ebab4">
+<th id="66a19a39"><p>Library with hierarchical project structure</p></th>
+<th id="76ccfdf5"><p>Project with hierarchical project structure</p></th>
+<th id="e4ba02da"><p>Compatibility</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="803029cf">
+<td id="d42ef828"><p>Yes</p></td>
+<td id="21e35d9"><p>Yes</p></td>
+<td id="bb2f11e5"><p>✅</p></td>
+</tr>
+<tr class="" id="b8cc9ea">
+<td id="98738b6c"><p>Yes</p></td>
+<td id="681ec2c7"><p>No</p></td>
+<td id="9f9c32b4"><p>Need to enable with <code class="code ">enableCompatibilityMetadataVariant</code> in the library project</p></td>
+</tr>
+<tr class="" id="f4769f78">
+<td id="ab684714"><p>No</p></td>
+<td id="65f749e5"><p>Yes</p></td>
+<td id="a5c1ac8"><p>Library can't be used in a shared native source set</p></td>
+</tr>
+<tr class="" id="2342aa78">
+<td id="4183ebe3"><p>No</p></td>
+<td id="880608fa"><p>No</p></td>
+<td id="caadfe67"><p>✅</p></td>
+</tr>
+</tbody>
+</table></div></section><section class="chapter"><h2 id="how-to-opt-out" data-toc="multiplatform-hierarchy#how-to-opt-out">How to opt-out</h2>
+<p id="cea718ee">To disable hierarchical structure support, set the following option to <code class="code ">false</code> in your <code class="code ">gradle.properties</code>:</p>
+<pre class="code" data-language="none">kotlin.mpp.hierarchicalStructureSupport=false
+</pre>
+<p id="32935282">As for the <code class="code ">kotlin.mpp.enableCompatibilityMetadataVariant</code> option that enables compatibility of libraries published with the hierarchical project structure and non-hierarchical projects – it's disabled by default. No additional steps are required.</p></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="multiplatform-connect-to-apis">Connect to platform-specific APIs</a> <a class="navigation-links__next" href="multiplatform-add-dependencies">Adding dependencies on multiplatform libraries</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/multiplatform-hierarchy.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/multiplatform-hierarchy.html</a>
+  </p>
+</div>

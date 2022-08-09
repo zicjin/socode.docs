@@ -1,0 +1,90 @@
+<h1>_wp_make_subsizes( array $new_sizes, string $file, array $image_meta, int $attachment_id )</h1> <div class="callout callout-alert">
+<p> This function’s access is marked private. This means it is not intended for use by plugin or theme developers, only in other core functions. It is listed here for completeness.</p> </div>  <section> <p>Low-level function to create image sub-sizes.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Updates the image meta after each sub-size is created. Errors are stored in the returned image metadata array.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$new_sizes</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Array defining what sizes to create.</span> </p> </dd> <dt>$file</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Full path to the image file.</span> </p> </dd> <dt>$image_meta</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">The attachment meta data array.</span> </p> </dd> <dt>$attachment_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">Attachment ID to process.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> The attachment meta data with updated <code>sizes</code> array. Includes an array of errors encountered while resizing.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/image.php/">wp-admin/includes/image.php</a> </p> <pre data-language="php">function _wp_make_subsizes( $new_sizes, $file, $image_meta, $attachment_id ) {
+	if ( empty( $image_meta ) || ! is_array( $image_meta ) ) {
+		// Not an image attachment.
+		return array();
+	}
+
+	// Check if any of the new sizes already exist.
+	if ( isset( $image_meta['sizes'] ) &amp;&amp; is_array( $image_meta['sizes'] ) ) {
+		foreach ( $image_meta['sizes'] as $size_name =&gt; $size_meta ) {
+			/*
+			 * Only checks "size name" so we don't override existing images even if the dimensions
+			 * don't match the currently defined size with the same name.
+			 * To change the behavior, unset changed/mismatched sizes in the `sizes` array in image meta.
+			 */
+			if ( array_key_exists( $size_name, $new_sizes ) ) {
+				unset( $new_sizes[ $size_name ] );
+			}
+		}
+	} else {
+		$image_meta['sizes'] = array();
+	}
+
+	if ( empty( $new_sizes ) ) {
+		// Nothing to do...
+		return $image_meta;
+	}
+
+	/*
+	 * Sort the image sub-sizes in order of priority when creating them.
+	 * This ensures there is an appropriate sub-size the user can access immediately
+	 * even when there was an error and not all sub-sizes were created.
+	 */
+	$priority = array(
+		'medium'       =&gt; null,
+		'large'        =&gt; null,
+		'thumbnail'    =&gt; null,
+		'medium_large' =&gt; null,
+	);
+
+	$new_sizes = array_filter( array_merge( $priority, $new_sizes ) );
+
+	$editor = wp_get_image_editor( $file );
+
+	if ( is_wp_error( $editor ) ) {
+		// The image cannot be edited.
+		return $image_meta;
+	}
+
+	// If stored EXIF data exists, rotate the source image before creating sub-sizes.
+	if ( ! empty( $image_meta['image_meta'] ) ) {
+		$rotated = $editor-&gt;maybe_exif_rotate();
+
+		if ( is_wp_error( $rotated ) ) {
+			// TODO: Log errors.
+		}
+	}
+
+	if ( method_exists( $editor, 'make_subsize' ) ) {
+		foreach ( $new_sizes as $new_size_name =&gt; $new_size_data ) {
+			$new_size_meta = $editor-&gt;make_subsize( $new_size_data );
+
+			if ( is_wp_error( $new_size_meta ) ) {
+				// TODO: Log errors.
+			} else {
+				// Save the size meta value.
+				$image_meta['sizes'][ $new_size_name ] = $new_size_meta;
+				wp_update_attachment_metadata( $attachment_id, $image_meta );
+			}
+		}
+	} else {
+		// Fall back to `$editor-&gt;multi_resize()`.
+		$created_sizes = $editor-&gt;multi_resize( $new_sizes );
+
+		if ( ! empty( $created_sizes ) ) {
+			$image_meta['sizes'] = array_merge( $image_meta['sizes'], $created_sizes );
+			wp_update_attachment_metadata( $attachment_id, $image_meta );
+		}
+	}
+
+	return $image_meta;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/media.php:</span> <a href="wp_get_image_editor">wp_get_image_editor()</a> </td> <td class="related-desc"> <p>Returns a <a href="../classes/wp_image_editor">WP_Image_Editor</a> instance and loads file into it.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_update_attachment_metadata">wp_update_attachment_metadata()</a> </td> <td class="related-desc"> <p>Updates metadata for an attachment.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/image.php:</span> <a href="wp_update_image_subsizes">wp_update_image_subsizes()</a> </td> <td class="related-desc"> <p>If any of the currently registered image sub-sizes are missing, create them and update the image meta data.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/image.php:</span> <a href="wp_create_image_subsizes">wp_create_image_subsizes()</a> </td> <td class="related-desc"> <p>Creates image sub-sizes, adds the new data to the image meta <code>sizes</code> array, and updates the image metadata.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/image.php:</span> <a href="wp_generate_attachment_metadata">wp_generate_attachment_metadata()</a> </td> <td class="related-desc"> <p>Generate attachment meta data and create image sub-sizes for images.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.3.0/" alt="WordPress 5.3.0">5.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/_wp_make_subsizes" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/_wp_make_subsizes</a>
+  </p>
+</div>

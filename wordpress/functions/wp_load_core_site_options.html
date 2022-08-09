@@ -1,0 +1,32 @@
+<h1>wp_load_core_site_options( int $network_id = null )</h1>  <section> <p>Loads and caches certain often requested site options if <a href="is_multisite">is_multisite()</a> and a persistent cache is not being used.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$network_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description">site ID for which to query the options. Defaults to the current site.</span> </p> <p class="default">Default value: null</p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/option.php/">wp-includes/option.php</a> </p> <pre data-language="php">function wp_load_core_site_options( $network_id = null ) {
+	global $wpdb;
+
+	if ( ! is_multisite() || wp_using_ext_object_cache() || wp_installing() ) {
+		return;
+	}
+
+	if ( empty( $network_id ) ) {
+		$network_id = get_current_network_id();
+	}
+
+	$core_options = array( 'site_name', 'siteurl', 'active_sitewide_plugins', '_site_transient_timeout_theme_roots', '_site_transient_theme_roots', 'site_admins', 'can_compress_scripts', 'global_terms_enabled', 'ms_files_rewriting' );
+
+	$core_options_in = "'" . implode( "', '", $core_options ) . "'";
+	$options         = $wpdb-&gt;get_results( $wpdb-&gt;prepare( "SELECT meta_key, meta_value FROM $wpdb-&gt;sitemeta WHERE meta_key IN ($core_options_in) AND site_id = %d", $network_id ) );
+
+	$data = array();
+	foreach ( $options as $option ) {
+		$key                = $option-&gt;meta_key;
+		$cache_key          = "{$network_id}:$key";
+		$option-&gt;meta_value = maybe_unserialize( $option-&gt;meta_value );
+
+		$data[ $cache_key ] = $option-&gt;meta_value;
+	}
+	wp_cache_set_multiple( $data, 'site-options' );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/cache.php:</span> <a href="wp_cache_set_multiple">wp_cache_set_multiple()</a> </td> <td class="related-desc"> <p>Sets multiple values to the cache in one call.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="get_current_network_id">get_current_network_id()</a> </td> <td class="related-desc"> <p>Retrieves the current network ID.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_installing">wp_installing()</a> </td> <td class="related-desc"> <p>Check or set whether WordPress is in “installation” mode.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_multisite">is_multisite()</a> </td> <td class="related-desc"> <p>If Multisite is enabled.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_using_ext_object_cache">wp_using_ext_object_cache()</a> </td> <td class="related-desc"> <p>Toggle <code>$_wp_using_ext_object_cache</code> on and off without directly touching global.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="maybe_unserialize">maybe_unserialize()</a> </td> <td class="related-desc"> <p>Unserialize data only if it was serialized.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/get_results">wpdb::get_results()</a> </td> <td class="related-desc"> <p>Retrieves an entire SQL result set from the database (i.e., many rows).</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/prepare">wpdb::prepare()</a> </td> <td class="related-desc"> <p>Prepares a SQL query for safe execution.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.0.0/" alt="WordPress 3.0.0">3.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_load_core_site_options" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_load_core_site_options</a>
+  </p>
+</div>

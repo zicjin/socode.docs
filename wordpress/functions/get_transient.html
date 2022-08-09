@@ -1,0 +1,68 @@
+<h1>get_transient( string $transient )</h1>  <section> <p>Retrieves the value of a transient.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>If the transient does not exist, does not have a value, or has expired, then the return value will be false.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$transient</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Transient name. Expected to not be SQL-escaped.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(mixed)</span> Value of transient.</p> </section>  <section> <h2 id="more-information">More Information</h2> <p>$transient parameter should be 172 characters or less in length as WordPress will prefix your name with “_transient_” or “_transient_timeout_” in the options table (depending on whether it expires or not). Longer key names will silently fail. See <a class="external text" href="https://core.trac.wordpress.org/ticket/15058" rel="nofollow">Trac #15058</a>.</p> <p>Returned value is the value of transient. If the transient does not exist, does not have a value, or has expired, then get_transient will return <tt>false</tt>. This should be checked using the identity operator ( === ) instead of the normal equality operator, because an integer value of zero (or other “empty” data) could be the data you’re wanting to store. Because of this “false” value, transients should not be used to hold plain boolean values. Put them into an array or convert them to integers instead.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/option.php/">wp-includes/option.php</a> </p> <pre data-language="php">function get_transient( $transient ) {
+
+	/**
+	 * Filters the value of an existing transient before it is retrieved.
+	 *
+	 * The dynamic portion of the hook name, `$transient`, refers to the transient name.
+	 *
+	 * Returning a truthy value from the filter will effectively short-circuit retrieval
+	 * and return the passed value instead.
+	 *
+	 * @since 2.8.0
+	 * @since 4.4.0 The `$transient` parameter was added
+	 *
+	 * @param mixed  $pre_transient The default value to return if the transient does not exist.
+	 *                              Any value other than false will short-circuit the retrieval
+	 *                              of the transient, and return that value.
+	 * @param string $transient     Transient name.
+	 */
+	$pre = apply_filters( "pre_transient_{$transient}", false, $transient );
+
+	if ( false !== $pre ) {
+		return $pre;
+	}
+
+	if ( wp_using_ext_object_cache() || wp_installing() ) {
+		$value = wp_cache_get( $transient, 'transient' );
+	} else {
+		$transient_option = '_transient_' . $transient;
+		if ( ! wp_installing() ) {
+			// If option is not in alloptions, it is not autoloaded and thus has a timeout.
+			$alloptions = wp_load_alloptions();
+			if ( ! isset( $alloptions[ $transient_option ] ) ) {
+				$transient_timeout = '_transient_timeout_' . $transient;
+				$timeout           = get_option( $transient_timeout );
+				if ( false !== $timeout &amp;&amp; $timeout &lt; time() ) {
+					delete_option( $transient_option );
+					delete_option( $transient_timeout );
+					$value = false;
+				}
+			}
+		}
+
+		if ( ! isset( $value ) ) {
+			$value = get_option( $transient_option );
+		}
+	}
+
+	/**
+	 * Filters an existing transient's value.
+	 *
+	 * The dynamic portion of the hook name, `$transient`, refers to the transient name.
+	 *
+	 * @since 2.8.0
+	 * @since 4.4.0 The `$transient` parameter was added
+	 *
+	 * @param mixed  $value     Value of transient.
+	 * @param string $transient Transient name.
+	 */
+	return apply_filters( "transient_{$transient}", $value, $transient );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_installing">wp_installing()</a> </td> <td class="related-desc"> <p>Check or set whether WordPress is in “installation” mode.</p> </td> </tr> <tr> <td> <span>wp-includes/cache.php:</span> <a href="wp_cache_get">wp_cache_get()</a> </td> <td class="related-desc"> <p>Retrieves the cache contents from the cache by key and group.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_using_ext_object_cache">wp_using_ext_object_cache()</a> </td> <td class="related-desc"> <p>Toggle <code>$_wp_using_ext_object_cache</code> on and off without directly touching global.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../hooks/pre_transient_transient">pre_transient_{$transient}</a> </td> <td class="related-desc"> <p>Filters the value of an existing transient before it is retrieved.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../hooks/transient_transient">transient_{$transient}</a> </td> <td class="related-desc"> <p>Filters an existing transient’s value.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="wp_load_alloptions">wp_load_alloptions()</a> </td> <td class="related-desc"> <p>Loads and caches all autoloaded options, if available or all options.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="delete_option">delete_option()</a> </td> <td class="related-desc"> <p>Removes option by name. Prevents removal of protected WordPress options.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/global-styles-and-settings.php:</span> <a href="wp_get_global_styles_svg_filters">wp_get_global_styles_svg_filters()</a> </td> <td class="related-desc"> <p>Returns a string containing the SVGs to be referenced as filters (duotone).</p> </td> </tr> <tr> <td> <span>wp-includes/global-styles-and-settings.php:</span> <a href="wp_get_global_stylesheet">wp_get_global_stylesheet()</a> </td> <td class="related-desc"> <p>Returns the stylesheet resulting of merging core, theme, and user data.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="clean_dirsize_cache">clean_dirsize_cache()</a> </td> <td class="related-desc"> <p>Cleans directory size cache used by <a href="recurse_dirsize">recurse_dirsize()</a>.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/dashboard.php:</span> <a href="wp_dashboard_site_health">wp_dashboard_site_health()</a> </td> <td class="related-desc"> <p>Displays the Site Health Status widget.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-site-health.php:</span> <a href="../classes/wp_site_health/enqueue_scripts">WP_Site_Health::enqueue_scripts()</a> </td> <td class="related-desc"> <p>Enqueues the site health scripts.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_start_scraping_edited_file_errors">wp_start_scraping_edited_file_errors()</a> </td> <td class="related-desc"> <p>Start scraping edited file errors.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-oembed-controller.php:</span> <a href="../classes/wp_oembed_controller/get_proxy_item">WP_oEmbed_Controller::get_proxy_item()</a> </td> <td class="related-desc"> <p>Callback for the proxy API endpoint.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/theme-install.php:</span> <a href="install_themes_feature_list">install_themes_feature_list()</a> </td> <td class="related-desc"> <p>Retrieves the list of WordPress theme features (aka theme tags).</p> </td> </tr> <tr> <td> <span>wp-admin/includes/dashboard.php:</span> <a href="wp_dashboard_cached_rss_widget">wp_dashboard_cached_rss_widget()</a> </td> <td class="related-desc"> <p>Checks to see if all of the feed url in $check_urls are cached.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/deprecated.php:</span> <a href="wp_dashboard_plugins_output">wp_dashboard_plugins_output()</a> </td> <td class="related-desc"> <p>Display plugins text for the WordPress news widget.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/template.php:</span> <a href="get_settings_errors">get_settings_errors()</a> </td> <td class="related-desc"> <p>Fetches settings errors registered by <a href="add_settings_error">add_settings_error()</a>.</p> </td> </tr> <tr> <td> <span>wp-includes/cron.php:</span> <a href="spawn_cron">spawn_cron()</a> </td> <td class="related-desc"> <p>Sends a request to run cron through HTTP request that doesn’t halt page loading.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_rand">wp_rand()</a> </td> <td class="related-desc"> <p>Generates a random number.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-feed-cache-transient.php:</span> <a href="../classes/wp_feed_cache_transient/load">WP_Feed_Cache_Transient::load()</a> </td> <td class="related-desc"> <p>Gets the transient.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-feed-cache-transient.php:</span> <a href="../classes/wp_feed_cache_transient/mtime">WP_Feed_Cache_Transient::mtime()</a> </td> <td class="related-desc"> <p>Gets mod transient.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="wp_maybe_generate_attachment_metadata">wp_maybe_generate_attachment_metadata()</a> </td> <td class="related-desc"> <p>Maybe attempts to generate attachment metadata, if missing.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="recurse_dirsize">recurse_dirsize()</a> </td> <td class="related-desc"> <p>Get the size of a directory recursively.</p> </td> </tr> <tr> <td> <span>wp-includes/author-template.php:</span> <a href="is_multi_author">is_multi_author()</a> </td> <td class="related-desc"> <p>Determines whether this site has more than one author.</p> </td> </tr> <tr> <td> <span>wp-includes/rss.php:</span> <a href="../classes/rsscache/get">RSSCache::get()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-includes/rss.php:</span> <a href="../classes/rsscache/check_cache">RSSCache::check_cache()</a> </td> <td class="related-desc"> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.8.0/" alt="WordPress 2.8.0">2.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/get_transient" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/get_transient</a>
+  </p>
+</div>

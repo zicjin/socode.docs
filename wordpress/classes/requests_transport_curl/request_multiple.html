@@ -1,0 +1,86 @@
+<h1>Requests_Transport_cURL::request_multiple( array $requests, array $options )</h1>  <section> <p>Send multiple requests simultaneously</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$requests</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Request data</span> </p> </dd> <dt>$options</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Global options</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> Array of <a href="../requests_response">Requests_Response</a> objects (may contain <a href="../requests_exception">Requests_Exception</a> or string responses as well)</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/requests/transport/curl.php/">wp-includes/Requests/Transport/cURL.php</a> </p> <pre data-language="php">public function request_multiple($requests, $options) {
+		// If you're not requesting, we can't get any responses ¯\_(ツ)_/¯
+		if (empty($requests)) {
+			return array();
+		}
+
+		$multihandle = curl_multi_init();
+		$subrequests = array();
+		$subhandles  = array();
+
+		$class = get_class($this);
+		foreach ($requests as $id =&gt; $request) {
+			$subrequests[$id] = new $class();
+			$subhandles[$id]  = $subrequests[$id]-&gt;get_subrequest_handle($request['url'], $request['headers'], $request['data'], $request['options']);
+			$request['options']['hooks']-&gt;dispatch('curl.before_multi_add', array(&amp;$subhandles[$id]));
+			curl_multi_add_handle($multihandle, $subhandles[$id]);
+		}
+
+		$completed       = 0;
+		$responses       = array();
+		$subrequestcount = count($subrequests);
+
+		$request['options']['hooks']-&gt;dispatch('curl.before_multi_exec', array(&amp;$multihandle));
+
+		do {
+			$active = 0;
+
+			do {
+				$status = curl_multi_exec($multihandle, $active);
+			}
+			while ($status === CURLM_CALL_MULTI_PERFORM);
+
+			$to_process = array();
+
+			// Read the information as needed
+			while ($done = curl_multi_info_read($multihandle)) {
+				$key = array_search($done['handle'], $subhandles, true);
+				if (!isset($to_process[$key])) {
+					$to_process[$key] = $done;
+				}
+			}
+
+			// Parse the finished requests before we start getting the new ones
+			foreach ($to_process as $key =&gt; $done) {
+				$options = $requests[$key]['options'];
+				if ($done['result'] !== CURLE_OK) {
+					//get error string for handle.
+					$reason          = curl_error($done['handle']);
+					$exception       = new Requests_Exception_Transport_cURL(
+						$reason,
+						Requests_Exception_Transport_cURL::EASY,
+						$done['handle'],
+						$done['result']
+					);
+					$responses[$key] = $exception;
+					$options['hooks']-&gt;dispatch('transport.internal.parse_error', array(&amp;$responses[$key], $requests[$key]));
+				}
+				else {
+					$responses[$key] = $subrequests[$key]-&gt;process_response($subrequests[$key]-&gt;response_data, $options);
+
+					$options['hooks']-&gt;dispatch('transport.internal.parse_response', array(&amp;$responses[$key], $requests[$key]));
+				}
+
+				curl_multi_remove_handle($multihandle, $done['handle']);
+				curl_close($done['handle']);
+
+				if (!is_string($responses[$key])) {
+					$options['hooks']-&gt;dispatch('multiple.request.complete', array(&amp;$responses[$key], $key));
+				}
+				$completed++;
+			}
+		}
+		while ($active || $completed &lt; $subrequestcount);
+
+		$request['options']['hooks']-&gt;dispatch('curl.after_multi_exec', array(&amp;$multihandle));
+
+		curl_multi_close($multihandle);
+
+		return $responses;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/Requests/Exception/Transport/cURL.php:</span> <a href="../requests_exception_transport_curl/__construct">Requests_Exception_Transport_cURL::__construct()</a> </td> <td class="related-desc"> </td> </tr> </tbody>
+
+</table> </article> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/requests_transport_curl/request_multiple" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/requests_transport_curl/request_multiple</a>
+  </p>
+</div>

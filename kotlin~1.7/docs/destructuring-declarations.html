@@ -1,0 +1,75 @@
+<h1 data-toc="destructuring-declarations" id="destructuring-declarations.md">Destructuring declarations</h1>
+<p id="ecbe16a2">Sometimes it is convenient to <em id="87e474fd" class="">destructure</em> an object into a number of variables, for example:</p>
+<pre class="code" data-language="kotlin">val (name, age) = person 
+</pre>
+<p id="17c678cd">This syntax is called a <em id="5dda834" class="">destructuring declaration</em>. A destructuring declaration creates multiple variables at once. You have declared two new variables: <code class="code ">name</code> and <code class="code ">age</code>, and can use them independently:</p>
+<pre class="code" data-language="kotlin">println(name)
+println(age)
+</pre>
+<p id="35516b4d">A destructuring declaration is compiled down to the following code:</p>
+<pre class="code" data-language="kotlin">val name = person.component1()
+val age = person.component2()
+</pre>
+<p id="43abc204">The <code class="code ">component1()</code> and <code class="code ">component2()</code> functions are another example of the <em id="a192d557" class="">principle of conventions</em> widely used in Kotlin (see operators like <code class="code ">+</code> and <code class="code ">*</code>, <code class="code ">for</code>-loops as an example). Anything can be on the right-hand side of a destructuring declaration, as long as the required number of component functions can be called on it. And, of course, there can be <code class="code ">component3()</code> and <code class="code ">component4()</code> and so on.</p>
+<aside data-type="note" class="prompt" data-title="" id="d64bfff3"><p id="4a3a36a2">The <code class="code ">componentN()</code> functions need to be marked with the <code class="code ">operator</code> keyword to allow using them in a destructuring declaration.</p></aside><p id="28d8f6d1">Destructuring declarations also work in <code class="code ">for</code>-loops:</p>
+<pre class="code" data-language="kotlin">for ((a, b) in collection) { ... }
+</pre>
+<p id="41b8e2c8">Variables <code class="code ">a</code> and <code class="code ">b</code> get the values returned by <code class="code ">component1()</code> and <code class="code ">component2()</code> called on elements of the collection.</p>
+<section class="chapter"><h2 id="example-returning-two-values-from-a-function" data-toc="destructuring-declarations#example-returning-two-values-from-a-function">Example: returning two values from a function</h2>
+<p id="ae416265">Assume that you need to return two things from a function - for example, a result object and a status of some sort. A compact way of doing this in Kotlin is to declare a <a href="data-classes" id="947c7972">data class</a> and return its instance:</p>
+<pre class="code" data-language="kotlin">data class Result(val result: Int, val status: Status)
+fun function(...): Result {
+    // computations
+    
+    return Result(result, status)
+}
+
+// Now, to use this function:
+val (result, status) = function(...)
+</pre>
+<p id="85557371">Since data classes automatically declare <code class="code ">componentN()</code> functions, destructuring declarations work here.</p>
+<aside data-type="note" class="prompt" data-title="" id="ce6c11c7"><p id="742b7a96">You could also use the standard class <code class="code ">Pair</code> and have <code class="code ">function()</code> return <code class="code ">Pair&lt;Int, Status&gt;</code>, but it's often better to have your data named properly.</p></aside></section><section class="chapter"><h2 id="example-destructuring-declarations-and-maps" data-toc="destructuring-declarations#example-destructuring-declarations-and-maps">Example: destructuring declarations and maps</h2>
+<p id="18f873cd">Probably the nicest way to traverse a map is this:</p>
+<pre class="code" data-language="kotlin">for ((key, value) in map) {
+   // do something with the key and the value
+}
+</pre>
+<p id="ed34ad53">To make this work, you should</p>
+<ul class="list _ul" id="5dd514f7">
+<li class="list__item" id="db71029"><p>Present the map as a sequence of values by providing an <code class="code ">iterator()</code> function.</p></li>
+<li class="list__item" id="6cb8b7fd"><p>Present each of the elements as a pair by providing functions <code class="code ">component1()</code> and <code class="code ">component2()</code>.</p></li>
+</ul>
+<p id="7116498a">And indeed, the standard library provides such extensions:</p>
+<pre class="code" data-language="kotlin">operator fun &lt;K, V&gt; Map&lt;K, V&gt;.iterator(): Iterator&lt;Map.Entry&lt;K, V&gt;&gt; = entrySet().iterator()
+operator fun &lt;K, V&gt; Map.Entry&lt;K, V&gt;.component1() = getKey()
+operator fun &lt;K, V&gt; Map.Entry&lt;K, V&gt;.component2() = getValue()
+</pre>
+<p id="f2a0953c">So you can freely use destructuring declarations in <code class="code ">for</code>-loops with maps (as well as collections of data class instances or similar).</p></section><section class="chapter"><h2 id="underscore-for-unused-variables" data-toc="destructuring-declarations#underscore-for-unused-variables">Underscore for unused variables</h2>
+<p id="44084d26">If you don't need a variable in the destructuring declaration, you can place an underscore instead of its name:</p>
+<pre class="code" data-language="kotlin">val (_, status) = getResult()
+</pre>
+<p id="4925a327">The <code class="code ">componentN()</code> operator functions are not called for the components that are skipped in this way.</p></section><section class="chapter"><h2 id="destructuring-in-lambdas" data-toc="destructuring-declarations#destructuring-in-lambdas">Destructuring in lambdas</h2>
+<p id="c701954e">You can use the destructuring declarations syntax for lambda parameters. If a lambda has a parameter of the <code class="code ">Pair</code> type (or <code class="code ">Map.Entry</code>, or any other type that has the appropriate <code class="code ">componentN</code> functions), you can introduce several new parameters instead of one by putting them in parentheses:</p>
+<pre class="code" data-language="kotlin">map.mapValues { entry -&gt; "${entry.value}!" }
+map.mapValues { (key, value) -&gt; "$value!" }
+</pre>
+<p id="32930a5a">Note the difference between declaring two parameters and declaring a destructuring pair instead of a parameter:</p>
+<pre class="code" data-language="kotlin">{ a -&gt; ... } // one parameter
+{ a, b -&gt; ... } // two parameters
+{ (a, b) -&gt; ... } // a destructured pair
+{ (a, b), c -&gt; ... } // a destructured pair and another parameter
+</pre>
+<p id="2b5e0947">If a component of the destructured parameter is unused, you can replace it with the underscore to avoid inventing its name:</p>
+<pre class="code" data-language="kotlin">map.mapValues { (_, value) -&gt; "$value!" }
+</pre>
+<p id="45d6e13a">You can specify the type for the whole destructured parameter or for a specific component separately:</p>
+<pre class="code" data-language="kotlin">map.mapValues { (_, value): Map.Entry&lt;Int, String&gt; -&gt; "$value!" }
+
+map.mapValues { (_, value: String) -&gt; "$value!" }
+</pre></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="annotations">Annotations</a> <a class="navigation-links__next" href="reflection">Reflection</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/destructuring-declarations.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/destructuring-declarations.html</a>
+  </p>
+</div>

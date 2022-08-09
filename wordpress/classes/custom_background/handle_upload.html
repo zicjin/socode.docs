@@ -1,0 +1,57 @@
+<h1>Custom_Background::handle_upload()</h1>  <section> <p>Handle an Image upload for the background image.</p> </section> <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-custom-background.php/">wp-admin/includes/class-custom-background.php</a> </p> <pre data-language="php">public function handle_upload() {
+		if ( empty( $_FILES ) ) {
+			return;
+		}
+
+		check_admin_referer( 'custom-background-upload', '_wpnonce-custom-background-upload' );
+
+		$overrides = array( 'test_form' =&gt; false );
+
+		$uploaded_file = $_FILES['import'];
+		$wp_filetype   = wp_check_filetype_and_ext( $uploaded_file['tmp_name'], $uploaded_file['name'] );
+		if ( ! wp_match_mime_types( 'image', $wp_filetype['type'] ) ) {
+			wp_die( __( 'The uploaded file is not a valid image. Please try again.' ) );
+		}
+
+		$file = wp_handle_upload( $uploaded_file, $overrides );
+
+		if ( isset( $file['error'] ) ) {
+			wp_die( $file['error'] );
+		}
+
+		$url      = $file['url'];
+		$type     = $file['type'];
+		$file     = $file['file'];
+		$filename = wp_basename( $file );
+
+		// Construct the attachment array.
+		$attachment = array(
+			'post_title'     =&gt; $filename,
+			'post_content'   =&gt; $url,
+			'post_mime_type' =&gt; $type,
+			'guid'           =&gt; $url,
+			'context'        =&gt; 'custom-background',
+		);
+
+		// Save the data.
+		$id = wp_insert_attachment( $attachment, $file );
+
+		// Add the metadata.
+		wp_update_attachment_metadata( $id, wp_generate_attachment_metadata( $id, $file ) );
+		update_post_meta( $id, '_wp_attachment_is_custom_background', get_option( 'stylesheet' ) );
+
+		set_theme_mod( 'background_image', esc_url_raw( $url ) );
+
+		$thumbnail = wp_get_attachment_image_src( $id, 'thumbnail' );
+		set_theme_mod( 'background_image_thumb', esc_url_raw( $thumbnail[0] ) );
+
+		/** This action is documented in wp-admin/includes/class-custom-image-header.php */
+		do_action( 'wp_create_file_in_uploads', $file, $id ); // For replication.
+		$this-&gt;updated = true;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/image.php:</span> <a href="../../functions/wp_generate_attachment_metadata">wp_generate_attachment_metadata()</a> </td> <td class="related-desc"> <p>Generate attachment meta data and create image sub-sizes for images.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/file.php:</span> <a href="../../functions/wp_handle_upload">wp_handle_upload()</a> </td> <td class="related-desc"> <p>Wrapper for <a href="../../functions/_wp_handle_upload">_wp_handle_upload()</a>.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="../../hooks/wp_create_file_in_uploads">wp_create_file_in_uploads</a> </td> <td class="related-desc"> <p>Fires after the header image is set or an error is returned.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="../../functions/set_theme_mod">set_theme_mod()</a> </td> <td class="related-desc"> <p>Updates theme modification value for the active theme.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/wp_basename">wp_basename()</a> </td> <td class="related-desc"> <p>i18n-friendly version of basename().</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_url_raw">esc_url_raw()</a> </td> <td class="related-desc"> <p>Performs <a href="../../functions/esc_url">esc_url()</a> for database or redirect usage.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../../functions/check_admin_referer">check_admin_referer()</a> </td> <td class="related-desc"> <p>Ensures intent by verifying that a user was referred from another admin page with the correct security nonce.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_check_filetype_and_ext">wp_check_filetype_and_ext()</a> </td> <td class="related-desc"> <p>Attempt to determine the real file type of a file.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_die">wp_die()</a> </td> <td class="related-desc"> <p>Kills WordPress execution and displays HTML page with an error message.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../../functions/get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="../../functions/wp_get_attachment_image_src">wp_get_attachment_image_src()</a> </td> <td class="related-desc"> <p>Retrieves an image to represent an attachment.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/wp_insert_attachment">wp_insert_attachment()</a> </td> <td class="related-desc"> <p>Insert an attachment.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/wp_update_attachment_metadata">wp_update_attachment_metadata()</a> </td> <td class="related-desc"> <p>Updates metadata for an attachment.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/wp_match_mime_types">wp_match_mime_types()</a> </td> <td class="related-desc"> <p>Check a MIME-Type against a list.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/update_post_meta">update_post_meta()</a> </td> <td class="related-desc"> <p>Updates a post meta field based on the given post ID.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.0.0/" alt="WordPress 3.0.0">3.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/custom_background/handle_upload" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/custom_background/handle_upload</a>
+  </p>
+</div>

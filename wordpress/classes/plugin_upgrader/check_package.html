@@ -1,0 +1,63 @@
+<h1>Plugin_Upgrader::check_package( string $source )</h1>  <section> <p>Checks that the source package contains a valid plugin.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Hooked to the <a href="../../hooks/upgrader_source_selection">‘upgrader_source_selection’</a> filter by <a href="install">Plugin_Upgrader::install()</a>.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$source</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The path to the downloaded package source.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string|<a href="../wp_error">WP_Error</a>)</span> The source as passed, or a <a href="../wp_error">WP_Error</a> object on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-plugin-upgrader.php/">wp-admin/includes/class-plugin-upgrader.php</a> </p> <pre data-language="php">public function check_package( $source ) {
+		global $wp_filesystem, $wp_version;
+
+		$this-&gt;new_plugin_data = array();
+
+		if ( is_wp_error( $source ) ) {
+			return $source;
+		}
+
+		$working_directory = str_replace( $wp_filesystem-&gt;wp_content_dir(), trailingslashit( WP_CONTENT_DIR ), $source );
+		if ( ! is_dir( $working_directory ) ) { // Sanity check, if the above fails, let's not prevent installation.
+			return $source;
+		}
+
+		// Check that the folder contains at least 1 valid plugin.
+		$files = glob( $working_directory . '*.php' );
+		if ( $files ) {
+			foreach ( $files as $file ) {
+				$info = get_plugin_data( $file, false, false );
+				if ( ! empty( $info['Name'] ) ) {
+					$this-&gt;new_plugin_data = $info;
+					break;
+				}
+			}
+		}
+
+		if ( empty( $this-&gt;new_plugin_data ) ) {
+			return new WP_Error( 'incompatible_archive_no_plugins', $this-&gt;strings['incompatible_archive'], __( 'No valid plugins were found.' ) );
+		}
+
+		$requires_php = isset( $info['RequiresPHP'] ) ? $info['RequiresPHP'] : null;
+		$requires_wp  = isset( $info['RequiresWP'] ) ? $info['RequiresWP'] : null;
+
+		if ( ! is_php_version_compatible( $requires_php ) ) {
+			$error = sprintf(
+				/* translators: 1: Current PHP version, 2: Version required by the uploaded plugin. */
+				__( 'The PHP version on your server is %1$s, however the uploaded plugin requires %2$s.' ),
+				phpversion(),
+				$requires_php
+			);
+
+			return new WP_Error( 'incompatible_php_required_version', $this-&gt;strings['incompatible_archive'], $error );
+		}
+
+		if ( ! is_wp_version_compatible( $requires_wp ) ) {
+			$error = sprintf(
+				/* translators: 1: Current WordPress version, 2: Version required by the uploaded plugin. */
+				__( 'Your WordPress version is %1$s, however the uploaded plugin requires %2$s.' ),
+				$wp_version,
+				$requires_wp
+			);
+
+			return new WP_Error( 'incompatible_wp_required_version', $this-&gt;strings['incompatible_archive'], $error );
+		}
+
+		return $source;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/is_php_version_compatible">is_php_version_compatible()</a> </td> <td class="related-desc"> <p>Checks compatibility with the current PHP version.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/is_wp_version_compatible">is_wp_version_compatible()</a> </td> <td class="related-desc"> <p>Checks compatibility with the current WordPress version.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/plugin.php:</span> <a href="../../functions/get_plugin_data">get_plugin_data()</a> </td> <td class="related-desc"> <p>Parses the plugin contents to retrieve plugin’s metadata.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/trailingslashit">trailingslashit()</a> </td> <td class="related-desc"> <p>Appends a trailing slash.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.3.0/" alt="WordPress 3.3.0">3.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/plugin_upgrader/check_package" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/plugin_upgrader/check_package</a>
+  </p>
+</div>

@@ -1,0 +1,62 @@
+<h1>wpdb::tables( string $scope = 'all', bool $prefix = true, int $blog_id )</h1>  <section> <p>Returns an array of WordPress tables.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Also allows for the <code>CUSTOM_USER_TABLE</code> and <code>CUSTOM_USER_META_TABLE</code> to override the WordPress users and usermeta tables that would otherwise be determined by the prefix.</p> <p>The <code>$scope</code> argument can take one of the following:</p> <ul> <li>‘all’ – returns ‘all’ and ‘global’ tables. No old tables are returned.</li> <li>‘blog’ – returns the blog-level tables for the queried blog.</li> <li>‘global’ – returns the global tables for the installation, returning multisite tables only on multisite.</li> <li>‘ms_global’ – returns the multisite global tables, regardless if current installation is multisite.</li> <li>‘old’ – returns tables which are deprecated.</li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$scope</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> Possible values include 'all', 'global', 'ms_global', 'blog', or 'old' tables. </span> </p> <p class="default">Default value: 'all'</p> </dd> <dt>$prefix</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> Whether to include table prefixes. If blog prefix is requested, then the custom users and usermeta tables will be mapped. </span> </p> <p class="default">Default value: true</p> </dd> <dt>$blog_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description"> The blog_id to prefix. Used only when prefix is requested. Defaults to <code>wpdb::$blogid</code>.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string[])</span> Table names. When a prefix is requested, the key is the unprefixed table name.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/wp-db.php/">wp-includes/wp-db.php</a> </p> <pre data-language="php">public function tables( $scope = 'all', $prefix = true, $blog_id = 0 ) {
+		switch ( $scope ) {
+			case 'all':
+				$tables = array_merge( $this-&gt;global_tables, $this-&gt;tables );
+				if ( is_multisite() ) {
+					$tables = array_merge( $tables, $this-&gt;ms_global_tables );
+				}
+				break;
+			case 'blog':
+				$tables = $this-&gt;tables;
+				break;
+			case 'global':
+				$tables = $this-&gt;global_tables;
+				if ( is_multisite() ) {
+					$tables = array_merge( $tables, $this-&gt;ms_global_tables );
+				}
+				break;
+			case 'ms_global':
+				$tables = $this-&gt;ms_global_tables;
+				break;
+			case 'old':
+				$tables = $this-&gt;old_tables;
+				break;
+			default:
+				return array();
+		}
+
+		if ( $prefix ) {
+			if ( ! $blog_id ) {
+				$blog_id = $this-&gt;blogid;
+			}
+			$blog_prefix   = $this-&gt;get_blog_prefix( $blog_id );
+			$base_prefix   = $this-&gt;base_prefix;
+			$global_tables = array_merge( $this-&gt;global_tables, $this-&gt;ms_global_tables );
+			foreach ( $tables as $k =&gt; $table ) {
+				if ( in_array( $table, $global_tables, true ) ) {
+					$tables[ $table ] = $base_prefix . $table;
+				} else {
+					$tables[ $table ] = $blog_prefix . $table;
+				}
+				unset( $tables[ $k ] );
+			}
+
+			if ( isset( $tables['users'] ) &amp;&amp; defined( 'CUSTOM_USER_TABLE' ) ) {
+				$tables['users'] = CUSTOM_USER_TABLE;
+			}
+
+			if ( isset( $tables['usermeta'] ) &amp;&amp; defined( 'CUSTOM_USER_META_TABLE' ) ) {
+				$tables['usermeta'] = CUSTOM_USER_META_TABLE;
+			}
+		}
+
+		return $tables;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_multisite">is_multisite()</a> </td> <td class="related-desc"> <p>If Multisite is enabled.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="get_blog_prefix">wpdb::get_blog_prefix()</a> </td> <td class="related-desc"> <p>Gets blog prefix.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/ms-site.php:</span> <a href="../../functions/wp_uninitialize_site">wp_uninitialize_site()</a> </td> <td class="related-desc"> <p>Runs the uninitialization routine for a given site.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/upgrade.php:</span> <a href="../../functions/upgrade_network">upgrade_network()</a> </td> <td class="related-desc"> <p>Executes network-level upgrade routines.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/upgrade.php:</span> <a href="../../functions/dbdelta">dbDelta()</a> </td> <td class="related-desc"> <p>Modifies the database based on specified SQL statements.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/is_blog_installed">is_blog_installed()</a> </td> <td class="related-desc"> <p>Determines whether WordPress is already installed.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-load.php:</span> <a href="../../functions/ms_not_installed">ms_not_installed()</a> </td> <td class="related-desc"> <p>Displays a failure message.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="set_prefix">wpdb::set_prefix()</a> </td> <td class="related-desc"> <p>Sets the table prefix for the WordPress tables.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="set_blog_id">wpdb::set_blog_id()</a> </td> <td class="related-desc"> <p>Sets blog ID.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.0.0/" alt="WordPress 3.0.0">3.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wpdb/tables" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wpdb/tables</a>
+  </p>
+</div>

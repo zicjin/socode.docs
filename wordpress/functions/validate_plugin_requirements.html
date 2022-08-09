@@ -1,0 +1,70 @@
+<h1>validate_plugin_requirements( string $plugin )</h1>  <section> <p>Validates the plugin requirements for WordPress version and PHP version.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Uses the information from <code>Requires at least</code> and <code>Requires PHP</code> headers defined in the plugin’s main PHP file.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$plugin</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Path to the plugin file relative to the plugins directory.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(true|<a href="../classes/wp_error">WP_Error</a>)</span> True if requirements are met, <a href="../classes/wp_error">WP_Error</a> on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/plugin.php/">wp-admin/includes/plugin.php</a> </p> <pre data-language="php">function validate_plugin_requirements( $plugin ) {
+	$plugin_headers = get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin );
+
+	$requirements = array(
+		'requires'     =&gt; ! empty( $plugin_headers['RequiresWP'] ) ? $plugin_headers['RequiresWP'] : '',
+		'requires_php' =&gt; ! empty( $plugin_headers['RequiresPHP'] ) ? $plugin_headers['RequiresPHP'] : '',
+	);
+
+	$compatible_wp  = is_wp_version_compatible( $requirements['requires'] );
+	$compatible_php = is_php_version_compatible( $requirements['requires_php'] );
+
+	$php_update_message = '&lt;/p&gt;&lt;p&gt;' . sprintf(
+		/* translators: %s: URL to Update PHP page. */
+		__( '&lt;a href="%s"&gt;Learn more about updating PHP&lt;/a&gt;.' ),
+		esc_url( wp_get_update_php_url() )
+	);
+
+	$annotation = wp_get_update_php_annotation();
+
+	if ( $annotation ) {
+		$php_update_message .= '&lt;/p&gt;&lt;p&gt;&lt;em&gt;' . $annotation . '&lt;/em&gt;';
+	}
+
+	if ( ! $compatible_wp &amp;&amp; ! $compatible_php ) {
+		return new WP_Error(
+			'plugin_wp_php_incompatible',
+			'&lt;p&gt;' . sprintf(
+				/* translators: 1: Current WordPress version, 2: Current PHP version, 3: Plugin name, 4: Required WordPress version, 5: Required PHP version. */
+				_x( '&lt;strong&gt;Error:&lt;/strong&gt; Current versions of WordPress (%1$s) and PHP (%2$s) do not meet minimum requirements for %3$s. The plugin requires WordPress %4$s and PHP %5$s.', 'plugin' ),
+				get_bloginfo( 'version' ),
+				phpversion(),
+				$plugin_headers['Name'],
+				$requirements['requires'],
+				$requirements['requires_php']
+			) . $php_update_message . '&lt;/p&gt;'
+		);
+	} elseif ( ! $compatible_php ) {
+		return new WP_Error(
+			'plugin_php_incompatible',
+			'&lt;p&gt;' . sprintf(
+				/* translators: 1: Current PHP version, 2: Plugin name, 3: Required PHP version. */
+				_x( '&lt;strong&gt;Error:&lt;/strong&gt; Current PHP version (%1$s) does not meet minimum requirements for %2$s. The plugin requires PHP %3$s.', 'plugin' ),
+				phpversion(),
+				$plugin_headers['Name'],
+				$requirements['requires_php']
+			) . $php_update_message . '&lt;/p&gt;'
+		);
+	} elseif ( ! $compatible_wp ) {
+		return new WP_Error(
+			'plugin_wp_incompatible',
+			'&lt;p&gt;' . sprintf(
+				/* translators: 1: Current WordPress version, 2: Plugin name, 3: Required WordPress version. */
+				_x( '&lt;strong&gt;Error:&lt;/strong&gt; Current WordPress version (%1$s) does not meet minimum requirements for %2$s. The plugin requires WordPress %3$s.', 'plugin' ),
+				get_bloginfo( 'version' ),
+				$plugin_headers['Name'],
+				$requirements['requires']
+			) . '&lt;/p&gt;'
+		);
+	}
+
+	return true;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/functions.php:</span> <a href="is_wp_version_compatible">is_wp_version_compatible()</a> </td> <td class="related-desc"> <p>Checks compatibility with the current WordPress version.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="is_php_version_compatible">is_php_version_compatible()</a> </td> <td class="related-desc"> <p>Checks compatibility with the current PHP version.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_get_update_php_annotation">wp_get_update_php_annotation()</a> </td> <td class="related-desc"> <p>Returns the default annotation for the web hosting altering the “Update PHP” page URL.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_get_update_php_url">wp_get_update_php_url()</a> </td> <td class="related-desc"> <p>Gets the URL to learn more about updating the PHP version the site is running on.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/plugin.php:</span> <a href="get_plugin_data">get_plugin_data()</a> </td> <td class="related-desc"> <p>Parses the plugin contents to retrieve plugin’s metadata.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="_x">_x()</a> </td> <td class="related-desc"> <p>Retrieve translated string with gettext context.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="get_bloginfo">get_bloginfo()</a> </td> <td class="related-desc"> <p>Retrieves information about the current site.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../classes/wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/plugin.php:</span> <a href="activate_plugin">activate_plugin()</a> </td> <td class="related-desc"> <p>Attempts activation of plugin in a “sandbox” and redirects on success.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.8.0/" alt="WordPress 5.8.0">5.8.0</a></td> <td><span class="since-description">Removed support for using <code>readme.txt</code> as a fallback.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.3.0/" alt="WordPress 5.3.0">5.3.0</a></td> <td><span class="since-description">Added support for reading the headers from the plugin's main PHP file, with <code>readme.txt</code> as a fallback.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.2.0/" alt="WordPress 5.2.0">5.2.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/validate_plugin_requirements" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/validate_plugin_requirements</a>
+  </p>
+</div>

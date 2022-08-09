@@ -1,0 +1,74 @@
+<h1>wp_xmlrpc_server::blogger_editPost( array $args )</h1>  <section> <p>Edit a post.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Method arguments. Note: arguments must be ordered as documented. <ul class="param-hash">
+<li>
+<b>'blog_id'</b><br><i><span class="type">(int)</span></i> (unused)</li> <li>
+<b>'post_ID'</b><br><i><span class="type">(int)</span></i> </li> <li>
+<b>'username'</b><br><i><span class="type">(string)</span></i> </li> <li>
+<b>'password'</b><br><i><span class="type">(string)</span></i> </li> <li>
+<b>'content'</b><br><i><span class="type">(string)</span></i> </li> <li>
+<b>'publish'</b><br><i><span class="type">(bool)</span></i> </li> </ul> </span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(true|<a href="../ixr_error">IXR_Error</a>)</span> true when done.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-xmlrpc-server.php/">wp-includes/class-wp-xmlrpc-server.php</a> </p> <pre data-language="php">public function blogger_editPost( $args ) {
+
+		$this-&gt;escape( $args );
+
+		$post_ID  = (int) $args[1];
+		$username = $args[2];
+		$password = $args[3];
+		$content  = $args[4];
+		$publish  = $args[5];
+
+		$user = $this-&gt;login( $username, $password );
+		if ( ! $user ) {
+			return $this-&gt;error;
+		}
+
+		/** This action is documented in wp-includes/class-wp-xmlrpc-server.php */
+		do_action( 'xmlrpc_call', 'blogger.editPost', $args, $this );
+
+		$actual_post = get_post( $post_ID, ARRAY_A );
+
+		if ( ! $actual_post || 'post' !== $actual_post['post_type'] ) {
+			return new IXR_Error( 404, __( 'Sorry, no such post.' ) );
+		}
+
+		$this-&gt;escape( $actual_post );
+
+		if ( ! current_user_can( 'edit_post', $post_ID ) ) {
+			return new IXR_Error( 401, __( 'Sorry, you are not allowed to edit this post.' ) );
+		}
+		if ( 'publish' === $actual_post['post_status'] &amp;&amp; ! current_user_can( 'publish_posts' ) ) {
+			return new IXR_Error( 401, __( 'Sorry, you are not allowed to publish this post.' ) );
+		}
+
+		$postdata                  = array();
+		$postdata['ID']            = $actual_post['ID'];
+		$postdata['post_content']  = xmlrpc_removepostdata( $content );
+		$postdata['post_title']    = xmlrpc_getposttitle( $content );
+		$postdata['post_category'] = xmlrpc_getpostcategory( $content );
+		$postdata['post_status']   = $actual_post['post_status'];
+		$postdata['post_excerpt']  = $actual_post['post_excerpt'];
+		$postdata['post_status']   = $publish ? 'publish' : 'draft';
+
+		$result = wp_update_post( $postdata );
+
+		if ( ! $result ) {
+			return new IXR_Error( 500, __( 'Sorry, the post could not be updated.' ) );
+		}
+		$this-&gt;attach_uploads( $actual_post['ID'], $postdata['post_content'] );
+
+		/**
+		 * Fires after a post has been successfully updated via the XML-RPC Blogger API.
+		 *
+		 * @since 3.4.0
+		 *
+		 * @param int   $post_ID ID of the updated post.
+		 * @param array $args    An array of arguments for the post to edit.
+		 */
+		do_action( 'xmlrpc_call_success_blogger_editPost', $post_ID, $args ); // phpcs:ignore WordPress.NamingConventions.ValidHookName.NotLowercase
+
+		return true;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/IXR/class-IXR-error.php:</span> <a href="../ixr_error/__construct">IXR_Error::__construct()</a> </td> <td class="related-desc"> <p>PHP5 constructor.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="../../functions/current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/xmlrpc_removepostdata">xmlrpc_removepostdata()</a> </td> <td class="related-desc"> <p>XMLRPC XML content without title and category elements.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/xmlrpc_getposttitle">xmlrpc_getposttitle()</a> </td> <td class="related-desc"> <p>Retrieve post title from XMLRPC XML.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/xmlrpc_getpostcategory">xmlrpc_getpostcategory()</a> </td> <td class="related-desc"> <p>Retrieve the post category or categories from XMLRPC XML.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/wp_update_post">wp_update_post()</a> </td> <td class="related-desc"> <p>Update a post with new post data.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="attach_uploads">wp_xmlrpc_server::attach_uploads()</a> </td> <td class="related-desc"> <p>Attach upload to a post.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="../../hooks/xmlrpc_call_success_blogger_editpost">xmlrpc_call_success_blogger_editPost</a> </td> <td class="related-desc"> <p>Fires after a post has been successfully updated via the XML-RPC Blogger API.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="../../hooks/xmlrpc_call">xmlrpc_call</a> </td> <td class="related-desc"> <p>Fires after the XML-RPC user has been authenticated but before the rest of the method logic begins.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="escape">wp_xmlrpc_server::escape()</a> </td> <td class="related-desc"> <p>Escape string or array of strings for database.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="login">wp_xmlrpc_server::login()</a> </td> <td class="related-desc"> <p>Log user in.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/1.5.0/" alt="WordPress 1.5.0">1.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_xmlrpc_server/blogger_editpost" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_xmlrpc_server/blogger_editpost</a>
+  </p>
+</div>

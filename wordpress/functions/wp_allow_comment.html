@@ -1,0 +1,182 @@
+<h1>wp_allow_comment( array $commentdata, bool $wp_error = false )</h1>  <section> <p>Validates whether this comment is allowed to be made.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$commentdata</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Contains information on the comment.</span> </p> </dd> <dt>$wp_error</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description">When true, a disallowed comment will result in the function returning a <a href="../classes/wp_error">WP_Error</a> object, rather than executing <a href="wp_die">wp_die()</a>. </span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(int|string|<a href="../classes/wp_error">WP_Error</a>)</span> Allowed comments return the approval status (0|1|'spam'|'trash'). If <code>$wp_error</code> is true, disallowed comments return a <a href="../classes/wp_error">WP_Error</a>.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/comment.php/">wp-includes/comment.php</a> </p> <pre data-language="php">function wp_allow_comment( $commentdata, $wp_error = false ) {
+	global $wpdb;
+
+	// Simple duplicate check.
+	// expected_slashed ($comment_post_ID, $comment_author, $comment_author_email, $comment_content)
+	$dupe = $wpdb-&gt;prepare(
+		"SELECT comment_ID FROM $wpdb-&gt;comments WHERE comment_post_ID = %d AND comment_parent = %s AND comment_approved != 'trash' AND ( comment_author = %s ",
+		wp_unslash( $commentdata['comment_post_ID'] ),
+		wp_unslash( $commentdata['comment_parent'] ),
+		wp_unslash( $commentdata['comment_author'] )
+	);
+	if ( $commentdata['comment_author_email'] ) {
+		$dupe .= $wpdb-&gt;prepare(
+			'AND comment_author_email = %s ',
+			wp_unslash( $commentdata['comment_author_email'] )
+		);
+	}
+	$dupe .= $wpdb-&gt;prepare(
+		') AND comment_content = %s LIMIT 1',
+		wp_unslash( $commentdata['comment_content'] )
+	);
+
+	$dupe_id = $wpdb-&gt;get_var( $dupe );
+
+	/**
+	 * Filters the ID, if any, of the duplicate comment found when creating a new comment.
+	 *
+	 * Return an empty value from this filter to allow what WP considers a duplicate comment.
+	 *
+	 * @since 4.4.0
+	 *
+	 * @param int   $dupe_id     ID of the comment identified as a duplicate.
+	 * @param array $commentdata Data for the comment being created.
+	 */
+	$dupe_id = apply_filters( 'duplicate_comment_id', $dupe_id, $commentdata );
+
+	if ( $dupe_id ) {
+		/**
+		 * Fires immediately after a duplicate comment is detected.
+		 *
+		 * @since 3.0.0
+		 *
+		 * @param array $commentdata Comment data.
+		 */
+		do_action( 'comment_duplicate_trigger', $commentdata );
+
+		/**
+		 * Filters duplicate comment error message.
+		 *
+		 * @since 5.2.0
+		 *
+		 * @param string $comment_duplicate_message Duplicate comment error message.
+		 */
+		$comment_duplicate_message = apply_filters( 'comment_duplicate_message', __( 'Duplicate comment detected; it looks as though you&amp;#8217;ve already said that!' ) );
+
+		if ( $wp_error ) {
+			return new WP_Error( 'comment_duplicate', $comment_duplicate_message, 409 );
+		} else {
+			if ( wp_doing_ajax() ) {
+				die( $comment_duplicate_message );
+			}
+
+			wp_die( $comment_duplicate_message, 409 );
+		}
+	}
+
+	/**
+	 * Fires immediately before a comment is marked approved.
+	 *
+	 * Allows checking for comment flooding.
+	 *
+	 * @since 2.3.0
+	 * @since 4.7.0 The `$avoid_die` parameter was added.
+	 * @since 5.5.0 The `$avoid_die` parameter was renamed to `$wp_error`.
+	 *
+	 * @param string $comment_author_IP    Comment author's IP address.
+	 * @param string $comment_author_email Comment author's email.
+	 * @param string $comment_date_gmt     GMT date the comment was posted.
+	 * @param bool   $wp_error             Whether to return a WP_Error object instead of executing
+	 *                                     wp_die() or die() if a comment flood is occurring.
+	 */
+	do_action(
+		'check_comment_flood',
+		$commentdata['comment_author_IP'],
+		$commentdata['comment_author_email'],
+		$commentdata['comment_date_gmt'],
+		$wp_error
+	);
+
+	/**
+	 * Filters whether a comment is part of a comment flood.
+	 *
+	 * The default check is wp_check_comment_flood(). See check_comment_flood_db().
+	 *
+	 * @since 4.7.0
+	 * @since 5.5.0 The `$avoid_die` parameter was renamed to `$wp_error`.
+	 *
+	 * @param bool   $is_flood             Is a comment flooding occurring? Default false.
+	 * @param string $comment_author_IP    Comment author's IP address.
+	 * @param string $comment_author_email Comment author's email.
+	 * @param string $comment_date_gmt     GMT date the comment was posted.
+	 * @param bool   $wp_error             Whether to return a WP_Error object instead of executing
+	 *                                     wp_die() or die() if a comment flood is occurring.
+	 */
+	$is_flood = apply_filters(
+		'wp_is_comment_flood',
+		false,
+		$commentdata['comment_author_IP'],
+		$commentdata['comment_author_email'],
+		$commentdata['comment_date_gmt'],
+		$wp_error
+	);
+
+	if ( $is_flood ) {
+		/** This filter is documented in wp-includes/comment-template.php */
+		$comment_flood_message = apply_filters( 'comment_flood_message', __( 'You are posting comments too quickly. Slow down.' ) );
+
+		return new WP_Error( 'comment_flood', $comment_flood_message, 429 );
+	}
+
+	if ( ! empty( $commentdata['user_id'] ) ) {
+		$user        = get_userdata( $commentdata['user_id'] );
+		$post_author = $wpdb-&gt;get_var(
+			$wpdb-&gt;prepare(
+				"SELECT post_author FROM $wpdb-&gt;posts WHERE ID = %d LIMIT 1",
+				$commentdata['comment_post_ID']
+			)
+		);
+	}
+
+	if ( isset( $user ) &amp;&amp; ( $commentdata['user_id'] == $post_author || $user-&gt;has_cap( 'moderate_comments' ) ) ) {
+		// The author and the admins get respect.
+		$approved = 1;
+	} else {
+		// Everyone else's comments will be checked.
+		if ( check_comment(
+			$commentdata['comment_author'],
+			$commentdata['comment_author_email'],
+			$commentdata['comment_author_url'],
+			$commentdata['comment_content'],
+			$commentdata['comment_author_IP'],
+			$commentdata['comment_agent'],
+			$commentdata['comment_type']
+		) ) {
+			$approved = 1;
+		} else {
+			$approved = 0;
+		}
+
+		if ( wp_check_comment_disallowed_list(
+			$commentdata['comment_author'],
+			$commentdata['comment_author_email'],
+			$commentdata['comment_author_url'],
+			$commentdata['comment_content'],
+			$commentdata['comment_author_IP'],
+			$commentdata['comment_agent']
+		) ) {
+			$approved = EMPTY_TRASH_DAYS ? 'trash' : 'spam';
+		}
+	}
+
+	/**
+	 * Filters a comment's approval status before it is set.
+	 *
+	 * @since 2.1.0
+	 * @since 4.9.0 Returning a WP_Error value from the filter will short-circuit comment insertion
+	 *              and allow skipping further processing.
+	 *
+	 * @param int|string|WP_Error $approved    The approval status. Accepts 1, 0, 'spam', 'trash',
+	 *                                         or WP_Error.
+	 * @param array               $commentdata Comment data.
+	 */
+	return apply_filters( 'pre_comment_approved', $approved, $commentdata );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/comment.php:</span> <a href="wp_check_comment_disallowed_list">wp_check_comment_disallowed_list()</a> </td> <td class="related-desc"> <p>Checks if a comment contains disallowed characters or words.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/comment_duplicate_message">comment_duplicate_message</a> </td> <td class="related-desc"> <p>Filters duplicate comment error message.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/comment_flood_message">comment_flood_message</a> </td> <td class="related-desc"> <p>Filters the comment flood error message.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_doing_ajax">wp_doing_ajax()</a> </td> <td class="related-desc"> <p>Determines whether the current request is a WordPress Ajax request.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/wp_is_comment_flood">wp_is_comment_flood</a> </td> <td class="related-desc"> <p>Filters whether a comment is part of a comment flood.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/duplicate_comment_id">duplicate_comment_id</a> </td> <td class="related-desc"> <p>Filters the ID, if any, of the duplicate comment found when creating a new comment.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_unslash">wp_unslash()</a> </td> <td class="related-desc"> <p>Removes slashes from a string or recursively removes slashes from strings within an array.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="get_userdata">get_userdata()</a> </td> <td class="related-desc"> <p>Retrieve user info by user ID.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_die">wp_die()</a> </td> <td class="related-desc"> <p>Kills WordPress execution and displays HTML page with an error message.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/get_var">wpdb::get_var()</a> </td> <td class="related-desc"> <p>Retrieves one variable from the database.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/prepare">wpdb::prepare()</a> </td> <td class="related-desc"> <p>Prepares a SQL query for safe execution.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/comment_duplicate_trigger">comment_duplicate_trigger</a> </td> <td class="related-desc"> <p>Fires immediately after a duplicate comment is detected.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/check_comment_flood">check_comment_flood</a> </td> <td class="related-desc"> <p>Fires immediately before a comment is marked approved.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/pre_comment_approved">pre_comment_approved</a> </td> <td class="related-desc"> <p>Filters a comment’s approval status before it is set.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="check_comment">check_comment()</a> </td> <td class="related-desc"> <p>Checks whether a comment passes internal checks to be allowed to add.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../classes/wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-comments-controller.php:</span> <a href="../classes/wp_rest_comments_controller/create_item">WP_REST_Comments_Controller::create_item()</a> </td> <td class="related-desc"> <p>Creates a comment.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="wp_new_comment">wp_new_comment()</a> </td> <td class="related-desc"> <p>Adds a new comment to the database.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.0/" alt="WordPress 5.5.0">5.5.0</a></td> <td><span class="since-description">The <code>$avoid_die</code> parameter was renamed to <code>$wp_error</code>.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.7.0/" alt="WordPress 4.7.0">4.7.0</a></td> <td><span class="since-description">The <code>$avoid_die</code> parameter was added, allowing the function to return a <a href="../classes/wp_error">WP_Error</a> object instead of dying.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.0.0/" alt="WordPress 2.0.0">2.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_allow_comment" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_allow_comment</a>
+  </p>
+</div>

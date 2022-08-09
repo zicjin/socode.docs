@@ -1,0 +1,312 @@
+<h1>WP_REST_Block_Types_Controller::get_item_schema()</h1>  <section> <p>Retrieves the block type’ schema, conforming to JSON Schema.</p> </section> <div class="content-toc">  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> Item schema data.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/rest-api/endpoints/class-wp-rest-block-types-controller.php/">wp-includes/rest-api/endpoints/class-wp-rest-block-types-controller.php</a> </p> <pre data-language="php">public function get_item_schema() {
+		if ( $this-&gt;schema ) {
+			return $this-&gt;add_additional_fields_schema( $this-&gt;schema );
+		}
+
+		// rest_validate_value_from_schema doesn't understand $refs, pull out reused definitions for readability.
+		$inner_blocks_definition = array(
+			'description' =&gt; __( 'The list of inner blocks used in the example.' ),
+			'type'        =&gt; 'array',
+			'items'       =&gt; array(
+				'type'       =&gt; 'object',
+				'properties' =&gt; array(
+					'name'        =&gt; array(
+						'description' =&gt; __( 'The name of the inner block.' ),
+						'type'        =&gt; 'string',
+					),
+					'attributes'  =&gt; array(
+						'description' =&gt; __( 'The attributes of the inner block.' ),
+						'type'        =&gt; 'object',
+					),
+					'innerBlocks' =&gt; array(
+						'description' =&gt; __( "A list of the inner block's own inner blocks. This is a recursive definition following the parent innerBlocks schema." ),
+						'type'        =&gt; 'array',
+					),
+				),
+			),
+		);
+
+		$example_definition = array(
+			'description' =&gt; __( 'Block example.' ),
+			'type'        =&gt; array( 'object', 'null' ),
+			'default'     =&gt; null,
+			'properties'  =&gt; array(
+				'attributes'  =&gt; array(
+					'description' =&gt; __( 'The attributes used in the example.' ),
+					'type'        =&gt; 'object',
+				),
+				'innerBlocks' =&gt; $inner_blocks_definition,
+			),
+			'context'     =&gt; array( 'embed', 'view', 'edit' ),
+			'readonly'    =&gt; true,
+		);
+
+		$keywords_definition = array(
+			'description' =&gt; __( 'Block keywords.' ),
+			'type'        =&gt; 'array',
+			'items'       =&gt; array(
+				'type' =&gt; 'string',
+			),
+			'default'     =&gt; array(),
+			'context'     =&gt; array( 'embed', 'view', 'edit' ),
+			'readonly'    =&gt; true,
+		);
+
+		$icon_definition = array(
+			'description' =&gt; __( 'Icon of block type.' ),
+			'type'        =&gt; array( 'string', 'null' ),
+			'default'     =&gt; null,
+			'context'     =&gt; array( 'embed', 'view', 'edit' ),
+			'readonly'    =&gt; true,
+		);
+
+		$category_definition = array(
+			'description' =&gt; __( 'Block category.' ),
+			'type'        =&gt; array( 'string', 'null' ),
+			'default'     =&gt; null,
+			'context'     =&gt; array( 'embed', 'view', 'edit' ),
+			'readonly'    =&gt; true,
+		);
+
+		$schema = array(
+			'$schema'    =&gt; 'http://json-schema.org/draft-04/schema#',
+			'title'      =&gt; 'block-type',
+			'type'       =&gt; 'object',
+			'properties' =&gt; array(
+				'api_version'      =&gt; array(
+					'description' =&gt; __( 'Version of block API.' ),
+					'type'        =&gt; 'integer',
+					'default'     =&gt; 1,
+					'context'     =&gt; array( 'embed', 'view', 'edit' ),
+					'readonly'    =&gt; true,
+				),
+				'title'            =&gt; array(
+					'description' =&gt; __( 'Title of block type.' ),
+					'type'        =&gt; 'string',
+					'default'     =&gt; '',
+					'context'     =&gt; array( 'embed', 'view', 'edit' ),
+					'readonly'    =&gt; true,
+				),
+				'name'             =&gt; array(
+					'description' =&gt; __( 'Unique name identifying the block type.' ),
+					'type'        =&gt; 'string',
+					'default'     =&gt; '',
+					'context'     =&gt; array( 'embed', 'view', 'edit' ),
+					'readonly'    =&gt; true,
+				),
+				'description'      =&gt; array(
+					'description' =&gt; __( 'Description of block type.' ),
+					'type'        =&gt; 'string',
+					'default'     =&gt; '',
+					'context'     =&gt; array( 'embed', 'view', 'edit' ),
+					'readonly'    =&gt; true,
+				),
+				'icon'             =&gt; $icon_definition,
+				'attributes'       =&gt; array(
+					'description'          =&gt; __( 'Block attributes.' ),
+					'type'                 =&gt; array( 'object', 'null' ),
+					'properties'           =&gt; array(),
+					'default'              =&gt; null,
+					'additionalProperties' =&gt; array(
+						'type' =&gt; 'object',
+					),
+					'context'              =&gt; array( 'embed', 'view', 'edit' ),
+					'readonly'             =&gt; true,
+				),
+				'provides_context' =&gt; array(
+					'description'          =&gt; __( 'Context provided by blocks of this type.' ),
+					'type'                 =&gt; 'object',
+					'properties'           =&gt; array(),
+					'additionalProperties' =&gt; array(
+						'type' =&gt; 'string',
+					),
+					'default'              =&gt; array(),
+					'context'              =&gt; array( 'embed', 'view', 'edit' ),
+					'readonly'             =&gt; true,
+				),
+				'uses_context'     =&gt; array(
+					'description' =&gt; __( 'Context values inherited by blocks of this type.' ),
+					'type'        =&gt; 'array',
+					'default'     =&gt; array(),
+					'items'       =&gt; array(
+						'type' =&gt; 'string',
+					),
+					'context'     =&gt; array( 'embed', 'view', 'edit' ),
+					'readonly'    =&gt; true,
+				),
+				'supports'         =&gt; array(
+					'description' =&gt; __( 'Block supports.' ),
+					'type'        =&gt; 'object',
+					'default'     =&gt; array(),
+					'properties'  =&gt; array(),
+					'context'     =&gt; array( 'embed', 'view', 'edit' ),
+					'readonly'    =&gt; true,
+				),
+				'category'         =&gt; $category_definition,
+				'is_dynamic'       =&gt; array(
+					'description' =&gt; __( 'Is the block dynamically rendered.' ),
+					'type'        =&gt; 'boolean',
+					'default'     =&gt; false,
+					'context'     =&gt; array( 'embed', 'view', 'edit' ),
+					'readonly'    =&gt; true,
+				),
+				'editor_script'    =&gt; array(
+					'description' =&gt; __( 'Editor script handle.' ),
+					'type'        =&gt; array( 'string', 'null' ),
+					'default'     =&gt; null,
+					'context'     =&gt; array( 'embed', 'view', 'edit' ),
+					'readonly'    =&gt; true,
+				),
+				'script'           =&gt; array(
+					'description' =&gt; __( 'Public facing and editor script handle.' ),
+					'type'        =&gt; array( 'string', 'null' ),
+					'default'     =&gt; null,
+					'context'     =&gt; array( 'embed', 'view', 'edit' ),
+					'readonly'    =&gt; true,
+				),
+				'view_script'      =&gt; array(
+					'description' =&gt; __( 'Public facing script handle.' ),
+					'type'        =&gt; array( 'string', 'null' ),
+					'default'     =&gt; null,
+					'context'     =&gt; array( 'embed', 'view', 'edit' ),
+					'readonly'    =&gt; true,
+				),
+				'editor_style'     =&gt; array(
+					'description' =&gt; __( 'Editor style handle.' ),
+					'type'        =&gt; array( 'string', 'null' ),
+					'default'     =&gt; null,
+					'context'     =&gt; array( 'embed', 'view', 'edit' ),
+					'readonly'    =&gt; true,
+				),
+				'style'            =&gt; array(
+					'description' =&gt; __( 'Public facing and editor style handle.' ),
+					'type'        =&gt; array( 'string', 'null' ),
+					'default'     =&gt; null,
+					'context'     =&gt; array( 'embed', 'view', 'edit' ),
+					'readonly'    =&gt; true,
+				),
+				'styles'           =&gt; array(
+					'description' =&gt; __( 'Block style variations.' ),
+					'type'        =&gt; 'array',
+					'items'       =&gt; array(
+						'type'       =&gt; 'object',
+						'properties' =&gt; array(
+							'name'         =&gt; array(
+								'description' =&gt; __( 'Unique name identifying the style.' ),
+								'type'        =&gt; 'string',
+								'required'    =&gt; true,
+							),
+							'label'        =&gt; array(
+								'description' =&gt; __( 'The human-readable label for the style.' ),
+								'type'        =&gt; 'string',
+							),
+							'inline_style' =&gt; array(
+								'description' =&gt; __( 'Inline CSS code that registers the CSS class required for the style.' ),
+								'type'        =&gt; 'string',
+							),
+							'style_handle' =&gt; array(
+								'description' =&gt; __( 'Contains the handle that defines the block style.' ),
+								'type'        =&gt; 'string',
+							),
+						),
+					),
+					'default'     =&gt; array(),
+					'context'     =&gt; array( 'embed', 'view', 'edit' ),
+					'readonly'    =&gt; true,
+				),
+				'variations'       =&gt; array(
+					'description' =&gt; __( 'Block variations.' ),
+					'type'        =&gt; 'array',
+					'items'       =&gt; array(
+						'type'       =&gt; 'object',
+						'properties' =&gt; array(
+							'name'        =&gt; array(
+								'description' =&gt; __( 'The unique and machine-readable name.' ),
+								'type'        =&gt; 'string',
+								'required'    =&gt; true,
+							),
+							'title'       =&gt; array(
+								'description' =&gt; __( 'A human-readable variation title.' ),
+								'type'        =&gt; 'string',
+								'required'    =&gt; true,
+							),
+							'description' =&gt; array(
+								'description' =&gt; __( 'A detailed variation description.' ),
+								'type'        =&gt; 'string',
+								'required'    =&gt; false,
+							),
+							'category'    =&gt; $category_definition,
+							'icon'        =&gt; $icon_definition,
+							'isDefault'   =&gt; array(
+								'description' =&gt; __( 'Indicates whether the current variation is the default one.' ),
+								'type'        =&gt; 'boolean',
+								'required'    =&gt; false,
+								'default'     =&gt; false,
+							),
+							'attributes'  =&gt; array(
+								'description' =&gt; __( 'The initial values for attributes.' ),
+								'type'        =&gt; 'object',
+							),
+							'innerBlocks' =&gt; $inner_blocks_definition,
+							'example'     =&gt; $example_definition,
+							'scope'       =&gt; array(
+								'description' =&gt; __( 'The list of scopes where the variation is applicable. When not provided, it assumes all available scopes.' ),
+								'type'        =&gt; array( 'array', 'null' ),
+								'default'     =&gt; null,
+								'items'       =&gt; array(
+									'type' =&gt; 'string',
+									'enum' =&gt; array( 'block', 'inserter', 'transform' ),
+								),
+								'readonly'    =&gt; true,
+							),
+							'keywords'    =&gt; $keywords_definition,
+						),
+					),
+					'readonly'    =&gt; true,
+					'context'     =&gt; array( 'embed', 'view', 'edit' ),
+					'default'     =&gt; null,
+				),
+				'textdomain'       =&gt; array(
+					'description' =&gt; __( 'Public text domain.' ),
+					'type'        =&gt; array( 'string', 'null' ),
+					'default'     =&gt; null,
+					'context'     =&gt; array( 'embed', 'view', 'edit' ),
+					'readonly'    =&gt; true,
+				),
+				'parent'           =&gt; array(
+					'description' =&gt; __( 'Parent blocks.' ),
+					'type'        =&gt; array( 'array', 'null' ),
+					'items'       =&gt; array(
+						'type' =&gt; 'string',
+					),
+					'default'     =&gt; null,
+					'context'     =&gt; array( 'embed', 'view', 'edit' ),
+					'readonly'    =&gt; true,
+				),
+				'ancestor'         =&gt; array(
+					'description' =&gt; __( 'Ancestor blocks.' ),
+					'type'        =&gt; array( 'array', 'null' ),
+					'items'       =&gt; array(
+						'type' =&gt; 'string',
+					),
+					'default'     =&gt; null,
+					'context'     =&gt; array( 'embed', 'view', 'edit' ),
+					'readonly'    =&gt; true,
+				),
+				'keywords'         =&gt; $keywords_definition,
+				'example'          =&gt; $example_definition,
+			),
+		);
+
+		$this-&gt;schema = $schema;
+
+		return $this-&gt;add_additional_fields_schema( $this-&gt;schema );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-block-types-controller.php:</span> <a href="prepare_item_for_response">WP_REST_Block_Types_Controller::prepare_item_for_response()</a> </td> <td class="related-desc"> <p>Prepares a block type object for serialization.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.0/" alt="WordPress 5.5.0">5.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_rest_block_types_controller/get_item_schema" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_rest_block_types_controller/get_item_schema</a>
+  </p>
+</div>

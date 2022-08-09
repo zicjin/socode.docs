@@ -1,0 +1,102 @@
+<section id="building-an-inventory"> <h1 id="get-started-inventory">Building an inventory</h1> <p>Inventories organize managed nodes in centralized files that provide Ansible with system information and network locations. Using an inventory file, Ansible can manage a large number of hosts with a single command. Inventories also help you use Ansible more efficiently by reducing the number of command-line options you need to specify. For example, inventories usually contain the SSH user so you do not need to include the <code>-u</code> flag when running Ansible commands.</p> <p>In the previous section, you added managed nodes directly to the <code>/etc/ansible/hosts</code> file. Now let’s create an inventory file that you can add to source control for flexibility, reuse, and for sharing with other users.</p> <div class="admonition note"> <p class="admonition-title">Note</p> <p>Inventory files can be in <code>INI</code> or <code>YAML</code> format. For demonstration purposes this section uses <code>YAML</code> format only.</p> </div> <p>Complete the following steps:</p> <ol class="arabic"> <li>Open a terminal window on your control node.</li> <li>Create a new inventory file named <code>inventory.yaml</code> in any directory and open it for editing.</li> <li>
+<p>Add a new group for your hosts then specify the IP address or fully qualified domain name (FQDN) of each managed node with the <code>ansible_host</code> field. The following example adds the IP addresses of three virtual machines in KVM:</p> <pre data-language="yaml">virtualmachines:
+  hosts:
+    vm01:
+      ansible_host: 192.0.2.50
+    vm02:
+      ansible_host: 192.0.2.51
+    vm03:
+      ansible_host: 192.0.2.52
+</pre> </li> <li>
+<p>Verify your inventory. If you created your inventory in a directory other than your home directory, specify the full path with the <code>-i</code> option.</p> <pre data-language="bash">ansible-inventory -i inventory.yaml --list
+</pre> </li> <li>
+<p>Ping the managed nodes in your inventory. In this example, the group name is <code>virtualmachines</code> which you can specify with the <code>ansible</code> command instead of <code>all</code>.</p> <pre data-language="bash">ansible virtualmachines -m ping -i inventory.yaml
+</pre> <pre data-language="text">vm03 | SUCCESS =&gt; {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+vm02 | SUCCESS =&gt; {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+vm01 | SUCCESS =&gt; {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+</pre> </li> </ol> <p>Congratulations! You have successfully built an inventory.</p> <section id="tips-for-building-inventories"> <h2>Tips for building inventories</h2> <ul> <li>Ensure that group names are meaningful and unique. Group names are also case sensitive.</li> <li>Avoid spaces, hyphens, and preceding numbers (use <code>floor_19</code>, not <code>19th_floor</code>) in group names.</li> <li>
+<p>Group hosts in your inventory logically according to their <strong>What</strong>, <strong>Where</strong>, and <strong>When</strong>.</p> <dl class="simple"> <dt>What</dt>
+<dd>
+<p>Group hosts according to the topology, for example: db, web, leaf, spine.</p> </dd> <dt>Where</dt>
+<dd>
+<p>Group hosts by geographic location, for example: datacenter, region, floor, building.</p> </dd> <dt>When</dt>
+<dd>
+<p>Group hosts by stage, for example: development, test, staging, production.</p> </dd> </dl> </li> </ul> <section id="use-metagroups"> <h3>Use metagroups</h3> <p>Create a metagroup that organizes multiple groups in your inventory with the following syntax:</p> <pre data-language="yaml">metagroupname:
+  children:
+</pre> <p>The following inventory illustrates a basic structure for a data center. This example inventory contains a <code>network</code> metagroup that includes all network devices and a <code>datacenter</code> metagroup that includes the <code>network</code> group and all webservers.</p> <pre data-language="yaml">leafs:
+  hosts:
+    leaf01:
+      ansible_host: 192.0.2.100
+    leaf02:
+      ansible_host: 192.0.2.110
+
+spines:
+  hosts:
+    spine01:
+      ansible_host: 192.0.2.120
+    spine02:
+      ansible_host: 192.0.2.130
+
+network:
+  children:
+    leafs:
+    spines:
+
+webservers:
+  hosts:
+    webserver01:
+      ansible_host: 192.0.2.140
+    webserver02:
+      ansible_host: 192.0.2.150
+
+datacenter:
+  children:
+    network:
+    webservers:
+</pre> </section> <section id="create-variables"> <h3>Create variables</h3> <p>Variables set values for managed nodes, such as the IP address, FQDN, operating system, and SSH user, so you do not need to pass them when running Ansible commands.</p> <p>Variables can apply to specific hosts.</p> <pre data-language="yaml">webservers:
+  hosts:
+    webserver01:
+      ansible_host: 192.0.2.140
+      http_port: 80
+    webserver02:
+      ansible_host: 192.0.2.150
+      http_port: 443
+</pre> <p>Variables can also apply to all hosts in a group.</p> <pre data-language="yaml">webservers:
+  hosts:
+    webserver01:
+      ansible_host: 192.0.2.140
+      http_port: 80
+    webserver02:
+      ansible_host: 192.0.2.150
+      http_port: 443
+  vars:
+    ansible_user: my_server_user
+</pre> <p>Now that you know how to build an inventory, continue by <a class="reference internal" href="get_started_playbook#get-started-playbook"><span class="std std-ref">learning how to create a playbook</span></a>.</p> <div class="admonition seealso"> <p class="admonition-title">See also</p> <dl class="simple"> <dt><a class="reference internal" href="../user_guide/intro_inventory#intro-inventory"><span class="std std-ref">How to build your inventory</span></a></dt>
+<dd>
+<p>Learn more about inventories in <code>YAML</code> or <code>INI</code> format.</p> </dd> <dt><a class="reference internal" href="../user_guide/intro_inventory#variables-in-inventory"><span class="std std-ref">Adding variables to inventory</span></a></dt>
+<dd>
+<p>Find out more about inventory variables and their syntax.</p> </dd> <dt><a class="reference internal" href="../user_guide/vault#vault"><span class="std std-ref">Encrypting content with Ansible Vault</span></a></dt>
+<dd>
+<p>Find out how to encrypt sensitive content in your inventory such as passwords and keys.</p> </dd> </dl> </div> </section> </section> </section><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://docs.ansible.com/ansible/latest/getting_started/get_started_inventory.html" class="_attribution-link" target="_blank">https://docs.ansible.com/ansible/latest/getting_started/get_started_inventory.html</a>
+  </p>
+</div>

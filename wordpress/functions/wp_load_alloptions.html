@@ -1,0 +1,53 @@
+<h1>wp_load_alloptions( bool $force_cache = false )</h1>  <section> <p>Loads and caches all autoloaded options, if available or all options.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$force_cache</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> Whether to force an update of the local cache from the persistent cache. </span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> List of all options.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/option.php/">wp-includes/option.php</a> </p> <pre data-language="php">function wp_load_alloptions( $force_cache = false ) {
+	global $wpdb;
+
+	if ( ! wp_installing() || ! is_multisite() ) {
+		$alloptions = wp_cache_get( 'alloptions', 'options', $force_cache );
+	} else {
+		$alloptions = false;
+	}
+
+	if ( ! $alloptions ) {
+		$suppress      = $wpdb-&gt;suppress_errors();
+		$alloptions_db = $wpdb-&gt;get_results( "SELECT option_name, option_value FROM $wpdb-&gt;options WHERE autoload = 'yes'" );
+		if ( ! $alloptions_db ) {
+			$alloptions_db = $wpdb-&gt;get_results( "SELECT option_name, option_value FROM $wpdb-&gt;options" );
+		}
+		$wpdb-&gt;suppress_errors( $suppress );
+
+		$alloptions = array();
+		foreach ( (array) $alloptions_db as $o ) {
+			$alloptions[ $o-&gt;option_name ] = $o-&gt;option_value;
+		}
+
+		if ( ! wp_installing() || ! is_multisite() ) {
+			/**
+			 * Filters all options before caching them.
+			 *
+			 * @since 4.9.0
+			 *
+			 * @param array $alloptions Array with all options.
+			 */
+			$alloptions = apply_filters( 'pre_cache_alloptions', $alloptions );
+
+			wp_cache_add( 'alloptions', $alloptions, 'options' );
+		}
+	}
+
+	/**
+	 * Filters all options after retrieving them.
+	 *
+	 * @since 4.9.0
+	 *
+	 * @param array $alloptions Array with all options.
+	 */
+	return apply_filters( 'alloptions', $alloptions );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/option.php:</span> <a href="../hooks/pre_cache_alloptions">pre_cache_alloptions</a> </td> <td class="related-desc"> <p>Filters all options before caching them.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../hooks/alloptions">alloptions</a> </td> <td class="related-desc"> <p>Filters all options after retrieving them.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_installing">wp_installing()</a> </td> <td class="related-desc"> <p>Check or set whether WordPress is in “installation” mode.</p> </td> </tr> <tr> <td> <span>wp-includes/cache.php:</span> <a href="wp_cache_get">wp_cache_get()</a> </td> <td class="related-desc"> <p>Retrieves the cache contents from the cache by key and group.</p> </td> </tr> <tr> <td> <span>wp-includes/cache.php:</span> <a href="wp_cache_add">wp_cache_add()</a> </td> <td class="related-desc"> <p>Adds data to the cache, if the cache key doesn’t already exist.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_multisite">is_multisite()</a> </td> <td class="related-desc"> <p>If Multisite is enabled.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/get_results">wpdb::get_results()</a> </td> <td class="related-desc"> <p>Retrieves an entire SQL result set from the database (i.e., many rows).</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/suppress_errors">wpdb::suppress_errors()</a> </td> <td class="related-desc"> <p>Enables or disables suppressing of database errors.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="_wp_specialchars">_wp_specialchars()</a> </td> <td class="related-desc"> <p>Converts a number of special characters into their HTML entities.</p> </td> </tr> <tr> <td> <span>wp-includes/deprecated.php:</span> <a href="get_alloptions">get_alloptions()</a> </td> <td class="related-desc"> <p>Retrieve all autoload options, or all options if no autoloaded ones exist.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="is_blog_installed">is_blog_installed()</a> </td> <td class="related-desc"> <p>Determines whether WordPress is already installed.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_transient">get_transient()</a> </td> <td class="related-desc"> <p>Retrieves the value of a transient.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="update_option">update_option()</a> </td> <td class="related-desc"> <p>Updates the value of an option that was already added.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="add_option">add_option()</a> </td> <td class="related-desc"> <p>Adds a new option.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="delete_option">delete_option()</a> </td> <td class="related-desc"> <p>Removes option by name. Prevents removal of protected WordPress options.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.3.1/" alt="WordPress 5.3.1">5.3.1</a></td> <td><span class="since-description">The <code>$force_cache</code> parameter was added.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.2.0/" alt="WordPress 2.2.0">2.2.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_load_alloptions" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_load_alloptions</a>
+  </p>
+</div>

@@ -1,0 +1,51 @@
+<h1>get_post_modified_time( string $format = 'U', bool $gmt = false, int|WP_Post $post = null, bool $translate = false )</h1>  <section> <p>Retrieve the time at which the post was last modified.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$format</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> Format to use for retrieving the time the post was modified. Accepts 'G', 'U', or PHP date format. </span> </p> <p class="default">Default value: 'U'</p> </dd> <dt>$gmt</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> Whether to retrieve the GMT time. </span> </p> <p class="default">Default value: false</p> </dd> <dt>$post</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>|<span class="WP_Post"><a href="../classes/wp_post">WP_Post</a></span>)</span> <span class="required">(Optional)</span> <span class="description"><a href="../classes/wp_post">WP_Post</a> object or ID. Default is global <code>$post</code> object.</span> </p> <p class="default">Default value: null</p> </dd> <dt>$translate</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description">Whether to translate the time string. </span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string|int|false)</span> Formatted date string or Unix timestamp if <code>$format</code> is 'U' or 'G'. False on failure.</p> </section>  <section> <h2 id="more-information">More Information</h2> <p>One level »lower« than <a href="get_the_modified_time">get_the_modified_time()</a>, but can take more arguments.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/general-template.php/">wp-includes/general-template.php</a> </p> <pre data-language="php">function get_post_modified_time( $format = 'U', $gmt = false, $post = null, $translate = false ) {
+	$post = get_post( $post );
+
+	if ( ! $post ) {
+		return false;
+	}
+
+	$source   = ( $gmt ) ? 'gmt' : 'local';
+	$datetime = get_post_datetime( $post, 'modified', $source );
+
+	if ( false === $datetime ) {
+		return false;
+	}
+
+	if ( 'U' === $format || 'G' === $format ) {
+		$time = $datetime-&gt;getTimestamp();
+
+		// Returns a sum of timestamp with timezone offset. Ideally should never be used.
+		if ( ! $gmt ) {
+			$time += $datetime-&gt;getOffset();
+		}
+	} elseif ( $translate ) {
+		$time = wp_date( $format, $datetime-&gt;getTimestamp(), $gmt ? new DateTimeZone( 'UTC' ) : null );
+	} else {
+		if ( $gmt ) {
+			$datetime = $datetime-&gt;setTimezone( new DateTimeZone( 'UTC' ) );
+		}
+
+		$time = $datetime-&gt;format( $format );
+	}
+
+	/**
+	 * Filters the localized time a post was last modified.
+	 *
+	 * @since 2.8.0
+	 *
+	 * @param string|int $time   Formatted date string or Unix timestamp if `$format` is 'U' or 'G'.
+	 * @param string     $format Format to use for retrieving the time the post was modified.
+	 *                           Accepts 'G', 'U', or PHP date format. Default 'U'.
+	 * @param bool       $gmt    Whether to retrieve the GMT time. Default false.
+	 */
+	return apply_filters( 'get_post_modified_time', $time, $format, $gmt );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_date">wp_date()</a> </td> <td class="related-desc"> <p>Retrieves the date, in localized format.</p> </td> </tr> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="get_post_datetime">get_post_datetime()</a> </td> <td class="related-desc"> <p>Retrieve post published or modified time as a <code>DateTimeImmutable</code> object instance.</p> </td> </tr> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="../hooks/get_post_modified_time">get_post_modified_time</a> </td> <td class="related-desc"> <p>Filters the localized time a post was last modified.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="get_the_modified_date">get_the_modified_date()</a> </td> <td class="related-desc"> <p>Retrieve the date on which the post was last modified.</p> </td> </tr> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="get_the_modified_time">get_the_modified_time()</a> </td> <td class="related-desc"> <p>Retrieve the time at which the post was last modified.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.0.0/" alt="WordPress 2.0.0">2.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/get_post_modified_time" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/get_post_modified_time</a>
+  </p>
+</div>

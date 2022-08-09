@@ -1,0 +1,42 @@
+<h1>WP_Upgrader::create_lock( string $lock_name, int $release_timeout = null )</h1>  <section> <p>Creates a lock using WordPress options.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$lock_name</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The name of this unique lock.</span> </p> </dd> <dt>$release_timeout</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description"> The duration in seconds to respect an existing lock. Default: 1 hour.</span> </p> <p class="default">Default value: null</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> False if a lock couldn't be created or if the lock is still valid. True otherwise.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-upgrader.php/">wp-admin/includes/class-wp-upgrader.php</a> </p> <pre data-language="php">public static function create_lock( $lock_name, $release_timeout = null ) {
+		global $wpdb;
+		if ( ! $release_timeout ) {
+			$release_timeout = HOUR_IN_SECONDS;
+		}
+		$lock_option = $lock_name . '.lock';
+
+		// Try to lock.
+		$lock_result = $wpdb-&gt;query( $wpdb-&gt;prepare( "INSERT IGNORE INTO `$wpdb-&gt;options` ( `option_name`, `option_value`, `autoload` ) VALUES (%s, %s, 'no') /* LOCK */", $lock_option, time() ) );
+
+		if ( ! $lock_result ) {
+			$lock_result = get_option( $lock_option );
+
+			// If a lock couldn't be created, and there isn't a lock, bail.
+			if ( ! $lock_result ) {
+				return false;
+			}
+
+			// Check to see if the lock is still valid. If it is, bail.
+			if ( $lock_result &gt; ( time() - $release_timeout ) ) {
+				return false;
+			}
+
+			// There must exist an expired lock, clear it and re-gain it.
+			WP_Upgrader::release_lock( $lock_name );
+
+			return WP_Upgrader::create_lock( $lock_name, $release_timeout );
+		}
+
+		// Update the lock, as by this point we've definitely got a lock, just need to fire the actions.
+		update_option( $lock_option, time() );
+
+		return true;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-upgrader.php:</span> <a href="release_lock">WP_Upgrader::release_lock()</a> </td> <td class="related-desc"> <p>Releases an upgrader lock.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-upgrader.php:</span> <a href="create_lock">WP_Upgrader::create_lock()</a> </td> <td class="related-desc"> <p>Creates a lock using WordPress options.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../../functions/update_option">update_option()</a> </td> <td class="related-desc"> <p>Updates the value of an option that was already added.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../../functions/get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../wpdb/query">wpdb::query()</a> </td> <td class="related-desc"> <p>Performs a database query, using current database connection.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../wpdb/prepare">wpdb::prepare()</a> </td> <td class="related-desc"> <p>Prepares a SQL query for safe execution.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-upgrader.php:</span> <a href="create_lock">WP_Upgrader::create_lock()</a> </td> <td class="related-desc"> <p>Creates a lock using WordPress options.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-automatic-updater.php:</span> <a href="../wp_automatic_updater/run">WP_Automatic_Updater::run()</a> </td> <td class="related-desc"> <p>Kicks off the background update process, looping through all pending updates.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-core-upgrader.php:</span> <a href="../core_upgrader/upgrade">Core_Upgrader::upgrade()</a> </td> <td class="related-desc"> <p>Upgrade WordPress core.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.5.0/" alt="WordPress 4.5.0">4.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_upgrader/create_lock" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_upgrader/create_lock</a>
+  </p>
+</div>

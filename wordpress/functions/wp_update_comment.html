@@ -1,0 +1,131 @@
+<h1>wp_update_comment( array $commentarr, bool $wp_error = false )</h1>  <section> <p>Updates an existing comment in the database.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Filters the comment and makes sure certain fields are valid before updating.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$commentarr</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Contains information on the comment.</span> </p> </dd> <dt>$wp_error</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> Whether to return a <a href="../classes/wp_error">WP_Error</a> on failure. </span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(int|false|<a href="../classes/wp_error">WP_Error</a>)</span> The value 1 if the comment was updated, 0 if not updated. False or a <a href="../classes/wp_error">WP_Error</a> object on failure.</p> </section>  <section> <h2 id="more-information">More Information</h2> <p>See <a href="get_comment">get_comment()</a> for a list of valid attributes for $commentarr</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/comment.php/">wp-includes/comment.php</a> </p> <pre data-language="php">function wp_update_comment( $commentarr, $wp_error = false ) {
+	global $wpdb;
+
+	// First, get all of the original fields.
+	$comment = get_comment( $commentarr['comment_ID'], ARRAY_A );
+	if ( empty( $comment ) ) {
+		if ( $wp_error ) {
+			return new WP_Error( 'invalid_comment_id', __( 'Invalid comment ID.' ) );
+		} else {
+			return false;
+		}
+	}
+
+	// Make sure that the comment post ID is valid (if specified).
+	if ( ! empty( $commentarr['comment_post_ID'] ) &amp;&amp; ! get_post( $commentarr['comment_post_ID'] ) ) {
+		if ( $wp_error ) {
+			return new WP_Error( 'invalid_post_id', __( 'Invalid post ID.' ) );
+		} else {
+			return false;
+		}
+	}
+
+	// Escape data pulled from DB.
+	$comment = wp_slash( $comment );
+
+	$old_status = $comment['comment_approved'];
+
+	// Merge old and new fields with new fields overwriting old ones.
+	$commentarr = array_merge( $comment, $commentarr );
+
+	$commentarr = wp_filter_comment( $commentarr );
+
+	// Now extract the merged array.
+	$data = wp_unslash( $commentarr );
+
+	/**
+	 * Filters the comment content before it is updated in the database.
+	 *
+	 * @since 1.5.0
+	 *
+	 * @param string $comment_content The comment data.
+	 */
+	$data['comment_content'] = apply_filters( 'comment_save_pre', $data['comment_content'] );
+
+	$data['comment_date_gmt'] = get_gmt_from_date( $data['comment_date'] );
+
+	if ( ! isset( $data['comment_approved'] ) ) {
+		$data['comment_approved'] = 1;
+	} elseif ( 'hold' === $data['comment_approved'] ) {
+		$data['comment_approved'] = 0;
+	} elseif ( 'approve' === $data['comment_approved'] ) {
+		$data['comment_approved'] = 1;
+	}
+
+	$comment_ID      = $data['comment_ID'];
+	$comment_post_ID = $data['comment_post_ID'];
+
+	/**
+	 * Filters the comment data immediately before it is updated in the database.
+	 *
+	 * Note: data being passed to the filter is already unslashed.
+	 *
+	 * @since 4.7.0
+	 * @since 5.5.0 Returning a WP_Error value from the filter will short-circuit comment update
+	 *              and allow skipping further processing.
+	 *
+	 * @param array|WP_Error $data       The new, processed comment data, or WP_Error.
+	 * @param array          $comment    The old, unslashed comment data.
+	 * @param array          $commentarr The new, raw comment data.
+	 */
+	$data = apply_filters( 'wp_update_comment_data', $data, $comment, $commentarr );
+
+	// Do not carry on on failure.
+	if ( is_wp_error( $data ) ) {
+		if ( $wp_error ) {
+			return $data;
+		} else {
+			return false;
+		}
+	}
+
+	$keys = array( 'comment_post_ID', 'comment_content', 'comment_author', 'comment_author_email', 'comment_approved', 'comment_karma', 'comment_author_url', 'comment_date', 'comment_date_gmt', 'comment_type', 'comment_parent', 'user_id', 'comment_agent', 'comment_author_IP' );
+	$data = wp_array_slice_assoc( $data, $keys );
+
+	$rval = $wpdb-&gt;update( $wpdb-&gt;comments, $data, compact( 'comment_ID' ) );
+
+	if ( false === $rval ) {
+		if ( $wp_error ) {
+			return new WP_Error( 'db_update_error', __( 'Could not update comment in the database.' ), $wpdb-&gt;last_error );
+		} else {
+			return false;
+		}
+	}
+
+	// If metadata is provided, store it.
+	if ( isset( $commentarr['comment_meta'] ) &amp;&amp; is_array( $commentarr['comment_meta'] ) ) {
+		foreach ( $commentarr['comment_meta'] as $meta_key =&gt; $meta_value ) {
+			update_comment_meta( $comment_ID, $meta_key, $meta_value );
+		}
+	}
+
+	clean_comment_cache( $comment_ID );
+	wp_update_comment_count( $comment_post_ID );
+
+	/**
+	 * Fires immediately after a comment is updated in the database.
+	 *
+	 * The hook also fires immediately before comment status transition hooks are fired.
+	 *
+	 * @since 1.2.0
+	 * @since 4.6.0 Added the `$data` parameter.
+	 *
+	 * @param int   $comment_ID The comment ID.
+	 * @param array $data       Comment data.
+	 */
+	do_action( 'edit_comment', $comment_ID, $data );
+
+	$comment = get_comment( $comment_ID );
+
+	wp_transition_comment_status( $comment-&gt;comment_approved, $old_status, $comment );
+
+	return $rval;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/wp_update_comment_data">wp_update_comment_data</a> </td> <td class="related-desc"> <p>Filters the comment data immediately before it is updated in the database.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_slash">wp_slash()</a> </td> <td class="related-desc"> <p>Adds slashes to a string or recursively adds slashes to strings within an array.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_unslash">wp_unslash()</a> </td> <td class="related-desc"> <p>Removes slashes from a string or recursively removes slashes from strings within an array.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="get_gmt_from_date">get_gmt_from_date()</a> </td> <td class="related-desc"> <p>Given a date in the timezone of the site, returns that date in UTC.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_array_slice_assoc">wp_array_slice_assoc()</a> </td> <td class="related-desc"> <p>Extract a slice of an array, given a list of keys.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/update">wpdb::update()</a> </td> <td class="related-desc"> <p>Updates a row in the table.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="clean_comment_cache">clean_comment_cache()</a> </td> <td class="related-desc"> <p>Removes a comment from the object cache.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="wp_update_comment_count">wp_update_comment_count()</a> </td> <td class="related-desc"> <p>Updates the comment count for post(s).</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/comment_save_pre">comment_save_pre</a> </td> <td class="related-desc"> <p>Filters the comment content before it is updated in the database.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/edit_comment">edit_comment</a> </td> <td class="related-desc"> <p>Fires immediately after a comment is updated in the database.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="wp_filter_comment">wp_filter_comment()</a> </td> <td class="related-desc"> <p>Filters and sanitizes comment data.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="wp_transition_comment_status">wp_transition_comment_status()</a> </td> <td class="related-desc"> <p>Calls hooks for when a comment status transition occurs.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="update_comment_meta">update_comment_meta()</a> </td> <td class="related-desc"> <p>Updates comment meta field based on comment ID.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="get_comment">get_comment()</a> </td> <td class="related-desc"> <p>Retrieves comment data given a comment ID or comment object.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../classes/wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-comments-controller.php:</span> <a href="../classes/wp_rest_comments_controller/update_item">WP_REST_Comments_Controller::update_item()</a> </td> <td class="related-desc"> <p>Updates a comment.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/comment.php:</span> <a href="edit_comment">edit_comment()</a> </td> <td class="related-desc"> <p>Update a comment with values provided in $_POST.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="../classes/wp_xmlrpc_server/wp_editcomment">wp_xmlrpc_server::wp_editComment()</a> </td> <td class="related-desc"> <p>Edit comment.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.0/" alt="WordPress 5.5.0">5.5.0</a></td> <td><span class="since-description">The return values for an invalid comment or post ID were changed to false instead of 0.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.9.0/" alt="WordPress 4.9.0">4.9.0</a></td> <td><span class="since-description">Add updating comment meta during comment update.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.0.0/" alt="WordPress 2.0.0">2.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_update_comment" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_update_comment</a>
+  </p>
+</div>

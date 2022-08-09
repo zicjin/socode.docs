@@ -1,0 +1,68 @@
+<h1>WP_Customize_Manager::handle_dismiss_autosave_or_lock_request()</h1>  <section> <p>Deletes a given auto-draft changeset or the autosave revision for a given changeset or delete changeset lock.</p> </section> <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-customize-manager.php/">wp-includes/class-wp-customize-manager.php</a> </p> <pre data-language="php">public function handle_dismiss_autosave_or_lock_request() {
+		// Calls to dismiss_user_auto_draft_changesets() and wp_get_post_autosave() require non-zero get_current_user_id().
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( 'unauthenticated', 401 );
+		}
+
+		if ( ! $this-&gt;is_preview() ) {
+			wp_send_json_error( 'not_preview', 400 );
+		}
+
+		if ( ! check_ajax_referer( 'customize_dismiss_autosave_or_lock', 'nonce', false ) ) {
+			wp_send_json_error( 'invalid_nonce', 403 );
+		}
+
+		$changeset_post_id = $this-&gt;changeset_post_id();
+		$dismiss_lock      = ! empty( $_POST['dismiss_lock'] );
+		$dismiss_autosave  = ! empty( $_POST['dismiss_autosave'] );
+
+		if ( $dismiss_lock ) {
+			if ( empty( $changeset_post_id ) &amp;&amp; ! $dismiss_autosave ) {
+				wp_send_json_error( 'no_changeset_to_dismiss_lock', 404 );
+			}
+			if ( ! current_user_can( get_post_type_object( 'customize_changeset' )-&gt;cap-&gt;edit_post, $changeset_post_id ) &amp;&amp; ! $dismiss_autosave ) {
+				wp_send_json_error( 'cannot_remove_changeset_lock', 403 );
+			}
+
+			delete_post_meta( $changeset_post_id, '_edit_lock' );
+
+			if ( ! $dismiss_autosave ) {
+				wp_send_json_success( 'changeset_lock_dismissed' );
+			}
+		}
+
+		if ( $dismiss_autosave ) {
+			if ( empty( $changeset_post_id ) || 'auto-draft' === get_post_status( $changeset_post_id ) ) {
+				$dismissed = $this-&gt;dismiss_user_auto_draft_changesets();
+				if ( $dismissed &gt; 0 ) {
+					wp_send_json_success( 'auto_draft_dismissed' );
+				} else {
+					wp_send_json_error( 'no_auto_draft_to_delete', 404 );
+				}
+			} else {
+				$revision = wp_get_post_autosave( $changeset_post_id, get_current_user_id() );
+
+				if ( $revision ) {
+					if ( ! current_user_can( get_post_type_object( 'customize_changeset' )-&gt;cap-&gt;delete_post, $changeset_post_id ) ) {
+						wp_send_json_error( 'cannot_delete_autosave_revision', 403 );
+					}
+
+					if ( ! wp_delete_post( $revision-&gt;ID, true ) ) {
+						wp_send_json_error( 'autosave_revision_deletion_failure', 500 );
+					} else {
+						wp_send_json_success( 'autosave_revision_deleted' );
+					}
+				} else {
+					wp_send_json_error( 'no_autosave_revision_to_delete', 404 );
+				}
+			}
+		}
+
+		wp_send_json_error( 'unknown_error', 500 );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="dismiss_user_auto_draft_changesets">WP_Customize_Manager::dismiss_user_auto_draft_changesets()</a> </td> <td class="related-desc"> <p>Dismisses all of the current user’s auto-drafts (other than the present one).</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="changeset_post_id">WP_Customize_Manager::changeset_post_id()</a> </td> <td class="related-desc"> <p>Gets the changeset post ID for the loaded changeset.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="../../functions/current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="is_preview">WP_Customize_Manager::is_preview()</a> </td> <td class="related-desc"> <p>Determines whether it is a theme preview or not.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../../functions/is_user_logged_in">is_user_logged_in()</a> </td> <td class="related-desc"> <p>Determines whether the current visitor is a logged in user.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../../functions/check_ajax_referer">check_ajax_referer()</a> </td> <td class="related-desc"> <p>Verifies the Ajax request to prevent processing requests external of the blog.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_send_json_error">wp_send_json_error()</a> </td> <td class="related-desc"> <p>Send a JSON response back to an Ajax request, indicating failure.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_send_json_success">wp_send_json_success()</a> </td> <td class="related-desc"> <p>Send a JSON response back to an Ajax request, indicating success.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="../../functions/get_current_user_id">get_current_user_id()</a> </td> <td class="related-desc"> <p>Gets the current user’s ID.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/wp_delete_post">wp_delete_post()</a> </td> <td class="related-desc"> <p>Trash or delete a post or page.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/delete_post_meta">delete_post_meta()</a> </td> <td class="related-desc"> <p>Deletes a post meta field for the given post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/get_post_type_object">get_post_type_object()</a> </td> <td class="related-desc"> <p>Retrieves a post type object by name.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/get_post_status">get_post_status()</a> </td> <td class="related-desc"> <p>Retrieve the post status based on the post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/revision.php:</span> <a href="../../functions/wp_get_post_autosave">wp_get_post_autosave()</a> </td> <td class="related-desc"> <p>Retrieve the autosaved data of the specified post.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.9.0/" alt="WordPress 4.9.0">4.9.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_customize_manager/handle_dismiss_autosave_or_lock_request" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_customize_manager/handle_dismiss_autosave_or_lock_request</a>
+  </p>
+</div>

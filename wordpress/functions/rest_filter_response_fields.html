@@ -1,0 +1,53 @@
+<h1>rest_filter_response_fields( WP_REST_Response $response, WP_REST_Server $server, WP_REST_Request $request )</h1>  <section> <p>Filters the REST API response to include only a white-listed set of response object fields.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$response</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_REST_Response"><a href="../classes/wp_rest_response">WP_REST_Response</a></span>)</span> <span class="required">(Required)</span> <span class="description">Current response being served.</span> </p> </dd> <dt>$server</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_REST_Server"><a href="../classes/wp_rest_server">WP_REST_Server</a></span>)</span> <span class="required">(Required)</span> <span class="description">ResponseHandler instance (usually <a href="../classes/wp_rest_server">WP_REST_Server</a>).</span> </p> </dd> <dt>$request</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_REST_Request"><a href="../classes/wp_rest_request">WP_REST_Request</a></span>)</span> <span class="required">(Required)</span> <span class="description">The request that was used to make current response.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../classes/wp_rest_response">WP_REST_Response</a>)</span> Response to be served, trimmed down to contain a subset of fields.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/rest-api.php/">wp-includes/rest-api.php</a> </p> <pre data-language="php">function rest_filter_response_fields( $response, $server, $request ) {
+	if ( ! isset( $request['_fields'] ) || $response-&gt;is_error() ) {
+		return $response;
+	}
+
+	$data = $response-&gt;get_data();
+
+	$fields = wp_parse_list( $request['_fields'] );
+
+	if ( 0 === count( $fields ) ) {
+		return $response;
+	}
+
+	// Trim off outside whitespace from the comma delimited list.
+	$fields = array_map( 'trim', $fields );
+
+	// Create nested array of accepted field hierarchy.
+	$fields_as_keyed = array();
+	foreach ( $fields as $field ) {
+		$parts = explode( '.', $field );
+		$ref   = &amp;$fields_as_keyed;
+		while ( count( $parts ) &gt; 1 ) {
+			$next = array_shift( $parts );
+			if ( isset( $ref[ $next ] ) &amp;&amp; true === $ref[ $next ] ) {
+				// Skip any sub-properties if their parent prop is already marked for inclusion.
+				break 2;
+			}
+			$ref[ $next ] = isset( $ref[ $next ] ) ? $ref[ $next ] : array();
+			$ref          = &amp;$ref[ $next ];
+		}
+		$last         = array_shift( $parts );
+		$ref[ $last ] = true;
+	}
+
+	if ( wp_is_numeric_array( $data ) ) {
+		$new_data = array();
+		foreach ( $data as $item ) {
+			$new_data[] = _rest_array_intersect_key_recursive( $item, $fields_as_keyed );
+		}
+	} else {
+		$new_data = _rest_array_intersect_key_recursive( $data, $fields_as_keyed );
+	}
+
+	$response-&gt;set_data( $new_data );
+
+	return $response;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="_rest_array_intersect_key_recursive">_rest_array_intersect_key_recursive()</a> </td> <td class="related-desc"> <p>Recursively computes the intersection of arrays using keys for comparison.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_parse_list">wp_parse_list()</a> </td> <td class="related-desc"> <p>Converts a comma- or space-separated list of scalar values to an array.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_is_numeric_array">wp_is_numeric_array()</a> </td> <td class="related-desc"> <p>Determines if the variable is a numeric-indexed array.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.8.0/" alt="WordPress 4.8.0">4.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/rest_filter_response_fields" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/rest_filter_response_fields</a>
+  </p>
+</div>

@@ -1,4 +1,4 @@
-<h1 id="developing-the-librarys-functionality-with-test-driven-development">Developing the Library’s Functionality with Test-Driven Development</h1> <p>Now that we’ve extracted the logic into <em>src/lib.rs</em> and left the argument collecting and error handling in <em>src/main.rs</em>, it’s much easier to write tests for the core functionality of our code. We can call functions directly with various arguments and check return values without having to call our binary from the command line. Feel free to write some tests for the functionality in the <code>Config::new</code> and <code>run</code> functions on your own.</p> <p>In this section, we’ll add the searching logic to the <code>minigrep</code> program by using the Test-driven development (TDD) process. This software development technique follows these steps:</p> <ol> <li>Write a test that fails and run it to make sure it fails for the reason you expect.</li> <li>Write or modify just enough code to make the new test pass.</li> <li>Refactor the code you just added or changed and make sure the tests continue to pass.</li> <li>Repeat from step 1!</li> </ol> <p>This process is just one of many ways to write software, but TDD can help drive code design as well. Writing the test before you write the code that makes the test pass helps to maintain high test coverage throughout the process.</p> <p>We’ll test drive the implementation of the functionality that will actually do the searching for the query string in the file contents and produce a list of lines that match the query. We’ll add this functionality in a function called <code>search</code>.</p> <h3 id="writing-a-failing-test">Writing a Failing Test</h3> <p>Because we don’t need them anymore, let’s remove the <code>println!</code> statements from <em>src/lib.rs</em> and <em>src/main.rs</em> that we used to check the program’s behavior. Then, in <em>src/lib.rs</em>, we’ll add a <code>tests</code> module with a test function, as we did in <a href="ch11-01-writing-tests#the-anatomy-of-a-test-function">Chapter 11</a>. The test function specifies the behavior we want the <code>search</code> function to have: it will take a query and the text to search for the query in, and it will return only the lines from the text that contain the query. Listing 12-15 shows this test, which won’t compile yet.</p> <p><span class="filename">Filename: src/lib.rs</span></p> <pre data-language="rust">use std::error::Error;
+<h1 id="developing-the-librarys-functionality-with-test-driven-development">Developing the Library’s Functionality with Test-Driven Development</h1> <p>Now that we’ve extracted the logic into <em>src/lib.rs</em> and left the argument collecting and error handling in <em>src/main.rs</em>, it’s much easier to write tests for the core functionality of our code. We can call functions directly with various arguments and check return values without having to call our binary from the command line.</p> <p>In this section, we’ll add the searching logic to the <code>minigrep</code> program using the test-driven development (TDD) process with the following steps:</p> <ol> <li>Write a test that fails and run it to make sure it fails for the reason you expect.</li> <li>Write or modify just enough code to make the new test pass.</li> <li>Refactor the code you just added or changed and make sure the tests continue to pass.</li> <li>Repeat from step 1!</li> </ol> <p>Though it’s just one of many ways to write software, TDD can help drive code design. Writing the test before you write the code that makes the test pass helps to maintain high test coverage throughout the process.</p> <p>We’ll test drive the implementation of the functionality that will actually do the searching for the query string in the file contents and produce a list of lines that match the query. We’ll add this functionality in a function called <code>search</code>.</p> <h3 id="writing-a-failing-test">Writing a Failing Test</h3> <p>Because we don’t need them anymore, let’s remove the <code>println!</code> statements from <em>src/lib.rs</em> and <em>src/main.rs</em> that we used to check the program’s behavior. Then, in <em>src/lib.rs</em>, add a <code>tests</code> module with a test function, as we did in <a href="ch11-01-writing-tests#the-anatomy-of-a-test-function">Chapter 11</a>. The test function specifies the behavior we want the <code>search</code> function to have: it will take a query and the text to search, and it will return only the lines from the text that contain the query. Listing 12-15 shows this test, which won’t compile yet.</p> <p><span class="filename">Filename: src/lib.rs</span></p> <pre data-language="rust">use std::error::Error;
 use std::fs;
 
 pub struct Config {
@@ -7,7 +7,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;str&gt; {
+    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;'static str&gt; {
         if args.len() &lt; 3 {
             return Err("not enough arguments");
         }
@@ -40,7 +40,7 @@ Pick three.";
         assert_eq!(vec!["safe, fast, productive."], search(query, contents));
     }
 }
-</pre> <p><span class="caption">Listing 12-15: Creating a failing test for the <code>search</code> function we wish we had</span></p> <p>This test searches for the string <code>"duct"</code>. The text we’re searching is three lines, only one of which contains <code>"duct"</code> (Note that the backslash after the opening double quote tells Rust not to put a newline character at the beginning of the contents of this string literal). We assert that the value returned from the <code>search</code> function contains only the line we expect.</p> <p>We aren’t able to run this test and watch it fail because the test doesn’t even compile: the <code>search</code> function doesn’t exist yet! So now we’ll add just enough code to get the test to compile and run by adding a definition of the <code>search</code> function that always returns an empty vector, as shown in Listing 12-16. Then the test should compile and fail because an empty vector doesn’t match a vector containing the line <code>"safe, fast, productive."</code></p> <p><span class="filename">Filename: src/lib.rs</span></p> <pre data-language="rust">use std::error::Error;
+</pre> <p><span class="caption">Listing 12-15: Creating a failing test for the <code>search</code> function we wish we had</span></p> <p>This test searches for the string <code>"duct"</code>. The text we’re searching is three lines, only one of which contains <code>"duct"</code> (Note that the backslash after the opening double quote tells Rust not to put a newline character at the beginning of the contents of this string literal). We assert that the value returned from the <code>search</code> function contains only the line we expect.</p> <p>We aren’t yet able to run this test and watch it fail because the test doesn’t even compile: the <code>search</code> function doesn’t exist yet! In accordance with TDD principles, we’ll add just enough code to get the test to compile and run by adding a definition of the <code>search</code> function that always returns an empty vector, as shown in Listing 12-16. Then the test should compile and fail because an empty vector doesn’t match a vector containing the line <code>"safe, fast, productive."</code></p> <p><span class="filename">Filename: src/lib.rs</span></p> <pre data-language="rust">use std::error::Error;
 use std::fs;
 
 pub struct Config {
@@ -49,7 +49,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;str&gt; {
+    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;'static str&gt; {
         if args.len() &lt; 3 {
             return Err("not enough arguments");
         }
@@ -86,7 +86,7 @@ Pick three.";
         assert_eq!(vec!["safe, fast, productive."], search(query, contents));
     }
 }
-</pre> <p><span class="caption">Listing 12-16: Defining just enough of the <code>search</code> function so our test will compile</span></p> <p>Notice that we need an explicit lifetime <code>'a</code> defined in the signature of <code>search</code> and used with the <code>contents</code> argument and the return value. Recall in <a href="ch10-03-lifetime-syntax">Chapter 10</a> that the lifetime parameters specify which argument lifetime is connected to the lifetime of the return value. In this case, we indicate that the returned vector should contain string slices that reference slices of the argument <code>contents</code> (rather than the argument <code>query</code>).</p> <p>In other words, we tell Rust that the data returned by the <code>search</code> function will live as long as the data passed into the <code>search</code> function in the <code>contents</code> argument. This is important! The data referenced <em>by</em> a slice needs to be valid for the reference to be valid; if the compiler assumes we’re making string slices of <code>query</code> rather than <code>contents</code>, it will do its safety checking incorrectly.</p> <p>If we forget the lifetime annotations and try to compile this function, we’ll get this error:</p> <pre>$ cargo build
+</pre> <p><span class="caption">Listing 12-16: Defining just enough of the <code>search</code> function so our test will compile</span></p> <p>Notice that we need to define an explicit lifetime <code>'a</code> in the signature of <code>search</code> and use that lifetime with the <code>contents</code> argument and the return value. Recall in <a href="ch10-03-lifetime-syntax">Chapter 10</a> that the lifetime parameters specify which argument lifetime is connected to the lifetime of the return value. In this case, we indicate that the returned vector should contain string slices that reference slices of the argument <code>contents</code> (rather than the argument <code>query</code>).</p> <p>In other words, we tell Rust that the data returned by the <code>search</code> function will live as long as the data passed into the <code>search</code> function in the <code>contents</code> argument. This is important! The data referenced <em>by</em> a slice needs to be valid for the reference to be valid; if the compiler assumes we’re making string slices of <code>query</code> rather than <code>contents</code>, it will do its safety checking incorrectly.</p> <p>If we forget the lifetime annotations and try to compile this function, we’ll get this error:</p> <pre>$ cargo build
    Compiling minigrep v0.1.0 (file:///projects/minigrep)
 error[E0106]: missing lifetime specifier
   --&gt; src/lib.rs:28:51
@@ -98,11 +98,11 @@ error[E0106]: missing lifetime specifier
 help: consider introducing a named lifetime parameter
    |
 28 | pub fn search&lt;'a&gt;(query: &amp;'a str, contents: &amp;'a str) -&gt; Vec&lt;&amp;'a str&gt; {
-   |              ^^^^        ^^^^^^^            ^^^^^^^         ^^^
+   |              ++++         ++                 ++              ++
 
 For more information about this error, try `rustc --explain E0106`.
 error: could not compile `minigrep` due to previous error
-</pre> <p>Rust can’t possibly know which of the two arguments we need, so we need to tell it. Because <code>contents</code> is the argument that contains all of our text and we want to return the parts of that text that match, we know <code>contents</code> is the argument that should be connected to the return value using the lifetime syntax.</p> <p>Other programming languages don’t require you to connect arguments to return values in the signature. Although this might seem strange, it will get easier over time. You might want to compare this example with the <a href="ch10-03-lifetime-syntax#validating-references-with-lifetimes">“Validating References with Lifetimes”</a> section in Chapter 10.</p> <p>Now let’s run the test:</p> <pre>$ cargo test
+</pre> <p>Rust can’t possibly know which of the two arguments we need, so we need to tell it explicitly. Because <code>contents</code> is the argument that contains all of our text and we want to return the parts of that text that match, we know <code>contents</code> is the argument that should be connected to the return value using the lifetime syntax.</p> <p>Other programming languages don’t require you to connect arguments to return values in the signature, but this practice will get easier over time. You might want to compare this example with the <a href="ch10-03-lifetime-syntax#validating-references-with-lifetimes">“Validating References with Lifetimes”</a> section in Chapter 10.</p> <p>Now let’s run the test:</p> <pre>$ cargo test
    Compiling minigrep v0.1.0 (file:///projects/minigrep)
     Finished test [unoptimized + debuginfo] target(s) in 0.97s
      Running unittests (target/debug/deps/minigrep-9cd200e5fac0fc94)
@@ -134,7 +134,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;str&gt; {
+    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;'static str&gt; {
         if args.len() &lt; 3 {
             return Err("not enough arguments");
         }
@@ -182,7 +182,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;str&gt; {
+    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;'static str&gt; {
         if args.len() &lt; 3 {
             return Err("not enough arguments");
         }
@@ -223,7 +223,7 @@ Pick three.";
         assert_eq!(vec!["safe, fast, productive."], search(query, contents));
     }
 }
-</pre> <p><span class="caption">Listing 12-18: Adding functionality to see whether the line contains the string in <code>query</code></span></p> <h4 id="storing-matching-lines">Storing Matching Lines</h4> <p>We also need a way to store the lines that contain our query string. For that, we can make a mutable vector before the <code>for</code> loop and call the <code>push</code> method to store a <code>line</code> in the vector. After the <code>for</code> loop, we return the vector, as shown in Listing 12-19.</p> <p><span class="filename">Filename: src/lib.rs</span></p> <pre data-language="rust">use std::error::Error;
+</pre> <p><span class="caption">Listing 12-18: Adding functionality to see whether the line contains the string in <code>query</code></span></p> <p>At the moment, we’re building up functionality. To get it to compile, we need to return a value from the body as we indicated we would in the function signature.</p> <h4 id="storing-matching-lines">Storing Matching Lines</h4> <p>To finish this function, we need a way to store the matching lines that we want to return. For that, we can make a mutable vector before the <code>for</code> loop and call the <code>push</code> method to store a <code>line</code> in the vector. After the <code>for</code> loop, we return the vector, as shown in Listing 12-19.</p> <p><span class="filename">Filename: src/lib.rs</span></p> <pre data-language="rust">use std::error::Error;
 use std::fs;
 
 pub struct Config {
@@ -232,7 +232,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;str&gt; {
+    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;'static str&gt; {
         if args.len() &lt; 3 {
             return Err("not enough arguments");
         }
@@ -308,7 +308,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;str&gt; {
+    pub fn new(args: &amp;[String]) -&gt; Result&lt;Config, &amp;'static str&gt; {
         if args.len() &lt; 3 {
             return Err("not enough arguments");
         }

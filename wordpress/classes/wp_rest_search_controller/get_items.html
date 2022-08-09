@@ -1,0 +1,62 @@
+<h1>WP_REST_Search_Controller::get_items( WP_REST_Request $request )</h1>  <section> <p>Retrieves a collection of search results.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$request</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_REST_Request"><a href="../wp_rest_request">WP_REST_Request</a></span>)</span> <span class="required">(Required)</span> <span class="description">Full details about the request.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../wp_rest_response">WP_REST_Response</a>|<a href="../wp_error">WP_Error</a>)</span> Response object on success, or <a href="../wp_error">WP_Error</a> object on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/rest-api/endpoints/class-wp-rest-search-controller.php/">wp-includes/rest-api/endpoints/class-wp-rest-search-controller.php</a> </p> <pre data-language="php">public function get_items( $request ) {
+		$handler = $this-&gt;get_search_handler( $request );
+		if ( is_wp_error( $handler ) ) {
+			return $handler;
+		}
+
+		$result = $handler-&gt;search_items( $request );
+
+		if ( ! isset( $result[ WP_REST_Search_Handler::RESULT_IDS ] ) || ! is_array( $result[ WP_REST_Search_Handler::RESULT_IDS ] ) || ! isset( $result[ WP_REST_Search_Handler::RESULT_TOTAL ] ) ) {
+			return new WP_Error(
+				'rest_search_handler_error',
+				__( 'Internal search handler error.' ),
+				array( 'status' =&gt; 500 )
+			);
+		}
+
+		$ids = $result[ WP_REST_Search_Handler::RESULT_IDS ];
+
+		$results = array();
+
+		foreach ( $ids as $id ) {
+			$data      = $this-&gt;prepare_item_for_response( $id, $request );
+			$results[] = $this-&gt;prepare_response_for_collection( $data );
+		}
+
+		$total     = (int) $result[ WP_REST_Search_Handler::RESULT_TOTAL ];
+		$page      = (int) $request['page'];
+		$per_page  = (int) $request['per_page'];
+		$max_pages = ceil( $total / $per_page );
+
+		if ( $page &gt; $max_pages &amp;&amp; $total &gt; 0 ) {
+			return new WP_Error(
+				'rest_search_invalid_page_number',
+				__( 'The page number requested is larger than the number of pages available.' ),
+				array( 'status' =&gt; 400 )
+			);
+		}
+
+		$response = rest_ensure_response( $results );
+		$response-&gt;header( 'X-WP-Total', $total );
+		$response-&gt;header( 'X-WP-TotalPages', $max_pages );
+
+		$request_params = $request-&gt;get_query_params();
+		$base           = add_query_arg( urlencode_deep( $request_params ), rest_url( sprintf( '%s/%s', $this-&gt;namespace, $this-&gt;rest_base ) ) );
+
+		if ( $page &gt; 1 ) {
+			$prev_link = add_query_arg( 'page', $page - 1, $base );
+			$response-&gt;link_header( 'prev', $prev_link );
+		}
+		if ( $page &lt; $max_pages ) {
+			$next_link = add_query_arg( 'page', $page + 1, $base );
+			$response-&gt;link_header( 'next', $next_link );
+		}
+
+		return $response;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-search-controller.php:</span> <a href="get_search_handler">WP_REST_Search_Controller::get_search_handler()</a> </td> <td class="related-desc"> <p>Gets the search handler to handle the current request.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-search-controller.php:</span> <a href="prepare_item_for_response">WP_REST_Search_Controller::prepare_item_for_response()</a> </td> <td class="related-desc"> <p>Prepares a single search result for response.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="../../functions/rest_ensure_response">rest_ensure_response()</a> </td> <td class="related-desc"> <p>Ensures a REST response is a response object (for consistency).</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="../../functions/rest_url">rest_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to a REST endpoint.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/urlencode_deep">urlencode_deep()</a> </td> <td class="related-desc"> <p>Navigates through an array, object, or scalar, and encodes the values to be used in a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/add_query_arg">add_query_arg()</a> </td> <td class="related-desc"> <p>Retrieves a modified URL query string.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.0.0/" alt="WordPress 5.0.0">5.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_rest_search_controller/get_items" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_rest_search_controller/get_items</a>
+  </p>
+</div>

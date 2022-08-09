@@ -1,0 +1,393 @@
+<h1 data-toc="apple-framework" id="apple-framework.md">Kotlin/Native as an Apple framework – tutorial</h1>
+<p id="d1fda936">Kotlin/Native provides bi-directional interoperability with Objective-C/Swift. Objective-C frameworks and libraries can be used in Kotlin code. Kotlin modules can be used in Swift/Objective-C code too. Besides that, Kotlin/Native has <a href="native-c-interop" id="523a70a1">C Interop</a>. There is also the <a href="native-dynamic-libraries" id="13c1837d">Kotlin/Native as a Dynamic Library</a> tutorial for more information.</p>
+<p id="f51b76d0">In this tutorial, you will see how to use Kotlin/Native code from Objective-C and Swift applications on macOS and iOS.</p>
+<p id="3908c05f">In this tutorial you'll:</p>
+<ul class="list _ul" id="b4cd4a75">
+<li class="list__item" id="e4593465"><p><a href="#create-a-kotlin-library" id="51bd7630">create a Kotlin Library</a> and compile it to a framework</p></li>
+<li class="list__item" id="72ea70f1"><p>examine the generated <a href="#generated-framework-headers" id="aa56bdc1">Objective-C and Swift API</a> code</p></li>
+<li class="list__item" id="4c258c9"><p>use the framework from <a href="#use-the-code-from-objective-c" id="51201f60">Objective-C</a> and <a href="#use-the-code-from-swift" id="489fba95">Swift</a></p></li>
+<li class="list__item" id="7428b562"><p><a href="#xcode-and-framework-dependencies" id="beb44f81">Configure Xcode</a> to use the framework for <a href="#xcode-for-macos-target" id="24a27d56">macOS</a> and <a href="#xcode-for-ios-targets" id="cb3f769c">iOS</a></p></li>
+</ul>
+<section class="chapter"><h2 id="create-a-kotlin-library" data-toc="apple-framework#create-a-kotlin-library">Create a Kotlin library</h2>
+<p id="cbc08b4c">The Kotlin/Native compiler can produce a framework for macOS and iOS out of the Kotlin code. The created framework contains all declarations and binaries needed to use it with Objective-C and Swift. The best way to understand the techniques is to try it for ourselves. Let's create a tiny Kotlin library first and use it from an Objective-C program.</p>
+<p id="b0b22ade">Create the <code class="code ">hello.kt</code> file with the library contents:</p>
+<pre class="code" data-language="kotlin">package example
+
+object Object {
+  val field = "A"
+}
+
+interface Interface {
+  fun iMember() {}
+}
+
+class Clazz : Interface {
+  fun member(p: Int): ULong? = 42UL
+}
+
+fun forIntegers(b: Byte, s: UShort, i: Int, l: ULong?) { }
+fun forFloats(f: Float, d: Double?) { }
+
+fun strings(str: String?) : String {
+  return "That is '$str' from C"
+}
+
+fun acceptFun(f: (String) -&gt; String?) = f("Kotlin/Native rocks!")
+fun supplyFun() : (String) -&gt; String? = { "$it is cool!" }
+</pre>
+<p id="4e69b93f">While it is possible to use the command line, either directly or by combining it with a script file (such as <code class="code ">.sh</code> or <code class="code ">.bat</code> file), this approach doesn't scale well for big projects that have hundreds of files and libraries. It is therefore better to use the Kotlin/Native compiler with a build system, as it helps to download and cache the Kotlin/Native compiler binaries and libraries with transitive dependencies and run the compiler and tests. Kotlin/Native can use the <a href="https://gradle.org" id="d187a211" data-external="true" rel="noopener noreferrer">Gradle</a> build system through the <a href="multiplatform-discover-project#multiplatform-plugin" id="30402417">kotlin-multiplatform</a> plugin.</p>
+<p id="79462116">We covered the basics of setting up an IDE compatible project with Gradle in the <a href="native-gradle" id="57ad3b90">A Basic Kotlin/Native Application</a> tutorial. Please check it out if you are looking for detailed first steps and instructions on how to start a new Kotlin/Native project and open it in IntelliJ IDEA. In this tutorial, we'll look at the advanced C interop related usages of Kotlin/Native and <a href="multiplatform-discover-project#multiplatform-plugin" id="e3f7ab4e">multiplatform</a> builds with Gradle.</p>
+<p id="f614ac77">First, create a project folder. All the paths in this tutorial will be relative to this folder. Sometimes the missing directories will have to be created before any new files can be added.</p>
+<p id="8a234d21">Use the following <code class="code ">build.gradle(.kts)</code> Gradle build file:</p>
+<div class="tabs" id="fb6bd1bb" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="cbcb6c06" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">plugins {
+    kotlin("multiplatform") version "1.7.10"
+}
+
+repositories {
+    mavenCentral()
+}
+
+kotlin {
+  macosX64("native") {
+    binaries {
+      framework {
+        baseName = "Demo"
+      }
+    }
+  }
+}
+
+tasks.wrapper {
+  gradleVersion = "6.7.1"
+  distributionType = Wrapper.DistributionType.ALL
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="94af5b51" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">plugins {
+    id 'org.jetbrains.kotlin.multiplatform' version '1.7.10'
+}
+
+repositories {
+    mavenCentral()
+}
+
+kotlin {
+  macosX64("native") {
+    binaries {
+      framework {
+        baseName = "Demo"
+      }
+    }
+  }
+}
+
+wrapper {
+  gradleVersion = "6.7.1"
+  distributionType = "ALL"
+}
+</pre></div>
+</div>
+<p id="3e05de81">Move the sources file into the <code class="code ">src/nativeMain/kotlin</code> folder under the project. That is the default path, where sources are located, when the <a href="multiplatform-discover-project#multiplatform-plugin" id="aeb331ab">kotlin-multiplatform</a> plugin is used. Use the following block to configure the project to generate a dynamic or shared library:</p>
+<pre class="code" data-language="kotlin">binaries {
+  framework {
+    baseName = "Demo"
+  }  
+}
+</pre>
+<p id="22ed28d4">Along with macOS <code class="code ">X64</code>, Kotlin/Native supports macos <code class="code ">arm64</code> and iOS <code class="code ">arm32</code>, <code class="code ">arm64</code> and <code class="code ">X64</code> targets. You may replace the <code class="code ">macosX64</code> with respective functions as shown in the table:</p>
+<div class="table-wrapper"><table class=" wide" id="a1d88d6">
+<thead><tr class="ijRowHead" id="5f158df6">
+<th id="97503146"><p>Target platform/device</p></th>
+<th id="6345a4cf"><p>Gradle function</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="edb1f68">
+<td id="98ab9314"><p>macOS x86_64</p></td>
+<td id="2eac820a"><p><code class="code ">macosX64()</code></p></td>
+</tr>
+<tr class="" id="b6e10361">
+<td id="c409fd5e"><p>macOS ARM 64</p></td>
+<td id="6732b7c8"><p><code class="code ">macosArm64()</code></p></td>
+</tr>
+<tr class="" id="dc5545ba">
+<td id="b2dc82a9"><p>iOS ARM 32</p></td>
+<td id="4abddc94"><p><code class="code ">iosArm32()</code></p></td>
+</tr>
+<tr class="" id="949752c4">
+<td id="3fe6c30e"><p>iOS ARM 64</p></td>
+<td id="a53c0b10"><p><code class="code ">iosArm64()</code></p></td>
+</tr>
+<tr class="" id="3c35fa12">
+<td id="7ded40ee"><p>iOS Simulator (x86_64)</p></td>
+<td id="6863a024"><p><code class="code ">iosX64()</code></p></td>
+</tr>
+</tbody>
+</table></div>
+<p id="47a2f78a">Run the <code class="code ">linkNative</code> Gradle task to build the library <a href="native-get-started" id="c5e75537">in the IDE</a> or by calling the following console command:</p>
+<pre class="code" data-language="bash">./gradlew linkNative
+</pre>
+<p id="1e18151b">Depending on the variant, the build generates the framework into the <code class="code ">build/bin/native/debugFramework</code> and <code class="code ">build/bin/native/releaseFramework</code> folders. Let's see what is inside.</p></section><section class="chapter"><h2 id="generated-framework-headers" data-toc="apple-framework#generated-framework-headers">Generated framework headers</h2>
+<p id="705fc492">Each of the created frameworks contains the header file in <code class="code ">&lt;Framework&gt;/Headers/Demo.h</code>. The headers do not depend on the target platform (at least with Kotlin/Native v.0.9.2). It contains the definitions for our Kotlin code and a few Kotlin-wide declarations.</p>
+<aside data-type="note" class="prompt" data-title="" id="3c1bb90e"><p id="c9a5a3e4">The way Kotlin/Native exports symbols is subject to change without notice.</p></aside><section class="chapter"><h3 id="kotlin-native-runtime-declarations" data-toc="apple-framework#kotlin-native-runtime-declarations">Kotlin/Native runtime declarations</h3>
+<p id="6cc26df5">Take a look at Kotlin runtime declarations:</p>
+<pre class="code" data-language="none">NS_ASSUME_NONNULL_BEGIN
+
+@interface KotlinBase : NSObject
+- (instancetype)init __attribute__((unavailable));
++ (instancetype)new __attribute__((unavailable));
++ (void)initialize __attribute__((objc_requires_super));
+@end;
+
+@interface KotlinBase (KotlinBaseCopying) &lt;NSCopying&gt;
+@end;
+
+__attribute__((objc_runtime_name("KotlinMutableSet")))
+__attribute__((swift_name("KotlinMutableSet")))
+@interface DemoMutableSet&lt;ObjectType&gt; : NSMutableSet&lt;ObjectType&gt;
+@end;
+
+__attribute__((objc_runtime_name("KotlinMutableDictionary")))
+__attribute__((swift_name("KotlinMutableDictionary")))
+@interface DemoMutableDictionary&lt;KeyType, ObjectType&gt; : NSMutableDictionary&lt;KeyType, ObjectType&gt;
+@end;
+
+@interface NSError (NSErrorKotlinException)
+@property (readonly) id _Nullable kotlinException;
+@end;
+</pre>
+<p id="fcff0246">Kotlin classes have a <code class="code ">KotlinBase</code> base class in Objective-C, the class extends the <code class="code ">NSObject</code> class there. There are also have wrappers for collections and exceptions. Most of the collection types are mapped to similar collection types from the other side:</p>
+<div class="table-wrapper"><table class=" wide" id="4e002320">
+<thead><tr class="ijRowHead" id="230a68b3">
+<th id="1dbc9490"><p>Kotlin</p></th>
+<th id="588f97f7"><p>Swift</p></th>
+<th id="a8297ed1"><p>Objective-C</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="820cbad0">
+<td id="8af721fe"><p>List</p></td>
+<td id="ae62276f"><p>Array</p></td>
+<td id="e1075901"><p>NSArray</p></td>
+</tr>
+<tr class="" id="5c1ecedb">
+<td id="701deb7b"><p>MutableList</p></td>
+<td id="edeb034b"><p>NSMutableArray</p></td>
+<td id="cb617ae6"><p>NSMutableArray</p></td>
+</tr>
+<tr class="" id="565f585f">
+<td id="abdc00d0"><p>Set</p></td>
+<td id="cf14c0f9"><p>Set</p></td>
+<td id="67d8ca52"><p>NSSet</p></td>
+</tr>
+<tr class="" id="887767c8">
+<td id="665f5d32"><p>Map</p></td>
+<td id="a1a2dac8"><p>Dictionary</p></td>
+<td id="8f0acd59"><p>NSDictionary</p></td>
+</tr>
+<tr class="" id="692ecf39">
+<td id="ea8e4d7e"><p>MutableMap</p></td>
+<td id="17f52e2"><p>NSMutableDictionary</p></td>
+<td id="47f74436"><p>NSMutableDictionary</p></td>
+</tr>
+</tbody>
+</table></div></section><section class="chapter"><h3 id="kotlin-numbers-and-nsnumber" data-toc="apple-framework#kotlin-numbers-and-nsnumber">Kotlin numbers and NSNumber</h3>
+<p id="7621809d">The next part of the <code class="code ">&lt;Framework&gt;/Headers/Demo.h</code> contains number type mappings between Kotlin/Native and <code class="code ">NSNumber</code>. There is the base class called <code class="code ">DemoNumber</code> in Objective-C and <code class="code ">KotlinNumber</code> in Swift. It extends <code class="code ">NSNumber</code>. There are also child classes per Kotlin number type:</p>
+<div class="table-wrapper"><table class=" wide" id="f5d97241">
+<thead><tr class="ijRowHead" id="eac14835">
+<th id="fff80d0f"><p>Kotlin</p></th>
+<th id="a901aa4c"><p>Swift</p></th>
+<th id="9ad2b51d"><p>Objective-C</p></th>
+<th id="11ffa911"><p>Simple type</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="68d1ab15">
+<td id="8a23c5bf"><p><code class="code ">-</code></p></td>
+<td id="dc65b4bd"><p><code class="code ">KotlinNumber</code></p></td>
+<td id="eab66b5d"><p><code class="code ">&lt;Package&gt;Number</code></p></td>
+<td id="5e05354f"><p><code class="code ">-</code></p></td>
+</tr>
+<tr class="" id="9187dba4">
+<td id="a35351f2"><p><code class="code ">Byte</code></p></td>
+<td id="ab9c5784"><p><code class="code ">KotlinByte</code></p></td>
+<td id="5f849ebb"><p><code class="code ">&lt;Package&gt;Byte</code></p></td>
+<td id="22212031"><p><code class="code ">char</code></p></td>
+</tr>
+<tr class="" id="18b01032">
+<td id="a9f0f488"><p><code class="code ">UByte</code></p></td>
+<td id="17cd871c"><p><code class="code ">KotlinUByte</code></p></td>
+<td id="2caf7a8a"><p><code class="code ">&lt;Package&gt;UByte</code></p></td>
+<td id="6088f303"><p><code class="code ">unsigned char</code></p></td>
+</tr>
+<tr class="" id="9f7d2197">
+<td id="bc15ff64"><p><code class="code ">Short</code></p></td>
+<td id="d4af8aa5"><p><code class="code ">KotlinShort</code></p></td>
+<td id="c9c50d99"><p><code class="code ">&lt;Package&gt;Short</code></p></td>
+<td id="6f3faf79"><p><code class="code ">short</code></p></td>
+</tr>
+<tr class="" id="c9a672c7">
+<td id="cd6ab019"><p><code class="code ">UShort</code></p></td>
+<td id="2a632760"><p><code class="code ">KotlinUShort</code></p></td>
+<td id="1ad715d2"><p><code class="code ">&lt;Package&gt;UShort</code></p></td>
+<td id="5e12d177"><p><code class="code ">unsigned short</code></p></td>
+</tr>
+<tr class="" id="8253dae9">
+<td id="9313723"><p><code class="code ">Int</code></p></td>
+<td id="ffff2f9b"><p><code class="code ">KotlinInt</code></p></td>
+<td id="55206185"><p><code class="code ">&lt;Package&gt;Int</code></p></td>
+<td id="a4ab5157"><p><code class="code ">int</code></p></td>
+</tr>
+<tr class="" id="80022651">
+<td id="fbf8a851"><p><code class="code ">UInt</code></p></td>
+<td id="35d3cef9"><p><code class="code ">KotlinUInt</code></p></td>
+<td id="b42520cd"><p><code class="code ">&lt;Package&gt;UInt</code></p></td>
+<td id="1b8189a0"><p><code class="code ">unsigned int</code></p></td>
+</tr>
+<tr class="" id="2f2b672a">
+<td id="2bdcefc3"><p><code class="code ">Long</code></p></td>
+<td id="4dd1f32c"><p><code class="code ">KotlinLong</code></p></td>
+<td id="80ab7162"><p><code class="code ">&lt;Package&gt;Long</code></p></td>
+<td id="5f60cbe8"><p><code class="code ">long long</code></p></td>
+</tr>
+<tr class="" id="edd8b2b1">
+<td id="93ed35a2"><p><code class="code ">ULong</code></p></td>
+<td id="5123296b"><p><code class="code ">KotlinULong</code></p></td>
+<td id="987ded"><p><code class="code ">&lt;Package&gt;ULong</code></p></td>
+<td id="d2a05304"><p><code class="code ">unsigned long long</code></p></td>
+</tr>
+<tr class="" id="498a330d">
+<td id="6ce51082"><p><code class="code ">Float</code></p></td>
+<td id="56963987"><p><code class="code ">KotlinFloat</code></p></td>
+<td id="e8eedbf5"><p><code class="code ">&lt;Package&gt;Float</code></p></td>
+<td id="59740ad8"><p><code class="code ">float</code></p></td>
+</tr>
+<tr class="" id="33ad3311">
+<td id="b12a1b60"><p><code class="code ">Double</code></p></td>
+<td id="37d218c9"><p><code class="code ">KotlinDouble</code></p></td>
+<td id="d826a313"><p><code class="code ">&lt;Package&gt;Double</code></p></td>
+<td id="2ff4cc91"><p><code class="code ">double</code></p></td>
+</tr>
+<tr class="" id="9e06b9e7">
+<td id="9925f1a1"><p><code class="code ">Boolean</code></p></td>
+<td id="c8c2721e"><p><code class="code ">KotlinBoolean</code></p></td>
+<td id="50dbfbfe"><p><code class="code ">&lt;Package&gt;Boolean</code></p></td>
+<td id="ca9d81d3"><p><code class="code ">BOOL/Bool</code></p></td>
+</tr>
+</tbody>
+</table></div>
+<p id="a3b1f7e7">Every number type has a class method to create a new instance from the related simple type. Also, there is an instance method to extract a simple value back. Schematically, declarations look like that:</p>
+<pre class="code" data-language="none">__attribute__((objc_runtime_name("Kotlin__TYPE__")))
+__attribute__((swift_name("Kotlin__TYPE__")))
+@interface Demo__TYPE__ : DemoNumber
+- (instancetype)initWith__TYPE__:(__CTYPE__)value;
++ (instancetype)numberWith__TYPE__:(__CTYPE__)value;
+@end;
+</pre>
+<p id="bb3595f4">Where <code class="code ">__TYPE__</code> is one of the simple type names and <code class="code ">__CTYPE__</code> is the related Objective-C type, for example, <code class="code ">initWithChar(char)</code>.</p>
+<p id="c0dad2">These types are used to map boxed Kotlin number types into Objective-C and Swift. In Swift, you may simply call the constructor to create an instance, for example, <code class="code ">KotlinLong(value: 42)</code>.</p></section><section class="chapter"><h3 id="classes-and-objects-from-kotlin" data-toc="apple-framework#classes-and-objects-from-kotlin">Classes and objects from Kotlin</h3>
+<p id="4e5a92ce">Let's see how <code class="code ">class</code> and <code class="code ">object</code> are mapped to Objective-C and Swift. The generated <code class="code ">&lt;Framework&gt;/Headers/Demo.h</code> file contains the exact definitions for <code class="code ">Class</code>, <code class="code ">Interface</code>, and <code class="code ">Object</code>:</p>
+<pre class="code" data-language="none">NS_ASSUME_NONNULL_BEGIN
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("Object")))
+@interface DemoObject : KotlinBase
++ (instancetype)alloc __attribute__((unavailable));
++ (instancetype)allocWithZone:(struct _NSZone *)zone __attribute__((unavailable));
++ (instancetype)object __attribute__((swift_name("init()")));
+@property (readonly) NSString *field;
+@end;
+
+__attribute__((swift_name("Interface")))
+@protocol DemoInterface
+@required
+- (void)iMember __attribute__((swift_name("iMember()")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("Clazz")))
+@interface DemoClazz : KotlinBase &lt;DemoInterface&gt;
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+- (DemoLong * _Nullable)memberP:(int32_t)p __attribute__((swift_name("member(p:)")));
+@end;
+</pre>
+<p id="f41ed34c">The code is full of Objective-C attributes, which are intended to help the use of the framework from both Objective-C and Swift languages. <code class="code ">DemoClazz</code>, <code class="code ">DemoInterface</code>, and <code class="code ">DemoObject</code> are created for <code class="code ">Clazz</code>, <code class="code ">Interface</code>, and <code class="code ">Object</code> respectively. The <code class="code ">Interface</code> is turned into <code class="code ">@protocol</code>, both a <code class="code ">class</code> and an <code class="code ">object</code> are represented as <code class="code ">@interface</code>. The <code class="code ">Demo</code> prefix comes from the <code class="code ">-output</code> parameter of the <code class="code ">kotlinc-native</code> compiler and the framework name. You can see here that the nullable return type <code class="code ">ULong?</code> is turned into <code class="code ">DemoLong*</code> in Objective-C.</p></section><section class="chapter"><h3 id="global-declarations-from-kotlin" data-toc="apple-framework#global-declarations-from-kotlin">Global declarations from Kotlin</h3>
+<p id="6750ce2f">All global functions from Kotlin are turned into <code class="code ">DemoLibKt</code> in Objective-C and into <code class="code ">LibKt</code> in Swift, where <code class="code ">Demo</code> is the framework name and set by the <code class="code ">-output</code> parameter of <code class="code ">kotlinc-native</code>.</p>
+<pre class="code" data-language="none">NS_ASSUME_NONNULL_BEGIN
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("LibKt")))
+@interface DemoLibKt : KotlinBase
++ (void)forIntegersB:(int8_t)b s:(int16_t)s i:(int32_t)i l:(DemoLong * _Nullable)l __attribute__((swift_name("forIntegers(b:s:i:l:)")));
++ (void)forFloatsF:(float)f d:(DemoDouble * _Nullable)d __attribute__((swift_name("forFloats(f:d:)")));
++ (NSString *)stringsStr:(NSString * _Nullable)str __attribute__((swift_name("strings(str:)")));
++ (NSString * _Nullable)acceptFunF:(NSString * _Nullable (^)(NSString *))f __attribute__((swift_name("acceptFun(f:)")));
++ (NSString * _Nullable (^)(NSString *))supplyFun __attribute__((swift_name("supplyFun()")));
+@end;
+</pre>
+<p id="6d3bcb14">You see that Kotlin <code class="code ">String</code> and Objective-C <code class="code ">NSString*</code> are mapped transparently. Similarly, <code class="code ">Unit</code> type from Kotlin is mapped to <code class="code ">void</code>. We see primitive types are mapped directly. Non-nullable primitive types are mapped transparently. Nullable primitive types are mapped into <code class="code ">Kotlin&lt;TYPE&gt;*</code> types, as shown in the table <a href="#kotlin-numbers-and-nsnumber" id="59b290d5">above</a>. Both higher order functions <code class="code ">acceptFunF</code> and <code class="code ">supplyFun</code> are included, and accept Objective-C blocks.</p>
+<p id="38630200">More information about all other types mapping details can be found in the <a href="native-objc-interop" id="8cf587b8">Objective-C Interop</a> documentation article</p></section></section><section class="chapter"><h2 id="garbage-collection-and-reference-counting" data-toc="apple-framework#garbage-collection-and-reference-counting">Garbage collection and reference counting</h2>
+<p id="3861be29">Objective-C and Swift use reference counting. Kotlin/Native has its own garbage collection too. Kotlin/Native garbage collection is integrated with Objective-C/Swift reference counting. You do not need to use anything special to control the lifetime of Kotlin/Native instances from Swift or Objective-C.</p></section><section class="chapter"><h2 id="use-the-code-from-objective-c" data-toc="apple-framework#use-the-code-from-objective-c">Use the code from Objective-C</h2>
+<p id="5ebfcbaf">Let's call the framework from Objective-C. For that, create the <code class="code ">main.m</code> file with the following content:</p>
+<pre class="code" data-language="none">#import &lt;Foundation/Foundation.h&gt;
+#import &lt;Demo/Demo.h&gt;
+
+int main(int argc, const char * argv[]) {
+    @autoreleasepool {
+        [[DemoObject object] field];
+        
+        DemoClazz* clazz = [[ DemoClazz alloc] init];
+        [clazz memberP:42];
+        
+        [DemoLibKt forIntegersB:1 s:1 i:3 l:[DemoULong numberWithUnsignedLongLong:4]];
+        [DemoLibKt forIntegersB:1 s:1 i:3 l:nil];
+        
+        [DemoLibKt forFloatsF:2.71 d:[DemoDouble numberWithDouble:2.71]];
+        [DemoLibKt forFloatsF:2.71 d:nil];
+        
+        NSString* ret = [DemoLibKt acceptFunF:^NSString * _Nullable(NSString * it) {
+            return [it stringByAppendingString:@" Kotlin is fun"];
+        }];
+        
+        NSLog(@"%@", ret);
+        return 0;
+    }
+}
+</pre>
+<p id="c05a0cb3">Here you call Kotlin classes directly from Objective-C code. A Kotlin <code class="code ">object</code> has the class method function <code class="code ">object</code>, which allows us to get the only instance of the object and to call <code class="code ">Object</code> methods on it. The widespread pattern is used to create an instance of the <code class="code ">Clazz</code> class. You call the <code class="code ">[[ DemoClazz alloc] init]</code> on Objective-C. You may also use <code class="code ">[DemoClazz new]</code> for constructors without parameters. Global declarations from the Kotlin sources are scoped under the <code class="code ">DemoLibKt</code> class in Objective-C. All methods are turned into class methods of that class. The <code class="code ">strings</code> function is turned into <code class="code ">DemoLibKt.stringsStr</code> function in Objective-C, you can pass <code class="code ">NSString</code> directly to it. The return is visible as <code class="code ">NSString</code> too.</p></section><section class="chapter"><h2 id="use-the-code-from-swift" data-toc="apple-framework#use-the-code-from-swift">Use the code from Swift</h2>
+<p id="dac2c4e7">The framework that you compiled with Kotlin/Native has helper attributes to make it easier to use with Swift. Convert the previous Objective-C example into Swift. As a result, you'll have the following code in <code class="code ">main.swift</code>:</p>
+<pre class="code" data-language="swift">import Foundation
+import Demo
+
+let kotlinObject = Object()
+assert(kotlinObject === Object(), "Kotlin object has only one instance")
+
+let field = Object().field
+
+let clazz = Clazz()
+clazz.member(p: 42)
+
+LibKt.forIntegers(b: 1, s: 2, i: 3, l: 4)
+LibKt.forFloats(f: 2.71, d: nil)
+
+let ret = LibKt.acceptFun { "\($0) Kotlin is fun" }
+if (ret != nil) {
+  print(ret!)
+}
+</pre>
+<p id="9ee6c701">The Kotlin code is turned into very similar looking code in Swift. There are some small differences, though. In Kotlin any <code class="code ">object</code> has only one instance. Kotlin <code class="code ">object Object</code> now has a constructor in Swift, and we use the <code class="code ">Object()</code> syntax to access the only instance of it. The instance is always the same in Swift, so that <code class="code ">Object() === Object()</code> is true. Methods and property names are translated as-is. Kotlin <code class="code ">String</code> is turned into Swift <code class="code ">String</code> too. Swift hides <code class="code ">NSNumber*</code> boxing from us too. We can pass a Swift closure to Kotlin and call a Kotlin lambda function from Swift too.</p>
+<p id="afedd708">More documentation on the types mapping can be found in the <a href="native-objc-interop" id="55eb31d7">Objective-C Interop</a> article.</p></section><section class="chapter"><h2 id="xcode-and-framework-dependencies" data-toc="apple-framework#xcode-and-framework-dependencies">Xcode and framework dependencies</h2>
+<p id="e1a7a269">You need to configure an Xcode project to use our framework. The configuration depends on the target platform.</p>
+<section class="chapter"><h3 id="xcode-for-macos-target" data-toc="apple-framework#xcode-for-macos-target">Xcode for macOS target</h3>
+<p id="4a926442">First, in the <b id="787486fe" class="">General</b> tab of the <b id="4680879f" class="">target</b> configuration, under the <b id="dba066c2" class="">Linked Frameworks and Libraries</b> section, you need to include our framework. This will make Xcode look at our framework and resolve imports both from Objective-C and Swift.</p>
+<p id="2dbf07d3">The second step is to configure the framework search path of the produced binary. It is also known as <code class="code ">rpath</code> or <a href="https://en.wikipedia.org/wiki/Rpath" id="402d7a5" data-external="true" rel="noopener noreferrer">run-time search path</a>. The binary uses the path to look for the required frameworks. We do not recommend installing additional frameworks to the OS if it is not needed. You should understand the layout of your future application, for example, you may have the <code class="code ">Frameworks</code> folder under the application bundle with all the frameworks you use. The <code class="code ">@rpath</code> parameter can be configured in Xcode. You need to open the <b id="668b399e" class="">project</b> configuration and find the <b id="a64ff481" class="">Runpath Search Paths</b> section. Here you specify the relative path to the compiled framework.</p></section><section class="chapter"><h3 id="xcode-for-ios-targets" data-toc="apple-framework#xcode-for-ios-targets">Xcode for iOS targets</h3>
+<p id="bdcc2ea0">First, you need to include the compiled framework in the Xcode project. To do this, add the framework to the <b id="72cf7d0b" class="">Frameworks, Libraries, and Embedded Content</b> section of the <b id="5964e9a4" class="">General</b> tab of the <b id="4ec21e7c" class="">target</b> configuration page.</p>
+<p id="503c652c">The second step is to then include the framework path into the <b id="b6734740" class="">Framework Search Paths</b> section of the <b id="a2746ad4" class="">Build Settings</b> tab of the <b id="a4289cf9" class="">target</b> configuration page. It is possible to use the <code class="code ">$(PROJECT_DIR)</code> macro to simplify the setup.</p>
+<p id="1ec0b24">The iOS simulator requires a framework compiled for the <code class="code ">ios_x64</code> target, the <code class="code ">iOS_sim</code> folder in our case.</p>
+<p id="820724cf"><a href="https://stackoverflow.com/questions/30963294/creating-ios-osx-frameworks-is-it-necessary-to-codesign-them-before-distributin" id="5b276b19" data-external="true" rel="noopener noreferrer">This Stackoverflow thread</a> contains a few more recommendations. Also, the <a href="https://cocoapods.org/" id="270cb29d" data-external="true" rel="noopener noreferrer">CocoaPods</a> package manager may be helpful to automate the process too.</p></section></section><section class="chapter"><h2 id="next-steps" data-toc="apple-framework#next-steps">Next steps</h2>
+<p id="b819be78">Kotlin/Native has bidirectional interop with Objective-C and Swift languages. Kotlin objects integrate with Objective-C/Swift reference counting. Unused Kotlin objects are automatically removed. The <a href="native-objc-interop" id="7f9e228a">Objective-C Interop</a> article contains more information on the interop implementation details. Of course, it is possible to import an existing framework and use it from Kotlin. Kotlin/Native comes with a good set of pre-imported system frameworks.</p>
+<p id="b71a7e9e">Kotlin/Native supports C interop too. Check out the <a href="native-dynamic-libraries" id="8a6c7cc8">Kotlin/Native as a Dynamic Library</a> tutorial for that.</p></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="native-objc-interop">Interoperability with Swift/Objective-C</a> <a class="navigation-links__next" href="native-cocoapods">CocoaPods overview and setup</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/apple-framework.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/apple-framework.html</a>
+  </p>
+</div>

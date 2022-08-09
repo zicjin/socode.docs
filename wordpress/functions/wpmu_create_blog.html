@@ -1,0 +1,54 @@
+<h1>wpmu_create_blog( string $domain, string $path, string $title, int $user_id, array $options = array(), int $network_id = 1 )</h1>  <section> <p>Creates a site.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>This function runs when a user self-registers a new site as well as when a Super Admin creates a new site. Hook to <a href="../hooks/wpmu_new_blog">‘wpmu_new_blog’</a> for events that should affect all new sites.</p> <p>On subdirectory installations, $domain is the same as the main site’s domain, and the path is the subdirectory name (eg ‘example.com’ and ‘/blog1/’). On subdomain installations, $domain is the new subdomain + root domain (eg ‘blog1.example.com’), and $path is ‘/’.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$domain</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The new site's domain.</span> </p> </dd> <dt>$path</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The new site's path.</span> </p> </dd> <dt>$title</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The new site's title.</span> </p> </dd> <dt>$user_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">The user ID of the new site's admin.</span> </p> </dd> <dt>$options</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description"> Array of key=&gt;value pairs used to set initial site options. If valid status keys are included ('public', 'archived', 'mature', 'spam', 'deleted', or 'lang_id') the given site status(es) will be updated. Otherwise, keys and values will be used to set options for the new site. </span> </p> <p class="default">Default value: array()</p> </dd> <dt>$network_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description"> Network ID. Only relevant on multi-network installations.</span> </p> <p class="default">Default value: 1</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(int|<a href="../classes/wp_error">WP_Error</a>)</span> Returns <a href="../classes/wp_error">WP_Error</a> object on failure, the new site ID on success.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/ms-functions.php/">wp-includes/ms-functions.php</a> </p> <pre data-language="php">function wpmu_create_blog( $domain, $path, $title, $user_id, $options = array(), $network_id = 1 ) {
+	$defaults = array(
+		'public' =&gt; 0,
+	);
+	$options  = wp_parse_args( $options, $defaults );
+
+	$title   = strip_tags( $title );
+	$user_id = (int) $user_id;
+
+	// Check if the domain has been used already. We should return an error message.
+	if ( domain_exists( $domain, $path, $network_id ) ) {
+		return new WP_Error( 'blog_taken', __( 'Sorry, that site already exists!' ) );
+	}
+
+	if ( ! wp_installing() ) {
+		wp_installing( true );
+	}
+
+	$allowed_data_fields = array( 'public', 'archived', 'mature', 'spam', 'deleted', 'lang_id' );
+
+	$site_data = array_merge(
+		array(
+			'domain'     =&gt; $domain,
+			'path'       =&gt; $path,
+			'network_id' =&gt; $network_id,
+		),
+		array_intersect_key( $options, array_flip( $allowed_data_fields ) )
+	);
+
+	// Data to pass to wp_initialize_site().
+	$site_initialization_data = array(
+		'title'   =&gt; $title,
+		'user_id' =&gt; $user_id,
+		'options' =&gt; array_diff_key( $options, array_flip( $allowed_data_fields ) ),
+	);
+
+	$blog_id = wp_insert_site( array_merge( $site_data, $site_initialization_data ) );
+
+	if ( is_wp_error( $blog_id ) ) {
+		return $blog_id;
+	}
+
+	wp_cache_set( 'last_changed', microtime(), 'sites' );
+
+	return $blog_id;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/ms-site.php:</span> <a href="wp_insert_site">wp_insert_site()</a> </td> <td class="related-desc"> <p>Inserts a new site into the database.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_installing">wp_installing()</a> </td> <td class="related-desc"> <p>Check or set whether WordPress is in “installation” mode.</p> </td> </tr> <tr> <td> <span>wp-includes/cache.php:</span> <a href="wp_cache_set">wp_cache_set()</a> </td> <td class="related-desc"> <p>Saves the data to the cache.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_parse_args">wp_parse_args()</a> </td> <td class="related-desc"> <p>Merges user defined arguments into defaults array.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="domain_exists">domain_exists()</a> </td> <td class="related-desc"> <p>Checks whether a site name is already taken.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../classes/wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-signup.php:</span> <a href="validate_another_blog_signup">validate_another_blog_signup()</a> </td> <td class="related-desc"> <p>Validates a new site sign-up for an existing user.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="wpmu_activate_signup">wpmu_activate_signup()</a> </td> <td class="related-desc"> <p>Activates a signup.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/mu.3.0.0/" alt="WordPress MU (3.0.0)">MU (3.0.0)</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wpmu_create_blog" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wpmu_create_blog</a>
+  </p>
+</div>

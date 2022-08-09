@@ -1,0 +1,210 @@
+<h1 data-toc="ant" id="ant.md">Ant</h1>
+<section class="chapter"><h2 id="getting-the-ant-tasks" data-toc="ant#getting-the-ant-tasks">Getting the Ant tasks</h2>
+<p id="4a150b1b">Kotlin provides three tasks for Ant:</p>
+<ul class="list _ul" id="3b810b2">
+<li class="list__item" id="82a831c9"><p><code class="code ">kotlinc</code>: Kotlin compiler targeting the JVM</p></li>
+<li class="list__item" id="1d74767b"><p><code class="code ">kotlin2js</code>: Kotlin compiler targeting JavaScript</p></li>
+<li class="list__item" id="bad691c7"><p><code class="code ">withKotlin</code>: Task to compile Kotlin files when using the standard <em id="371295fe" class="">javac</em> Ant task</p></li>
+</ul>
+<p id="4a7ca665">These tasks are defined in the <em id="4a2f8083" class="">kotlin-ant.jar</em> library which is located in the <code class="code ">lib</code> folder in the <a href="https://github.com/JetBrains/kotlin/releases/tag/v1.7.10" id="e46e6544" data-external="true" rel="noopener noreferrer">Kotlin Compiler</a> archive. Ant version 1.8.2+ is required.</p></section><section class="chapter"><h2 id="targeting-jvm-with-kotlin-only-source" data-toc="ant#targeting-jvm-with-kotlin-only-source">Targeting JVM with Kotlin-only source</h2>
+<p id="176686f7">When the project consists of exclusively Kotlin source code, the easiest way to compile the project is to use the <code class="code ">kotlinc</code> task:</p>
+<pre class="code" data-language="markup">&lt;project name="Ant Task Test" default="build"&gt;
+    &lt;typedef resource="org/jetbrains/kotlin/ant/antlib.xml" classpath="${kotlin.lib}/kotlin-ant.jar"/&gt;
+
+    &lt;target name="build"&gt;
+        &lt;kotlinc src="hello.kt" output="hello.jar"/&gt;
+    &lt;/target&gt;
+&lt;/project&gt;
+</pre>
+<p id="7c6718a7">where <code class="code ">${kotlin.lib}</code> points to the folder where the Kotlin standalone compiler was unzipped.</p></section><section class="chapter"><h2 id="targeting-jvm-with-kotlin-only-source-and-multiple-roots" data-toc="ant#targeting-jvm-with-kotlin-only-source-and-multiple-roots">Targeting JVM with Kotlin-only source and multiple roots</h2>
+<p id="b88e5bed">If a project consists of multiple source roots, use <code class="code ">src</code> as elements to define paths:</p>
+<pre class="code" data-language="markup">&lt;project name="Ant Task Test" default="build"&gt;
+    &lt;typedef resource="org/jetbrains/kotlin/ant/antlib.xml" classpath="${kotlin.lib}/kotlin-ant.jar"/&gt;
+
+    &lt;target name="build"&gt;
+        &lt;kotlinc output="hello.jar"&gt;
+            &lt;src path="root1"/&gt;
+            &lt;src path="root2"/&gt;
+        &lt;/kotlinc&gt;
+    &lt;/target&gt;
+&lt;/project&gt;
+</pre></section><section class="chapter"><h2 id="targeting-jvm-with-kotlin-and-java-source" data-toc="ant#targeting-jvm-with-kotlin-and-java-source">Targeting JVM with Kotlin and Java source</h2>
+<p id="412d896e">If a project consists of both Kotlin and Java source code, while it is possible to use <code class="code ">kotlinc</code>, to avoid repetition of task parameters, it is recommended to use <code class="code ">withKotlin</code> task:</p>
+<pre class="code" data-language="markup">&lt;project name="Ant Task Test" default="build"&gt;
+    &lt;typedef resource="org/jetbrains/kotlin/ant/antlib.xml" classpath="${kotlin.lib}/kotlin-ant.jar"/&gt;
+
+    &lt;target name="build"&gt;
+        &lt;delete dir="classes" failonerror="false"/&gt;
+        &lt;mkdir dir="classes"/&gt;
+        &lt;javac destdir="classes" includeAntRuntime="false" srcdir="src"&gt;
+            &lt;withKotlin/&gt;
+        &lt;/javac&gt;
+        &lt;jar destfile="hello.jar"&gt;
+            &lt;fileset dir="classes"/&gt;
+        &lt;/jar&gt;
+    &lt;/target&gt;
+&lt;/project&gt;
+</pre>
+<p id="14ec48d8">You can also specify the name of the module being compiled as the <code class="code ">moduleName</code> attribute:</p>
+<pre class="code" data-language="markup">&lt;withKotlin moduleName="myModule"/&gt;
+</pre></section><section class="chapter"><h2 id="targeting-javascript-with-single-source-folder" data-toc="ant#targeting-javascript-with-single-source-folder">Targeting JavaScript with single source folder</h2>
+<pre class="code" data-language="markup">&lt;project name="Ant Task Test" default="build"&gt;
+    &lt;typedef resource="org/jetbrains/kotlin/ant/antlib.xml" classpath="${kotlin.lib}/kotlin-ant.jar"/&gt;
+
+    &lt;target name="build"&gt;
+        &lt;kotlin2js src="root1" output="out.js"/&gt;
+    &lt;/target&gt;
+&lt;/project&gt;
+</pre></section><section class="chapter"><h2 id="targeting-javascript-with-prefix-postfix-and-sourcemap-options" data-toc="ant#targeting-javascript-with-prefix-postfix-and-sourcemap-options">Targeting JavaScript with Prefix, PostFix and sourcemap options</h2>
+<pre class="code" data-language="markup">&lt;project name="Ant Task Test" default="build"&gt;
+    &lt;taskdef resource="org/jetbrains/kotlin/ant/antlib.xml" classpath="${kotlin.lib}/kotlin-ant.jar"/&gt;
+
+    &lt;target name="build"&gt;
+        &lt;kotlin2js src="root1" output="out.js" outputPrefix="prefix" outputPostfix="postfix" sourcemap="true"/&gt;
+    &lt;/target&gt;
+&lt;/project&gt;
+</pre></section><section class="chapter"><h2 id="targeting-javascript-with-single-source-folder-and-metainfo-option" data-toc="ant#targeting-javascript-with-single-source-folder-and-metainfo-option">Targeting JavaScript with single source folder and metaInfo option</h2>
+<p id="94218718">The <code class="code ">metaInfo</code> option is useful, if you want to distribute the result of translation as a Kotlin/JavaScript library. If <code class="code ">metaInfo</code> was set to <code class="code ">true</code>, then during compilation additional JS file with binary metadata will be created. This file should be distributed together with the result of translation:</p>
+<pre class="code" data-language="markup">&lt;project name="Ant Task Test" default="build"&gt;
+    &lt;typedef resource="org/jetbrains/kotlin/ant/antlib.xml" classpath="${kotlin.lib}/kotlin-ant.jar"/&gt;
+
+    &lt;target name="build"&gt;
+        &lt;!-- out.meta.js will be created, which contains binary metadata --&gt;
+        &lt;kotlin2js src="root1" output="out.js" metaInfo="true"/&gt;
+    &lt;/target&gt;
+&lt;/project&gt;
+</pre></section><section class="chapter"><h2 id="references" data-toc="ant#references">References</h2>
+<p id="1481ea40">Complete list of elements and attributes are listed below:</p>
+<section class="chapter"><h3 id="attributes-common-for-kotlinc-and-kotlin2js" data-toc="ant#attributes-common-for-kotlinc-and-kotlin2js">Attributes common for kotlinc and kotlin2js</h3>
+<div class="table-wrapper"><table class=" wide" id="161116e8">
+<thead><tr class="ijRowHead" id="4eb278d5">
+<th id="a5602bda"><p>Name</p></th>
+<th id="b64cf82f"><p>Description</p></th>
+<th id="683db6b5"><p>Required</p></th>
+<th id="c073eb52"><p>Default Value</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="458c719a">
+<td id="76cf7c34"><p><code class="code ">src</code></p></td>
+<td id="9e039ed"><p>Kotlin source file or directory to compile</p></td>
+<td id="b3382446"><p>Yes</p></td>
+<td id="8e3af656"></td>
+</tr>
+<tr class="" id="5a52591d">
+<td id="3a8ad91e"><p><code class="code ">nowarn</code></p></td>
+<td id="27d64531"><p>Suppresses all compilation warnings</p></td>
+<td id="1f60fe91"><p>No</p></td>
+<td id="7942ae62"><p>false</p></td>
+</tr>
+<tr class="" id="e879cb60">
+<td id="2d2c00ad"><p><code class="code ">noStdlib</code></p></td>
+<td id="1128f97"><p>Does not include the Kotlin standard library into the classpath</p></td>
+<td id="fc8c8529"><p>No</p></td>
+<td id="dfb7fb70"><p>false</p></td>
+</tr>
+<tr class="" id="53ef728">
+<td id="bf9e389"><p><code class="code ">failOnError</code></p></td>
+<td id="9c66e794"><p>Fails the build if errors are detected during the compilation</p></td>
+<td id="4ba8540d"><p>No</p></td>
+<td id="523637cc"><p>true</p></td>
+</tr>
+</tbody>
+</table></div></section><section class="chapter"><h3 id="kotlinc-attributes" data-toc="ant#kotlinc-attributes">kotlinc attributes</h3>
+<div class="table-wrapper"><table class=" wide" id="d5ce92f8">
+<thead><tr class="ijRowHead" id="301f1299">
+<th id="b8beb0b0"><p>Name</p></th>
+<th id="192fdfcb"><p>Description</p></th>
+<th id="a2f197f6"><p>Required</p></th>
+<th id="ec846c9d"><p>Default Value</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="2c208fcc">
+<td id="a3a8f121"><p><code class="code ">output</code></p></td>
+<td id="30994eca"><p>Destination directory or .jar file name</p></td>
+<td id="5c91e319"><p>Yes</p></td>
+<td id="7eef3127"></td>
+</tr>
+<tr class="" id="a58eb0e9">
+<td id="2d00b50f"><p><code class="code ">classpath</code></p></td>
+<td id="cbc6c7cd"><p>Compilation class path</p></td>
+<td id="62a386fc"><p>No</p></td>
+<td id="16bddf11"></td>
+</tr>
+<tr class="" id="84740837">
+<td id="76cccbad"><p><code class="code ">classpathref</code></p></td>
+<td id="b8988c64"><p>Compilation class path reference</p></td>
+<td id="aa27f274"><p>No</p></td>
+<td id="e86dfb5d"></td>
+</tr>
+<tr class="" id="dc991ad4">
+<td id="d20c47f5"><p><code class="code ">includeRuntime</code></p></td>
+<td id="297f3804"><p>If <code class="code ">output</code> is a .jar file, whether Kotlin runtime library is included in the jar</p></td>
+<td id="161c76cb"><p>No</p></td>
+<td id="bbfb13ed"><p>true</p></td>
+</tr>
+<tr class="" id="c44a952f">
+<td id="bf8ed217"><p><code class="code ">moduleName</code></p></td>
+<td id="e02b7e56"><p>Name of the module being compiled</p></td>
+<td id="d3bd11e5"><p>No</p></td>
+<td id="7babfbfb"><p>The name of the target (if specified) or the project</p></td>
+</tr>
+</tbody>
+</table></div></section><section class="chapter"><h3 id="kotlin2js-attributes" data-toc="ant#kotlin2js-attributes">kotlin2js attributes</h3>
+<div class="table-wrapper"><table class=" wide" id="38a393a6">
+<thead><tr class="ijRowHead" id="4426321a">
+<th id="188e4ef8"><p>Name</p></th>
+<th id="a8dfa002"><p>Description</p></th>
+<th id="6a858fe8"><p>Required</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="ee26f8f4">
+<td id="7ffcd69d"><p><code class="code ">output</code></p></td>
+<td id="9d48500d"><p>Destination file</p></td>
+<td id="9487935f"><p>Yes</p></td>
+</tr>
+<tr class="" id="e4ec93f">
+<td id="3ec23813"><p><code class="code ">libraries</code></p></td>
+<td id="33543a7f"><p>Paths to Kotlin libraries</p></td>
+<td id="71f0038f"><p>No</p></td>
+</tr>
+<tr class="" id="9677c9db">
+<td id="9fd8e94a"><p><code class="code ">outputPrefix</code></p></td>
+<td id="d00411df"><p>Prefix to use for generated JavaScript files</p></td>
+<td id="cdff528d"><p>No</p></td>
+</tr>
+<tr class="" id="95f9f6d8">
+<td id="50e575c0"><p><code class="code ">outputSuffix</code></p></td>
+<td id="f4df344b"><p>Suffix to use for generated JavaScript files</p></td>
+<td id="6325bf5b"><p>No</p></td>
+</tr>
+<tr class="" id="30a62fea">
+<td id="d0e17a89"><p><code class="code ">sourcemap</code></p></td>
+<td id="6cf48c6a"><p>Whether sourcemap file should be generated</p></td>
+<td id="deaa2263"><p>No</p></td>
+</tr>
+<tr class="" id="8eef7309">
+<td id="c0cd51b1"><p><code class="code ">metaInfo</code></p></td>
+<td id="f97be0a9"><p>Whether metadata file with binary descriptors should be generated</p></td>
+<td id="ad02bf3f"><p>No</p></td>
+</tr>
+<tr class="" id="7c0a129d">
+<td id="f36c438"><p><code class="code ">main</code></p></td>
+<td id="81e02339"><p>Should compiler generated code call the main function</p></td>
+<td id="6ae746e9"><p>No</p></td>
+</tr>
+</tbody>
+</table></div></section><section class="chapter"><h3 id="passing-raw-compiler-arguments" data-toc="ant#passing-raw-compiler-arguments">Passing raw compiler arguments</h3>
+<p id="a7f6ee7a">To pass custom raw compiler arguments, you can use <code class="code ">&lt;compilerarg&gt;</code> elements with either <code class="code ">value</code> or <code class="code ">line</code> attributes. This can be done within the <code class="code ">&lt;kotlinc&gt;</code>, <code class="code ">&lt;kotlin2js&gt;</code>, and <code class="code ">&lt;withKotlin&gt;</code> task elements, as follows:</p>
+<pre class="code" data-language="markup">&lt;kotlinc src="${test.data}/hello.kt" output="${temp}/hello.jar"&gt;
+    &lt;compilerarg value="-Xno-inline"/&gt;
+    &lt;compilerarg line="-Xno-call-assertions -Xno-param-assertions"/&gt;
+    &lt;compilerarg value="-Xno-optimize"/&gt;
+&lt;/kotlinc&gt;
+</pre>
+<p id="9c90fb88">The full list of arguments that can be used is shown when you run <code class="code ">kotlinc -help</code>.</p></section></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="maven">Maven</a> <a class="navigation-links__next" href="kotlin-ide">IDEs for Kotlin development</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/ant.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/ant.html</a>
+  </p>
+</div>

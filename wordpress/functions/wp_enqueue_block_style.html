@@ -1,0 +1,100 @@
+<h1>wp_enqueue_block_style( string $block_name, array $args )</h1>  <section> <p>Enqueues a stylesheet for a specific block.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>If the theme has opted-in to separate-styles loading, then the stylesheet will be enqueued on-render, otherwise when the block inits.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$block_name</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The block-name, including namespace.</span> </p> </dd> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">An array of arguments [handle,src,deps,ver,media].</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/script-loader.php/">wp-includes/script-loader.php</a> </p> <pre data-language="php">function wp_enqueue_block_style( $block_name, $args ) {
+	$args = wp_parse_args(
+		$args,
+		array(
+			'handle' =&gt; '',
+			'src'    =&gt; '',
+			'deps'   =&gt; array(),
+			'ver'    =&gt; false,
+			'media'  =&gt; 'all',
+		)
+	);
+
+	/**
+	 * Callback function to register and enqueue styles.
+	 *
+	 * @param string $content When the callback is used for the render_block filter,
+	 *                        the content needs to be returned so the function parameter
+	 *                        is to ensure the content exists.
+	 * @return string Block content.
+	 */
+	$callback = static function( $content ) use ( $args ) {
+		// Register the stylesheet.
+		if ( ! empty( $args['src'] ) ) {
+			wp_register_style( $args['handle'], $args['src'], $args['deps'], $args['ver'], $args['media'] );
+		}
+
+		// Add `path` data if provided.
+		if ( isset( $args['path'] ) ) {
+			wp_style_add_data( $args['handle'], 'path', $args['path'] );
+
+			// Get the RTL file path.
+			$rtl_file_path = str_replace( '.css', '-rtl.css', $args['path'] );
+
+			// Add RTL stylesheet.
+			if ( file_exists( $rtl_file_path ) ) {
+				wp_style_add_data( $args['handle'], 'rtl', 'replace' );
+
+				if ( is_rtl() ) {
+					wp_style_add_data( $args['handle'], 'path', $rtl_file_path );
+				}
+			}
+		}
+
+		// Enqueue the stylesheet.
+		wp_enqueue_style( $args['handle'] );
+
+		return $content;
+	};
+
+	$hook = did_action( 'wp_enqueue_scripts' ) ? 'wp_footer' : 'wp_enqueue_scripts';
+	if ( wp_should_load_separate_core_block_assets() ) {
+		/**
+		 * Callback function to register and enqueue styles.
+		 *
+		 * @param string $content The block content.
+		 * @param array  $block   The full block, including name and attributes.
+		 * @return string Block content.
+		 */
+		$callback_separate = static function( $content, $block ) use ( $block_name, $callback ) {
+			if ( ! empty( $block['blockName'] ) &amp;&amp; $block_name === $block['blockName'] ) {
+				return $callback( $content );
+			}
+			return $content;
+		};
+
+		/*
+		 * The filter's callback here is an anonymous function because
+		 * using a named function in this case is not possible.
+		 *
+		 * The function cannot be unhooked, however, users are still able
+		 * to dequeue the stylesheets registered/enqueued by the callback
+		 * which is why in this case, using an anonymous function
+		 * was deemed acceptable.
+		 */
+		add_filter( 'render_block', $callback_separate, 10, 2 );
+		return;
+	}
+
+	/*
+	 * The filter's callback here is an anonymous function because
+	 * using a named function in this case is not possible.
+	 *
+	 * The function cannot be unhooked, however, users are still able
+	 * to dequeue the stylesheets registered/enqueued by the callback
+	 * which is why in this case, using an anonymous function
+	 * was deemed acceptable.
+	 */
+	add_filter( $hook, $callback );
+
+	// Enqueue assets in the editor.
+	add_action( 'enqueue_block_assets', $callback );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/script-loader.php:</span> <a href="wp_should_load_separate_core_block_assets">wp_should_load_separate_core_block_assets()</a> </td> <td class="related-desc"> <p>Checks whether separate styles should be loaded for core blocks on-render.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_parse_args">wp_parse_args()</a> </td> <td class="related-desc"> <p>Merges user defined arguments into defaults array.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="is_rtl">is_rtl()</a> </td> <td class="related-desc"> <p>Determines whether the current locale is right-to-left (RTL).</p> </td> </tr> <tr> <td> <span>wp-includes/functions.wp-styles.php:</span> <a href="wp_register_style">wp_register_style()</a> </td> <td class="related-desc"> <p>Register a CSS stylesheet.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.wp-styles.php:</span> <a href="wp_style_add_data">wp_style_add_data()</a> </td> <td class="related-desc"> <p>Add metadata to a CSS stylesheet.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.wp-styles.php:</span> <a href="wp_enqueue_style">wp_enqueue_style()</a> </td> <td class="related-desc"> <p>Enqueue a CSS stylesheet.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="did_action">did_action()</a> </td> <td class="related-desc"> <p>Retrieves the number of times an action has been fired during the current request.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="add_filter">add_filter()</a> </td> <td class="related-desc"> <p>Adds a callback function to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="add_action">add_action()</a> </td> <td class="related-desc"> <p>Adds a callback function to an action hook.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="_wp_multiple_block_styles">_wp_multiple_block_styles()</a> </td> <td class="related-desc"> <p>Allows multiple block styles.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.9.0/" alt="WordPress 5.9.0">5.9.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_enqueue_block_style" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_enqueue_block_style</a>
+  </p>
+</div>

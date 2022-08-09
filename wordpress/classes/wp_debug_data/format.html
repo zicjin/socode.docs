@@ -1,0 +1,63 @@
+<h1>WP_Debug_Data::format( array $info_array, string $data_type )</h1>  <section> <p>Format the information gathered for debugging, in a manner suitable for copying to a forum or support ticket.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$info_array</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Information gathered from the <code>WP_Debug_Data::debug_data()</code> function.</span> </p> </dd> <dt>$data_type</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The data type to return, either 'info' or 'debug'.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> The formatted data.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-debug-data.php/">wp-admin/includes/class-wp-debug-data.php</a> </p> <pre data-language="php">public static function format( $info_array, $data_type ) {
+		$return = "`\n";
+
+		foreach ( $info_array as $section =&gt; $details ) {
+			// Skip this section if there are no fields, or the section has been declared as private.
+			if ( empty( $details['fields'] ) || ( isset( $details['private'] ) &amp;&amp; $details['private'] ) ) {
+				continue;
+			}
+
+			$section_label = 'debug' === $data_type ? $section : $details['label'];
+
+			$return .= sprintf(
+				"### %s%s ###\n\n",
+				$section_label,
+				( isset( $details['show_count'] ) &amp;&amp; $details['show_count'] ? sprintf( ' (%d)', count( $details['fields'] ) ) : '' )
+			);
+
+			foreach ( $details['fields'] as $field_name =&gt; $field ) {
+				if ( isset( $field['private'] ) &amp;&amp; true === $field['private'] ) {
+					continue;
+				}
+
+				if ( 'debug' === $data_type &amp;&amp; isset( $field['debug'] ) ) {
+					$debug_data = $field['debug'];
+				} else {
+					$debug_data = $field['value'];
+				}
+
+				// Can be array, one level deep only.
+				if ( is_array( $debug_data ) ) {
+					$value = '';
+
+					foreach ( $debug_data as $sub_field_name =&gt; $sub_field_value ) {
+						$value .= sprintf( "\n\t%s: %s", $sub_field_name, $sub_field_value );
+					}
+				} elseif ( is_bool( $debug_data ) ) {
+					$value = $debug_data ? 'true' : 'false';
+				} elseif ( empty( $debug_data ) &amp;&amp; '0' !== $debug_data ) {
+					$value = 'undefined';
+				} else {
+					$value = $debug_data;
+				}
+
+				if ( 'debug' === $data_type ) {
+					$label = $field_name;
+				} else {
+					$label = $field['label'];
+				}
+
+				$return .= sprintf( "%s: %s\n", $label, $value );
+			}
+
+			$return .= "\n";
+		}
+
+		$return .= '`';
+
+		return $return;
+	}</pre>  </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.2.0/" alt="WordPress 5.2.0">5.2.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_debug_data/format" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_debug_data/format</a>
+  </p>
+</div>

@@ -1,200 +1,112 @@
-<h1 class="fqn">Struct std::process::ExitCode</h1>
+<h1 class="main-heading">Struct std::process::ExitCode</h1>
 <pre class="rust struct" data-language="rust">pub struct ExitCode(_);</pre>
-<div class="item-info"><div class="stab unstable">
-<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>process_exitcode_placeholder</code> <a href="https://github.com/rust-lang/rust/issues/48711">#48711</a>)</div></div>
-<p>This type represents the status code a process can return to its parent under normal termination.</p> <p>Numeric values used in this type don’t have portable meanings, and different platforms may mask different amounts of them.</p> <p>For the platform’s canonical successful and unsuccessful codes, see the <a href="struct.exitcode#associatedconstant.SUCCESS"><code>SUCCESS</code></a> and <a href="struct.exitcode#associatedconstant.FAILURE"><code>FAILURE</code></a> associated items.</p> <p><strong>Warning</strong>: While various forms of this were discussed in <a href="https://github.com/rust-lang/rfcs/pull/1937">RFC #1937</a>, it was ultimately cut from that RFC, and thus this type is more subject to change even than the usual unstable item churn.</p> <h2 id="implementations" class="small-section-header">Implementations</h2>
-<summary><div id="impl" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#1674-1690" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl ExitCode</h3>
-</div></summary><summary><div id="associatedconstant.SUCCESS" class="associatedconstant has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#1681" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub const SUCCESS: ExitCode</h4>
+<p>This type represents the status code the current process can return to its parent under normal termination.</p> <p><code>ExitCode</code> is intended to be consumed only by the standard library (via <a href="trait.termination#tymethod.report" title="Termination::report()"><code>Termination::report()</code></a>), and intentionally does not provide accessors like <code>PartialEq</code>, <code>Eq</code>, or <code>Hash</code>. Instead the standard library provides the canonical <code>SUCCESS</code> and <code>FAILURE</code> exit codes as well as <code>From&lt;u8&gt; for ExitCode</code> for constructing other arbitrary exit codes.</p> <h2 id="portability">Portability</h2> <p>Numeric values used in this type don’t have portable meanings, and different platforms may mask different amounts of them.</p> <p>For the platform’s canonical successful and unsuccessful codes, see the <a href="struct.exitcode#associatedconstant.SUCCESS"><code>SUCCESS</code></a> and <a href="struct.exitcode#associatedconstant.FAILURE"><code>FAILURE</code></a> associated items.</p> <h2 id="differences-from-exitstatus">Differences from <code>ExitStatus</code>
+</h2> <p><code>ExitCode</code> is intended for terminating the currently running process, via the <code>Termination</code> trait, in contrast to <a href="struct.exitstatus" title="ExitStatus"><code>ExitStatus</code></a>, which represents the termination of a child process. These APIs are separate due to platform compatibility differences and their expected usage; it is not generally possible to exactly reproduce an ExitStatus from a child for the current process after the fact.</p> <h2 id="examples">Examples</h2> <p><code>ExitCode</code> can be returned from the <code>main</code> function of a crate, as it implements <a href="trait.termination" title="Termination"><code>Termination</code></a>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::process::ExitCode;
+
+fn main() -&gt; ExitCode {
+    if !check_foo() {
+        return ExitCode::from(42);
+    }
+
+    ExitCode::SUCCESS
+}</pre></div> <h2 id="implementations" class="small-section-header">Implementations</h2>
+<div id="implementations-list">
+<summary><section id="impl" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#1712-1771">source</a></span><h3 class="code-header in-band">impl ExitCode</h3></section></summary><div class="impl-items">
+<summary><section id="associatedconstant.SUCCESS" class="associatedconstant has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#1719">source</a></span><h4 class="code-header">pub const SUCCESS: ExitCode = ExitCode(imp::ExitCode::SUCCESS)</h4></section></summary><div class="docblock">
+<p>The canonical <code>ExitCode</code> for successful termination on this platform.</p> <p>Note that a <code>()</code>-returning <code>main</code> implicitly results in a successful termination, so there’s no need to return this from <code>main</code> unless you’re also returning other possible codes.</p> </div>
+<summary><section id="associatedconstant.FAILURE" class="associatedconstant has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#1727">source</a></span><h4 class="code-header">pub const FAILURE: ExitCode = ExitCode(imp::ExitCode::FAILURE)</h4></section></summary><div class="docblock">
+<p>The canonical <code>ExitCode</code> for unsuccessful termination on this platform.</p> <p>If you’re only returning this and <code>SUCCESS</code> from <code>main</code>, consider instead returning <code>Err(_)</code> and <code>Ok(())</code> respectively, which will return the same codes (but will also <code>eprintln!</code> the error).</p> </div>
+<summary><section id="method.exit_process" class="method has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#1768-1770">source</a></span><h4 class="code-header">pub fn exit_process(self) -&gt; !</h4></section><span class="item-info"><div class="stab unstable">
+<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>exitcode_exit_method</code>)</div></span></summary><div class="docblock">
+<p>Exit the current process with the given <code>ExitCode</code>.</p> <p>Note that this has the same caveats as <a href="fn.exit" title="exit"><code>process::exit()</code></a>, namely that this function terminates the process immediately, so no destructors on the current stack or any other thread’s stack will be run. If a clean shutdown is needed, it is recommended to simply return this ExitCode from the <code>main</code> function, as demonstrated in the <a href="#examples">type documentation</a>.</p> <h5 id="differences-from-processexit">Differences from <code>process::exit()</code>
+</h5> <p><code>process::exit()</code> accepts any <code>i32</code> value as the exit code for the process; however, there are platforms that only use a subset of that value (see <a href="fn.exit#platform-specific-behavior" title="exit"><code>process::exit</code> platform-specific behavior</a>). <code>ExitCode</code> exists because of this; only <code>ExitCode</code>s that are supported by a majority of our platforms can be created, so those problems don’t exist (as much) with this method.</p> <h5 id="examples-1">Examples</h5> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">#![feature(exitcode_exit_method)]
+// there's no way to gracefully recover from an UhOhError, so we just
+// print a message and exit
+fn handle_unrecoverable_error(err: UhOhError) -&gt; ! {
+    eprintln!("UH OH! {err}");
+    let code = match err {
+        UhOhError::GenericProblem =&gt; ExitCode::FAILURE,
+        UhOhError::Specific =&gt; ExitCode::from(3),
+        UhOhError::WithCode { exit_code, .. } =&gt; exit_code,
+    };
+    code.exit_process()
+}</pre></div> </div>
 </div>
-<div class="item-info"><div class="stab unstable">
-<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>process_exitcode_placeholder</code> <a href="https://github.com/rust-lang/rust/issues/48711">#48711</a>)</div></div></summary><div class="docblock">
-<p>The canonical ExitCode for successful termination on this platform.</p> <p>Note that a <code>()</code>-returning <code>main</code> implicitly results in a successful termination, so there’s no need to return this from <code>main</code> unless you’re also returning other possible codes.</p> </div>
-<summary><div id="associatedconstant.FAILURE" class="associatedconstant has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#1689" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub const FAILURE: ExitCode</h4>
 </div>
-<div class="item-info"><div class="stab unstable">
-<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>process_exitcode_placeholder</code> <a href="https://github.com/rust-lang/rust/issues/48711">#48711</a>)</div></div></summary><div class="docblock">
-<p>The canonical ExitCode for unsuccessful termination on this platform.</p> <p>If you’re only returning this and <code>SUCCESS</code> from <code>main</code>, consider instead returning <code>Err(_)</code> and <code>Ok(())</code> respectively, which will return the same codes (but will also <code>eprintln!</code> the error).</p> </div>
 <h2 id="trait-implementations" class="small-section-header">Trait Implementations</h2>
 <div id="trait-implementations-list">
-<summary><div id="impl-Clone" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#1669" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl Clone for ExitCode</h3>
-</div></summary><div class="impl-items">
-<summary><div id="method.clone" class="method trait-impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#1669" title="goto source code">[src]</a></div>
-<h4 class="code-header">fn clone(&amp;self) -&gt; ExitCode</h4>
-</div></summary><div class="docblock">
+<summary><section id="impl-Clone" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#1707">source</a></span><h3 class="code-header in-band">impl Clone for ExitCode</h3></section></summary><div class="impl-items">
+<summary><section id="method.clone" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#1707">source</a></span><h4 class="code-header">fn clone(&amp;self) -&gt; ExitCode</h4></section></summary><div class="docblock">
 <p>Returns a copy of the value. <a href="../clone/trait.clone#tymethod.clone">Read more</a></p> </div>
-<summary><div id="method.clone_from" class="method trait-impl has-srclink">
-<div class="rightside">
-<a class="srclink" href="https://doc.rust-lang.org/src/core/clone.rs.html#130" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.0.0">1.0.0</span>
-</div>
-<h4 class="code-header">fn clone_from(&amp;mut self, source: &amp;Self)</h4>
-</div></summary><div class="docblock">
+<summary><section id="method.clone_from" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/clone.rs.html#133-135">source</a><span class="since" title="Stable since Rust version 1.0.0">1.0.0</span> · </span><h4 class="code-header">fn clone_from(&amp;mut self, source: &amp;Self)</h4></section></summary><div class="docblock">
 <p>Performs copy-assignment from <code>source</code>. <a href="../clone/trait.clone#method.clone_from">Read more</a></p> </div>
 </div>
-<summary><div id="impl-Debug" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#1669" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl Debug for ExitCode</h3>
-</div></summary><div class="impl-items">
-<summary><div id="method.fmt" class="method trait-impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#1669" title="goto source code">[src]</a></div>
-<h4 class="code-header">fn fmt(&amp;self, f: &amp;mut Formatter&lt;'_&gt;) -&gt; Result</h4>
-</div></summary><div class="docblock">
+<summary><section id="impl-Debug" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#1707">source</a></span><h3 class="code-header in-band">impl Debug for ExitCode</h3></section></summary><div class="impl-items">
+<summary><section id="method.fmt" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#1707">source</a></span><h4 class="code-header">fn fmt(&amp;self, f: &amp;mut Formatter&lt;'_&gt;) -&gt; Result</h4></section></summary><div class="docblock">
 <p>Formats the value using the given formatter. <a href="../fmt/trait.debug#tymethod.fmt">Read more</a></p> </div>
 </div>
-<summary><div id="impl-Termination" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#2078-2083" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl Termination for ExitCode</h3>
-</div></summary><div class="impl-items">
-<summary><div id="method.report" class="method trait-impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#2080-2082" title="goto source code">[src]</a></div>
-<h4 class="code-header">fn report(self) -&gt; i32</h4>
-</div></summary><div class="item-info"><div class="stab unstable">
-<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>termination_trait_lib</code> <a href="https://github.com/rust-lang/rust/issues/43301">#43301</a>)</div></div>
-<div class="docblock">
+<summary><section id="impl-From%3Cu8%3E" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#1794-1799">source</a></span><h3 class="code-header in-band">impl From&lt;u8&gt; for ExitCode</h3></section></summary><div class="impl-items">
+<summary><section id="method.from" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#1796-1798">source</a></span><h4 class="code-header">fn from(code: u8) -&gt; Self</h4></section></summary><div class="docblock">
+<p>Construct an <code>ExitCode</code> from an arbitrary u8 value.</p> </div>
+</div>
+<summary><section id="impl-Termination" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#2178-2183">source</a></span><h3 class="code-header in-band">impl Termination for ExitCode</h3></section></summary><div class="impl-items">
+<summary><section id="method.report" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#2180-2182">source</a></span><h4 class="code-header">fn report(self) -&gt; ExitCode</h4></section></summary><div class="docblock">
 <p>Is called to get the representation of the value as status code. This status code is returned to the operating system. <a href="trait.termination#tymethod.report">Read more</a></p> </div>
 </div>
-<div id="impl-Copy" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#1669" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl Copy for ExitCode</h3>
-</div>
+<section id="impl-Copy" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#1707">source</a></span><h3 class="code-header in-band">impl Copy for ExitCode</h3></section>
 </div>
 <h2 id="synthetic-implementations" class="small-section-header">Auto Trait Implementations</h2>
 <div id="synthetic-implementations-list">
-<div id="impl-RefUnwindSafe" class="impl has-srclink">
-
-<h3 class="code-header in-band">impl RefUnwindSafe for ExitCode</h3>
-</div>
-<div id="impl-Send" class="impl has-srclink">
-
-<h3 class="code-header in-band">impl Send for ExitCode</h3>
-</div>
-<div id="impl-Sync" class="impl has-srclink">
-
-<h3 class="code-header in-band">impl Sync for ExitCode</h3>
-</div>
-<div id="impl-Unpin" class="impl has-srclink">
-
-<h3 class="code-header in-band">impl Unpin for ExitCode</h3>
-</div>
-<div id="impl-UnwindSafe" class="impl has-srclink">
-
-<h3 class="code-header in-band">impl UnwindSafe for ExitCode</h3>
-</div>
+<section id="impl-RefUnwindSafe" class="impl has-srclink"><h3 class="code-header in-band">impl RefUnwindSafe for ExitCode</h3></section><section id="impl-Send" class="impl has-srclink"><h3 class="code-header in-band">impl Send for ExitCode</h3></section><section id="impl-Sync" class="impl has-srclink"><h3 class="code-header in-band">impl Sync for ExitCode</h3></section><section id="impl-Unpin" class="impl has-srclink"><h3 class="code-header in-band">impl Unpin for ExitCode</h3></section><section id="impl-UnwindSafe" class="impl has-srclink"><h3 class="code-header in-band">impl UnwindSafe for ExitCode</h3></section>
 </div>
 <h2 id="blanket-implementations" class="small-section-header">Blanket Implementations</h2>
 <div id="blanket-implementations-list">
-<summary><div id="impl-Any" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#132-136" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl&lt;T&gt; Any for T <span class="where fmt-newline">where<br> T: 'static + ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
-</h3>
-</div></summary><div class="impl-items">
-<summary><div id="method.type_id" class="method trait-impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#133" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub fn type_id(&amp;self) -&gt; TypeId</h4>
-</div></summary><div class="docblock">
+<summary><section id="impl-Any" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#132-136">source</a></span><h3 class="code-header in-band">impl&lt;T&gt; Any for T <span class="where fmt-newline">where<br> T: 'static + ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h3></section></summary><div class="impl-items">
+<summary><section id="method.type_id" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#133">source</a></span><h4 class="code-header">fn type_id(&amp;self) -&gt; TypeId</h4></section></summary><div class="docblock">
 <p>Gets the <code>TypeId</code> of <code>self</code>. <a href="../any/trait.any#tymethod.type_id">Read more</a></p> </div>
 </div>
-<summary><div id="impl-Borrow%3CT%3E" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#208-213" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl&lt;T&gt; Borrow&lt;T&gt; for T <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
-</h3>
-</div></summary><div class="impl-items">
-<summary><div id="method.borrow" class="method trait-impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#210" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub fn borrow(&amp;self) -&gt; &amp;T</h4>
-</div></summary><div class="docblock">
+<summary><section id="impl-Borrow%3CT%3E" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#209-214">source</a></span><h3 class="code-header in-band">impl&lt;T&gt; Borrow&lt;T&gt; for T <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h3></section></summary><div class="impl-items">
+<summary><section id="method.borrow" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#211">source</a><span class="since" title="const unstable">const: <a href="https://github.com/rust-lang/rust/issues/91522" title="Tracking issue for const_borrow">unstable</a></span> · </span><h4 class="code-header">fn borrow(&amp;self) -&gt; &amp;T</h4></section></summary><div class="docblock">
 <p>Immutably borrows from an owned value. <a href="../borrow/trait.borrow#tymethod.borrow">Read more</a></p> </div>
 </div>
-<summary><div id="impl-BorrowMut%3CT%3E" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#216-220" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl&lt;T&gt; BorrowMut&lt;T&gt; for T <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
-</h3>
-</div></summary><div class="impl-items">
-<summary><div id="method.borrow_mut" class="method trait-impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#217" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub fn borrow_mut(&amp;mut self) -&gt; &amp;mut T</h4>
-</div></summary><div class="docblock">
+<summary><section id="impl-BorrowMut%3CT%3E" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#218-222">source</a></span><h3 class="code-header in-band">impl&lt;T&gt; BorrowMut&lt;T&gt; for T <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h3></section></summary><div class="impl-items">
+<summary><section id="method.borrow_mut" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#219">source</a><span class="since" title="const unstable">const: <a href="https://github.com/rust-lang/rust/issues/91522" title="Tracking issue for const_borrow">unstable</a></span> · </span><h4 class="code-header">fn borrow_mut(&amp;mut self) -&gt; &amp;mut T</h4></section></summary><div class="docblock">
 <p>Mutably borrows from an owned value. <a href="../borrow/trait.borrowmut#tymethod.borrow_mut">Read more</a></p> </div>
 </div>
-<summary><div id="impl-From%3CT%3E" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#549-553" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl&lt;T&gt; From&lt;T&gt; for T</h3>
-</div></summary><div class="impl-items">
-<summary><div id="method.from" class="method trait-impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#550" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub fn from(t: T) -&gt; T</h4>
-</div></summary><div class="docblock">
-<p>Performs the conversion.</p> </div>
+<summary><section id="impl-From%3CT%3E" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#557-562">source</a></span><h3 class="code-header in-band">impl&lt;T&gt; From&lt;T&gt; for T</h3></section></summary><div class="impl-items">
+<summary><section id="method.from-1" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#559">source</a><span class="since" title="const unstable">const: <a href="https://github.com/rust-lang/rust/issues/88674" title="Tracking issue for const_convert">unstable</a></span> · </span><h4 class="code-header">fn from(t: T) -&gt; T</h4></section></summary><div class="docblock">
+<p>Returns the argument unchanged.</p> </div>
 </div>
-<summary><div id="impl-Into%3CU%3E" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#537-544" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl&lt;T, U&gt; Into&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.from" title="trait std::convert::From">From</a>&lt;T&gt;, </span>
-</h3>
-</div></summary><div class="impl-items">
-<summary><div id="method.into" class="method trait-impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#541" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub fn into(self) -&gt; U</h4>
-</div></summary><div class="docblock">
-<p>Performs the conversion.</p> </div>
+<summary><section id="impl-Into%3CU%3E" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#541-552">source</a></span><h3 class="code-header in-band">impl&lt;T, U&gt; Into&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.from" title="trait std::convert::From">From</a>&lt;T&gt;, </span>
+</h3></section></summary><div class="impl-items">
+<summary><section id="method.into" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#549">source</a><span class="since" title="const unstable">const: <a href="https://github.com/rust-lang/rust/issues/88674" title="Tracking issue for const_convert">unstable</a></span> · </span><h4 class="code-header">fn into(self) -&gt; U</h4></section></summary><div class="docblock">
+<p>Calls <code>U::from(self)</code>.</p> <p>That is, this conversion is whatever the implementation of <code><a href="../convert/trait.from" title="From">From</a>&lt;T&gt; for U</code> chooses to do.</p> </div>
 </div>
-<summary><div id="impl-ToOwned" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/alloc/borrow.rs.html#84-96" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl&lt;T&gt; ToOwned for T <span class="where fmt-newline">where<br> T: <a class="trait" href="../clone/trait.clone" title="trait std::clone::Clone">Clone</a>, </span>
-</h3>
-</div></summary><div class="impl-items">
-<summary><div id="associatedtype.Owned" class="type trait-impl has-srclink">
-<h4 class="code-header">type Owned = T</h4>
-</div></summary><div class="docblock">
+<summary><section id="impl-ToOwned" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/alloc/borrow.rs.html#84-96">source</a></span><h3 class="code-header in-band">impl&lt;T&gt; ToOwned for T <span class="where fmt-newline">where<br> T: <a class="trait" href="../clone/trait.clone" title="trait std::clone::Clone">Clone</a>, </span>
+</h3></section></summary><div class="impl-items">
+<summary><section id="associatedtype.Owned" class="associatedtype trait-impl has-srclink"><h4 class="code-header">type Owned = T</h4></section></summary><div class="docblock">
 <p>The resulting type after obtaining ownership.</p> </div>
-<summary><div id="method.to_owned" class="method trait-impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/alloc/borrow.rs.html#89" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub fn to_owned(&amp;self) -&gt; T</h4>
-</div></summary><div class="docblock">
+<summary><section id="method.to_owned" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/alloc/borrow.rs.html#89">source</a></span><h4 class="code-header">fn to_owned(&amp;self) -&gt; T</h4></section></summary><div class="docblock">
 <p>Creates owned data from borrowed data, usually by cloning. <a href="../borrow/trait.toowned#tymethod.to_owned">Read more</a></p> </div>
-<summary><div id="method.clone_into" class="method trait-impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/alloc/borrow.rs.html#93" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub fn clone_into(&amp;self, target: &amp;mut T)</h4>
-</div></summary><div class="item-info"><div class="stab unstable">
-<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>toowned_clone_into</code> <a href="https://github.com/rust-lang/rust/issues/41263">#41263</a>)</div></div>
-<div class="docblock">
+<summary><section id="method.clone_into" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/alloc/borrow.rs.html#93">source</a></span><h4 class="code-header">fn clone_into(&amp;self, target: &amp;mut T)</h4></section></summary><span class="item-info"><div class="stab unstable">
+<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>toowned_clone_into</code> <a href="https://github.com/rust-lang/rust/issues/41263">#41263</a>)</div></span><div class="docblock">
 <p>Uses borrowed data to replace owned data, usually by cloning. <a href="../borrow/trait.toowned#method.clone_into">Read more</a></p> </div>
 </div>
-<summary><div id="impl-TryFrom%3CU%3E" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#587-596" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl&lt;T, U&gt; TryFrom&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.into" title="trait std::convert::Into">Into</a>&lt;T&gt;, </span>
-</h3>
-</div></summary><div class="impl-items">
-<summary><div id="associatedtype.Error" class="type trait-impl has-srclink">
-<h4 class="code-header">type Error = Infallible</h4>
-</div></summary><div class="docblock">
+<summary><section id="impl-TryFrom%3CU%3E" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#598-607">source</a></span><h3 class="code-header in-band">impl&lt;T, U&gt; TryFrom&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.into" title="trait std::convert::Into">Into</a>&lt;T&gt;, </span>
+</h3></section></summary><div class="impl-items">
+<summary><section id="associatedtype.Error-1" class="associatedtype trait-impl has-srclink"><h4 class="code-header">type Error = Infallible</h4></section></summary><div class="docblock">
 <p>The type returned in the event of a conversion error.</p> </div>
-<summary><div id="method.try_from" class="method trait-impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#593" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub fn try_from(value: U) -&gt; Result&lt;T, &lt;T as TryFrom&lt;U&gt;&gt;::Error&gt;</h4>
-</div></summary><div class="docblock">
+<summary><section id="method.try_from" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#604">source</a><span class="since" title="const unstable">const: <a href="https://github.com/rust-lang/rust/issues/88674" title="Tracking issue for const_convert">unstable</a></span> · </span><h4 class="code-header">fn try_from(value: U) -&gt; Result&lt;T, &lt;T as TryFrom&lt;U&gt;&gt;::Error&gt;</h4></section></summary><div class="docblock">
 <p>Performs the conversion.</p> </div>
 </div>
-<summary><div id="impl-TryInto%3CU%3E" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#573-582" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl&lt;T, U&gt; TryInto&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.tryfrom" title="trait std::convert::TryFrom">TryFrom</a>&lt;T&gt;, </span>
-</h3>
-</div></summary><div class="impl-items">
-<summary><div id="associatedtype.Error-1" class="type trait-impl has-srclink">
-<h4 class="code-header">type Error = &lt;U as TryFrom&lt;T&gt;&gt;::Error</h4>
-</div></summary><div class="docblock">
+<summary><section id="impl-TryInto%3CU%3E" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#583-592">source</a></span><h3 class="code-header in-band">impl&lt;T, U&gt; TryInto&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.tryfrom" title="trait std::convert::TryFrom">TryFrom</a>&lt;T&gt;, </span>
+</h3></section></summary><div class="impl-items">
+<summary><section id="associatedtype.Error" class="associatedtype trait-impl has-srclink"><h4 class="code-header">type Error = &lt;U as TryFrom&lt;T&gt;&gt;::Error</h4></section></summary><div class="docblock">
 <p>The type returned in the event of a conversion error.</p> </div>
-<summary><div id="method.try_into" class="method trait-impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#579" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub fn try_into(self) -&gt; Result&lt;U, &lt;U as TryFrom&lt;T&gt;&gt;::Error&gt;</h4>
-</div></summary><div class="docblock">
+<summary><section id="method.try_into" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#589">source</a><span class="since" title="const unstable">const: <a href="https://github.com/rust-lang/rust/issues/88674" title="Tracking issue for const_convert">unstable</a></span> · </span><h4 class="code-header">fn try_into(self) -&gt; Result&lt;U, &lt;U as TryFrom&lt;T&gt;&gt;::Error&gt;</h4></section></summary><div class="docblock">
 <p>Performs the conversion.</p> </div>
 </div>
 </div><div class="_attribution">

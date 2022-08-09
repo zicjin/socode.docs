@@ -1,0 +1,62 @@
+<h1>get_category_by_path( string $category_path, bool $full_match = true, string $output = OBJECT )</h1>  <section> <p>Retrieves a category based on URL containing the category slug.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Breaks the $category_path parameter up to get the category slug.</p> <p>Tries to find the child path and will return it. If it doesn’t find a match, then it will return the first category matching slug, if $full_match, is set to false. If it does not, then it will return null.</p> <p>It is also possible that it will return a <a href="../classes/wp_error">WP_Error</a> object on failure. Check for it when using this function.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$category_path</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">URL containing category slugs.</span> </p> </dd> <dt>$full_match</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> Whether full path should be matched.</span> </p> <p class="default">Default value: true</p> </dd> <dt>$output</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> The required return type. One of OBJECT, ARRAY_A, or ARRAY_N, which correspond to a <a href="../classes/wp_term">WP_Term</a> object, an associative array, or a numeric array, respectively. </span> </p> <p class="default">Default value: OBJECT</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../classes/wp_term">WP_Term</a>|array|<a href="../classes/wp_error">WP_Error</a>|null)</span> Type is based on $output value.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/category.php/">wp-includes/category.php</a> </p> <pre data-language="php">function get_category_by_path( $category_path, $full_match = true, $output = OBJECT ) {
+	$category_path  = rawurlencode( urldecode( $category_path ) );
+	$category_path  = str_replace( '%2F', '/', $category_path );
+	$category_path  = str_replace( '%20', ' ', $category_path );
+	$category_paths = '/' . trim( $category_path, '/' );
+	$leaf_path      = sanitize_title( basename( $category_paths ) );
+	$category_paths = explode( '/', $category_paths );
+	$full_path      = '';
+
+	foreach ( (array) $category_paths as $pathdir ) {
+		$full_path .= ( '' !== $pathdir ? '/' : '' ) . sanitize_title( $pathdir );
+	}
+
+	$categories = get_terms(
+		array(
+			'taxonomy' =&gt; 'category',
+			'get'      =&gt; 'all',
+			'slug'     =&gt; $leaf_path,
+		)
+	);
+
+	if ( empty( $categories ) ) {
+		return;
+	}
+
+	foreach ( $categories as $category ) {
+		$path        = '/' . $leaf_path;
+		$curcategory = $category;
+		while ( ( 0 != $curcategory-&gt;parent ) &amp;&amp; ( $curcategory-&gt;parent != $curcategory-&gt;term_id ) ) {
+			$curcategory = get_term( $curcategory-&gt;parent, 'category' );
+
+			if ( is_wp_error( $curcategory ) ) {
+				return $curcategory;
+			}
+
+			$path = '/' . $curcategory-&gt;slug . $path;
+		}
+
+		if ( $path == $full_path ) {
+			$category = get_term( $category-&gt;term_id, 'category', $output );
+			_make_cat_compat( $category );
+
+			return $category;
+		}
+	}
+
+	// If full matching is not required, return the first cat that matches the leaf.
+	if ( ! $full_match ) {
+		$category = get_term( reset( $categories )-&gt;term_id, 'category', $output );
+		_make_cat_compat( $category );
+
+		return $category;
+	}
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="sanitize_title">sanitize_title()</a> </td> <td class="related-desc"> <p>Sanitizes a string into a slug, which can be used in URLs or HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/category.php:</span> <a href="_make_cat_compat">_make_cat_compat()</a> </td> <td class="related-desc"> <p>Updates category structure to old pre-2.3 from new taxonomy structure.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="get_terms">get_terms()</a> </td> <td class="related-desc"> <p>Retrieves the terms in a given taxonomy or list of taxonomies.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="get_term">get_term()</a> </td> <td class="related-desc"> <p>Gets all term data from database by term ID.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/canonical.php:</span> <a href="redirect_canonical">redirect_canonical()</a> </td> <td class="related-desc"> <p>Redirects incoming links to the proper URL based on the site url.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.1.0/" alt="WordPress 2.1.0">2.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/get_category_by_path" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/get_category_by_path</a>
+  </p>
+</div>

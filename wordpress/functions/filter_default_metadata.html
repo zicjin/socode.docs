@@ -1,0 +1,49 @@
+<h1>filter_default_metadata( mixed $value, int $object_id, string $meta_key, bool $single, string $meta_type )</h1>  <section> <p>Filters into default_{$object_type}_metadata and adds in default value.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$value</dt> <dd> <p class="desc"> <span class="type">(<span class="mixed">mixed</span>)</span> <span class="required">(Required)</span> <span class="description">Current value passed to filter.</span> </p> </dd> <dt>$object_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">ID of the object metadata is for.</span> </p> </dd> <dt>$meta_key</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Metadata key.</span> </p> </dd> <dt>$single</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Required)</span> <span class="description">If true, return only the first value of the specified <code>$meta_key</code>. This parameter has no effect if <code>$meta_key</code> is not specified.</span> </p> </dd> <dt>$meta_type</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Type of object metadata is for. Accepts 'post', 'comment', 'term', 'user', or any other object type with an associated meta table.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(mixed)</span> An array of default values if <code>$single</code> is false. The default value of the meta field if <code>$single</code> is true.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/meta.php/">wp-includes/meta.php</a> </p> <pre data-language="php">function filter_default_metadata( $value, $object_id, $meta_key, $single, $meta_type ) {
+	global $wp_meta_keys;
+
+	if ( wp_installing() ) {
+		return $value;
+	}
+
+	if ( ! is_array( $wp_meta_keys ) || ! isset( $wp_meta_keys[ $meta_type ] ) ) {
+		return $value;
+	}
+
+	$defaults = array();
+	foreach ( $wp_meta_keys[ $meta_type ] as $sub_type =&gt; $meta_data ) {
+		foreach ( $meta_data as $_meta_key =&gt; $args ) {
+			if ( $_meta_key === $meta_key &amp;&amp; array_key_exists( 'default', $args ) ) {
+				$defaults[ $sub_type ] = $args;
+			}
+		}
+	}
+
+	if ( ! $defaults ) {
+		return $value;
+	}
+
+	// If this meta type does not have subtypes, then the default is keyed as an empty string.
+	if ( isset( $defaults[''] ) ) {
+		$metadata = $defaults[''];
+	} else {
+		$sub_type = get_object_subtype( $meta_type, $object_id );
+		if ( ! isset( $defaults[ $sub_type ] ) ) {
+			return $value;
+		}
+		$metadata = $defaults[ $sub_type ];
+	}
+
+	if ( $single ) {
+		$value = $metadata['default'];
+	} else {
+		$value = array( $metadata['default'] );
+	}
+
+	return $value;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/meta.php:</span> <a href="get_object_subtype">get_object_subtype()</a> </td> <td class="related-desc"> <p>Returns the object subtype for a given object ID of a specific type.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_installing">wp_installing()</a> </td> <td class="related-desc"> <p>Check or set whether WordPress is in “installation” mode.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.0/" alt="WordPress 5.5.0">5.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/filter_default_metadata" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/filter_default_metadata</a>
+  </p>
+</div>

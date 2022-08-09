@@ -1,0 +1,59 @@
+<h1>WP_Customize_Nav_Menu_Setting::filter_wp_get_nav_menus( WP_Term[] $menus, array $args )</h1>  <section> <p>Filters the <a href="../../functions/wp_get_nav_menus">wp_get_nav_menus()</a> result to ensure the inserted menu object is included, and the deleted one is removed.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <h3 id="see-also">See also</h3> <ul> <li><a href="../../functions/wp_get_nav_menus">wp_get_nav_menus()</a></li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$menus</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Term[]"><a href="../wp_term">WP_Term</a>[]</span>)</span> <span class="required">(Required)</span> <span class="description">An array of menu objects.</span> </p> </dd> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">An array of arguments used to retrieve menu objects.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../wp_term">WP_Term</a>[])</span> Array of menu objects.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/customize/class-wp-customize-nav-menu-setting.php/">wp-includes/customize/class-wp-customize-nav-menu-setting.php</a> </p> <pre data-language="php">public function filter_wp_get_nav_menus( $menus, $args ) {
+		if ( get_current_blog_id() !== $this-&gt;_previewed_blog_id ) {
+			return $menus;
+		}
+
+		$setting_value = $this-&gt;value();
+		$is_delete     = ( false === $setting_value );
+		$index         = -1;
+
+		// Find the existing menu item's position in the list.
+		foreach ( $menus as $i =&gt; $menu ) {
+			if ( (int) $this-&gt;term_id === (int) $menu-&gt;term_id || (int) $this-&gt;previous_term_id === (int) $menu-&gt;term_id ) {
+				$index = $i;
+				break;
+			}
+		}
+
+		if ( $is_delete ) {
+			// Handle deleted menu by removing it from the list.
+			if ( -1 !== $index ) {
+				array_splice( $menus, $index, 1 );
+			}
+		} else {
+			// Handle menus being updated or inserted.
+			$menu_obj = (object) array_merge(
+				array(
+					'term_id'          =&gt; $this-&gt;term_id,
+					'term_taxonomy_id' =&gt; $this-&gt;term_id,
+					'slug'             =&gt; sanitize_title( $setting_value['name'] ),
+					'count'            =&gt; 0,
+					'term_group'       =&gt; 0,
+					'taxonomy'         =&gt; self::TAXONOMY,
+					'filter'           =&gt; 'raw',
+				),
+				$setting_value
+			);
+
+			array_splice( $menus, $index, ( -1 === $index ? 0 : 1 ), array( $menu_obj ) );
+		}
+
+		// Make sure the menu objects get re-sorted after an update/insert.
+		if ( ! $is_delete &amp;&amp; ! empty( $args['orderby'] ) ) {
+			$menus = wp_list_sort(
+				$menus,
+				array(
+					$args['orderby'] =&gt; 'ASC',
+				)
+			);
+		}
+		// @todo Add support for $args['hide_empty'] === true.
+
+		return $menus;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_list_sort">wp_list_sort()</a> </td> <td class="related-desc"> <p>Sorts an array of objects or arrays based on one or more orderby arguments.</p> </td> </tr> <tr> <td> <span>wp-includes/customize/class-wp-customize-nav-menu-setting.php:</span> <a href="value">WP_Customize_Nav_Menu_Setting::value()</a> </td> <td class="related-desc"> <p>Get the instance data for a given widget setting.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/sanitize_title">sanitize_title()</a> </td> <td class="related-desc"> <p>Sanitizes a string into a slug, which can be used in URLs or HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/get_current_blog_id">get_current_blog_id()</a> </td> <td class="related-desc"> <p>Retrieve the current site ID.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.3.0/" alt="WordPress 4.3.0">4.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_customize_nav_menu_setting/filter_wp_get_nav_menus" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_customize_nav_menu_setting/filter_wp_get_nav_menus</a>
+  </p>
+</div>

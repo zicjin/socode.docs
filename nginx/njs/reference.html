@@ -14,6 +14,7 @@
 <li><a href="#textdecoder">Text Decoder</a></li>
 <li><a href="#textencoder">Text Encoder</a></li>
 <li><a href="#njs_api_timers">timers</a></li>
+<li><a href="#njs_global_functions">Global functions</a></li>
 <li><a href="#builtin_modules">built-in modules</a></li>
 <li><a href="#buffer">Buffer</a></li>
 <li><a href="#crypto">Crypto</a></li>
@@ -24,7 +25,23 @@
 <p> This reference contains only njs specific properties, methods and modules not compliant with ECMAScript. Definitions of njs properties and methods compliant with ECMAScript can be found in <a href="http://www.ecma-international.org/ecma-262/">ECMAScript specification</a>. List of all njs properties and methods can be found in <a href="compatibility">Compatibility</a>. </p>
 <h4 id="http_stream">nginx objects</h4>
 <h4 id="http">HTTP Request</h4>
-<p> The HTTP request object is available only in the <a href="../http/ngx_http_js_module">ngx_http_js_module</a> module. All string properties of the object are <a href="#string">byte strings</a>. </p> <dl class="compact"> <dt id="r_args"><code>r.args{}</code></dt> <dd> request arguments object, read-only </dd> <dt id="r_done"><code>r.done()</code></dt> <dd> after calling this function, next data chunks will be passed to client without calling <a href="../http/ngx_http_js_module#js_body_filter">js_body_filter</a> (<a href="changes#njs0.5.2">0.5.2</a>). May be called only from the <a href="../http/ngx_http_js_module#js_body_filter">js_body_filter</a> function </dd> <dt id="r_error"><code>r.error(<i>string</i>)</code></dt> <dd> writes a <code>string</code> to the error log on the <code>error</code> level of logging </dd> <dt id="r_finish"><code>r.finish()</code></dt> <dd> finishes sending a response to the client </dd> <dt id="r_headers_in"><code>r.headersIn{}</code></dt> <dd> incoming headers object, read-only. <p> The <code>Foo</code> request header can be accessed with the syntax: <code>headersIn.foo</code> or <code>headersIn['Foo']</code>. </p> <p> The “Authorization”, “Content-Length”, “Content-Range”, “Content-Type”, “ETag”, “Expect”, “From”, “Host”, “If-Match”, “If-Modified-Since”, “If-None-Match”, “If-Range”, “If-Unmodified-Since”, “Max-Forwards”, “Proxy-Authorization”, “Referer”, “Transfer-Encoding”, and “User-Agent” request headers can have only one field value (<a href="changes#njs0.4.1">0.4.1</a>). Duplicate field values in “Cookie” headers are separated by semicolon (<code>;</code>). Duplicate field values in all other request headers are separated by commas. </p> </dd> <dt id="r_headers_out"><code>r.headersOut{}</code></dt> <dd> outgoing headers object, writable. <p> The “Foo” response header can be accessed with the syntax: <code>headersOut.foo</code> or <code>headersOut['Foo']</code>. </p> <p> Field values of multi-value response headers (<a href="changes#njs0.4.0">0.4.0</a>) can be set with the syntax: </p> <pre data-language="nginx">
+<p> The HTTP request object is available only in the <a href="../http/ngx_http_js_module">ngx_http_js_module</a> module. All string properties of the object are <a href="#string">byte strings</a>. </p> <dl class="compact"> <dt id="r_args"><code>r.args{}</code></dt> <dd> request arguments object, read-only. <p> The query string is returned as an object. Since <a href="changes#njs0.7.6">0.7.6</a>, duplicate keys are returned as an array, keys are case-sensitive, both keys and values are percent-decoded. </p> <p> For example, the query string </p> <pre data-language="nginx">
+'a=1&amp;b=%32&amp;A=3&amp;b=4&amp;B=two%20words'
+</pre>
+<p> is converted to <code>r.args</code> as: </p> <pre data-language="nginx">
+{a: "1", b: ["2", "4"], A: "3", B: "two words"}
+</pre>
+<p> More advanced parsing scenarios can be achieved with the <a href="#querystring">Query String</a> module and with the <a href="../http/ngx_http_core_module#var_args"><code>$args</code></a> variable, for example: </p> <pre data-language="nginx">
+import qs from 'querystring';
+
+function args(r) {
+    return qs.parse(r.variables.args);
+}
+</pre>
+<p> The argument object is evaluated at the first access to <code>r.args</code>. If only a single argument is needed, for example <code>foo</code>, <a href="https://nginx.org/en/docs/varindex.html">nginx variables</a> can be used: </p> <pre data-language="nginx">
+r.variables.arg_foo
+</pre>
+<p> Here, <a href="#r_variables">nginx variables object</a> returns the first value for a given key, case-insensitive, without percent-decoding. </p> <p> To convert <code>r.args</code> back to a string, the Query String <a href="#querystring_stringify"><code>stringify</code></a> method can be used. </p> </dd> <dt id="r_done"><code>r.done()</code></dt> <dd> after calling this function, next data chunks will be passed to client without calling <a href="../http/ngx_http_js_module#js_body_filter">js_body_filter</a> (<a href="changes#njs0.5.2">0.5.2</a>). May be called only from the <a href="../http/ngx_http_js_module#js_body_filter">js_body_filter</a> function </dd> <dt id="r_error"><code>r.error(<i>string</i>)</code></dt> <dd> writes a <code>string</code> to the error log on the <code>error</code> level of logging </dd> <dt id="r_finish"><code>r.finish()</code></dt> <dd> finishes sending a response to the client </dd> <dt id="r_headers_in"><code>r.headersIn{}</code></dt> <dd> incoming headers object, read-only. <p> The <code>Foo</code> request header can be accessed with the syntax: <code>headersIn.foo</code> or <code>headersIn['Foo']</code>. </p> <p> The “Authorization”, “Content-Length”, “Content-Range”, “Content-Type”, “ETag”, “Expect”, “From”, “Host”, “If-Match”, “If-Modified-Since”, “If-None-Match”, “If-Range”, “If-Unmodified-Since”, “Max-Forwards”, “Proxy-Authorization”, “Referer”, “Transfer-Encoding”, and “User-Agent” request headers can have only one field value (<a href="changes#njs0.4.1">0.4.1</a>). Duplicate field values in “Cookie” headers are separated by semicolon (<code>;</code>). Duplicate field values in all other request headers are separated by commas. </p> </dd> <dt id="r_headers_out"><code>r.headersOut{}</code></dt> <dd> outgoing headers object, writable. <p> The “Foo” response header can be accessed with the syntax: <code>headersOut.foo</code> or <code>headersOut['Foo']</code>. </p> <p> Field values of multi-value response headers (<a href="changes#njs0.4.0">0.4.0</a>) can be set with the syntax: </p> <pre data-language="nginx">
 r.headersOut['Foo'] = ['a', 'b']
 </pre>
 <p> where the output will be: </p> <pre data-language="nginx">
@@ -32,6 +49,7 @@ Foo: a
 Foo: b
 </pre>
 <p> All previous field values of the “Foo” response header will be deleted. </p> <p> For standard response headers that accept only a single field value such as “Content-Type”, only the last element of the array will take effect. Field values of the “Set-Cookie” response header are always returned as an array. Duplicate field values in “Age”, “Content-Encoding”, “Content-Length”, “Content-Type”, “ETag”, “Expires”, “Last-Modified”, “Location”, “Retry-After” response headers are ignored. Duplicate field values in all other response headers are separated by commas. </p> </dd> <dt id="r_http_version"><code>r.httpVersion</code></dt> <dd> HTTP version, read-only </dd> <dt id="r_internal_redirect"><code>r.internalRedirect(<i>uri</i>)</code></dt> <dd> performs an <a href="../dev/development_guide#http_request_redirection">internal redirect</a> to the specified <code>uri</code>. If the uri starts with the “<code>@</code>” prefix, it is considered a named location. Redirected requests become internal and can access the <a href="../http/ngx_http_core_module#internal">internal</a> locations. The actual redirect happens after the handler execution is completed.  <blockquote class="note"> After redirect, a new njs VM is started in the target location, the VM in the original location is stopped. Values of nginx variables are kept and can be used to pass information to the target location. Since <a href="changes#njs0.5.3">0.5.3</a>, the variable declared with the <code>js_var</code> directive for <a href="../http/ngx_http_js_module#js_var">http</a> or <a href="../stream/ngx_stream_js_module#js_var">stream</a> can be used. </blockquote>
+  <blockquote class="note"> Since <a href="changes#njs0.7.4">0.7.4</a>, the method accepts escaped URIs. </blockquote>
  </dd> <dt id="r_log"><code>r.log(<i>string</i>)</code></dt> <dd> writes a <code>string</code> to the error log on the <code>info</code> level of logging </dd> <dt id="r_method"><code>r.method</code></dt> <dd> HTTP method, read-only </dd> <dt id="r_parent"><code>r.parent</code></dt> <dd> references the parent request object </dd> <dt id="r_remote_address"><code>r.remoteAddress</code></dt> <dd> client address, read-only </dd> <dt id="r_request_body"><code>r.requestBody</code></dt> <dd> the property is deprecated since <a href="changes#njs0.5.0">0.5.0</a>, the <a href="#r_request_buffer"><code>r.requestBuffer</code></a> or <a href="#r_request_text"><code>r.requestText</code></a> property should be used instead. </dd> <dt id="r_request_buffer"><code>r.requestBuffer</code></dt> <dd> client request body if it has not been written to a temporary file (since <a href="changes#njs0.5.0">0.5.0</a>). To ensure that the client request body is in memory, its size should be limited by <a href="../http/ngx_http_core_module#client_max_body_size">client_max_body_size</a>, and a sufficient buffer size should be set using <a href="../http/ngx_http_core_module#client_body_buffer_size">client_body_buffer_size</a>. The property is available only in the <a href="../http/ngx_http_js_module#js_content">js_content</a> directive. </dd> <dt id="r_request_text"><code>r.requestText</code></dt> <dd> the same as <a href="#r_request_buffer"><code>r.requestBuffer</code></a>, but returns a <code>string</code>. Note that it may convert bytes invalid in UTF-8 encoding into the replacement character. </dd> <dt id="r_raw_headers_in"><code>r.rawHeadersIn{}</code></dt> <dd> returns an array of key-value pairs exactly as they were received from the client (<a href="changes#njs0.4.1">0.4.1</a>). <p> For example, with the following request headers: </p> <pre data-language="nginx">
 Host: localhost
 Foo:  bar
@@ -87,10 +105,10 @@ async function js_set(r) {
 <p> The <code>ngx</code> global object is available since <a href="changes#njs0.5.0">0.5.0</a>. </p> <dl class="compact"> <dt id="ngx_fetch"><code>ngx.fetch(<i>url</i>,
 [<i>options</i>])</code></dt> <dd> Makes a request to fetch an URL (<a href="changes#njs0.5.1">0.5.1</a>), returns a <code>Promise</code> that resolves with the <a href="#response"><code>Response</code></a> object. Since <a href="changes#njs0.7.0">0.7.0</a>, the <code>https://</code> scheme is supported, redirects are not handled. <p> The <code>options</code> parameter is expected to be an object with the following keys: </p> <dl class="compact"> <dt id="fetch_body"><code>body</code></dt> <dd> request body, by default is empty </dd> <dt id="fetch_buffer_size"><code>buffer_size</code></dt> <dd> the buffer size for reading the response, by default is <code>4096</code> </dd> <dt id="fetch_headers"><code>headers</code></dt> <dd> request headers object </dd> <dt id="fetch_get"><code>max_response_body_size</code></dt> <dd> the maximum size of the response body in bytes, by default is <code>32768</code> </dd> <dt id="fetch_method"><code>method</code></dt> <dd> HTTP method, by default the <code>GET</code> method is used </dd> <dt id="fetch_verify"><code>verify</code></dt> <dd> enables or disables verification of the HTTPS server certificate, by default is <code>true</code> (<a href="changes#njs0.7.0">0.7.0</a>) </dd> </dl>
 <p> Example: </p> <pre data-language="nginx">
-ngx.fetch('http://nginx.org/')
-.then(reply =&gt; reply.text())
-.then(body =&gt; r.return(200, body))
-.catch(e =&gt; r.return(501, e.message))
+let reply = await ngx.fetch('http://nginx.org/');
+let body = await reply.text();
+
+r.return(200, body);
 </pre>
  </dd> <dt id="ngx_log">
 <code>ngx.log</code>(<code><i>level</i></code>, <code><i>message</i></code>)</dt> <dd> Writes a message to the error log with the specified level of logging. The <code><i>level</i></code> parameter specifies one of the log levels, the <code><i>message</i></code> parameter can be a string or Buffer. The following log levels can be specified: <code>ngx.INFO</code>, <code>ngx.WARN</code>, and <code>ngx.ERR</code>. </dd> </dl>
@@ -117,7 +135,7 @@ crypto.subtle.encrypt({name: "RSA-OAEP"}, key, data)
 
 <h4 id="njs">njs</h4>
 <p> The <code>njs</code> object is a global object that represents the current VM instance (since <a href="changes#njs0.2.0">0.2.0</a>). </p>
- <dl class="compact"> <dt id="njs_version"><code>njs.version</code></dt> <dd> Returns a string with the current version of njs (for example, “0.7.0”). </dd> <dt id="njs_dump"><code>njs.dump(<i>value</i>)</code></dt> <dd> Returns the pretty-print string representation for a value. </dd> <dt id="njs_on"><code>njs.on(<i>event</i>,
+ <dl class="compact"> <dt id="njs_version"><code>njs.version</code></dt> <dd> Returns a string with the current version of njs (for example, “0.7.4”). </dd> <dt id="njs_version_number"><code>njs.version_number</code></dt> <dd> Returns a number with the current version of njs. For example, “0.7.4” is returned as <code>0x000704</code> (since <a href="changes#njs0.7.4">0.7.4</a>). </dd> <dt id="njs_dump"><code>njs.dump(<i>value</i>)</code></dt> <dd> Returns the pretty-print string representation for a value. </dd> <dt id="njs_on"><code>njs.on(<i>event</i>,
 <i>callback</i>)</code></dt> <dd> Registers a callback for the specified VM event (since <a href="changes#njs0.5.2">0.5.2</a>). An event may be one of the following strings: <dl class="compact"> <dt><code>exit</code></dt> <dd> is called before the VM is destroyed. The callback is called without arguments. </dd> </dl> </dd> </dl>
 
 <h4 id="process">process</h4>
@@ -192,6 +210,17 @@ t = setTimeout(handler, 12);
 
 clearTimeout(t);
 </pre> </dd> </dl>
+
+<h4 id="njs_global_functions">Global functions</h4>
+ <dl class="compact"> <dt id="atob"><code>atob(<i>encodedData</i>)</code></dt> <dd> Decodes a string of data which has been encoded using <code>Base64</code> encoding. The <code>encodedData</code> parameter is a binary string that contains Base64-encoded data. Returns a string that contains decoded data from <code>encodedData</code>. <p> The similar <a href="#btoa"><code>btoa()</code></a> method can be used to encode and transmit data which may otherwise cause communication problems, then transmit it and use the <code>atob()</code> method to decode the data again. For example, you can encode, transmit, and decode control characters such as ASCII values <code>0</code> through <code>31</code>. </p> <pre data-language="nginx">
+const encodedData = btoa("text to encode"); // encode a string
+const decodedData = atob(encodedData); // decode the string
+</pre>
+ </dd> <dt id="btoa"><code>btoa(<i>stringToEncode</i>)</code></dt> <dd> Creates a Base64-encoded ASCII string from a binary string. The <code>stringToEncode</code> parameter is a binary string to encode. Returns an ASCII string containing the Base64 representation of <code>stringToEncode</code>. <p> The method can be used to encode data which may otherwise cause communication problems, transmit it, then use the <a href="#atob"><code>atob()</code></a> method to decode the data again. For example, you can encode control characters such as ASCII values <code>0</code> through <code>31</code>. </p> <pre data-language="nginx">
+const encodedData = btoa("text to encode"); // encode a string
+const decodedData = atob(encodedData); // decode the string
+</pre>
+ </dd> </dl>
 
 <h4 id="builtin_modules">built-in modules</h4>
 <h4 id="buffer">Buffer</h4>

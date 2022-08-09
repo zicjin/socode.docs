@@ -1,0 +1,66 @@
+<h1>wp_dashboard_recent_comments( int $total_items = 5 )</h1>  <section> <p>Show Comments section.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$total_items</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description"> Number of comments to query. </span> </p> <p class="default">Default value: 5</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> False if no comments were found. True otherwise.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/dashboard.php/">wp-admin/includes/dashboard.php</a> </p> <pre data-language="php">function wp_dashboard_recent_comments( $total_items = 5 ) {
+	// Select all comment types and filter out spam later for better query performance.
+	$comments = array();
+
+	$comments_query = array(
+		'number' =&gt; $total_items * 5,
+		'offset' =&gt; 0,
+	);
+
+	if ( ! current_user_can( 'edit_posts' ) ) {
+		$comments_query['status'] = 'approve';
+	}
+
+	while ( count( $comments ) &lt; $total_items &amp;&amp; $possible = get_comments( $comments_query ) ) {
+		if ( ! is_array( $possible ) ) {
+			break;
+		}
+
+		foreach ( $possible as $comment ) {
+			if ( ! current_user_can( 'read_post', $comment-&gt;comment_post_ID ) ) {
+				continue;
+			}
+
+			$comments[] = $comment;
+
+			if ( count( $comments ) === $total_items ) {
+				break 2;
+			}
+		}
+
+		$comments_query['offset'] += $comments_query['number'];
+		$comments_query['number']  = $total_items * 10;
+	}
+
+	if ( $comments ) {
+		echo '&lt;div id="latest-comments" class="activity-block table-view-list"&gt;';
+		echo '&lt;h3&gt;' . __( 'Recent Comments' ) . '&lt;/h3&gt;';
+
+		echo '&lt;ul id="the-comment-list" data-wp-lists="list:comment"&gt;';
+		foreach ( $comments as $comment ) {
+			_wp_dashboard_recent_comments_row( $comment );
+		}
+		echo '&lt;/ul&gt;';
+
+		if ( current_user_can( 'edit_posts' ) ) {
+			echo '&lt;h3 class="screen-reader-text"&gt;' . __( 'View more comments' ) . '&lt;/h3&gt;';
+			_get_list_table( 'WP_Comments_List_Table' )-&gt;views();
+		}
+
+		wp_comment_reply( -1, false, 'dashboard', false );
+		wp_comment_trashnotice();
+
+		echo '&lt;/div&gt;';
+	} else {
+		return false;
+	}
+	return true;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/dashboard.php:</span> <a href="_wp_dashboard_recent_comments_row">_wp_dashboard_recent_comments_row()</a> </td> <td class="related-desc"> <p>Outputs a row for the Recent Comments widget.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/list-table.php:</span> <a href="_get_list_table">_get_list_table()</a> </td> <td class="related-desc"> <p>Fetches an instance of a <a href="../classes/wp_list_table">WP_List_Table</a> class.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/template.php:</span> <a href="wp_comment_reply">wp_comment_reply()</a> </td> <td class="related-desc"> <p>Outputs the in-line comment reply-to form in the Comments list table.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/template.php:</span> <a href="wp_comment_trashnotice">wp_comment_trashnotice()</a> </td> <td class="related-desc"> <p>Outputs ‘undo move to Trash’ text for comments.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="get_comments">get_comments()</a> </td> <td class="related-desc"> <p>Retrieves a list of comments.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/dashboard.php:</span> <a href="wp_dashboard_site_activity">wp_dashboard_site_activity()</a> </td> <td class="related-desc"> <p>Callback function for Activity widget.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.8.0/" alt="WordPress 3.8.0">3.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_dashboard_recent_comments" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_dashboard_recent_comments</a>
+  </p>
+</div>

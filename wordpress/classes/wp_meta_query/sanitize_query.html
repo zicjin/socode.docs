@@ -1,0 +1,64 @@
+<h1>WP_Meta_Query::sanitize_query( array $queries )</h1>  <section> <p>Ensure the ‘meta_query’ argument passed to the class constructor is well-formed.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Eliminates empty items and ensures that a ‘relation’ is set.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$queries</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Array of query clauses.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> Sanitized array of query clauses.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-meta-query.php/">wp-includes/class-wp-meta-query.php</a> </p> <pre data-language="php">public function sanitize_query( $queries ) {
+		$clean_queries = array();
+
+		if ( ! is_array( $queries ) ) {
+			return $clean_queries;
+		}
+
+		foreach ( $queries as $key =&gt; $query ) {
+			if ( 'relation' === $key ) {
+				$relation = $query;
+
+			} elseif ( ! is_array( $query ) ) {
+				continue;
+
+				// First-order clause.
+			} elseif ( $this-&gt;is_first_order_clause( $query ) ) {
+				if ( isset( $query['value'] ) &amp;&amp; array() === $query['value'] ) {
+					unset( $query['value'] );
+				}
+
+				$clean_queries[ $key ] = $query;
+
+				// Otherwise, it's a nested query, so we recurse.
+			} else {
+				$cleaned_query = $this-&gt;sanitize_query( $query );
+
+				if ( ! empty( $cleaned_query ) ) {
+					$clean_queries[ $key ] = $cleaned_query;
+				}
+			}
+		}
+
+		if ( empty( $clean_queries ) ) {
+			return $clean_queries;
+		}
+
+		// Sanitize the 'relation' key provided in the query.
+		if ( isset( $relation ) &amp;&amp; 'OR' === strtoupper( $relation ) ) {
+			$clean_queries['relation'] = 'OR';
+			$this-&gt;has_or_relation     = true;
+
+			/*
+			* If there is only a single clause, call the relation 'OR'.
+			* This value will not actually be used to join clauses, but it
+			* simplifies the logic around combining key-only queries.
+			*/
+		} elseif ( 1 === count( $clean_queries ) ) {
+			$clean_queries['relation'] = 'OR';
+
+			// Default to AND.
+		} else {
+			$clean_queries['relation'] = 'AND';
+		}
+
+		return $clean_queries;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-meta-query.php:</span> <a href="is_first_order_clause">WP_Meta_Query::is_first_order_clause()</a> </td> <td class="related-desc"> <p>Determine whether a query clause is first-order.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-meta-query.php:</span> <a href="sanitize_query">WP_Meta_Query::sanitize_query()</a> </td> <td class="related-desc"> <p>Ensure the ‘meta_query’ argument passed to the class constructor is well-formed.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-meta-query.php:</span> <a href="sanitize_query">WP_Meta_Query::sanitize_query()</a> </td> <td class="related-desc"> <p>Ensure the ‘meta_query’ argument passed to the class constructor is well-formed.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-meta-query.php:</span> <a href="__construct">WP_Meta_Query::__construct()</a> </td> <td class="related-desc"> <p>Constructor.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.1.0/" alt="WordPress 4.1.0">4.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_meta_query/sanitize_query" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_meta_query/sanitize_query</a>
+  </p>
+</div>

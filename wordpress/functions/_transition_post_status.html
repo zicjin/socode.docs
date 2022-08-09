@@ -1,0 +1,44 @@
+<h1>_transition_post_status( string $new_status, string $old_status, WP_Post $post )</h1> <div class="callout callout-alert">
+<p> This function’s access is marked private. This means it is not intended for use by plugin or theme developers, only in other core functions. It is listed here for completeness. Use <a href="wp_clear_scheduled_hook">wp_clear_scheduled_hook()</a> instead.</p> </div>  <section> <p>Hook for managing future post transitions to published.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <h3 id="see-also">See also</h3> <ul> <li><a href="wp_clear_scheduled_hook">wp_clear_scheduled_hook()</a></li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$new_status</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">New post status.</span> </p> </dd> <dt>$old_status</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Previous post status.</span> </p> </dd> <dt>$post</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Post"><a href="../classes/wp_post">WP_Post</a></span>)</span> <span class="required">(Required)</span> <span class="description">Post object.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/post.php/">wp-includes/post.php</a> </p> <pre data-language="php">function _transition_post_status( $new_status, $old_status, $post ) {
+	global $wpdb;
+
+	if ( 'publish' !== $old_status &amp;&amp; 'publish' === $new_status ) {
+		// Reset GUID if transitioning to publish and it is empty.
+		if ( '' === get_the_guid( $post-&gt;ID ) ) {
+			$wpdb-&gt;update( $wpdb-&gt;posts, array( 'guid' =&gt; get_permalink( $post-&gt;ID ) ), array( 'ID' =&gt; $post-&gt;ID ) );
+		}
+
+		/**
+		 * Fires when a post's status is transitioned from private to published.
+		 *
+		 * @since 1.5.0
+		 * @deprecated 2.3.0 Use {@see 'private_to_publish'} instead.
+		 *
+		 * @param int $post_id Post ID.
+		 */
+		do_action_deprecated( 'private_to_published', array( $post-&gt;ID ), '2.3.0', 'private_to_publish' );
+	}
+
+	// If published posts changed clear the lastpostmodified cache.
+	if ( 'publish' === $new_status || 'publish' === $old_status ) {
+		foreach ( array( 'server', 'gmt', 'blog' ) as $timezone ) {
+			wp_cache_delete( "lastpostmodified:$timezone", 'timeinfo' );
+			wp_cache_delete( "lastpostdate:$timezone", 'timeinfo' );
+			wp_cache_delete( "lastpostdate:$timezone:{$post-&gt;post_type}", 'timeinfo' );
+		}
+	}
+
+	if ( $new_status !== $old_status ) {
+		wp_cache_delete( _count_posts_cache_key( $post-&gt;post_type ), 'counts' );
+		wp_cache_delete( _count_posts_cache_key( $post-&gt;post_type, 'readable' ), 'counts' );
+	}
+
+	// Always clears the hook in case the post status bounced from future to draft.
+	wp_clear_scheduled_hook( 'publish_future_post', array( $post-&gt;ID ) );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action_deprecated">do_action_deprecated()</a> </td> <td class="related-desc"> <p>Fires functions attached to a deprecated action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/cron.php:</span> <a href="wp_clear_scheduled_hook">wp_clear_scheduled_hook()</a> </td> <td class="related-desc"> <p>Unschedules all events attached to the hook with the specified arguments.</p> </td> </tr> <tr> <td> <span>wp-includes/cache.php:</span> <a href="wp_cache_delete">wp_cache_delete()</a> </td> <td class="related-desc"> <p>Removes the cache contents matching key and group.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="get_permalink">get_permalink()</a> </td> <td class="related-desc"> <p>Retrieves the full permalink for the current post or post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/post-template.php:</span> <a href="get_the_guid">get_the_guid()</a> </td> <td class="related-desc"> <p>Retrieves the Post Global Unique Identifier (guid).</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../hooks/private_to_published">private_to_published</a> </td> <td class="related-desc"> <p>Fires when a post’s status is transitioned from private to published.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="_count_posts_cache_key">_count_posts_cache_key()</a> </td> <td class="related-desc"> <p>Return the cache key for <a href="wp_count_posts">wp_count_posts()</a> based on the passed arguments.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/update">wpdb::update()</a> </td> <td class="related-desc"> <p>Updates a row in the table.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.3.0/" alt="WordPress 2.3.0">2.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/_transition_post_status" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/_transition_post_status</a>
+  </p>
+</div>

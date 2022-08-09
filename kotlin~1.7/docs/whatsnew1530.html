@@ -1,0 +1,657 @@
+<h1 data-toc="whatsnew1530" id="whatsnew1530.md">What's new in Kotlin 1.5.30</h1>
+<p id="7fe5f372"><em id="a7a01904" class=""><a href="releases#release-details" id="ecd9b19b">Release date: 24 August 2021</a></em></p>
+<p id="b60864fd">Kotlin 1.5.30 offers language updates including previews of future changes, various improvements in platform support and tooling, and new standard library functions.</p>
+<p id="ed2a4f1c">Here are some major improvements:</p>
+<ul class="list _ul" id="7b5b5300">
+<li class="list__item" id="26aaff40"><p>Language features, including experimental sealed <code class="code ">when</code> statements, changes in using opt-in requirement, and others</p></li>
+<li class="list__item" id="1545c46a"><p>Native support for Apple silicon</p></li>
+<li class="list__item" id="8d98180b"><p>Kotlin/JS IR backend reaches Beta</p></li>
+<li class="list__item" id="2660164f"><p>Improved Gradle plugin experience</p></li>
+</ul>
+<p id="c813ff6a">You can also find a short overview of the changes in the <a href="https://blog.jetbrains.com/kotlin/2021/08/kotlin-1-5-30-released/" id="32b7dcd3" data-external="true" rel="noopener noreferrer">release blog post</a> and this video:</p>
+
+
+<section class="chapter"><h2 id="language-features" data-toc="whatsnew1530#language-features">Language features</h2>
+<p id="83b8128d">Kotlin 1.5.30 is presenting previews of future language changes and bringing improvements to the opt-in requirement mechanism and type inference:</p>
+<ul class="list _ul" id="cc93570d">
+<li class="list__item" id="66e5827e"><p><a href="#exhaustive-when-statements-for-sealed-and-boolean-subjects" id="9d636a80">Exhaustive when statements for sealed and Boolean subjects</a></p></li>
+<li class="list__item" id="c22a5db9"><p><a href="#suspending-functions-as-supertypes" id="6d836b5b">Suspending functions as supertypes</a></p></li>
+<li class="list__item" id="cc6a573"><p><a href="#requiring-opt-in-on-implicit-usages-of-experimental-apis" id="45c1cc6">Requiring opt-in on implicit usages of experimental APIs</a></p></li>
+<li class="list__item" id="447c027b"><p><a href="#changes-to-using-opt-in-requirement-annotations-with-different-targets" id="69458a56">Changes to using opt-in requirement annotations with different targets</a></p></li>
+<li class="list__item" id="151035b3"><p><a href="#improvements-to-type-inference-for-recursive-generic-types" id="2df2f55e">Improvements to type inference for recursive generic types</a></p></li>
+<li class="list__item" id="eb0d3179"><p><a href="#eliminating-builder-inference-restrictions" id="cc918c84">Eliminating builder inference restrictions</a></p></li>
+</ul>
+<section class="chapter"><h3 id="exhaustive-when-statements-for-sealed-and-boolean-subjects" data-toc="whatsnew1530#exhaustive-when-statements-for-sealed-and-boolean-subjects">Exhaustive when statements for sealed and Boolean subjects</h3>
+<aside data-type="warning" class="prompt" data-title="" id="6bc57229"><p id="4519aa69">Support for sealed (exhaustive) when statements is <a href="components-stability" id="12d852e">Experimental</a>. It may be dropped or changed at any time. Opt-in is required (see the details below), and you should use it only for evaluation purposes. We would appreciate your feedback on it in <a href="https://youtrack.jetbrains.com/issue/KT-12380" id="687ffaa5" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="a357003f">An <em id="579b6998" class="">exhaustive</em> <a href="control-flow#when-expression" id="bde466ba"><code class="code ">when</code></a> statement contains branches for all possible types or values of its subject or for some types plus an <code class="code ">else</code> branch. In other words, it covers all possible cases.</p>
+<p id="2c18bbbb">We’re planning to prohibit non-exhaustive <code class="code ">when</code> statements soon to make the behavior consistent with <code class="code ">when</code> expressions. To ensure smooth migration, you can configure the compiler to report warnings about non-exhaustive <code class="code ">when</code> statements with a sealed class or a Boolean. Such warnings will appear by default in Kotlin 1.6 and will become errors later.</p>
+<aside data-type="note" class="prompt" data-title="" id="daa58d98"><p id="6035115c">Enums already get a warning.</p></aside><pre class="code" data-language="kotlin">sealed class Mode {
+    object ON : Mode()
+    object OFF : Mode()
+}
+
+fun main() {
+    val x: Mode = Mode.ON
+    when (x) { 
+        Mode.ON -&gt; println("ON")
+    }
+// WARNING: Non exhaustive 'when' statements on sealed classes/interfaces 
+// will be prohibited in 1.7, add an 'OFF' or 'else' branch instead
+
+    val y: Boolean = true
+    when (y) {  
+        true -&gt; println("true")
+    }
+// WARNING: Non exhaustive 'when' statements on Booleans will be prohibited 
+// in 1.7, add a 'false' or 'else' branch instead
+}
+</pre>
+<p id="25c9406e">To enable this feature in Kotlin 1.5.30, use language version <code class="code ">1.6</code>. You can also change the warnings to errors by enabling <a href="whatsnew13#progressive-mode" id="1caad54a">progressive mode</a>.</p>
+<div class="tabs" id="e87b309c" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="7193648d" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">kotlin {
+    sourceSets.all {
+        languageSettings.apply {
+            languageVersion = "1.6"
+            //progressiveMode = true // false by default
+        }
+    }
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="c39df603" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">kotlin {
+    sourceSets.all {
+        languageSettings {
+            languageVersion = '1.6'
+            //progressiveMode = true // false by default
+        }
+    }
+}
+</pre></div>
+</div></section><section class="chapter"><h3 id="suspending-functions-as-supertypes" data-toc="whatsnew1530#suspending-functions-as-supertypes">Suspending functions as supertypes</h3>
+<aside data-type="warning" class="prompt" data-title="" id="2acf25e9"><p id="3097f906">Support for suspending functions as supertypes is <a href="components-stability" id="d4535918">Experimental</a>. It may be dropped or changed at any time. Opt-in is required (see the details below), and you should use it only for evaluation purposes. We would appreciate your feedback on it in <a href="https://youtrack.jetbrains.com/issue/KT-18707" id="9cd87d4e" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="e87ccbe">Kotlin 1.5.30 provides a preview of the ability to use a <code class="code ">suspend</code> functional type as a supertype with some limitations.</p>
+<pre class="code" data-language="kotlin">class MyClass: suspend () -&gt; Unit {
+    override suspend fun invoke() { TODO() }
+}
+</pre>
+<p id="5ee6f8f4">Use the <code class="code ">-language-version 1.6</code> compiler option to enable the feature:</p>
+<div class="tabs" id="dbd1c5be" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="6be8a487" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">kotlin {
+    sourceSets.all {
+        languageSettings.apply {
+            languageVersion = "1.6"
+        }
+    }
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="8f04ba27" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">kotlin {
+    sourceSets.all {
+        languageSettings {
+            languageVersion = '1.6'
+        }
+    }
+}
+</pre></div>
+</div>
+<p id="64a0febd">The feature has the following restrictions:</p>
+<ul class="list _ul" id="a4fe52ed">
+<li class="list__item" id="9b9d594e"><p>You can’t mix an ordinary functional type and a <code class="code ">suspend</code> functional type as supertype. This is because of the implementation details of <code class="code ">suspend</code> functional types in the JVM backend. They are represented in it as ordinary functional types with a marker interface. Because of the marker interface, there is no way to tell which of the superinterfaces are suspended and which are ordinary.</p></li>
+<li class="list__item" id="321b50fa"><p>You can't use multiple <code class="code ">suspend</code> functional supertypes. If there are type checks, you also can’t use multiple ordinary functional supertypes.</p></li>
+</ul></section><section class="chapter"><h3 id="requiring-opt-in-on-implicit-usages-of-experimental-apis" data-toc="whatsnew1530#requiring-opt-in-on-implicit-usages-of-experimental-apis">Requiring opt-in on implicit usages of experimental APIs</h3>
+<aside data-type="warning" class="prompt" data-title="" id="5656ca5e"><p id="416be86c">The opt-in requirement mechanism is <a href="components-stability" id="3427571">Experimental</a>. It may change at any time. <a href="opt-in-requirements" id="c8f6b9fd">See how to opt-in</a>. Use it only for evaluation purposes. We would appreciate your feedback on it in <a href="https://youtrack.jetbrains.com/issues/KT" id="1dab1847" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="fc97cdbe">The author of a library can mark an experimental API as <a href="opt-in-requirements#create-opt-in-requirement-annotations" id="9fdbddb5">requiring opt-in</a> to inform users about its experimental state. The compiler raises a warning or error when the API is used and requires <a href="opt-in-requirements#opt-in-to-using-api" id="27213e0f">explicit consent</a> to suppress it.</p>
+<p id="fbc26745">In Kotlin 1.5.30, the compiler treats any declaration that has an experimental type in the signature as experimental. Namely, it requires opt-in even for implicit usages of an experimental API. For example, if the function’s return type is marked as an experimental API element, a usage of the function requires you to opt-in even if the declaration is not marked as requiring an opt-in explicitly.</p>
+<pre class="code" data-language="kotlin">// Library code
+
+@RequiresOptIn(message = "This API is experimental.")
+@Retention(AnnotationRetention.BINARY)
+@Target(AnnotationTarget.CLASS)
+annotation class MyDateTime // Opt-in requirement annotation
+
+@MyDateTime
+class DateProvider // A class requiring opt-in
+
+// Client code
+
+// Warning: experimental API usage
+fun createDateSource(): DateProvider { /* ... */ }
+
+fun getDate(): Date {
+    val dateSource = createDateSource() // Also warning: experimental API usage
+    // ... 
+}
+</pre>
+<p id="a0997f86">Learn more about <a href="opt-in-requirements" id="2e57b77c">opt-in requirements</a>.</p></section><section class="chapter"><h3 id="changes-to-using-opt-in-requirement-annotations-with-different-targets" data-toc="whatsnew1530#changes-to-using-opt-in-requirement-annotations-with-different-targets">Changes to using opt-in requirement annotations with different targets</h3>
+<aside data-type="warning" class="prompt" data-title="" id="7eef87d0"><p id="652d20c">The opt-in requirement mechanism is <a href="components-stability" id="627f07b7">Experimental</a>. It may change at any time. <a href="opt-in-requirements" id="33b2e01e">See how to opt-in</a>. Use it only for evaluation purposes. We would appreciate your feedback on it in <a href="https://youtrack.jetbrains.com/issues/KT" id="1c6821c3" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="9a18e269">Kotlin 1.5.30 presents new rules for using and declaring opt-in requirement annotations on different <a href="../api/latest/jvm/stdlib/kotlin.annotation/-target/index" id="c8fc7023" data-external="true" rel="noopener noreferrer">targets</a>. The compiler now reports an error for use cases that are impractical to handle at compile time. In Kotlin 1.5.30:</p>
+<ul class="list _ul" id="a1cbc168">
+<li class="list__item" id="a287bd76"><p>Marking local variables and value parameters with opt-in requirement annotations is forbidden at the use site.</p></li>
+<li class="list__item" id="34a99408"><p>Marking override is allowed only if its basic declaration is also marked.</p></li>
+<li class="list__item" id="314780e1"><p>Marking backing fields and getters is forbidden. You can mark the basic property instead.</p></li>
+<li class="list__item" id="33dc6f86"><p>Setting <code class="code ">TYPE</code> and <code class="code ">TYPE_PARAMETER</code> annotation targets is forbidden at the opt-in requirement annotation declaration site.</p></li>
+</ul>
+<p id="332fb0b6">Learn more about <a href="opt-in-requirements" id="ee8ed2c2">opt-in requirements</a>.</p></section><section class="chapter"><h3 id="improvements-to-type-inference-for-recursive-generic-types" data-toc="whatsnew1530#improvements-to-type-inference-for-recursive-generic-types">Improvements to type inference for recursive generic types</h3>
+<p id="145d3508">In Kotlin and Java, you can define a recursive generic type, which references itself in its type parameters. In Kotlin 1.5.30, the Kotlin compiler can infer a type argument based only on upper bounds of the corresponding type parameter if it is a recursive generic. This makes it possible to create various patterns with recursive generic types that are often used in Java to make builder APIs.</p>
+<pre class="code" data-language="kotlin">// Kotlin 1.5.20
+val containerA = PostgreSQLContainer&lt;Nothing&gt;(DockerImageName.parse("postgres:13-alpine")).apply {
+    withDatabaseName("db")
+    withUsername("user")
+    withPassword("password")
+    withInitScript("sql/schema.sql")
+}
+
+// Kotlin 1.5.30
+val containerB = PostgreSQLContainer(DockerImageName.parse("postgres:13-alpine"))
+    .withDatabaseName("db")
+    .withUsername("user")
+    .withPassword("password")
+    .withInitScript("sql/schema.sql")
+</pre>
+<p id="8f6b18cb">You can enable the improvements by passing the <code class="code ">-Xself-upper-bound-inference</code> or the <code class="code ">-language-version 1.6</code> compiler options. See other examples of newly supported use cases in <a href="https://youtrack.jetbrains.com/issue/KT-40804" id="1f5c7457" data-external="true" rel="noopener noreferrer">this YouTrack ticket</a>.</p></section><section class="chapter"><h3 id="eliminating-builder-inference-restrictions" data-toc="whatsnew1530#eliminating-builder-inference-restrictions">Eliminating builder inference restrictions</h3>
+<p id="20126f9f">Builder inference is a special kind of type inference that allows you to infer the type arguments of a call based on type information from other calls inside its lambda argument. This can be useful when calling generic builder functions such as <a href="../api/latest/jvm/stdlib/kotlin.collections/build-list" id="e325fa6e" data-external="true" rel="noopener noreferrer"><code class="code ">buildList()</code></a> or <a href="../api/latest/jvm/stdlib/kotlin.sequences/sequence" id="a03a32be" data-external="true" rel="noopener noreferrer"><code class="code ">sequence()</code></a>: <code class="code ">buildList { add("string") }</code>.</p>
+<p id="6331bd6e">Inside such a lambda argument, there was previously a limitation on using the type information that the builder inference tries to infer. This means you can only specify it and cannot get it. For example, you cannot call <a href="../api/latest/jvm/stdlib/kotlin.collections/-list/get" id="c7c278f0" data-external="true" rel="noopener noreferrer"><code class="code ">get()</code></a> inside a lambda argument of <code class="code ">buildList()</code> without explicitly specified type arguments.</p>
+<p id="a96dd80a">Kotlin 1.5.30 removes these limitations with the <code class="code ">-Xunrestricted-builder-inference</code> compiler option. Add this option to enable previously prohibited calls inside a lambda argument of generic builder functions:</p>
+<pre class="code" data-language="kotlin">@kotlin.ExperimentalStdlibApi
+val list = buildList {
+    add("a")
+    add("b")
+    set(1, null)
+    val x = get(1)
+    if (x != null) {
+        removeAt(1)
+    }
+}
+
+@kotlin.ExperimentalStdlibApi
+val map = buildMap {
+    put("a", 1)
+    put("b", 1.1)
+    put("c", 2f)
+}
+</pre>
+<p id="62dc99dc">Also, you can enable this feature with the <code class="code ">-language-version 1.6</code> compiler option.</p></section></section><section class="chapter"><h2 id="kotlin-jvm" data-toc="whatsnew1530#kotlin-jvm">Kotlin/JVM</h2>
+<p id="bdea173e">With Kotlin 1.5.30, Kotlin/JVM receives the following features:</p>
+<ul class="list _ul" id="8729b1c9">
+<li class="list__item" id="64e4a3e"><p><a href="#instantiation-of-annotation-classes" id="4e74c9ba">Instantiation of annotation classes</a></p></li>
+<li class="list__item" id="17d34ebe"><p><a href="#improved-nullability-annotation-support-configuration" id="b2729579">Improved nullability annotation support configuration</a></p></li>
+</ul>
+<p id="c6c76e63">See the <a href="#gradle" id="4f3f6d7a">Gradle</a> section for Kotlin Gradle plugin updates on the JVM platform.</p>
+<section class="chapter"><h3 id="instantiation-of-annotation-classes" data-toc="whatsnew1530#instantiation-of-annotation-classes">Instantiation of annotation classes</h3>
+<aside data-type="warning" class="prompt" data-title="" id="c738d6f1"><p id="f3d18365">Instantiation of annotation classes is <a href="components-stability" id="8fa0b09a">Experimental</a>. It may be dropped or changed at any time. Opt-in is required (see the details below), and you should use it only for evaluation purposes. We would appreciate your feedback on it in <a href="https://youtrack.jetbrains.com/issue/KT-45395" id="2e8c0b" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="c7ca28f0">With Kotlin 1.5.30 you can now call constructors of <a href="annotations" id="ae61a91e">annotation classes</a> in arbitrary code to obtain a resulting instance. This feature covers the same use cases as the Java convention that allows the implementation of an annotation interface.</p>
+<pre class="code" data-language="kotlin">annotation class InfoMarker(val info: String)
+
+fun processInfo(marker: InfoMarker) = ...
+
+fun main(args: Array&lt;String&gt;) {
+    if (args.size != 0)
+        processInfo(getAnnotationReflective(args))
+    else
+        processInfo(InfoMarker("default"))
+}
+</pre>
+<p id="7c469a2b">Use the <code class="code ">-language-version 1.6</code> compiler option to enable this feature. Note that all current annotation class limitations, such as restrictions to define non-<code class="code ">val</code> parameters or members different from secondary constructors, remain intact.</p>
+<p id="d4d1a358">Learn more about instantiation of annotation classes in <a href="https://github.com/Kotlin/KEEP/blob/master/proposals/annotation-instantiation.md" id="4d5d2466" data-external="true" rel="noopener noreferrer">this KEEP</a></p></section><section class="chapter"><h3 id="improved-nullability-annotation-support-configuration" data-toc="whatsnew1530#improved-nullability-annotation-support-configuration">Improved nullability annotation support configuration</h3>
+<p id="bb58f388">The Kotlin compiler can read various types of <a href="java-interop#nullability-annotations" id="5e237649">nullability annotations</a> to get nullability information from Java. This information allows it to report nullability mismatches in Kotlin when calling Java code.</p>
+<p id="5bae2648">In Kotlin 1.5.30, you can specify whether the compiler reports a nullability mismatch based on the information from specific types of nullability annotations. Just use the compiler option <code class="code ">-Xnullability-annotations=@&lt;package-name&gt;:&lt;report-level&gt;</code>. In the argument, specify the fully qualified nullability annotations package and one of these report levels:</p>
+<ul class="list _ul" id="f7c5d95f">
+<li class="list__item" id="f6d63f8f"><p><code class="code ">ignore</code> to ignore nullability mismatches</p></li>
+<li class="list__item" id="6003c024"><p><code class="code ">warn</code> to report warnings</p></li>
+<li class="list__item" id="dc9cd816"><p><code class="code ">strict</code> to report errors.</p></li>
+</ul>
+<p id="d26d521a">See the <a href="java-interop#nullability-annotations" id="3d254b7f">full list of supported nullability annotations</a> along with their fully qualified package names.</p>
+<p id="b895c800">Here is an example showing how to enable error reporting for the newly supported <a href="https://github.com/ReactiveX/RxJava" id="bff2b702" data-external="true" rel="noopener noreferrer">RxJava</a> 3 nullability annotations: <code class="code ">-Xnullability-annotations=@io.reactivex.rxjava3.annotations:strict</code>. Note that all such nullability mismatches are warnings by default.</p></section></section><section class="chapter"><h2 id="kotlin-native" data-toc="whatsnew1530#kotlin-native">Kotlin/Native</h2>
+<p id="25d8d957">Kotlin/Native has received various changes and improvements:</p>
+<ul class="list _ul" id="578d2ea1">
+<li class="list__item" id="f3bfd15f"><p><a href="#apple-silicon-support" id="c0f80741">Apple silicon support</a></p></li>
+<li class="list__item" id="ba6165b0"><p><a href="#improved-kotlin-dsl-for-the-cocoapods-gradle-plugin" id="7331cea6">Improved Kotlin DSL for the CocoaPods Gradle plugin</a></p></li>
+<li class="list__item" id="65fafb2d"><p><a href="#experimental-interoperability-with-swift-5-5-async-await" id="2cad7ccb">Experimental interoperability with Swift 5.5 async/await</a></p></li>
+<li class="list__item" id="788fdd40"><p><a href="#improved-swift-objective-c-mapping-for-objects-and-companion-objects" id="a021e4">Improved Swift/Objective-C mapping for objects and companion objects</a></p></li>
+<li class="list__item" id="2bfc5443"><p><a href="#deprecation-of-linkage-against-dlls-without-import-libraries-for-mingw-targets" id="cbf3cbeb">Deprecation of linkage against DLLs without import libraries for MinGW targets</a></p></li>
+</ul>
+<section class="chapter"><h3 id="apple-silicon-support" data-toc="whatsnew1530#apple-silicon-support">Apple silicon support</h3>
+<p id="807143ea">Kotlin 1.5.30 introduces native support for <a href="https://support.apple.com/en-us/HT211814" id="42e5ec24" data-external="true" rel="noopener noreferrer">Apple silicon</a>.</p>
+<p id="53443f9f">Previously, the Kotlin/Native compiler and tooling required the <a href="https://developer.apple.com/documentation/apple-silicon/about-the-rosetta-translation-environment" id="a07213f2" data-external="true" rel="noopener noreferrer">Rosetta translation environment</a> for working on Apple silicon hosts. In Kotlin 1.5.30, the translation environment is no longer needed – the compiler and tooling can run on Apple silicon hardware without requiring any additional actions.</p>
+<p id="acdf925d">We’ve also introduced new targets that make Kotlin code run natively on Apple silicon:</p>
+<ul class="list _ul" id="6055abe2">
+<li class="list__item" id="1d3006d3"><p><code class="code ">macosArm64</code></p></li>
+<li class="list__item" id="91093dcf"><p><code class="code ">iosSimulatorArm64</code></p></li>
+<li class="list__item" id="e7196440"><p><code class="code ">watchosSimulatorArm64</code></p></li>
+<li class="list__item" id="4c46ef55"><p><code class="code ">tvosSimulatorArm64</code></p></li>
+</ul>
+<p id="35a7fc83">They are available on both Intel-based and Apple silicon hosts. All existing targets are available on Apple silicon hosts as well.</p>
+<p id="6495c62e">Note that in 1.5.30 we provide only basic support for Apple silicon targets in the <code class="code ">kotlin-multiplatform</code> Gradle plugin. Particularly, the new simulator targets aren’t included in the <a href="multiplatform-share-on-platforms#use-target-shortcuts" id="6c01f6c4"><code class="code ">ios</code>, <code class="code ">tvos</code>, and <code class="code ">watchos</code> target shortcuts</a>. Learn how to <a href="multiplatform-share-on-platforms#target-shortcuts-and-arm64-apple-silicon-simulators" id="29be4f06">use Apple silicon targets with the target shortcuts</a>. We will keep working to improve the user experience with the new targets.</p></section><section class="chapter"><h3 id="improved-kotlin-dsl-for-the-cocoapods-gradle-plugin" data-toc="whatsnew1530#improved-kotlin-dsl-for-the-cocoapods-gradle-plugin">Improved Kotlin DSL for the CocoaPods Gradle plugin</h3>
+<section class="chapter"><h4 id="new-parameters-for-kotlin-native-frameworks" data-toc="whatsnew1530#new-parameters-for-kotlin-native-frameworks">New parameters for Kotlin/Native frameworks</h4>
+<p id="cba446ba">Kotlin 1.5.30 introduces the improved CocoaPods Gradle plugin DSL for Kotlin/Native frameworks. In addition to the name of the framework, you can specify other parameters in the pod configuration:</p>
+<ul class="list _ul" id="8aea757c">
+<li class="list__item" id="30555a02"><p>Specify the dynamic or static version of the framework</p></li>
+<li class="list__item" id="9652d952"><p>Enable export dependencies explicitly</p></li>
+<li class="list__item" id="16bfffbc"><p>Enable Bitcode embedding</p></li>
+</ul>
+<p id="31f206c1">To use the new DSL, update your project to Kotlin 1.5.30, and specify the parameters in the <code class="code ">cocoapods</code> section of your <code class="code ">build.gradle(.kts)</code> file:</p>
+<pre class="code" data-language="kotlin">cocoapods {
+    frameworkName = "MyFramework" // This property is deprecated 
+    // and will be removed in future versions
+    // New DSL for framework configuration:
+    framework {
+        // All Framework properties are supported
+        // Framework name configuration. Use this property instead of 
+        // deprecated 'frameworkName'
+        baseName = "MyFramework"
+        // Dynamic framework support
+        isStatic = false
+        // Dependency export
+        export(project(":anotherKMMModule"))
+        transitiveExport = false // This is default.
+        // Bitcode embedding
+        embedBitcode(BITCODE)
+    }
+}
+</pre></section><section class="chapter"><h4 id="support-custom-names-for-xcode-configuration" data-toc="whatsnew1530#support-custom-names-for-xcode-configuration">Support custom names for Xcode configuration</h4>
+<p id="eb98eb1">The Kotlin CocoaPods Gradle plugin supports custom names in the Xcode build configuration. It will also help you if you’re using special names for the build configuration in Xcode, for example <code class="code ">Staging</code>.</p>
+<p id="126790b0">To specify a custom name, use the <code class="code ">xcodeConfigurationToNativeBuildType</code> parameter in the <code class="code ">cocoapods</code> section of your <code class="code ">build.gradle(.kts)</code> file:</p>
+<pre class="code" data-language="kotlin">cocoapods {
+    // Maps custom Xcode configuration to NativeBuildType
+    xcodeConfigurationToNativeBuildType["CUSTOM_DEBUG"] = NativeBuildType.DEBUG
+    xcodeConfigurationToNativeBuildType["CUSTOM_RELEASE"] = NativeBuildType.RELEASE
+}
+</pre>
+<p id="6fada329">This parameter will not appear in the Podspec file. When Xcode runs the Gradle build process, the Kotlin CocoaPods Gradle plugin will select the necessary native build type.</p>
+<aside data-type="note" class="prompt" data-title="" id="e82d6660"><p id="fa5af6e5">There’s no need to declare the <code class="code ">Debug</code> and <code class="code ">Release</code> configurations because they are supported by default.</p></aside></section></section><section class="chapter"><h3 id="experimental-interoperability-with-swift-5-5-async-await" data-toc="whatsnew1530#experimental-interoperability-with-swift-5-5-async-await">Experimental interoperability with Swift 5.5 async/await</h3>
+<aside data-type="warning" class="prompt" data-title="" id="c9f6bf3c"><p id="2bf94fe2">Concurrency interoperability with Swift async/await is <a href="components-stability" id="89357f6d">Experimental</a>. It may be dropped or changed at any time. You should use it only for evaluation purposes. We would appreciate your feedback on it in <a href="https://youtrack.jetbrains.com/issue/KT-47610" id="a71e7c76" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="988b8383">We added <a href="whatsnew14#support-for-kotlin-s-suspending-functions-in-swift-and-objective-c" id="857b9272">support for calling Kotlin’s suspending functions from Objective-C and Swift in 1.4.0</a>, and now we’re improving it to keep up with a new Swift 5.5 feature – <a href="https://github.com/apple/swift-evolution/blob/main/proposals/0296-async-await.md" id="bc55f8e4" data-external="true" rel="noopener noreferrer">concurrency with <code class="code ">async</code> and <code class="code ">await</code> modifiers</a>.</p>
+<p id="ca81505a">The Kotlin/Native compiler now emits the <code class="code ">_Nullable_result</code> attribute in the generated Objective-C headers for suspending functions with nullable return types. This makes it possible to call them from Swift as <code class="code ">async</code> functions with the proper nullability.</p>
+<p id="965b07f5">Note that this feature is experimental and can be affected in the future by changes in both Kotlin and Swift. For now, we’re offering a preview of this feature that has certain limitations, and we are eager to hear what you think. Learn more about its current state and leave your feedback in <a href="https://youtrack.jetbrains.com/issue/KT-47610" id="581bb257" data-external="true" rel="noopener noreferrer">this YouTrack issue</a>.</p></section><section class="chapter"><h3 id="improved-swift-objective-c-mapping-for-objects-and-companion-objects" data-toc="whatsnew1530#improved-swift-objective-c-mapping-for-objects-and-companion-objects">Improved Swift/Objective-C mapping for objects and companion objects</h3>
+<p id="18513348">Getting objects and companion objects can now be done in a way that is more intuitive for native iOS developers. For example, if you have the following objects in Kotlin:</p>
+<pre class="code" data-language="kotlin">object MyObject {
+    val x = "Some value"
+}
+
+class MyClass {
+    companion object {
+        val x = "Some value"
+    }
+}
+</pre>
+<p id="dfbaf04e">To access them in Swift, you can use the <code class="code ">shared</code> and <code class="code ">companion</code> properties:</p>
+<pre class="code" data-language="swift">MyObject.shared
+MyObject.shared.x
+MyClass.companion
+MyClass.Companion.shared
+</pre>
+<p id="b3bfa8f6">Learn more about <a href="native-objc-interop" id="53249fa1">Swift/Objective-C interoperability</a>.</p></section><section class="chapter"><h3 id="deprecation-of-linkage-against-dlls-without-import-libraries-for-mingw-targets" data-toc="whatsnew1530#deprecation-of-linkage-against-dlls-without-import-libraries-for-mingw-targets">Deprecation of linkage against DLLs without import libraries for MinGW targets</h3>
+<p id="e72e1e98"><a href="https://lld.llvm.org/" id="286c3e6a" data-external="true" rel="noopener noreferrer">LLD</a> is a linker from the LLVM project, which we plan to start using in Kotlin/Native for MinGW targets because of its benefits over the default ld.bfd – primarily its better performance.</p>
+<p id="bb491c82">However, the latest stable version of LLD doesn’t support direct linkage against DLL for MinGW (Windows) targets. Such linkage requires using <a href="https://stackoverflow.com/questions/3573475/how-does-the-import-library-work-details/3573527#3573527" id="6953fa7d" data-external="true" rel="noopener noreferrer">import libraries</a>. Although they aren’t needed with Kotlin/Native 1.5.30, we’re adding a warning to inform you that such usage is incompatible with LLD that will become the default linker for MinGW in the future.</p>
+<p id="354f623d">Please share your thoughts and concerns about the transition to the LLD linker in <a href="https://youtrack.jetbrains.com/issue/KT-47605" id="4fedb632" data-external="true" rel="noopener noreferrer">this YouTrack issue</a>.</p></section></section><section class="chapter"><h2 id="kotlin-multiplatform" data-toc="whatsnew1530#kotlin-multiplatform">Kotlin Multiplatform</h2>
+<p id="d1a9c563">1.5.30 brings the following notable updates to Kotlin Multiplatform:</p>
+<ul class="list _ul" id="b6e2763f">
+<li class="list__item" id="3b0b37ab"><p><a href="#ability-to-use-custom-cinterop-libraries-in-shared-native-code" id="5e605b73">Ability to use custom <code class="code ">cinterop</code> libraries in shared native code</a></p></li>
+<li class="list__item" id="680e30e0"><p><a href="#support-for-xcframeworks" id="63ed3d78">Support for XCFrameworks</a></p></li>
+<li class="list__item" id="bced1a0c"><p><a href="#new-default-publishing-setup-for-android-artifacts" id="9e0eec13">New default publishing setup for Android artifacts</a></p></li>
+</ul>
+<section class="chapter"><h3 id="ability-to-use-custom-cinterop-libraries-in-shared-native-code" data-toc="whatsnew1530#ability-to-use-custom-cinterop-libraries-in-shared-native-code">Ability to use custom cinterop libraries in shared native code</h3>
+<p id="dd6768a6">Kotlin Multiplatform gives you an <a href="multiplatform-share-on-platforms#use-native-libraries-in-the-hierarchical-structure" id="3bc7b99c">option</a> to use platform-dependent interop libraries in shared source sets. Before 1.5.30, this worked only with <a href="native-platform-libs" id="ddc90d82">platform libraries</a> shipped with Kotlin/Native distribution. Starting from 1.5.30, you can use it with your custom <code class="code ">cinterop</code> libraries. To enable this feature, add the <code class="code ">kotlin.mpp.enableCInteropCommonization=true</code> property in your <code class="code ">gradle.properties</code>:</p>
+<pre class="code" data-language="none">kotlin.mpp.enableGranularSourceSetsMetadata=true
+kotlin.native.enableDependencyPropagation=false
+kotlin.mpp.enableCInteropCommonization=true
+</pre></section><section class="chapter"><h3 id="support-for-xcframeworks" data-toc="whatsnew1530#support-for-xcframeworks">Support for XCFrameworks</h3>
+<p id="f0a9272f">All Kotlin Multiplatform projects can now have XCFrameworks as an output format. Apple introduced XCFrameworks as a replacement for universal (fat) frameworks. With the help of XCFrameworks you:</p>
+<ul class="list _ul" id="d2433d36">
+<li class="list__item" id="c8bc1135"><p>Can gather logic for all the target platforms and architectures in a single bundle.</p></li>
+<li class="list__item" id="9ee7c298"><p>Don't need to remove all unnecessary architectures before publishing the application to the App Store.</p></li>
+</ul>
+<p id="1f4a064e">XCFrameworks is useful if you want to use your Kotlin framework for devices and simulators on Apple M1.</p>
+<p id="d0b1f677">To use XCFrameworks, update your <code class="code ">build.gradle(.kts)</code> script:</p>
+<div class="tabs" id="932dc3d5" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="d9f9f79e" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
+
+plugins {
+    kotlin("multiplatform")
+}
+
+kotlin {
+    val xcf = XCFramework()
+  
+    ios {
+        binaries.framework {
+            baseName = "shared"
+            xcf.add(this)
+        }
+    }
+    watchos {
+        binaries.framework {
+            baseName = "shared"
+            xcf.add(this)
+        }
+    }
+    tvos {
+        binaries.framework {
+            baseName = "shared"
+            xcf.add(this)
+        }
+    }
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="b5ad3645" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFrameworkConfig
+
+plugins {
+    id 'org.jetbrains.kotlin.multiplatform'
+}
+
+kotlin {
+    def xcf = new XCFrameworkConfig(project)
+
+    ios {
+        binaries.framework {
+            baseName = "shared"
+            xcf.add(it)
+        }
+    }
+    watchos {
+        binaries.framework {
+            baseName = "shared"
+            xcf.add(it)
+        }
+    }
+    tvos {
+        binaries.framework {
+            baseName = "shared"
+            xcf.add(it)
+        }
+    }
+}
+</pre></div>
+</div>
+<p id="9d730a2">When you declare XCFrameworks, these new Gradle tasks will be registered:</p>
+<ul class="list _ul" id="f45b730">
+<li class="list__item" id="fa0fd448"><p><code class="code ">assembleXCFramework</code></p></li>
+<li class="list__item" id="13784bac"><p><code class="code ">assembleDebugXCFramework</code> (additionally debug artifact that <a href="native-ios-symbolication" id="b9ddfe81">contains dSYMs</a>)</p></li>
+<li class="list__item" id="e2e98961"><p><code class="code ">assembleReleaseXCFramework</code></p></li>
+</ul>
+<p id="b122e6f0">Learn more about XCFrameworks in <a href="https://developer.apple.com/videos/play/wwdc2019/416/" id="9d073558" data-external="true" rel="noopener noreferrer">this WWDC video</a>.</p></section><section class="chapter"><h3 id="new-default-publishing-setup-for-android-artifacts" data-toc="whatsnew1530#new-default-publishing-setup-for-android-artifacts">New default publishing setup for Android artifacts</h3>
+<p id="b8ed623b">Using the <code class="code ">maven-publish</code> Gradle plugin, you can <a href="multiplatform-publish-lib#publish-an-android-library" id="c29a2fba">publish your multiplatform library for the Android target</a> by specifying <a href="https://developer.android.com/studio/build/build-variants" id="ba8f7602" data-external="true" rel="noopener noreferrer">Android variant</a> names in the build script. The Kotlin Gradle plugin will generate publications automatically.</p>
+<p id="e9c408b">Before 1.5.30, the generated publication <a href="https://docs.gradle.org/current/userguide/publishing_gradle_module_metadata.html" id="d5977caa" data-external="true" rel="noopener noreferrer">metadata</a> included the build type attributes for every published Android variant, making it compatible only with the same build type used by the library consumer. Kotlin 1.5.30 introduces a new default publishing setup:</p>
+<ul class="list _ul" id="e31acb45">
+<li class="list__item" id="375a9126"><p>If all Android variants that the project publishes have the same build type attribute, then the published variants won't have the build type attribute and will be compatible with any build type.</p></li>
+<li class="list__item" id="352fc90b"><p>If the published variants have different build type attributes, then only those with the <code class="code ">release</code> value will be published without the build type attribute. This makes the release variants compatible with any build type on the consumer side, while non-release variants will only be compatible with the matching consumer build types.</p></li>
+</ul>
+<p id="de1801a6">To opt-out and keep the build type attributes for all variants, you can set this Gradle property: <code class="code ">kotlin.android.buildTypeAttribute.keep=true</code>.</p></section></section><section class="chapter"><h2 id="kotlin-js" data-toc="whatsnew1530#kotlin-js">Kotlin/JS</h2>
+<p id="64447067">Two major improvements are coming to Kotlin/JS with 1.5.30:</p>
+<ul class="list _ul" id="62b564d5">
+<li class="list__item" id="cbecf2ab"><p><a href="#js-ir-compiler-backend-reaches-beta" id="a55b002e">JS IR compiler backend reaches Beta</a></p></li>
+<li class="list__item" id="95810f1"><p><a href="#better-debugging-experience-for-applications-with-the-kotlin-js-ir-backend" id="f097d250">Better debugging experience for applications with the Kotlin/JS IR backend</a></p></li>
+</ul>
+<section class="chapter"><h3 id="js-ir-compiler-backend-reaches-beta" data-toc="whatsnew1530#js-ir-compiler-backend-reaches-beta">JS IR compiler backend reaches Beta</h3>
+<p id="52f368ec">The <a href="whatsnew14#unified-backends-and-extensibility" id="81d9952f">IR-based compiler backend</a> for Kotlin/JS, which was introduced in 1.4.0 in <a href="components-stability" id="855ac9a7">Alpha</a>, has reached Beta.</p>
+<p id="3dc5b624">Previously, we published the <a href="js-ir-migration" id="d2f03f6e">migration guide for the JS IR backend</a> to help you migrate your projects to the new backend. Now we would like to present the <a href="https://plugins.jetbrains.com/plugin/17183-kotlin-js-inspection-pack/" id="7d0d6597" data-external="true" rel="noopener noreferrer">Kotlin/JS Inspection Pack</a> IDE plugin, which displays the required changes directly in IntelliJ IDEA.</p></section><section class="chapter"><h3 id="better-debugging-experience-for-applications-with-the-kotlin-js-ir-backend" data-toc="whatsnew1530#better-debugging-experience-for-applications-with-the-kotlin-js-ir-backend">Better debugging experience for applications with the Kotlin/JS IR backend</h3>
+<p id="6828fe6c">Kotlin 1.5.30 brings JavaScript source map generation for the Kotlin/JS IR backend. This will improve the Kotlin/JS debugging experience when the IR backend is enabled, with full debugging support that includes breakpoints, stepping, and readable stack traces with proper source references.</p>
+<p id="257d0d18">Learn how to <a href="js-debugging" id="fa0fcac7">debug Kotlin/JS in the browser or IntelliJ IDEA Ultimate</a>.</p></section></section><section class="chapter"><h2 id="gradle" data-toc="whatsnew1530#gradle">Gradle</h2>
+<p id="ff148ac4">As a part of our mission to <a href="https://youtrack.jetbrains.com/issue/KT-45778" id="9fcc81a8" data-external="true" rel="noopener noreferrer">improve the Kotlin Gradle plugin user experience</a>, we’ve implemented the following features:</p>
+<ul class="list _ul" id="c79a562d">
+<li class="list__item" id="6e7ebafd"><p><a href="#support-for-java-toolchains" id="8936a36a">Support for Java toolchains</a>, which includes an <a href="#ability-to-specify-jdk-home-with-useskotlinjavatoolchain-interface" id="97f3b295">ability to specify a JDK home with the <code class="code ">UsesKotlinJavaToolchain</code> interface for older Gradle versions</a></p></li>
+<li class="list__item" id="47ed7660"><p><a href="#easier-way-to-explicitly-specify-kotlin-daemon-jvm-arguments" id="d88e8fe3">An easier way to explicitly specify the Kotlin daemon’s JVM arguments</a></p></li>
+</ul>
+<section class="chapter"><h3 id="support-for-java-toolchains" data-toc="whatsnew1530#support-for-java-toolchains">Support for Java toolchains</h3>
+<p id="912f90d6">Gradle 6.7 introduced the <a href="https://docs.gradle.org/current/userguide/toolchains.html" id="3bd680c9" data-external="true" rel="noopener noreferrer">"Java toolchains support"</a> feature. Using this feature, you can:</p>
+<ul class="list _ul" id="22b2b45c">
+<li class="list__item" id="dfa52a3c"><p>Run compilations, tests, and executables using JDKs and JREs that are different from the Gradle ones.</p></li>
+<li class="list__item" id="b81fb276"><p>Compile and test code with an unreleased language version.</p></li>
+</ul>
+<p id="618ebbe0">With toolchains support, Gradle can autodetect local JDKs and install missing JDKs that Gradle requires for the build. Now Gradle itself can run on any JDK and still reuse the <a href="gradle#gradle-build-cache-support" id="46d2ca2b">build cache feature</a>.</p>
+<p id="4c2e83be">The Kotlin Gradle plugin supports Java toolchains for Kotlin/JVM compilation tasks. A Java toolchain:</p>
+<ul class="list _ul" id="ca12cd29">
+<li class="list__item" id="e820ccf9">
+<p id="ccceba6e">Sets the <a href="gradle#attributes-specific-to-jvm" id="396e4627"><code class="code ">jdkHome</code> option</a> available for JVM targets.</p>
+<aside data-type="warning" class="prompt" data-title="" id="b73452af"><p id="76475c60"><a href="https://youtrack.jetbrains.com/issue/KT-46541" id="3ed81cd4" data-external="true" rel="noopener noreferrer">The ability to set the <code class="code ">jdkHome</code> option directly has been deprecated</a>.</p></aside>
+</li>
+<li class="list__item" id="95099a63"><p id="854f424e">Sets the <a href="gradle#attributes-specific-to-jvm" id="bdeb0c1c"><code class="code ">kotlinOptions.jvmTarget</code></a> to the toolchain's JDK version if the user didn’t set the <code class="code ">jvmTarget</code> option explicitly. If the toolchain is not configured, the <code class="code ">jvmTarget</code> field uses the default value. Learn more about <a href="gradle#check-for-jvm-target-compatibility-of-related-compile-tasks" id="f4605af9">JVM target compatibility</a>.</p></li>
+<li class="list__item" id="9ef556ff"><p id="14380b78">Affects which JDK <a href="kapt#running-kapt-tasks-in-parallel" id="757f4c0e"><code class="code ">kapt</code> workers</a> are running on.</p></li>
+</ul>
+<p id="97c31cf9">Use the following code to set a toolchain. Replace the placeholder <code class="code ">&lt;MAJOR_JDK_VERSION&gt;</code> with the JDK version you would like to use:</p>
+<div class="tabs" id="f4299b57" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="f15e5a22" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">kotlin {
+    jvmToolchain {
+        (this as JavaToolchainSpec).languageVersion.set(JavaLanguageVersion.of(&lt;MAJOR_JDK_VERSION&gt;)) // “8”
+    }
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="398a3569" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">kotlin {
+    jvmToolchain {
+        languageVersion.set(JavaLanguageVersion.of(&lt;MAJOR_JDK_VERSION&gt;)) // “8”
+    }
+}
+</pre></div>
+</div>
+<p id="72caabd3">Note that setting a toolchain via the <code class="code ">kotlin</code> extension will update the toolchain for Java compile tasks as well.</p>
+<p id="c7fcd3ad">You can set a toolchain via the <code class="code ">java</code> extension, and Kotlin compilation tasks will use it:</p>
+<pre class="code" data-language="kotlin">java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(&lt;MAJOR_JDK_VERSION&gt;)) // “8”
+    }
+}
+</pre>
+<p id="4f873c55">For information about setting any JDK version for <code class="code ">KotlinCompile</code> tasks, look through the docs about <a href="gradle#setting-jdk-version-with-the-task-dsl" id="4af6eb33">setting the JDK version with the Task DSL</a>.</p>
+<p id="b83f8aeb">For Gradle versions from 6.1 to 6.6, <a href="#ability-to-specify-jdk-home-with-useskotlinjavatoolchain-interface" id="ae0cb5ed">use the <code class="code ">UsesKotlinJavaToolchain</code> interface to set the JDK home</a>.</p></section><section class="chapter"><h3 id="ability-to-specify-jdk-home-with-useskotlinjavatoolchain-interface" data-toc="whatsnew1530#ability-to-specify-jdk-home-with-useskotlinjavatoolchain-interface">Ability to specify JDK home with UsesKotlinJavaToolchain interface</h3>
+<p id="87c2eeeb">All Kotlin tasks that support setting the JDK via <a href="gradle#compiler-options" id="60b96b10"><code class="code ">kotlinOptions</code></a> now implement the <code class="code ">UsesKotlinJavaToolchain</code> interface. To set the JDK home, put a path to your JDK and replace the <code class="code ">&lt;JDK_VERSION&gt;</code> placeholder:</p>
+<div class="tabs" id="339f7fb4" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="95365a90" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">project.tasks
+    .withType&lt;UsesKotlinJavaToolchain&gt;()
+    .configureEach {
+        it.kotlinJavaToolchain.jdk.use(
+            "/path/to/local/jdk",
+            JavaVersion.&lt;LOCAL_JDK_VERSION&gt;
+        )
+    }
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="e5eba8e6" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">project.tasks
+    .withType(UsesKotlinJavaToolchain.class)
+    .configureEach {
+        it.kotlinJavaToolchain.jdk.use(
+            '/path/to/local/jdk',
+            JavaVersion.&lt;LOCAL_JDK_VERSION&gt;
+        )
+    }
+</pre></div>
+</div>
+<p id="fc196e79">Use the <code class="code ">UsesKotlinJavaToolchain</code> interface for Gradle versions from 6.1 to 6.6. Starting from Gradle 6.7, use the <a href="#support-for-java-toolchains" id="58b59272">Java toolchains</a> instead.</p>
+<p id="7fa19d92">When using this feature, note that <a href="kapt#running-kapt-tasks-in-parallel" id="3bfd2274">kapt task workers</a> will only use <a href="https://docs.gradle.org/current/userguide/worker_api.html#changing_the_isolation_mode" id="c8cbec5c" data-external="true" rel="noopener noreferrer">process isolation mode</a>, and the <code class="code ">kapt.workers.isolation</code> property will be ignored.</p></section><section class="chapter"><h3 id="easier-way-to-explicitly-specify-kotlin-daemon-jvm-arguments" data-toc="whatsnew1530#easier-way-to-explicitly-specify-kotlin-daemon-jvm-arguments">Easier way to explicitly specify Kotlin daemon JVM arguments</h3>
+<p id="ad44c51d">In Kotlin 1.5.30, there’s a new logic for the Kotlin daemon’s JVM arguments. Each of the options in the following list overrides the ones that came before it:</p>
+<ul class="list _ul" id="43bee6f0">
+<li class="list__item" id="25632a97">
+<p id="75b6c4e5">If nothing is specified, the Kotlin daemon inherits arguments from the Gradle daemon (as before). For example, in the <code class="code ">gradle.properties</code> file:</p>
+<pre class="code" data-language="none">org.gradle.jvmargs=-Xmx1500m -Xms=500m
+</pre>
+</li>
+<li class="list__item" id="a3b3acd9">
+<p id="ec24a734">If the Gradle daemon’s JVM arguments have the <code class="code ">kotlin.daemon.jvm.options</code> system property, use it as before:</p>
+<pre class="code" data-language="none">org.gradle.jvmargs=-Dkotlin.daemon.jvm.options=-Xmx1500m -Xms=500m
+</pre>
+</li>
+<li class="list__item" id="285b7aa2">
+<p id="f5b30ba0">You can add the<code class="code ">kotlin.daemon.jvmargs</code> property in the <code class="code ">gradle.properties</code> file:</p>
+<pre class="code" data-language="none">kotlin.daemon.jvmargs=-Xmx1500m -Xms=500m
+</pre>
+</li>
+<li class="list__item" id="205c12b9">
+<p id="6398400b">You can specify arguments in the <code class="code ">kotlin</code> extension:</p>
+<div class="tabs" id="3e4ac8d2" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="8c6595e" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">kotlin {
+    kotlinDaemonJvmArgs = listOf("-Xmx486m", "-Xms256m", "-XX:+UseParallelGC")
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="999e8f25" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">kotlin {
+    kotlinDaemonJvmArgs = ["-Xmx486m", "-Xms256m", "-XX:+UseParallelGC"]
+}
+</pre></div>
+</div>
+</li>
+<li class="list__item" id="3b8d2673">
+<p id="a7b6ba10">You can specify arguments for a specific task:</p>
+<div class="tabs" id="3326f09e" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="3e298bb3" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">tasks
+    .matching { it.name == "compileKotlin" &amp;&amp; it is CompileUsingKotlinDaemon }
+    .configureEach {
+        (this as CompileUsingKotlinDaemon).kotlinDaemonJvmArguments.set(listOf("-Xmx486m", "-Xms256m", "-XX:+UseParallelGC"))
+    }
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="308037e2" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">tasks
+    .matching {
+        it.name == "compileKotlin" &amp;&amp; it instanceof CompileUsingKotlinDaemon
+    }
+    .configureEach {
+        kotlinDaemonJvmArguments.set(["-Xmx1g", "-Xms512m"])
+    }
+</pre></div>
+</div>
+<aside data-type="note" class="prompt" data-title="" id="9ec2e47a"><p id="48d9a7e">In this case a new Kotlin daemon instance can start on task execution. Learn more about <a href="gradle#setting-kotlin-daemon-s-jvm-arguments" id="896525db">the Kotlin daemon’s interactions with JVM arguments</a>.</p></aside>
+</li>
+</ul>
+<p id="14148340">For more information about the Kotlin daemon, see <a href="gradle#kotlin-daemon-and-using-it-with-gradle" id="3731909b">the Kotlin daemon and using it with Gradle</a>.</p></section></section><section class="chapter"><h2 id="standard-library" data-toc="whatsnew1530#standard-library">Standard library</h2>
+<p id="a1f5be">Kotlin 1.5.30 is bringing improvements to the standard library’s <code class="code ">Duration</code> and <code class="code ">Regex</code> APIs:</p>
+<ul class="list _ul" id="7f83c43b">
+<li class="list__item" id="6254728e"><p><a href="#changing-duration-tostring-output" id="afd1342c">Changing <code class="code ">Duration.toString()</code> output</a></p></li>
+<li class="list__item" id="d5619325"><p><a href="#parsing-duration-from-string" id="ebe0579">Parsing Duration from String</a></p></li>
+<li class="list__item" id="5440901f"><p><a href="#matching-with-regex-at-a-particular-position" id="342875b">Matching with Regex at a particular position</a></p></li>
+<li class="list__item" id="57d9d5ad"><p><a href="#splitting-regex-to-a-sequence" id="e1f3cb5c">Splitting Regex to a sequence</a></p></li>
+</ul>
+<section class="chapter"><h3 id="changing-duration-tostring-output" data-toc="whatsnew1530#changing-duration-tostring-output">Changing Duration.toString() output</h3>
+<aside data-type="warning" class="prompt" data-title="" id="46e40bc8"><p id="fc1c45f3">The Duration API is <a href="components-stability" id="dbb742ce">Experimental</a>. It may be dropped or changed at any time. Use it only for evaluation purposes. We would appreciate hearing your feedback on it in <a href="https://youtrack.jetbrains.com/issues/KT" id="60bb269e" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="5c48d29c">Before Kotlin 1.5.30, the <a href="../api/latest/jvm/stdlib/kotlin.time/-duration/to-string" id="22a5f518" data-external="true" rel="noopener noreferrer"><code class="code ">Duration.toString()</code></a> function would return a string representation of its argument expressed in the unit that yielded the most compact and readable number value. From now on, it will return a string value expressed as a combination of numeric components, each in its own unit. Each component is a number followed by the unit’s abbreviated name: <code class="code ">d</code>, <code class="code ">h</code>, <code class="code ">m</code>, <code class="code ">s</code>. For example:</p>
+<div class="table-wrapper"><table class=" wide" id="77f490d5">
+<thead><tr class="ijRowHead" id="7d81e4af">
+<th id="e943f9d3"><p><b id="e3013a65" class="">Example of function call</b></p></th>
+<th id="e6c7ca50"><p><b id="189e92f5" class="">Previous output</b></p></th>
+<th id="a7d2f0fd"><p><b id="5f99f564" class="">Current output</b></p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="3530ef9c">
+<td id="554b5bbd"><p>Duration.days(45).toString()</p></td>
+<td id="8627bf82"><p><code class="code ">45.0d</code></p></td>
+<td id="1137b50d"><p><code class="code ">45d</code></p></td>
+</tr>
+<tr class="" id="7e9e3445">
+<td id="68bac443"><p>Duration.days(1.5).toString()</p></td>
+<td id="87cc4640"><p><code class="code ">36.0h</code></p></td>
+<td id="f88bbe0e"><p><code class="code ">1d 12h</code></p></td>
+</tr>
+<tr class="" id="a8386d28">
+<td id="c029029d"><p>Duration.minutes(1230).toString()</p></td>
+<td id="f4af3ac1"><p><code class="code ">20.5h</code></p></td>
+<td id="5f939667"><p><code class="code ">20h 30m</code></p></td>
+</tr>
+<tr class="" id="477205d2">
+<td id="66be3390"><p>Duration.minutes(2415).toString()</p></td>
+<td id="e38246de"><p><code class="code ">40.3h</code></p></td>
+<td id="386f9f8"><p><code class="code ">1d 16h 15m</code></p></td>
+</tr>
+<tr class="" id="d6fed687">
+<td id="937a569f"><p>Duration.minutes(920).toString()</p></td>
+<td id="870b5a20"><p><code class="code ">920m</code></p></td>
+<td id="e1728481"><p><code class="code ">15h 20m</code></p></td>
+</tr>
+<tr class="" id="718d5a4">
+<td id="64d6d0c2"><p>Duration.seconds(1.546).toString()</p></td>
+<td id="c543386c"><p><code class="code ">1.55s</code></p></td>
+<td id="e8f71bbc"><p><code class="code ">1.546s</code></p></td>
+</tr>
+<tr class="" id="c06b84f6">
+<td id="36201467"><p>Duration.milliseconds(25.12).toString()</p></td>
+<td id="580eb234"><p><code class="code ">25.1ms</code></p></td>
+<td id="9cf7bfb6"><p><code class="code ">25.12ms</code></p></td>
+</tr>
+</tbody>
+</table></div>
+<p id="eba6035f">The way negative durations are represented has also been changed. A negative duration is prefixed with a minus sign (<code class="code ">-</code>), and if it consists of multiple components, it is surrounded with parentheses: <code class="code ">-12m</code> and <code class="code ">-(1h 30m)</code>.</p>
+<p id="a28cd74b">Note that small durations of less than one second are represented as a single number with one of the subsecond units. For example, <code class="code ">ms</code> (milliseconds), <code class="code ">us</code> (microseconds), or <code class="code ">ns</code> (nanoseconds): <code class="code ">140.884ms</code>, <code class="code ">500us</code>, <code class="code ">24ns</code>. Scientific notation is no longer used to represent them.</p>
+<p id="3c59345f">If you want to express duration in a single unit, use the overloaded <code class="code ">Duration.toString(unit, decimals)</code> function.</p>
+<aside data-type="note" class="prompt" data-title="" id="95c6317f"><p id="c0e21d1a">We recommend using <a href="../api/latest/jvm/stdlib/kotlin.time/-duration/to-iso-string" id="60a53ccb" data-external="true" rel="noopener noreferrer"><code class="code ">Duration.toIsoString()</code></a> in certain cases, including serialization and interchange. <code class="code ">Duration.toIsoString()</code> uses the stricter <a href="https://www.iso.org/iso-8601-date-and-time-format.html" id="65f0096a" data-external="true" rel="noopener noreferrer">ISO-8601</a> format instead of <code class="code ">Duration.toString()</code>.</p></aside></section><section class="chapter"><h3 id="parsing-duration-from-string" data-toc="whatsnew1530#parsing-duration-from-string">Parsing Duration from String</h3>
+<aside data-type="warning" class="prompt" data-title="" id="12bd089a"><p id="8a78fa">The Duration API is <a href="components-stability" id="3340be18">Experimental</a>. It may be dropped or changed at any time. Use it only for evaluation purposes. We would appreciate hearing your feedback on it in <a href="https://github.com/Kotlin/KEEP/issues/190" id="b681c67c" data-external="true" rel="noopener noreferrer">this issue</a>.</p></aside><p id="3c810972">In Kotlin 1.5.30, there are new functions in the Duration API:</p>
+<ul class="list _ul" id="68c4c5ca">
+<li class="list__item" id="c6e1e131">
+<p><a href="../api/latest/jvm/stdlib/kotlin.time/-duration/parse" id="39eb5adf" data-external="true" rel="noopener noreferrer"><code class="code ">parse()</code></a>, which supports parsing the outputs of: </p>
+<ul class="list _ul" id="8ef136a7">
+<li class="list__item" id="89ca7742"><p><a href="../api/latest/jvm/stdlib/kotlin.time/-duration/to-string" id="11281696" data-external="true" rel="noopener noreferrer"><code class="code ">toString()</code></a>.</p></li>
+<li class="list__item" id="494ba6de"><p><a href="../api/latest/jvm/stdlib/kotlin.time/-duration/to-string" id="e82b3e73" data-external="true" rel="noopener noreferrer"><code class="code ">toString(unit, decimals)</code></a>.</p></li>
+<li class="list__item" id="db2335b8"><p><a href="../api/latest/jvm/stdlib/kotlin.time/-duration/to-iso-string" id="4c360013" data-external="true" rel="noopener noreferrer"><code class="code ">toIsoString()</code></a>.</p></li>
+</ul>
+</li>
+<li class="list__item" id="63ac11a7"><p><a href="../api/latest/jvm/stdlib/kotlin.time/-duration/parse-iso-string" id="20717ce9" data-external="true" rel="noopener noreferrer"><code class="code ">parseIsoString()</code></a>, which only parses from the format produced by <code class="code ">toIsoString()</code>.</p></li>
+<li class="list__item" id="7e9e0ba1"><p><a href="../api/latest/jvm/stdlib/kotlin.time/-duration/parse-or-null" id="9a12d713" data-external="true" rel="noopener noreferrer"><code class="code ">parseOrNull()</code></a> and <a href="../api/latest/jvm/stdlib/kotlin.time/-duration/parse-iso-string-or-null" id="dad493f9" data-external="true" rel="noopener noreferrer"><code class="code ">parseIsoStringOrNull()</code></a>, which behave like the functions above but return <code class="code ">null</code> instead of throwing <code class="code ">IllegalArgumentException</code> on invalid duration formats.</p></li>
+</ul>
+<p id="65116f1">Here are some examples of <code class="code ">parse()</code> and <code class="code ">parseOrNull()</code> usages:</p>
+<pre class="code" data-language="kotlin">import kotlin.time.Duration
+import kotlin.time.ExperimentalTime
+
+@ExperimentalTime
+fun main() {
+//sampleStart
+    val isoFormatString = "PT1H30M"
+    val defaultFormatString = "1h 30m"
+    val singleUnitFormatString = "1.5h"
+    val invalidFormatString = "1 hour 30 minutes"
+    println(Duration.parse(isoFormatString)) // "1h 30m"
+    println(Duration.parse(defaultFormatString)) // "1h 30m"
+    println(Duration.parse(singleUnitFormatString)) // "1h 30m"
+    //println(Duration.parse(invalidFormatString)) // throws exception
+    println(Duration.parseOrNull(invalidFormatString)) // "null"
+//sampleEnd
+}
+</pre>
+<p id="e49f3509">And here are some examples of <code class="code ">parseIsoString()</code> and <code class="code ">parseIsoStringOrNull()</code> usages:</p>
+<pre class="code" data-language="kotlin">import kotlin.time.Duration
+import kotlin.time.ExperimentalTime
+
+@ExperimentalTime
+fun main() {
+//sampleStart
+    val isoFormatString = "PT1H30M"
+    val defaultFormatString = "1h 30m"
+    println(Duration.parseIsoString(isoFormatString)) // "1h 30m"
+    //println(Duration.parseIsoString(defaultFormatString)) // throws exception
+    println(Duration.parseIsoStringOrNull(defaultFormatString)) // "null"
+//sampleEnd
+}
+</pre></section><section class="chapter"><h3 id="matching-with-regex-at-a-particular-position" data-toc="whatsnew1530#matching-with-regex-at-a-particular-position">Matching with Regex at a particular position</h3>
+<aside data-type="warning" class="prompt" data-title="" id="e93e5ca5"><p id="eaf52a9e"><code class="code ">Regex.matchAt()</code> and <code class="code ">Regex.matchesAt()</code> functions are <a href="components-stability" id="2885464c">Experimental</a>. They may be dropped or changed at any time. Use them only for evaluation purposes. We would appreciate hearing your feedback on them in <a href="https://youtrack.jetbrains.com/issue/KT-34021" id="63f92703" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="63dbcc7d">The new <code class="code ">Regex.matchAt()</code> and <code class="code ">Regex.matchesAt()</code> functions provide a way to check whether a regex has an exact match at a particular position in a <code class="code ">String</code> or <code class="code ">CharSequence</code>.</p>
+<p id="7cd11044"><code class="code ">matchesAt()</code> returns a boolean result:</p>
+<pre class="code" data-language="kotlin">fun main(){
+//sampleStart
+    val releaseText = "Kotlin 1.5.30 is released!"
+    // regular expression: one digit, dot, one digit, dot, one or more digits
+    val versionRegex = "\\d[.]\\d[.]\\d+".toRegex()
+    println(versionRegex.matchesAt(releaseText, 0)) // "false"
+    println(versionRegex.matchesAt(releaseText, 7)) // "true"
+//sampleEnd
+}
+</pre>
+<p id="8fdd8096"><code class="code ">matchAt()</code> returns the match if one is found or <code class="code ">null</code> if one isn’t:</p>
+<pre class="code" data-language="kotlin">fun main(){
+//sampleStart
+    val releaseText = "Kotlin 1.5.30 is released!"
+    val versionRegex = "\\d[.]\\d[.]\\d+".toRegex()
+    println(versionRegex.matchAt(releaseText, 0)) // "null"
+    println(versionRegex.matchAt(releaseText, 7)?.value) // "1.5.30"
+//sampleEnd
+}
+</pre></section><section class="chapter"><h3 id="splitting-regex-to-a-sequence" data-toc="whatsnew1530#splitting-regex-to-a-sequence">Splitting Regex to a sequence</h3>
+<aside data-type="warning" class="prompt" data-title="" id="48b839e"><p id="68c0e4ad"><code class="code ">Regex.splitToSequence()</code> and <code class="code ">CharSequence.splitToSequence(Regex)</code> functions are <a href="components-stability" id="f60aad57">Experimental</a>. They may be dropped or changed at any time. Use them only for evaluation purposes. We would appreciate hearing your feedback on them in <a href="https://youtrack.jetbrains.com/issue/KT-23351" id="4bb9ed0a" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="8ba37f00">The new <code class="code ">Regex.splitToSequence()</code> function is a lazy counterpart of <a href="../api/latest/jvm/stdlib/kotlin.text/-regex/split" id="bcd95e17" data-external="true" rel="noopener noreferrer"><code class="code ">split()</code></a>. It splits the string around matches of the given regex, but it returns the result as a <a href="sequences" id="400ea5a7">Sequence</a> so that all operations on this result are executed lazily.</p>
+<pre class="code" data-language="kotlin">fun main(){
+//sampleStart
+    val colorsText = "green, red , brown&amp;blue, orange, pink&amp;green"
+    val regex = "[,\\s]+".toRegex()
+    val mixedColor = regex.splitToSequence(colorsText)
+        .onEach { println(it) }
+        .firstOrNull { it.contains('&amp;') }
+    println(mixedColor) // "brown&amp;blue"
+//sampleEnd
+}
+</pre>
+<p id="f34547f6">A similar function was also added to <code class="code ">CharSequence</code>:</p>
+<pre class="code" data-language="kotlin">    val mixedColor = colorsText.splitToSequence(regex)
+</pre></section></section><section class="chapter"><h2 id="serialization-1-3-0-rc" data-toc="whatsnew1530#serialization-1-3-0-rc">Serialization 1.3.0-RC</h2>
+<p id="f9d4da13"><code class="code ">kotlinx.serialization</code> <a href="https://github.com/Kotlin/kotlinx.serialization/releases/tag/v1.3.0-RC" id="3555837c" data-external="true" rel="noopener noreferrer">1.3.0-RC</a> is here with new JSON serialization capabilities:</p>
+<ul class="list _ul" id="c7bdac57">
+<li class="list__item" id="dc4ba022"><p>Java IO streams serialization</p></li>
+<li class="list__item" id="da19da3d"><p>Property-level control over default values</p></li>
+<li class="list__item" id="321bb961"><p>An option to exclude null values from serialization</p></li>
+<li class="list__item" id="f7f4bb9b"><p>Custom class discriminators in polymorphic serialization</p></li>
+</ul>
+<p id="30d10743">Learn more in the <a href="https://github.com/Kotlin/kotlinx.serialization/releases/tag/v1.3.0-RC" id="2a1aab39" data-external="true" rel="noopener noreferrer">changelog</a>.</p></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="whatsnew16">What's new in Kotlin 1.6.0</a> <a class="navigation-links__next" href="whatsnew1520">What's new in Kotlin 1.5.20</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/whatsnew1530.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/whatsnew1530.html</a>
+  </p>
+</div>

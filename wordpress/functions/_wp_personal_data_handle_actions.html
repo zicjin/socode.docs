@@ -1,0 +1,122 @@
+<h1>_wp_personal_data_handle_actions()</h1> <div class="callout callout-alert">
+<p> This function’s access is marked private. This means it is not intended for use by plugin or theme developers, only in other core functions. It is listed here for completeness.</p> </div>  <section> <p>Handle list table actions.</p> </section> <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/privacy-tools.php/">wp-admin/includes/privacy-tools.php</a> </p> <pre data-language="php">function _wp_personal_data_handle_actions() {
+	if ( isset( $_POST['privacy_action_email_retry'] ) ) {
+		check_admin_referer( 'bulk-privacy_requests' );
+
+		$request_id = absint( current( array_keys( (array) wp_unslash( $_POST['privacy_action_email_retry'] ) ) ) );
+		$result     = _wp_privacy_resend_request( $request_id );
+
+		if ( is_wp_error( $result ) ) {
+			add_settings_error(
+				'privacy_action_email_retry',
+				'privacy_action_email_retry',
+				$result-&gt;get_error_message(),
+				'error'
+			);
+		} else {
+			add_settings_error(
+				'privacy_action_email_retry',
+				'privacy_action_email_retry',
+				__( 'Confirmation request sent again successfully.' ),
+				'success'
+			);
+		}
+	} elseif ( isset( $_POST['action'] ) ) {
+		$action = ! empty( $_POST['action'] ) ? sanitize_key( wp_unslash( $_POST['action'] ) ) : '';
+
+		switch ( $action ) {
+			case 'add_export_personal_data_request':
+			case 'add_remove_personal_data_request':
+				check_admin_referer( 'personal-data-request' );
+
+				if ( ! isset( $_POST['type_of_action'], $_POST['username_or_email_for_privacy_request'] ) ) {
+					add_settings_error(
+						'action_type',
+						'action_type',
+						__( 'Invalid personal data action.' ),
+						'error'
+					);
+				}
+				$action_type               = sanitize_text_field( wp_unslash( $_POST['type_of_action'] ) );
+				$username_or_email_address = sanitize_text_field( wp_unslash( $_POST['username_or_email_for_privacy_request'] ) );
+				$email_address             = '';
+				$status                    = 'pending';
+
+				if ( ! isset( $_POST['send_confirmation_email'] ) ) {
+					$status = 'confirmed';
+				}
+
+				if ( ! in_array( $action_type, _wp_privacy_action_request_types(), true ) ) {
+					add_settings_error(
+						'action_type',
+						'action_type',
+						__( 'Invalid personal data action.' ),
+						'error'
+					);
+				}
+
+				if ( ! is_email( $username_or_email_address ) ) {
+					$user = get_user_by( 'login', $username_or_email_address );
+					if ( ! $user instanceof WP_User ) {
+						add_settings_error(
+							'username_or_email_for_privacy_request',
+							'username_or_email_for_privacy_request',
+							__( 'Unable to add this request. A valid email address or username must be supplied.' ),
+							'error'
+						);
+					} else {
+						$email_address = $user-&gt;user_email;
+					}
+				} else {
+					$email_address = $username_or_email_address;
+				}
+
+				if ( empty( $email_address ) ) {
+					break;
+				}
+
+				$request_id = wp_create_user_request( $email_address, $action_type, array(), $status );
+				$message    = '';
+
+				if ( is_wp_error( $request_id ) ) {
+					$message = $request_id-&gt;get_error_message();
+				} elseif ( ! $request_id ) {
+					$message = __( 'Unable to initiate confirmation request.' );
+				}
+
+				if ( $message ) {
+					add_settings_error(
+						'username_or_email_for_privacy_request',
+						'username_or_email_for_privacy_request',
+						$message,
+						'error'
+					);
+					break;
+				}
+
+				if ( 'pending' === $status ) {
+					wp_send_user_request( $request_id );
+
+					$message = __( 'Confirmation request initiated successfully.' );
+				} elseif ( 'confirmed' === $status ) {
+					$message = __( 'Request added successfully.' );
+				}
+
+				if ( $message ) {
+					add_settings_error(
+						'username_or_email_for_privacy_request',
+						'username_or_email_for_privacy_request',
+						$message,
+						'success'
+					);
+					break;
+				}
+		}
+	}
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/user.php:</span> <a href="wp_create_user_request">wp_create_user_request()</a> </td> <td class="related-desc"> <p>Creates and logs a user request to perform a specific action.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="wp_send_user_request">wp_send_user_request()</a> </td> <td class="related-desc"> <p>Send a confirmation request email to confirm an action.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="_wp_privacy_action_request_types">_wp_privacy_action_request_types()</a> </td> <td class="related-desc"> <p>Gets all personal data request types.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/privacy-tools.php:</span> <a href="_wp_privacy_resend_request">_wp_privacy_resend_request()</a> </td> <td class="related-desc"> <p>Resend an existing request and return the result.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/template.php:</span> <a href="add_settings_error">add_settings_error()</a> </td> <td class="related-desc"> <p>Registers a settings error to be displayed to the user.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_unslash">wp_unslash()</a> </td> <td class="related-desc"> <p>Removes slashes from a string or recursively removes slashes from strings within an array.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="sanitize_text_field">sanitize_text_field()</a> </td> <td class="related-desc"> <p>Sanitizes a string from user input or from the database.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="is_email">is_email()</a> </td> <td class="related-desc"> <p>Verifies that an email is valid.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="sanitize_key">sanitize_key()</a> </td> <td class="related-desc"> <p>Sanitizes a string key.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="check_admin_referer">check_admin_referer()</a> </td> <td class="related-desc"> <p>Ensures intent by verifying that a user was referred from another admin page with the correct security nonce.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="get_user_by">get_user_by()</a> </td> <td class="related-desc"> <p>Retrieve user info by a given field</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="absint">absint()</a> </td> <td class="related-desc"> <p>Convert a value to non-negative integer.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.9.6/" alt="WordPress 4.9.6">4.9.6</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/_wp_personal_data_handle_actions" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/_wp_personal_data_handle_actions</a>
+  </p>
+</div>

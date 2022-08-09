@@ -1,0 +1,75 @@
+<h1>wp_old_slug_redirect()</h1>  <section> <p>Redirect old slugs to the correct permalink.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Attempts to find the current slug from the past slugs.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/query.php/">wp-includes/query.php</a> </p> <pre data-language="php">function wp_old_slug_redirect() {
+	if ( is_404() &amp;&amp; '' !== get_query_var( 'name' ) ) {
+		// Guess the current post type based on the query vars.
+		if ( get_query_var( 'post_type' ) ) {
+			$post_type = get_query_var( 'post_type' );
+		} elseif ( get_query_var( 'attachment' ) ) {
+			$post_type = 'attachment';
+		} elseif ( get_query_var( 'pagename' ) ) {
+			$post_type = 'page';
+		} else {
+			$post_type = 'post';
+		}
+
+		if ( is_array( $post_type ) ) {
+			if ( count( $post_type ) &gt; 1 ) {
+				return;
+			}
+			$post_type = reset( $post_type );
+		}
+
+		// Do not attempt redirect for hierarchical post types.
+		if ( is_post_type_hierarchical( $post_type ) ) {
+			return;
+		}
+
+		$id = _find_post_by_old_slug( $post_type );
+
+		if ( ! $id ) {
+			$id = _find_post_by_old_date( $post_type );
+		}
+
+		/**
+		 * Filters the old slug redirect post ID.
+		 *
+		 * @since 4.9.3
+		 *
+		 * @param int $id The redirect post ID.
+		 */
+		$id = apply_filters( 'old_slug_redirect_post_id', $id );
+
+		if ( ! $id ) {
+			return;
+		}
+
+		$link = get_permalink( $id );
+
+		if ( get_query_var( 'paged' ) &gt; 1 ) {
+			$link = user_trailingslashit( trailingslashit( $link ) . 'page/' . get_query_var( 'paged' ) );
+		} elseif ( is_embed() ) {
+			$link = user_trailingslashit( trailingslashit( $link ) . 'embed' );
+		}
+
+		/**
+		 * Filters the old slug redirect URL.
+		 *
+		 * @since 4.4.0
+		 *
+		 * @param string $link The redirect URL.
+		 */
+		$link = apply_filters( 'old_slug_redirect_url', $link );
+
+		if ( ! $link ) {
+			return;
+		}
+
+		wp_redirect( $link, 301 ); // Permanent redirect.
+		exit;
+	}
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/query.php:</span> <a href="_find_post_by_old_slug">_find_post_by_old_slug()</a> </td> <td class="related-desc"> <p>Find the post ID for redirecting an old slug.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="_find_post_by_old_date">_find_post_by_old_date()</a> </td> <td class="related-desc"> <p>Find the post ID for redirecting an old date.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="../hooks/old_slug_redirect_post_id">old_slug_redirect_post_id</a> </td> <td class="related-desc"> <p>Filters the old slug redirect post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="../hooks/old_slug_redirect_url">old_slug_redirect_url</a> </td> <td class="related-desc"> <p>Filters the old slug redirect URL.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="is_embed">is_embed()</a> </td> <td class="related-desc"> <p>Is the query for an embedded post?</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="trailingslashit">trailingslashit()</a> </td> <td class="related-desc"> <p>Appends a trailing slash.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_redirect">wp_redirect()</a> </td> <td class="related-desc"> <p>Redirects to another page.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="is_404">is_404()</a> </td> <td class="related-desc"> <p>Determines whether the query has resulted in a 404 (returns no results).</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="get_query_var">get_query_var()</a> </td> <td class="related-desc"> <p>Retrieves the value of a query variable in the <a href="../classes/wp_query">WP_Query</a> class.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="get_permalink">get_permalink()</a> </td> <td class="related-desc"> <p>Retrieves the full permalink for the current post or post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="user_trailingslashit">user_trailingslashit()</a> </td> <td class="related-desc"> <p>Retrieves a trailing-slashed string if the site is set for adding trailing slashes.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="is_post_type_hierarchical">is_post_type_hierarchical()</a> </td> <td class="related-desc"> <p>Whether the post type is hierarchical.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.1.0/" alt="WordPress 2.1.0">2.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_old_slug_redirect" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_old_slug_redirect</a>
+  </p>
+</div>

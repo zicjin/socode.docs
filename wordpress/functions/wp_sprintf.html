@@ -1,0 +1,71 @@
+<h1>wp_sprintf( string $pattern, mixed $args )</h1>  <section> <p>WordPress implementation of PHP sprintf() with filters.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$pattern</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The string which formatted args are inserted.</span> </p> </dd> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="mixed">mixed</span>)</span> <span class="required">(Required)</span> <span class="description">Arguments to be formatted into the $pattern string.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> The formatted string.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/formatting.php/">wp-includes/formatting.php</a> </p> <pre data-language="php">function wp_sprintf( $pattern, ...$args ) {
+	$len       = strlen( $pattern );
+	$start     = 0;
+	$result    = '';
+	$arg_index = 0;
+	while ( $len &gt; $start ) {
+		// Last character: append and break.
+		if ( strlen( $pattern ) - 1 == $start ) {
+			$result .= substr( $pattern, -1 );
+			break;
+		}
+
+		// Literal %: append and continue.
+		if ( '%%' === substr( $pattern, $start, 2 ) ) {
+			$start  += 2;
+			$result .= '%';
+			continue;
+		}
+
+		// Get fragment before next %.
+		$end = strpos( $pattern, '%', $start + 1 );
+		if ( false === $end ) {
+			$end = $len;
+		}
+		$fragment = substr( $pattern, $start, $end - $start );
+
+		// Fragment has a specifier.
+		if ( '%' === $pattern[ $start ] ) {
+			// Find numbered arguments or take the next one in order.
+			if ( preg_match( '/^%(\d+)\$/', $fragment, $matches ) ) {
+				$index    = $matches[1] - 1; // 0-based array vs 1-based sprintf() arguments.
+				$arg      = isset( $args[ $index ] ) ? $args[ $index ] : '';
+				$fragment = str_replace( "%{$matches[1]}$", '%', $fragment );
+			} else {
+				$arg = isset( $args[ $arg_index ] ) ? $args[ $arg_index ] : '';
+				++$arg_index;
+			}
+
+			/**
+			 * Filters a fragment from the pattern passed to wp_sprintf().
+			 *
+			 * If the fragment is unchanged, then sprintf() will be run on the fragment.
+			 *
+			 * @since 2.5.0
+			 *
+			 * @param string $fragment A fragment from the pattern.
+			 * @param string $arg      The argument.
+			 */
+			$_fragment = apply_filters( 'wp_sprintf', $fragment, $arg );
+			if ( $_fragment != $fragment ) {
+				$fragment = $_fragment;
+			} else {
+				$fragment = sprintf( $fragment, (string) $arg );
+			}
+		}
+
+		// Append to result and move to next fragment.
+		$result .= $fragment;
+		$start   = $end;
+	}
+
+	return $result;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../hooks/wp_sprintf">wp_sprintf</a> </td> <td class="related-desc"> <p>Filters a fragment from the pattern passed to <a href="wp_sprintf">wp_sprintf()</a>.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="rest_validate_enum">rest_validate_enum()</a> </td> <td class="related-desc"> <p>Validates that the given value is a member of the JSON Schema “enum”.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="rest_get_combining_operation_error">rest_get_combining_operation_error()</a> </td> <td class="related-desc"> <p>Gets the error of combining operation.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="rest_find_one_matching_schema">rest_find_one_matching_schema()</a> </td> <td class="related-desc"> <p>Finds the matching schema among the “oneOf” schemas.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="rest_handle_multi_type_schema">rest_handle_multi_type_schema()</a> </td> <td class="related-desc"> <p>Handles getting the best type for a multi-type schema.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/credits.php:</span> <a href="wp_credits_section_list">wp_credits_section_list()</a> </td> <td class="related-desc"> <p>Displays a list of contributors for a given group.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="rest_sanitize_value_from_schema">rest_sanitize_value_from_schema()</a> </td> <td class="related-desc"> <p>Sanitize a value based on a schema.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="rest_validate_value_from_schema">rest_validate_value_from_schema()</a> </td> <td class="related-desc"> <p>Validate a value based on a schema.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="get_the_taxonomies">get_the_taxonomies()</a> </td> <td class="related-desc"> <p>Retrieves all taxonomies associated with a post.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.3.0/" alt="WordPress 5.3.0">5.3.0</a></td> <td><span class="since-description">Formalized the existing and already documented <code>...$args</code> parameter by adding it to the function signature.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.5.0/" alt="WordPress 2.5.0">2.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_sprintf" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_sprintf</a>
+  </p>
+</div>

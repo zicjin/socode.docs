@@ -1,0 +1,56 @@
+<h1>wp_ajax_dim_comment()</h1>  <section> <p>Ajax handler to dim a comment.</p> </section> <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/ajax-actions.php/">wp-admin/includes/ajax-actions.php</a> </p> <pre data-language="php">function wp_ajax_dim_comment() {
+	$id      = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
+	$comment = get_comment( $id );
+
+	if ( ! $comment ) {
+		$x = new WP_Ajax_Response(
+			array(
+				'what' =&gt; 'comment',
+				'id'   =&gt; new WP_Error(
+					'invalid_comment',
+					/* translators: %d: Comment ID. */
+					sprintf( __( 'Comment %d does not exist' ), $id )
+				),
+			)
+		);
+		$x-&gt;send();
+	}
+
+	if ( ! current_user_can( 'edit_comment', $comment-&gt;comment_ID ) &amp;&amp; ! current_user_can( 'moderate_comments' ) ) {
+		wp_die( -1 );
+	}
+
+	$current = wp_get_comment_status( $comment );
+
+	if ( isset( $_POST['new'] ) &amp;&amp; $_POST['new'] == $current ) {
+		wp_die( time() );
+	}
+
+	check_ajax_referer( "approve-comment_$id" );
+
+	if ( in_array( $current, array( 'unapproved', 'spam' ), true ) ) {
+		$result = wp_set_comment_status( $comment, 'approve', true );
+	} else {
+		$result = wp_set_comment_status( $comment, 'hold', true );
+	}
+
+	if ( is_wp_error( $result ) ) {
+		$x = new WP_Ajax_Response(
+			array(
+				'what' =&gt; 'comment',
+				'id'   =&gt; $result,
+			)
+		);
+		$x-&gt;send();
+	}
+
+	// Decide if we need to send back '1' or a more complicated response including page links and comment counts.
+	_wp_ajax_delete_comment_response( $comment-&gt;comment_ID );
+	wp_die( 0 );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/ajax-actions.php:</span> <a href="_wp_ajax_delete_comment_response">_wp_ajax_delete_comment_response()</a> </td> <td class="related-desc"> <p>Sends back current comment total and new page links if they need to be updated.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="check_ajax_referer">check_ajax_referer()</a> </td> <td class="related-desc"> <p>Verifies the Ajax request to prevent processing requests external of the blog.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_die">wp_die()</a> </td> <td class="related-desc"> <p>Kills WordPress execution and displays HTML page with an error message.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-ajax-response.php:</span> <a href="../classes/wp_ajax_response/__construct">WP_Ajax_Response::__construct()</a> </td> <td class="related-desc"> <p>Constructor – Passes args to <a href="../classes/wp_ajax_response/add">WP_Ajax_Response::add()</a>.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="wp_set_comment_status">wp_set_comment_status()</a> </td> <td class="related-desc"> <p>Sets the status of a comment.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="wp_get_comment_status">wp_get_comment_status()</a> </td> <td class="related-desc"> <p>Retrieves the status of a comment by comment ID.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="get_comment">get_comment()</a> </td> <td class="related-desc"> <p>Retrieves comment data given a comment ID or comment object.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../classes/wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.1.0/" alt="WordPress 3.1.0">3.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_ajax_dim_comment" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_ajax_dim_comment</a>
+  </p>
+</div>

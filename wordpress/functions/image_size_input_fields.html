@@ -1,0 +1,76 @@
+<h1>image_size_input_fields( WP_Post $post, bool|string $check = '' )</h1>  <section> <p>Retrieves HTML for the size radio buttons with the specified one checked.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$post</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Post"><a href="../classes/wp_post">WP_Post</a></span>)</span> <span class="required">(Required)</span> </p> </dd> <dt>$check</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>|<span class="string">string</span>)</span> <span class="required">(Optional)</span> </p> <p class="default">Default value: ''</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/media.php/">wp-admin/includes/media.php</a> </p> <pre data-language="php">function image_size_input_fields( $post, $check = '' ) {
+	/**
+	 * Filters the names and labels of the default image sizes.
+	 *
+	 * @since 3.3.0
+	 *
+	 * @param string[] $size_names Array of image size labels keyed by their name. Default values
+	 *                             include 'Thumbnail', 'Medium', 'Large', and 'Full Size'.
+	 */
+	$size_names = apply_filters(
+		'image_size_names_choose',
+		array(
+			'thumbnail' =&gt; __( 'Thumbnail' ),
+			'medium'    =&gt; __( 'Medium' ),
+			'large'     =&gt; __( 'Large' ),
+			'full'      =&gt; __( 'Full Size' ),
+		)
+	);
+
+	if ( empty( $check ) ) {
+		$check = get_user_setting( 'imgsize', 'medium' );
+	}
+
+	$out = array();
+
+	foreach ( $size_names as $size =&gt; $label ) {
+		$downsize = image_downsize( $post-&gt;ID, $size );
+		$checked  = '';
+
+		// Is this size selectable?
+		$enabled = ( $downsize[3] || 'full' === $size );
+		$css_id  = "image-size-{$size}-{$post-&gt;ID}";
+
+		// If this size is the default but that's not available, don't select it.
+		if ( $size == $check ) {
+			if ( $enabled ) {
+				$checked = " checked='checked'";
+			} else {
+				$check = '';
+			}
+		} elseif ( ! $check &amp;&amp; $enabled &amp;&amp; 'thumbnail' !== $size ) {
+			/*
+			 * If $check is not enabled, default to the first available size
+			 * that's bigger than a thumbnail.
+			 */
+			$check   = $size;
+			$checked = " checked='checked'";
+		}
+
+		$html = "&lt;div class='image-size-item'&gt;&lt;input type='radio' " . disabled( $enabled, false, false ) . "name='attachments[$post-&gt;ID][image-size]' id='{$css_id}' value='{$size}'$checked /&gt;";
+
+		$html .= "&lt;label for='{$css_id}'&gt;$label&lt;/label&gt;";
+
+		// Only show the dimensions if that choice is available.
+		if ( $enabled ) {
+			$html .= " &lt;label for='{$css_id}' class='help'&gt;" . sprintf( '(%d&amp;nbsp;&amp;times;&amp;nbsp;%d)', $downsize[1], $downsize[2] ) . '&lt;/label&gt;';
+		}
+		$html .= '&lt;/div&gt;';
+
+		$out[] = $html;
+	}
+
+	return array(
+		'label' =&gt; __( 'Size' ),
+		'input' =&gt; 'html',
+		'html'  =&gt; implode( "\n", $out ),
+	);
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="../hooks/image_size_names_choose">image_size_names_choose</a> </td> <td class="related-desc"> <p>Filters the names and labels of the default image sizes.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="disabled">disabled()</a> </td> <td class="related-desc"> <p>Outputs the HTML disabled attribute.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_user_setting">get_user_setting()</a> </td> <td class="related-desc"> <p>Retrieves user interface setting value based on setting name.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="image_downsize">image_downsize()</a> </td> <td class="related-desc"> <p>Scale an image to fit a particular size (such as ‘thumb’ or ‘medium’).</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="get_attachment_fields_to_edit">get_attachment_fields_to_edit()</a> </td> <td class="related-desc"> <p>Retrieves the attachment fields to edit form fields.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.7.0/" alt="WordPress 2.7.0">2.7.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/image_size_input_fields" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/image_size_input_fields</a>
+  </p>
+</div>

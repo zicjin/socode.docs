@@ -1,0 +1,66 @@
+<h1>wp_image_add_srcset_and_sizes( string $image, array $image_meta, int $attachment_id )</h1>  <section> <p>Adds ‘srcset’ and ‘sizes’ attributes to an existing ‘img’ element.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <h3 id="see-also">See also</h3> <ul> <li><a href="wp_calculate_image_srcset">wp_calculate_image_srcset()</a></li> <li><a href="wp_calculate_image_sizes">wp_calculate_image_sizes()</a></li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$image</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">An HTML 'img' element to be filtered.</span> </p> </dd> <dt>$image_meta</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">The image meta data as returned by '<a href="wp_get_attachment_metadata">wp_get_attachment_metadata()</a>'.</span> </p> </dd> <dt>$attachment_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">Image attachment ID.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> Converted 'img' element with 'srcset' and 'sizes' attributes added.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/media.php/">wp-includes/media.php</a> </p> <pre data-language="php">function wp_image_add_srcset_and_sizes( $image, $image_meta, $attachment_id ) {
+	// Ensure the image meta exists.
+	if ( empty( $image_meta['sizes'] ) ) {
+		return $image;
+	}
+
+	$image_src         = preg_match( '/src="([^"]+)"/', $image, $match_src ) ? $match_src[1] : '';
+	list( $image_src ) = explode( '?', $image_src );
+
+	// Return early if we couldn't get the image source.
+	if ( ! $image_src ) {
+		return $image;
+	}
+
+	// Bail early if an image has been inserted and later edited.
+	if ( preg_match( '/-e[0-9]{13}/', $image_meta['file'], $img_edit_hash ) &amp;&amp;
+		strpos( wp_basename( $image_src ), $img_edit_hash[0] ) === false ) {
+
+		return $image;
+	}
+
+	$width  = preg_match( '/ width="([0-9]+)"/', $image, $match_width ) ? (int) $match_width[1] : 0;
+	$height = preg_match( '/ height="([0-9]+)"/', $image, $match_height ) ? (int) $match_height[1] : 0;
+
+	if ( $width &amp;&amp; $height ) {
+		$size_array = array( $width, $height );
+	} else {
+		$size_array = wp_image_src_get_dimensions( $image_src, $image_meta, $attachment_id );
+		if ( ! $size_array ) {
+			return $image;
+		}
+	}
+
+	$srcset = wp_calculate_image_srcset( $size_array, $image_src, $image_meta, $attachment_id );
+
+	if ( $srcset ) {
+		// Check if there is already a 'sizes' attribute.
+		$sizes = strpos( $image, ' sizes=' );
+
+		if ( ! $sizes ) {
+			$sizes = wp_calculate_image_sizes( $size_array, $image_src, $image_meta, $attachment_id );
+		}
+	}
+
+	if ( $srcset &amp;&amp; $sizes ) {
+		// Format the 'srcset' and 'sizes' string and escape attributes.
+		$attr = sprintf( ' srcset="%s"', esc_attr( $srcset ) );
+
+		if ( is_string( $sizes ) ) {
+			$attr .= sprintf( ' sizes="%s"', esc_attr( $sizes ) );
+		}
+
+		// Add the srcset and sizes attributes to the image markup.
+		return preg_replace( '/&lt;img ([^&gt;]+?)[\/ ]*&gt;/', '&lt;img $1' . $attr . ' /&gt;', $image );
+	}
+
+	return $image;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/media.php:</span> <a href="wp_image_src_get_dimensions">wp_image_src_get_dimensions()</a> </td> <td class="related-desc"> <p>Determines an image’s width and height dimensions based on the source file.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="wp_calculate_image_srcset">wp_calculate_image_srcset()</a> </td> <td class="related-desc"> <p>A helper function to calculate the image sources to include in a ‘srcset’ attribute.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="wp_calculate_image_sizes">wp_calculate_image_sizes()</a> </td> <td class="related-desc"> <p>Creates a ‘sizes’ attribute value for an image.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_basename">wp_basename()</a> </td> <td class="related-desc"> <p>i18n-friendly version of basename().</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/media.php:</span> <a href="wp_img_tag_add_srcset_and_sizes_attr">wp_img_tag_add_srcset_and_sizes_attr()</a> </td> <td class="related-desc"> <p>Adds <code>srcset</code> and <code>sizes</code> attributes to an existing <code>img</code> HTML tag.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.4.0/" alt="WordPress 4.4.0">4.4.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_image_add_srcset_and_sizes" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_image_add_srcset_and_sizes</a>
+  </p>
+</div>

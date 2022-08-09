@@ -1,0 +1,57 @@
+<h1>WP_REST_Widgets_Controller::update_item( WP_REST_Request $request )</h1>  <section> <p>Updates an existing widget.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$request</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_REST_Request"><a href="../wp_rest_request">WP_REST_Request</a></span>)</span> <span class="required">(Required)</span> <span class="description">Full details about the request.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../wp_rest_response">WP_REST_Response</a>|<a href="../wp_error">WP_Error</a>)</span> Response object on success, or <a href="../wp_error">WP_Error</a> object on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/rest-api/endpoints/class-wp-rest-widgets-controller.php/">wp-includes/rest-api/endpoints/class-wp-rest-widgets-controller.php</a> </p> <pre data-language="php">public function update_item( $request ) {
+		global $wp_widget_factory;
+
+		/*
+		 * retrieve_widgets() contains logic to move "hidden" or "lost" widgets to the
+		 * wp_inactive_widgets sidebar based on the contents of the $sidebars_widgets global.
+		 *
+		 * When batch requests are processed, this global is not properly updated by previous
+		 * calls, resulting in widgets incorrectly being moved to the wp_inactive_widgets
+		 * sidebar.
+		 *
+		 * See https://core.trac.wordpress.org/ticket/53657.
+		 */
+		wp_get_sidebars_widgets();
+		$this-&gt;retrieve_widgets();
+
+		$widget_id  = $request['id'];
+		$sidebar_id = wp_find_widgets_sidebar( $widget_id );
+
+		// Allow sidebar to be unset or missing when widget is not a WP_Widget.
+		$parsed_id     = wp_parse_widget_id( $widget_id );
+		$widget_object = $wp_widget_factory-&gt;get_widget_object( $parsed_id['id_base'] );
+		if ( is_null( $sidebar_id ) &amp;&amp; $widget_object ) {
+			return new WP_Error(
+				'rest_widget_not_found',
+				__( 'No widget was found with that id.' ),
+				array( 'status' =&gt; 404 )
+			);
+		}
+
+		if (
+			$request-&gt;has_param( 'instance' ) ||
+			$request-&gt;has_param( 'form_data' )
+		) {
+			$maybe_error = $this-&gt;save_widget( $request, $sidebar_id );
+			if ( is_wp_error( $maybe_error ) ) {
+				return $maybe_error;
+			}
+		}
+
+		if ( $request-&gt;has_param( 'sidebar' ) ) {
+			if ( $sidebar_id !== $request['sidebar'] ) {
+				$sidebar_id = $request['sidebar'];
+				wp_assign_widget_to_sidebar( $widget_id, $sidebar_id );
+			}
+		}
+
+		$request['context'] = 'edit';
+
+		return $this-&gt;prepare_item_for_response( compact( 'widget_id', 'sidebar_id' ), $request );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-widgets-controller.php:</span> <a href="retrieve_widgets">WP_REST_Widgets_Controller::retrieve_widgets()</a> </td> <td class="related-desc"> <p>Looks for “lost” widgets once per request.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-widget-factory.php:</span> <a href="../wp_widget_factory/get_widget_object">WP_Widget_Factory::get_widget_object()</a> </td> <td class="related-desc"> <p>Returns the registered <a href="../wp_widget">WP_Widget</a> object for the given widget type.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-widgets-controller.php:</span> <a href="prepare_item_for_response">WP_REST_Widgets_Controller::prepare_item_for_response()</a> </td> <td class="related-desc"> <p>Prepares the widget for the REST response.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-widgets-controller.php:</span> <a href="save_widget">WP_REST_Widgets_Controller::save_widget()</a> </td> <td class="related-desc"> <p>Saves the widget in the request object.</p> </td> </tr> <tr> <td> <span>wp-includes/widgets.php:</span> <a href="../../functions/wp_find_widgets_sidebar">wp_find_widgets_sidebar()</a> </td> <td class="related-desc"> <p>Finds the sidebar that a given widget belongs to.</p> </td> </tr> <tr> <td> <span>wp-includes/widgets.php:</span> <a href="../../functions/wp_assign_widget_to_sidebar">wp_assign_widget_to_sidebar()</a> </td> <td class="related-desc"> <p>Assigns a widget to the given sidebar.</p> </td> </tr> <tr> <td> <span>wp-includes/widgets.php:</span> <a href="../../functions/wp_parse_widget_id">wp_parse_widget_id()</a> </td> <td class="related-desc"> <p>Converts a widget ID into its id_base and number components.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/widgets.php:</span> <a href="../../functions/wp_get_sidebars_widgets">wp_get_sidebars_widgets()</a> </td> <td class="related-desc"> <p>Retrieve full list of sidebars and their widget instance IDs.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.8.0/" alt="WordPress 5.8.0">5.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_rest_widgets_controller/update_item" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_rest_widgets_controller/update_item</a>
+  </p>
+</div>

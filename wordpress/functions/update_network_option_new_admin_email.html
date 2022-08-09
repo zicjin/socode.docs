@@ -1,0 +1,83 @@
+<h1>update_network_option_new_admin_email( string $old_value, string $value )</h1>  <section> <p>Sends a confirmation request email when a change of network admin email address is attempted.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>The new network admin address will not become active until confirmed.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$old_value</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The old network admin email address.</span> </p> </dd> <dt>$value</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The proposed new network admin email address.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/ms-functions.php/">wp-includes/ms-functions.php</a> </p> <pre data-language="php">function update_network_option_new_admin_email( $old_value, $value ) {
+	if ( get_site_option( 'admin_email' ) === $value || ! is_email( $value ) ) {
+		return;
+	}
+
+	$hash            = md5( $value . time() . mt_rand() );
+	$new_admin_email = array(
+		'hash'     =&gt; $hash,
+		'newemail' =&gt; $value,
+	);
+	update_site_option( 'network_admin_hash', $new_admin_email );
+
+	$switched_locale = switch_to_locale( get_user_locale() );
+
+	/* translators: Do not translate USERNAME, ADMIN_URL, EMAIL, SITENAME, SITEURL: those are placeholders. */
+	$email_text = __(
+		'Howdy ###USERNAME###,
+
+You recently requested to have the network admin email address on
+your network changed.
+
+If this is correct, please click on the following link to change it:
+###ADMIN_URL###
+
+You can safely ignore and delete this email if you do not want to
+take this action.
+
+This email has been sent to ###EMAIL###
+
+Regards,
+All at ###SITENAME###
+###SITEURL###'
+	);
+
+	/**
+	 * Filters the text of the email sent when a change of network admin email address is attempted.
+	 *
+	 * The following strings have a special meaning and will get replaced dynamically:
+	 * ###USERNAME###  The current user's username.
+	 * ###ADMIN_URL### The link to click on to confirm the email change.
+	 * ###EMAIL###     The proposed new network admin email address.
+	 * ###SITENAME###  The name of the network.
+	 * ###SITEURL###   The URL to the network.
+	 *
+	 * @since 4.9.0
+	 *
+	 * @param string $email_text      Text in the email.
+	 * @param array  $new_admin_email {
+	 *     Data relating to the new network admin email address.
+	 *
+	 *     @type string $hash     The secure hash used in the confirmation link URL.
+	 *     @type string $newemail The proposed new network admin email address.
+	 * }
+	 */
+	$content = apply_filters( 'new_network_admin_email_content', $email_text, $new_admin_email );
+
+	$current_user = wp_get_current_user();
+	$content      = str_replace( '###USERNAME###', $current_user-&gt;user_login, $content );
+	$content      = str_replace( '###ADMIN_URL###', esc_url( network_admin_url( 'settings.php?network_admin_hash=' . $hash ) ), $content );
+	$content      = str_replace( '###EMAIL###', $value, $content );
+	$content      = str_replace( '###SITENAME###', wp_specialchars_decode( get_site_option( 'site_name' ), ENT_QUOTES ), $content );
+	$content      = str_replace( '###SITEURL###', network_home_url(), $content );
+
+	wp_mail(
+		$value,
+		sprintf(
+			/* translators: Email change notification email subject. %s: Network title. */
+			__( '[%s] Network Admin Email Change Request' ),
+			wp_specialchars_decode( get_site_option( 'site_name' ), ENT_QUOTES )
+		),
+		$content
+	);
+
+	if ( $switched_locale ) {
+		restore_previous_locale();
+	}
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="../hooks/new_network_admin_email_content">new_network_admin_email_content</a> </td> <td class="related-desc"> <p>Filters the text of the email sent when a change of network admin email address is attempted.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="restore_previous_locale">restore_previous_locale()</a> </td> <td class="related-desc"> <p>Restores the translations according to the previous locale.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="switch_to_locale">switch_to_locale()</a> </td> <td class="related-desc"> <p>Switches the translations according to the given locale.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="get_user_locale">get_user_locale()</a> </td> <td class="related-desc"> <p>Retrieves the locale of a user.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="is_email">is_email()</a> </td> <td class="related-desc"> <p>Verifies that an email is valid.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_specialchars_decode">wp_specialchars_decode()</a> </td> <td class="related-desc"> <p>Converts a number of HTML entities into their special characters.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_get_current_user">wp_get_current_user()</a> </td> <td class="related-desc"> <p>Retrieve the current user object.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_mail">wp_mail()</a> </td> <td class="related-desc"> <p>Sends an email, similar to PHP’s mail function.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="network_admin_url">network_admin_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the admin area for the network.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="network_home_url">network_home_url()</a> </td> <td class="related-desc"> <p>Retrieves the home URL for the current network.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="update_site_option">update_site_option()</a> </td> <td class="related-desc"> <p>Updates the value of an option that was already added for the current network.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_site_option">get_site_option()</a> </td> <td class="related-desc"> <p>Retrieve an option value for the current network based on name of option.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.9.0/" alt="WordPress 4.9.0">4.9.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/update_network_option_new_admin_email" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/update_network_option_new_admin_email</a>
+  </p>
+</div>

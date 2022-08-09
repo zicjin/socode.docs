@@ -1,0 +1,69 @@
+<h1>WP_Customize_Nav_Menu_Item_Setting::value_as_wp_post_nav_menu_item()</h1>  <section> <p>Get the value emulated into a <a href="../wp_post">WP_Post</a> and set up as a nav_menu_item.</p> </section> <div class="content-toc">  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../wp_post">WP_Post</a>)</span> With <a href="../../functions/wp_setup_nav_menu_item">wp_setup_nav_menu_item()</a> applied.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/customize/class-wp-customize-nav-menu-item-setting.php/">wp-includes/customize/class-wp-customize-nav-menu-item-setting.php</a> </p> <pre data-language="php">public function value_as_wp_post_nav_menu_item() {
+		$item = (object) $this-&gt;value();
+		unset( $item-&gt;nav_menu_term_id );
+
+		$item-&gt;post_status = $item-&gt;status;
+		unset( $item-&gt;status );
+
+		$item-&gt;post_type  = 'nav_menu_item';
+		$item-&gt;menu_order = $item-&gt;position;
+		unset( $item-&gt;position );
+
+		if ( empty( $item-&gt;original_title ) ) {
+			$item-&gt;original_title = $this-&gt;get_original_title( $item );
+		}
+		if ( empty( $item-&gt;title ) &amp;&amp; ! empty( $item-&gt;original_title ) ) {
+			$item-&gt;title = $item-&gt;original_title;
+		}
+		if ( $item-&gt;title ) {
+			$item-&gt;post_title = $item-&gt;title;
+		}
+
+		// 'classes' should be an array, as in wp_setup_nav_menu_item().
+		if ( isset( $item-&gt;classes ) &amp;&amp; is_scalar( $item-&gt;classes ) ) {
+			$item-&gt;classes = explode( ' ', $item-&gt;classes );
+		}
+
+		$item-&gt;ID    = $this-&gt;post_id;
+		$item-&gt;db_id = $this-&gt;post_id;
+		$post        = new WP_Post( (object) $item );
+
+		if ( empty( $post-&gt;post_author ) ) {
+			$post-&gt;post_author = get_current_user_id();
+		}
+
+		if ( ! isset( $post-&gt;type_label ) ) {
+			$post-&gt;type_label = $this-&gt;get_type_label( $post );
+		}
+
+		// Ensure nav menu item URL is set according to linked object.
+		if ( 'post_type' === $post-&gt;type &amp;&amp; ! empty( $post-&gt;object_id ) ) {
+			$post-&gt;url = get_permalink( $post-&gt;object_id );
+		} elseif ( 'taxonomy' === $post-&gt;type &amp;&amp; ! empty( $post-&gt;object ) &amp;&amp; ! empty( $post-&gt;object_id ) ) {
+			$post-&gt;url = get_term_link( (int) $post-&gt;object_id, $post-&gt;object );
+		} elseif ( 'post_type_archive' === $post-&gt;type &amp;&amp; ! empty( $post-&gt;object ) ) {
+			$post-&gt;url = get_post_type_archive_link( $post-&gt;object );
+		}
+		if ( is_wp_error( $post-&gt;url ) ) {
+			$post-&gt;url = '';
+		}
+
+		/** This filter is documented in wp-includes/nav-menu.php */
+		$post-&gt;attr_title = apply_filters( 'nav_menu_attr_title', $post-&gt;attr_title );
+
+		/** This filter is documented in wp-includes/nav-menu.php */
+		$post-&gt;description = apply_filters( 'nav_menu_description', wp_trim_words( $post-&gt;description, 200 ) );
+
+		/** This filter is documented in wp-includes/nav-menu.php */
+		$post = apply_filters( 'wp_setup_nav_menu_item', $post );
+
+		return $post;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/customize/class-wp-customize-nav-menu-item-setting.php:</span> <a href="get_original_title">WP_Customize_Nav_Menu_Item_Setting::get_original_title()</a> </td> <td class="related-desc"> <p>Get original title.</p> </td> </tr> <tr> <td> <span>wp-includes/customize/class-wp-customize-nav-menu-item-setting.php:</span> <a href="get_type_label">WP_Customize_Nav_Menu_Item_Setting::get_type_label()</a> </td> <td class="related-desc"> <p>Get type label.</p> </td> </tr> <tr> <td> <span>wp-includes/customize/class-wp-customize-nav-menu-item-setting.php:</span> <a href="value">WP_Customize_Nav_Menu_Item_Setting::value()</a> </td> <td class="related-desc"> <p>Get the instance data for a given nav_menu_item setting.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/wp_trim_words">wp_trim_words()</a> </td> <td class="related-desc"> <p>Trims text to a certain number of words.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="../../functions/get_term_link">get_term_link()</a> </td> <td class="related-desc"> <p>Generates a permalink for a taxonomy term archive.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="../../functions/get_post_type_archive_link">get_post_type_archive_link()</a> </td> <td class="related-desc"> <p>Retrieves the permalink for a post type archive.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="../../functions/get_permalink">get_permalink()</a> </td> <td class="related-desc"> <p>Retrieves the full permalink for the current post or post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="../../functions/get_current_user_id">get_current_user_id()</a> </td> <td class="related-desc"> <p>Gets the current user’s ID.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-post.php:</span> <a href="../wp_post/__construct">WP_Post::__construct()</a> </td> <td class="related-desc"> <p>Constructor.</p> </td> </tr> <tr> <td> <span>wp-includes/nav-menu.php:</span> <a href="../../hooks/nav_menu_attr_title">nav_menu_attr_title</a> </td> <td class="related-desc"> <p>Filters a navigation menu item’s title attribute.</p> </td> </tr> <tr> <td> <span>wp-includes/nav-menu.php:</span> <a href="../../hooks/nav_menu_description">nav_menu_description</a> </td> <td class="related-desc"> <p>Filters a navigation menu item’s description.</p> </td> </tr> <tr> <td> <span>wp-includes/nav-menu.php:</span> <a href="../../hooks/wp_setup_nav_menu_item">wp_setup_nav_menu_item</a> </td> <td class="related-desc"> <p>Filters a navigation menu item object.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/customize/class-wp-customize-nav-menu-item-setting.php:</span> <a href="filter_wp_get_nav_menu_items">WP_Customize_Nav_Menu_Item_Setting::filter_wp_get_nav_menu_items()</a> </td> <td class="related-desc"> <p>Filters the <a href="../../functions/wp_get_nav_menu_items">wp_get_nav_menu_items()</a> result to supply the previewed menu items.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.3.0/" alt="WordPress 4.3.0">4.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_customize_nav_menu_item_setting/value_as_wp_post_nav_menu_item" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_customize_nav_menu_item_setting/value_as_wp_post_nav_menu_item</a>
+  </p>
+</div>

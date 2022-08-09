@@ -1,0 +1,45 @@
+<h1>rest_convert_error_to_response( WP_Error $error )</h1>  <section> <p>Converts an error to a response object.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>This iterates over all error codes and messages to change it into a flat array. This enables simpler client behaviour, as it is represented as a list in JSON rather than an object/map.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$error</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Error"><a href="../classes/wp_error">WP_Error</a></span>)</span> <span class="required">(Required)</span> <span class="description"><a href="../classes/wp_error">WP_Error</a> instance.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../classes/wp_rest_response">WP_REST_Response</a>)</span> List of associative arrays with code and message keys.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/rest-api.php/">wp-includes/rest-api.php</a> </p> <pre data-language="php">function rest_convert_error_to_response( $error ) {
+	$status = array_reduce(
+		$error-&gt;get_all_error_data(),
+		static function ( $status, $error_data ) {
+			return is_array( $error_data ) &amp;&amp; isset( $error_data['status'] ) ? $error_data['status'] : $status;
+		},
+		500
+	);
+
+	$errors = array();
+
+	foreach ( (array) $error-&gt;errors as $code =&gt; $messages ) {
+		$all_data  = $error-&gt;get_all_error_data( $code );
+		$last_data = array_pop( $all_data );
+
+		foreach ( (array) $messages as $message ) {
+			$formatted = array(
+				'code'    =&gt; $code,
+				'message' =&gt; $message,
+				'data'    =&gt; $last_data,
+			);
+
+			if ( $all_data ) {
+				$formatted['additional_data'] = $all_data;
+			}
+
+			$errors[] = $formatted;
+		}
+	}
+
+	$data = $errors[0];
+	if ( count( $errors ) &gt; 1 ) {
+		// Remove the primary error.
+		array_shift( $errors );
+		$data['additional_errors'] = $errors;
+	}
+
+	return new WP_REST_Response( $data, $status );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-request.php:</span> <a href="../classes/wp_rest_request/sanitize_params">WP_REST_Request::sanitize_params()</a> </td> <td class="related-desc"> <p>Sanitizes (where possible) the params on the request.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-request.php:</span> <a href="../classes/wp_rest_request/has_valid_params">WP_REST_Request::has_valid_params()</a> </td> <td class="related-desc"> <p>Checks whether this request is valid according to its attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-server.php:</span> <a href="../classes/wp_rest_server/error_to_response">WP_REST_Server::error_to_response()</a> </td> <td class="related-desc"> <p>Converts an error to a response object.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.7.0/" alt="WordPress 5.7.0">5.7.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/rest_convert_error_to_response" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/rest_convert_error_to_response</a>
+  </p>
+</div>

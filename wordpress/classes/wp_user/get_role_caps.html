@@ -1,0 +1,37 @@
+<h1>WP_User::get_role_caps()</h1>  <section> <p>Retrieves all of the capabilities of the user’s roles, and merges them with individual user capabilities.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>All of the capabilities of the user’s roles are merged with the user’s individual capabilities. This means that the user can be denied specific capabilities that their role might have, but the user is specifically denied.</p> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool[])</span> Array of key/value pairs where keys represent a capability name and boolean values represent whether the user has that capability.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-user.php/">wp-includes/class-wp-user.php</a> </p> <pre data-language="php">public function get_role_caps() {
+		$switch_site = false;
+		if ( is_multisite() &amp;&amp; get_current_blog_id() != $this-&gt;site_id ) {
+			$switch_site = true;
+
+			switch_to_blog( $this-&gt;site_id );
+		}
+
+		$wp_roles = wp_roles();
+
+		// Filter out caps that are not role names and assign to $this-&gt;roles.
+		if ( is_array( $this-&gt;caps ) ) {
+			$this-&gt;roles = array_filter( array_keys( $this-&gt;caps ), array( $wp_roles, 'is_role' ) );
+		}
+
+		// Build $allcaps from role caps, overlay user's $caps.
+		$this-&gt;allcaps = array();
+		foreach ( (array) $this-&gt;roles as $role ) {
+			$the_role      = $wp_roles-&gt;get_role( $role );
+			$this-&gt;allcaps = array_merge( (array) $this-&gt;allcaps, (array) $the_role-&gt;capabilities );
+		}
+		$this-&gt;allcaps = array_merge( (array) $this-&gt;allcaps, (array) $this-&gt;caps );
+
+		if ( $switch_site ) {
+			restore_current_blog();
+		}
+
+		return $this-&gt;allcaps;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="../../functions/wp_roles">wp_roles()</a> </td> <td class="related-desc"> <p>Retrieves the global <a href="../wp_roles">WP_Roles</a> instance and instantiates it if necessary.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-roles.php:</span> <a href="../wp_roles/get_role">WP_Roles::get_role()</a> </td> <td class="related-desc"> <p>Retrieve role object by name.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_multisite">is_multisite()</a> </td> <td class="related-desc"> <p>If Multisite is enabled.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/get_current_blog_id">get_current_blog_id()</a> </td> <td class="related-desc"> <p>Retrieve the current site ID.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-blogs.php:</span> <a href="../../functions/switch_to_blog">switch_to_blog()</a> </td> <td class="related-desc"> <p>Switch the current blog.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-blogs.php:</span> <a href="../../functions/restore_current_blog">restore_current_blog()</a> </td> <td class="related-desc"> <p>Restore the current blog, after calling <a href="../../functions/switch_to_blog">switch_to_blog()</a>.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-user.php:</span> <a href="for_site">WP_User::for_site()</a> </td> <td class="related-desc"> <p>Sets the site to operate on. Defaults to the current site.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-user.php:</span> <a href="add_cap">WP_User::add_cap()</a> </td> <td class="related-desc"> <p>Adds capability and grant or deny access to capability.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-user.php:</span> <a href="remove_cap">WP_User::remove_cap()</a> </td> <td class="related-desc"> <p>Removes capability from user.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-user.php:</span> <a href="remove_all_caps">WP_User::remove_all_caps()</a> </td> <td class="related-desc"> <p>Removes all of the capabilities of the user.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-user.php:</span> <a href="_init_caps">WP_User::_init_caps()</a> </td> <td class="related-desc"> <p>Sets up capability object properties.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-user.php:</span> <a href="add_role">WP_User::add_role()</a> </td> <td class="related-desc"> <p>Adds role to user.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-user.php:</span> <a href="remove_role">WP_User::remove_role()</a> </td> <td class="related-desc"> <p>Removes role from user.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-user.php:</span> <a href="set_role">WP_User::set_role()</a> </td> <td class="related-desc"> <p>Sets the role of the user.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.0.0/" alt="WordPress 2.0.0">2.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_user/get_role_caps" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_user/get_role_caps</a>
+  </p>
+</div>

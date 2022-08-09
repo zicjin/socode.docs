@@ -1,0 +1,39 @@
+<h1>wp_get_post_autosave( int $post_id, int $user_id )</h1>  <section> <p>Retrieve the autosaved data of the specified post.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Returns a post object with the information that was autosaved for the specified post. If the optional $user_id is passed, returns the autosave for that user, otherwise returns the latest autosave.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$post_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">The post ID.</span> </p> </dd> <dt>$user_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description">The post author ID.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../classes/wp_post">WP_Post</a>|false)</span> The autosaved data or false on failure or when no autosave exists.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/revision.php/">wp-includes/revision.php</a> </p> <pre data-language="php">function wp_get_post_autosave( $post_id, $user_id = 0 ) {
+	global $wpdb;
+
+	$autosave_name = $post_id . '-autosave-v1';
+	$user_id_query = ( 0 !== $user_id ) ? "AND post_author = $user_id" : null;
+
+	// Construct the autosave query.
+	$autosave_query = "
+		SELECT *
+		FROM $wpdb-&gt;posts
+		WHERE post_parent = %d
+		AND post_type = 'revision'
+		AND post_status = 'inherit'
+		AND post_name   = %s " . $user_id_query . '
+		ORDER BY post_date DESC
+		LIMIT 1';
+
+	$autosave = $wpdb-&gt;get_results(
+		$wpdb-&gt;prepare(
+			$autosave_query,
+			$post_id,
+			$autosave_name
+		)
+	);
+
+	if ( ! $autosave ) {
+		return false;
+	}
+
+	return get_post( $autosave[0] );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/get_results">wpdb::get_results()</a> </td> <td class="related-desc"> <p>Retrieves an entire SQL result set from the database (i.e., many rows).</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/prepare">wpdb::prepare()</a> </td> <td class="related-desc"> <p>Prepares a SQL query for safe execution.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-autosaves-controller.php:</span> <a href="../classes/wp_rest_autosaves_controller/get_item">WP_REST_Autosaves_Controller::get_item()</a> </td> <td class="related-desc"> <p>Get the autosave, if the ID is valid.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-autosaves-controller.php:</span> <a href="../classes/wp_rest_autosaves_controller/create_post_autosave">WP_REST_Autosaves_Controller::create_post_autosave()</a> </td> <td class="related-desc"> <p>Creates autosave for the specified post.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="../classes/wp_customize_manager/handle_dismiss_autosave_or_lock_request">WP_Customize_Manager::handle_dismiss_autosave_or_lock_request()</a> </td> <td class="related-desc"> <p>Deletes a given auto-draft changeset or the autosave revision for a given changeset or delete changeset lock.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="../classes/wp_customize_manager/save_changeset_post">WP_Customize_Manager::save_changeset_post()</a> </td> <td class="related-desc"> <p>Saves the post for the loaded changeset.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="../classes/wp_customize_manager/changeset_data">WP_Customize_Manager::changeset_data()</a> </td> <td class="related-desc"> <p>Gets changeset data.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="../classes/wp_customize_manager/customize_pane_settings">WP_Customize_Manager::customize_pane_settings()</a> </td> <td class="related-desc"> <p>Prints JavaScript settings for parent window.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/post.php:</span> <a href="wp_create_post_autosave">wp_create_post_autosave()</a> </td> <td class="related-desc"> <p>Creates autosave data for the specified post from <code>$_POST</code> data.</p> </td> </tr> <tr> <td> <span>wp-includes/revision.php:</span> <a href="_set_preview">_set_preview()</a> </td> <td class="related-desc"> <p>Sets up the post object for preview based on the post autosave.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.6.0/" alt="WordPress 2.6.0">2.6.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_get_post_autosave" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_get_post_autosave</a>
+  </p>
+</div>

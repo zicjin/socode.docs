@@ -1,0 +1,303 @@
+<h1 data-toc="native-objc-interop" id="native-objc-interop.md">Interoperability with Swift/Objective-C</h1>
+<p id="85c6a4c4">This document covers some details of Kotlin/Native interoperability with Swift/Objective-C.</p>
+<section class="chapter"><h2 id="usage" data-toc="native-objc-interop#usage">Usage</h2>
+<p id="6008996c">Kotlin/Native provides bidirectional interoperability with Objective-C. Objective-C frameworks and libraries can be used in Kotlin code if properly imported to the build (system frameworks are imported by default). See <a href="multiplatform-configure-compilations#configure-interop-with-native-languages" id="69064c27">compilation configurations</a> for more details. A Swift library can be used in Kotlin code if its API is exported to Objective-C with <code class="code ">@objc</code>. Pure Swift modules are not yet supported.</p>
+<p id="27447bb6">Kotlin modules can be used in Swift/Objective-C code if compiled into a framework (<a href="multiplatform-build-native-binaries#declare-binaries" id="fd87c457">see here for how to declare binaries</a>). See <a href="https://github.com/Kotlin/kmm-basic-sample" id="4378f49d" data-external="true" rel="noopener noreferrer">Kotlin Multiplatform Mobile Sample</a> for an example.</p></section><section class="chapter"><h2 id="mappings" data-toc="native-objc-interop#mappings">Mappings</h2>
+<p id="ad4590">The table below shows how Kotlin concepts are mapped to Swift/Objective-C and vice versa.</p>
+<p id="ac1f7c43">"-&gt;" and "&lt;-" indicate that mapping only goes one way.</p>
+<div class="table-wrapper"><table class=" wide" id="a0ff3ac4">
+<thead><tr class="ijRowHead" id="bd200869">
+<th id="86d3ab62"><p>Kotlin</p></th>
+<th id="38abd09a"><p>Swift</p></th>
+<th id="af5097ab"><p>Objective-C</p></th>
+<th id="d3555aa3"><p>Notes</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="1238ce0a">
+<td id="f0bccf5c"><p><code class="code ">class</code></p></td>
+<td id="816e905b"><p><code class="code ">class</code></p></td>
+<td id="883d3b12"><p><code class="code ">@interface</code></p></td>
+<td id="8cf7fe2c"><p><a href="#name-translation" id="dfeb19d8">note</a></p></td>
+</tr>
+<tr class="" id="63155f3c">
+<td id="aa3ca9b"><p><code class="code ">interface</code></p></td>
+<td id="761ecac8"><p><code class="code ">protocol</code></p></td>
+<td id="b34bd132"><p><code class="code ">@protocol</code></p></td>
+<td id="33817f8c"></td>
+</tr>
+<tr class="" id="3d2a314f">
+<td id="ff071414"><p><code class="code ">constructor</code>/<code class="code ">create</code></p></td>
+<td id="38007f98"><p>Initializer</p></td>
+<td id="b519433d"><p>Initializer</p></td>
+<td id="f708812d"><p><a href="#initializers" id="c097adb0">note</a></p></td>
+</tr>
+<tr class="" id="e403fbfd">
+<td id="1e475ba9"><p>Property</p></td>
+<td id="6501f506"><p>Property</p></td>
+<td id="4486d0ea"><p>Property</p></td>
+<td id="357e0219"><p><a href="#top-level-functions-and-properties" id="324a8f1a">note 1</a>, <a href="#setters" id="544af869">note 2</a></p></td>
+</tr>
+<tr class="" id="a1c8cc35">
+<td id="beb1fd45"><p>Method</p></td>
+<td id="32236418"><p>Method</p></td>
+<td id="d6c39d44"><p>Method</p></td>
+<td id="d107a7eb"><p><a href="#top-level-functions-and-properties" id="a54e1b71">note 1</a>, <a href="#method-names-translation" id="1d305239">note 2</a></p></td>
+</tr>
+<tr class="" id="89a7993d">
+<td id="8c77c4ee"><p><code class="code ">suspend</code>-&gt;</p></td>
+<td id="535b5ea2"><p><code class="code ">completionHandler:</code>/<code class="code ">async</code></p></td>
+<td id="2e34bb2d"><p><code class="code ">completionHandler:</code></p></td>
+<td id="a5b3182d"><p><a href="#errors-and-exceptions" id="dd281c16">note 1</a>, <a href="#suspending-functions" id="8150c87a">note 2</a></p></td>
+</tr>
+<tr class="" id="a296b78b">
+<td id="b2995718"><p><code class="code ">@Throws fun</code></p></td>
+<td id="58c99aab"><p><code class="code ">throws</code></p></td>
+<td id="5c4239b2"><p><code class="code ">error:(NSError**)error</code></p></td>
+<td id="b53616c7"><p><a href="#errors-and-exceptions" id="e686f29e">note</a></p></td>
+</tr>
+<tr class="" id="6ddb6c40">
+<td id="a82bb7a8"><p>Extension</p></td>
+<td id="2bf023a0"><p>Extension</p></td>
+<td id="bd0ef1f3"><p>Category member</p></td>
+<td id="52985cb8"><p><a href="#extensions-and-category-members" id="2696fd80">note</a></p></td>
+</tr>
+<tr class="" id="8f6f16c">
+<td id="f3d997a6"><p><code class="code ">companion</code> member &lt;-</p></td>
+<td id="52d248c9"><p>Class method or property</p></td>
+<td id="a0f5a693"><p>Class method or property</p></td>
+<td id="afb0c340"></td>
+</tr>
+<tr class="" id="5decd520">
+<td id="94ef10a7"><p><code class="code ">null</code></p></td>
+<td id="3cb2ef6"><p><code class="code ">nil</code></p></td>
+<td id="4f476107"><p><code class="code ">nil</code></p></td>
+<td id="81cc8276"></td>
+</tr>
+<tr class="" id="fa51163f">
+<td id="c8c13504"><p><code class="code ">Singleton</code></p></td>
+<td id="266d4de2"><p><code class="code ">shared</code> or <code class="code ">companion</code> property</p></td>
+<td id="935d5b5"><p><code class="code ">shared</code> or <code class="code ">companion</code> property</p></td>
+<td id="9ab85243"><p><a href="#kotlin-singletons" id="69f789c">note</a></p></td>
+</tr>
+<tr class="" id="cdf1b344">
+<td id="cea5783d"><p>Primitive type</p></td>
+<td id="a5cba2a6"><p>Primitive type / <code class="code ">NSNumber</code></p></td>
+<td id="87088e7e"></td>
+<td id="f66c0c37"><p><a href="#nsnumber" id="8280cd73">note</a></p></td>
+</tr>
+<tr class="" id="facea4b7">
+<td id="88c73f8"><p><code class="code ">Unit</code> return type</p></td>
+<td id="2d3bc048"><p><code class="code ">Void</code></p></td>
+<td id="e58f8c2b"><p><code class="code ">void</code></p></td>
+<td id="9f4d518a"></td>
+</tr>
+<tr class="" id="fe9292db">
+<td id="5ebf3760"><p><code class="code ">String</code></p></td>
+<td id="71f65e88"><p><code class="code ">String</code></p></td>
+<td id="fb58d275"><p><code class="code ">NSString</code></p></td>
+<td id="c3fc27df"></td>
+</tr>
+<tr class="" id="39732a4c">
+<td id="741f83e0"><p><code class="code ">String</code></p></td>
+<td id="e3fb901f"><p><code class="code ">NSMutableString</code></p></td>
+<td id="9d7354f4"><p><code class="code ">NSMutableString</code></p></td>
+<td id="845f20ae"><p><a href="#nsmutablestring" id="d8099964">note</a></p></td>
+</tr>
+<tr class="" id="78ea1b63">
+<td id="66b15726"><p><code class="code ">List</code></p></td>
+<td id="1a147467"><p><code class="code ">Array</code></p></td>
+<td id="811bff90"><p><code class="code ">NSArray</code></p></td>
+<td id="1b32a411"></td>
+</tr>
+<tr class="" id="32f567d4">
+<td id="b56e4e41"><p><code class="code ">MutableList</code></p></td>
+<td id="e2d70ebd"><p><code class="code ">NSMutableArray</code></p></td>
+<td id="6b07e9ff"><p><code class="code ">NSMutableArray</code></p></td>
+<td id="64cc4254"></td>
+</tr>
+<tr class="" id="e4d4f7a6">
+<td id="ba3f8d58"><p><code class="code ">Set</code></p></td>
+<td id="2631db99"><p><code class="code ">Set</code></p></td>
+<td id="cddbb01a"><p><code class="code ">NSSet</code></p></td>
+<td id="a188ec3"></td>
+</tr>
+<tr class="" id="a2400a4d">
+<td id="2ee7d407"><p><code class="code ">MutableSet</code></p></td>
+<td id="147da54b"><p><code class="code ">NSMutableSet</code></p></td>
+<td id="d04568c9"><p><code class="code ">NSMutableSet</code></p></td>
+<td id="dd200507"><p><a href="#collections" id="b10d2cc3">note</a></p></td>
+</tr>
+<tr class="" id="31d27b23">
+<td id="be624582"><p><code class="code ">Map</code></p></td>
+<td id="eed881ca"><p><code class="code ">Dictionary</code></p></td>
+<td id="ad34eb75"><p><code class="code ">NSDictionary</code></p></td>
+<td id="6e54e604"></td>
+</tr>
+<tr class="" id="2d1e732">
+<td id="fefcd74c"><p><code class="code ">MutableMap</code></p></td>
+<td id="ca0db6cc"><p><code class="code ">NSMutableDictionary</code></p></td>
+<td id="9f5278f0"><p><code class="code ">NSMutableDictionary</code></p></td>
+<td id="cf8d7392"><p><a href="#collections" id="ad49caee">note</a></p></td>
+</tr>
+<tr class="" id="8edfdb75">
+<td id="62e5f470"><p>Function type</p></td>
+<td id="857ee695"><p>Function type</p></td>
+<td id="3fc9a532"><p>Block pointer type</p></td>
+<td id="cc12057b"><p><a href="#function-types" id="3e71c823">note</a></p></td>
+</tr>
+<tr class="" id="ffb195f1">
+<td id="536f39c5"><p>Inline classes</p></td>
+<td id="a6d57bd6"><p>Unsupported</p></td>
+<td id="54bc48a8"><p>Unsupported</p></td>
+<td id="6205c0dc"><p><a href="#unsupported" id="507ee3d9">note</a></p></td>
+</tr>
+</tbody>
+</table></div>
+<section class="chapter"><h3 id="name-translation" data-toc="native-objc-interop#name-translation">Name translation</h3>
+<p id="f4c5ca71">Objective-C classes are imported into Kotlin with their original names. Protocols are imported as interfaces with <code class="code ">Protocol</code> name suffix, i.e. <code class="code ">@protocol Foo</code>-&gt; <code class="code ">interface FooProtocol</code>. These classes and interfaces are placed into a package <a href="#usage" id="af52376f">specified in build configuration</a> (<code class="code ">platform.*</code> packages for preconfigured system frameworks).</p>
+<p id="122c491c">The names of Kotlin classes and interfaces are prefixed when imported to Objective-C. The prefix is derived from the framework name.</p>
+<p id="47e9d86b">Objective-C does not support packages in a framework. Thus, the Kotlin compiler renames Kotlin classes which have the same name but different package in the same framework. This algorithm is not stable yet and can change between Kotlin releases. As a workaround, you can rename the conflicting Kotlin classes in the framework.</p></section><section class="chapter"><h3 id="initializers" data-toc="native-objc-interop#initializers">Initializers</h3>
+<p id="98d80492">Swift/Objective-C initializers are imported to Kotlin as constructors and factory methods named <code class="code ">create</code>. The latter happens with initializers declared in the Objective-C category or as a Swift extension, because Kotlin has no concept of extension constructors.</p>
+<p id="7244654e">Kotlin constructors are imported as initializers to Swift/Objective-C.</p></section><section class="chapter"><h3 id="setters" data-toc="native-objc-interop#setters">Setters</h3>
+<p id="e3570908">Writeable Objective-C properties overriding read-only properties of the superclass are represented as <code class="code ">setFoo()</code> method for the property <code class="code ">foo</code>. Same goes for a protocol's read-only properties that are implemented as mutable.</p></section><section class="chapter"><h3 id="top-level-functions-and-properties" data-toc="native-objc-interop#top-level-functions-and-properties">Top-level functions and properties</h3>
+<p id="4b920b14">Top-level Kotlin functions and properties are accessible as members of special classes. Each Kotlin file is translated into such a class. E.g.</p>
+<pre class="code" data-language="kotlin">// MyLibraryUtils.kt
+package my.library
+
+fun foo() {}
+</pre>
+<p id="3c5a7c83">can be called from Swift like</p>
+<pre class="code" data-language="swift">MyLibraryUtilsKt.foo()
+</pre></section><section class="chapter"><h3 id="method-names-translation" data-toc="native-objc-interop#method-names-translation">Method names translation</h3>
+<p id="7d5f32ea">Generally Swift argument labels and Objective-C selector pieces are mapped to Kotlin parameter names. Anyway these two concepts have different semantics, so sometimes Swift/Objective-C methods can be imported with a clashing Kotlin signature. In this case the clashing methods can be called from Kotlin using named arguments, e.g.:</p>
+<pre class="code" data-language="swift">[player moveTo:LEFT byMeters:17]
+[player moveTo:UP byInches:42]
+</pre>
+<p id="1f1638f0">in Kotlin it would be:</p>
+<pre class="code" data-language="kotlin">player.moveTo(LEFT, byMeters = 17)
+player.moveTo(UP, byInches = 42)
+</pre>
+<p id="77135f47">The methods of <code class="code ">kotlin.Any</code> (<code class="code ">equals()</code>, <code class="code ">hashCode()</code> and <code class="code ">toString()</code>) are mapped to the methods <code class="code ">isEquals:</code>, <code class="code ">hash</code> and <code class="code ">description</code> in Objective-C, and to the method <code class="code ">isEquals(_:)</code> and the properties <code class="code ">hash</code>, <code class="code ">description</code> in Swift.</p></section><section class="chapter"><h3 id="errors-and-exceptions" data-toc="native-objc-interop#errors-and-exceptions">Errors and exceptions</h3>
+<p id="e1065080">Kotlin has no concept of checked exceptions, all Kotlin exceptions are unchecked. Swift has only checked errors. So if Swift or Objective-C code calls a Kotlin method which throws an exception to be handled, then the Kotlin method should be marked with a <code class="code ">@Throws</code> annotation specifying a list of "expected" exception classes.</p>
+<p id="23295ef8">When compiling to Objective-C/Swift framework, non-<code class="code ">suspend</code> functions having or inheriting <code class="code ">@Throws</code> annotation are represented as <code class="code ">NSError*</code>-producing methods in Objective-C and as <code class="code ">throws</code> methods in Swift. Representations for <code class="code ">suspend</code> functions always have <code class="code ">NSError*</code>/<code class="code ">Error</code> parameter in completion handler.</p>
+<p id="7955aaeb">When Kotlin function called from Swift/Objective-C code throws an exception which is an instance of one of the <code class="code ">@Throws</code>-specified classes or their subclasses, it is propagated as <code class="code ">NSError</code>. Other Kotlin exceptions reaching Swift/Objective-C are considered unhandled and cause program termination.</p>
+<p id="d5229c5f"><code class="code ">suspend</code> functions without <code class="code ">@Throws</code> propagate only <code class="code ">CancellationException</code> as <code class="code ">NSError</code>. Non-<code class="code ">suspend</code> functions without <code class="code ">@Throws</code> don't propagate Kotlin exceptions at all.</p>
+<p id="82edff9c">Note that the opposite reversed translation is not implemented yet: Swift/Objective-C error-throwing methods aren't imported to Kotlin as exception-throwing.</p></section><section class="chapter"><h3 id="suspending-functions" data-toc="native-objc-interop#suspending-functions">Suspending functions</h3>
+<aside data-type="warning" class="prompt" data-title="" id="e3a78b6e"><p id="214ea502">Support for calling <code class="code ">suspend</code> functions from Swift code as <code class="code ">async</code> is <a href="components-stability" id="d88ea3ff">Experimental</a>. It may be dropped or changed at any time. Use it only for evaluation purposes. We would appreciate your feedback on it in <a href="https://youtrack.jetbrains.com/issue/KT-47610" id="61098057" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="e6e09c83">Kotlin's <a href="coroutines-basics" id="2007e18c">suspending functions</a> (<code class="code ">suspend</code>) are presented in the generated Objective-C headers as functions with callbacks, or <a href="https://developer.apple.com/documentation/swift/calling_objective-c_apis_asynchronously" id="fa13af6" data-external="true" rel="noopener noreferrer">completion handlers</a> in Swift/Objective-C terminology.</p>
+<p id="4a2b5a4d">Starting from Swift 5.5, Kotlin's <code class="code ">suspend</code> functions are also available for calling from Swift as <code class="code ">async</code> functions without using the completion handlers. Currently, this functionality is highly experimental and has certain limitations. See <a href="https://youtrack.jetbrains.com/issue/KT-47610" id="bb0b0721" data-external="true" rel="noopener noreferrer">this YouTrack issue</a> for details.</p>
+<p id="5d827b6f">Learn more about the <a href="https://docs.swift.org/swift-book/LanguageGuide/Concurrency.html" id="36595c3a" data-external="true" rel="noopener noreferrer"><code class="code ">async</code>/<code class="code ">await</code> mechanism in Swift</a>.</p></section><section class="chapter"><h3 id="extensions-and-category-members" data-toc="native-objc-interop#extensions-and-category-members">Extensions and category members</h3>
+<p id="e79934af">Members of Objective-C categories and Swift extensions are imported to Kotlin as extensions. That's why these declarations can't be overridden in Kotlin. And the extension initializers aren't available as Kotlin constructors.</p>
+<p id="ef62d81a">Kotlin extensions to "regular" Kotlin classes are imported to Swift and Objective-C as extensions and category members respectively. Kotlin extensions to other types are treated as <a href="#top-level-functions-and-properties" id="2de25655">top-level declarations</a> with an additional receiver parameter. These types include:</p>
+<ul class="list _ul" id="52787805">
+<li class="list__item" id="b180d655"><p>Kotlin <code class="code ">String</code> type</p></li>
+<li class="list__item" id="73050df6"><p>Kotlin collection types and subtypes</p></li>
+<li class="list__item" id="65cc027f"><p>Kotlin <code class="code ">interface</code> types</p></li>
+<li class="list__item" id="9b083a60"><p>Kotlin primitive types</p></li>
+<li class="list__item" id="74602f03"><p>Kotlin <code class="code ">inline</code> classes</p></li>
+<li class="list__item" id="34336b1a"><p>Kotlin <code class="code ">Any</code> type</p></li>
+<li class="list__item" id="f2072f53"><p>Kotlin function types and subtypes</p></li>
+<li class="list__item" id="66c7c109"><p>Objective-C classes and protocols</p></li>
+</ul></section><section class="chapter"><h3 id="kotlin-singletons" data-toc="native-objc-interop#kotlin-singletons">Kotlin singletons</h3>
+<p id="62c1cc9b">Kotlin singleton (made with an <code class="code ">object</code> declaration, including <code class="code ">companion object</code>) is imported to Swift/Objective-C as a class with a single instance.</p>
+<p id="8c4c377a">The instance is available through the <code class="code ">shared</code> and <code class="code ">companion</code> properties.</p>
+<p id="bf7e147c">For the following Kotlin code:</p>
+<pre class="code" data-language="kotlin">object MyObject {
+    val x = "Some value"
+}
+
+class MyClass {
+    companion object {
+        val x = "Some value"
+    }
+}
+</pre>
+<p id="70a35f5a">Access these objects as follows:</p>
+<pre class="code" data-language="swift">MyObject.shared
+MyObject.shared.x
+MyClass.companion
+MyClass.Companion.shared
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="10783e6d"><p id="dcadc4fd">Access objects through <code class="code ">[MySingleton mySingleton]</code> in Objective-C and <code class="code ">MySingleton()</code> in Swift has been deprecated.</p></aside></section><section class="chapter"><h3 id="nsnumber" data-toc="native-objc-interop#nsnumber">NSNumber</h3>
+<p id="15418d1c">Kotlin primitive type boxes are mapped to special Swift/Objective-C classes. For example, <code class="code ">kotlin.Int</code> box is represented as <code class="code ">KotlinInt</code> class instance in Swift (or <code class="code ">${prefix}Int</code> instance in Objective-C, where <code class="code ">prefix</code> is the framework names prefix). These classes are derived from <code class="code ">NSNumber</code>, so the instances are proper <code class="code ">NSNumber</code>s supporting all corresponding operations.</p>
+<p id="32d7c7de"><code class="code ">NSNumber</code> type is not automatically translated to Kotlin primitive types when used as a Swift/Objective-C parameter type or return value. The reason is that <code class="code ">NSNumber</code> type doesn't provide enough information about a wrapped primitive value type, i.e. <code class="code ">NSNumber</code> is statically not known to be a e.g. <code class="code ">Byte</code>, <code class="code ">Boolean</code>, or <code class="code ">Double</code>. So Kotlin primitive values should be cast to/from <code class="code ">NSNumber</code> manually (see <a href="#casting-between-mapped-types" id="a00a8378">below</a>).</p></section><section class="chapter"><h3 id="nsmutablestring" data-toc="native-objc-interop#nsmutablestring">NSMutableString</h3>
+<p id="a0ddd33f"><code class="code ">NSMutableString</code> Objective-C class is not available from Kotlin. All instances of <code class="code ">NSMutableString</code> are copied when passed to Kotlin.</p></section><section class="chapter"><h3 id="collections" data-toc="native-objc-interop#collections">Collections</h3>
+<p id="a8eb94e0">Kotlin collections are converted to Swift/Objective-C collections as described in the table above. Swift/Objective-C collections are mapped to Kotlin in the same way, except for <code class="code ">NSMutableSet</code> and <code class="code ">NSMutableDictionary</code>. <code class="code ">NSMutableSet</code> isn't converted to a Kotlin <code class="code ">MutableSet</code>. To pass an object for Kotlin <code class="code ">MutableSet</code>, you can create this kind of Kotlin collection explicitly by either creating it in Kotlin with e.g. <code class="code ">mutableSetOf()</code>, or using the <code class="code ">KotlinMutableSet</code> class in Swift (or <code class="code ">${prefix}MutableSet</code> in Objective-C, where <code class="code ">prefix</code> is the framework names prefix). The same holds for <code class="code ">MutableMap</code>.</p></section><section class="chapter"><h3 id="function-types" data-toc="native-objc-interop#function-types">Function types</h3>
+<p id="4dab0d2e">Kotlin function-typed objects (e.g. lambdas) are converted to Swift functions / Objective-C blocks. However there is a difference in how types of parameters and return values are mapped when translating a function and a function type. In the latter case primitive types are mapped to their boxed representation. Kotlin <code class="code ">Unit</code> return value is represented as a corresponding <code class="code ">Unit</code> singleton in Swift/Objective-C. The value of this singleton can be retrieved in the same way as it is for any other Kotlin <code class="code ">object</code> (see singletons in the table above). To sum the things up:</p>
+<pre class="code" data-language="kotlin">fun foo(block: (Int) -&gt; Unit) { ... }
+</pre>
+<p id="a21887ff">would be represented in Swift as</p>
+<pre class="code" data-language="swift">func foo(block: (KotlinInt) -&gt; KotlinUnit)
+</pre>
+<p id="aeeec479">and can be called like</p>
+<pre class="code" data-language="kotlin">foo {
+    bar($0 as! Int32)
+    return KotlinUnit()
+}
+</pre></section><section class="chapter"><h3 id="generics" data-toc="native-objc-interop#generics">Generics</h3>
+<p id="29f8a3b2">Objective-C supports "lightweight generics" defined on classes, with a relatively limited feature set. Swift can import generics defined on classes to help provide additional type information to the compiler.</p>
+<p id="11f07328">Generic feature support for Objective-C and Swift differ from Kotlin, so the translation will inevitably lose some information, but the features supported retain meaningful information.</p>
+<section class="chapter"><h4 id="limitations" data-toc="native-objc-interop#limitations">Limitations</h4>
+<p id="4730c09f">Objective-C generics do not support all features of either Kotlin or Swift, so there will be some information lost in the translation.</p>
+<p id="baad08">Generics can only be defined on classes, not on interfaces (protocols in Objective-C and Swift) or functions.</p></section><section class="chapter"><h4 id="nullability" data-toc="native-objc-interop#nullability">Nullability</h4>
+<p id="2807f462">Kotlin and Swift both define nullability as part of the type specification, while Objective-C defines nullability on methods and properties of a type. As such, the following:</p>
+<pre class="code" data-language="kotlin">class Sample&lt;T&gt;() {
+  fun myVal(): T
+}
+</pre>
+<p id="392bc928">will (logically) look like this:</p>
+<pre class="code" data-language="swift">class Sample&lt;T&gt;() {
+  fun myVal(): T?
+}
+</pre>
+<p id="7cb46e2d">In order to support a potentially nullable type, the Objective-C header needs to define <code class="code ">myVal</code> with a nullable return value.</p>
+<p id="a4b1c29e">To mitigate this, when defining your generic classes, if the generic type should <em id="1dfb5a5c" class="">never</em> be null, provide a non-null type constraint:</p>
+<pre class="code" data-language="kotlin">class Sample&lt;T : Any&gt;() {
+  fun myVal(): T
+}
+</pre>
+<p id="4be46db8">That will force the Objective-C header to mark <code class="code ">myVal</code> as non-null.</p></section><section class="chapter"><h4 id="variance" data-toc="native-objc-interop#variance">Variance</h4>
+<p id="cb6c56e1">Objective-C allows generics to be declared covariant or contravariant. Swift has no support for variance. Generic classes coming from Objective-C can be force-cast as needed.</p>
+<pre class="code" data-language="kotlin">data class SomeData(val num: Int = 42) : BaseData()
+class GenVarOut&lt;out T : Any&gt;(val arg: T)
+</pre>
+<pre class="code" data-language="swift">let variOut = GenVarOut&lt;SomeData&gt;(arg: sd)
+let variOutAny : GenVarOut&lt;BaseData&gt; = variOut as! GenVarOut&lt;BaseData&gt;
+</pre></section><section class="chapter"><h4 id="constraints" data-toc="native-objc-interop#constraints">Constraints</h4>
+<p id="66d43af0">In Kotlin you can provide upper bounds for a generic type. Objective-C also supports this, but that support is unavailable in more complex cases, and is currently not supported in the Kotlin - Objective-C interop. The exception here being a non-null upper bound will make Objective-C methods/properties non-null.</p></section><section class="chapter"><h4 id="to-disable" data-toc="native-objc-interop#to-disable">To disable</h4>
+<p id="f6db3c56">To have the framework header written without generics, add the flag to the compiler config:</p>
+<pre class="code" data-language="kotlin">binaries.framework {
+     freeCompilerArgs += "-Xno-objc-generics"
+}
+</pre></section></section></section><section class="chapter"><h2 id="casting-between-mapped-types" data-toc="native-objc-interop#casting-between-mapped-types">Casting between mapped types</h2>
+<p id="b1e788db">When writing Kotlin code, an object may need to be converted from a Kotlin type to the equivalent Swift/Objective-C type (or vice versa). In this case a plain old Kotlin cast can be used, e.g.</p>
+<pre class="code" data-language="kotlin">val nsArray = listOf(1, 2, 3) as NSArray
+val string = nsString as String
+val nsNumber = 42 as NSNumber
+</pre></section><section class="chapter"><h2 id="subclassing" data-toc="native-objc-interop#subclassing">Subclassing</h2>
+<section class="chapter"><h3 id="subclassing-kotlin-classes-and-interfaces-from-swift-objective-c" data-toc="native-objc-interop#subclassing-kotlin-classes-and-interfaces-from-swift-objective-c">Subclassing Kotlin classes and interfaces from Swift/Objective-C</h3>
+<p id="393cd319">Kotlin classes and interfaces can be subclassed by Swift/Objective-C classes and protocols.</p></section><section class="chapter"><h3 id="subclassing-swift-objective-c-classes-and-protocols-from-kotlin" data-toc="native-objc-interop#subclassing-swift-objective-c-classes-and-protocols-from-kotlin">Subclassing Swift/Objective-C classes and protocols from Kotlin</h3>
+<p id="73068e71">Swift/Objective-C classes and protocols can be subclassed with a Kotlin <code class="code ">final</code> class. Non-<code class="code ">final</code> Kotlin classes inheriting Swift/Objective-C types aren't supported yet, so it is not possible to declare a complex class hierarchy inheriting Swift/Objective-C types.</p>
+<p id="9752e9a1">Normal methods can be overridden using the <code class="code ">override</code> Kotlin keyword. In this case the overriding method must have the same parameter names as the overridden one.</p>
+<p id="fcc0ec86">Sometimes it is required to override initializers, e.g. when subclassing <code class="code ">UIViewController</code>. Initializers imported as Kotlin constructors can be overridden by Kotlin constructors marked with the <code class="code ">@OverrideInit</code> annotation:</p>
+<pre class="code" data-language="swift">class ViewController : UIViewController {
+    @OverrideInit constructor(coder: NSCoder) : super(coder)
+
+    ...
+}
+</pre>
+<p id="267a36bc">The overriding constructor must have the same parameter names and types as the overridden one.</p>
+<p id="1e9794f1">To override different methods with clashing Kotlin signatures, you can add a <code class="code ">@Suppress("CONFLICTING_OVERLOADS")</code> annotation to the class.</p>
+<p id="6ff9fe74">By default the Kotlin/Native compiler doesn't allow calling a non-designated Objective-C initializer as a <code class="code ">super(...)</code> constructor. This behaviour can be inconvenient if the designated initializers aren't marked properly in the Objective-C library. Adding a <code class="code ">disableDesignatedInitializerChecks = true</code> to the <code class="code ">.def</code> file for this library would disable these compiler checks.</p></section></section><section class="chapter"><h2 id="c-features" data-toc="native-objc-interop#c-features">C features</h2>
+<p id="56ef8b9">See <a href="native-c-interop" id="61414ff5">Interoperability with C</a> for an example case where the library uses some plain C features, such as unsafe pointers, structs, and so on.</p></section><section class="chapter"><h2 id="unsupported" data-toc="native-objc-interop#unsupported">Unsupported</h2>
+<p id="69db6266">Some features of Kotlin programming language are not yet mapped into respective features of Objective-C or Swift. Currently, following features are not properly exposed in generated framework headers:</p>
+<ul class="list _ul" id="b83d99b4">
+<li class="list__item" id="d0aa43d0"><p>inline classes (arguments are mapped as either underlying primitive type or <code class="code ">id</code>)</p></li>
+<li class="list__item" id="ce291048"><p>custom classes implementing standard Kotlin collection interfaces (<code class="code ">List</code>, <code class="code ">Map</code>, <code class="code ">Set</code>) and other special classes</p></li>
+<li class="list__item" id="ddb1cd0e"><p>Kotlin subclasses of Objective-C classes</p></li>
+</ul></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="native-app-with-c-and-libcurl">Create an app using C Interop and libcurl – tutorial</a> <a class="navigation-links__next" href="apple-framework">Kotlin/Native as an Apple framework – tutorial</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/native-objc-interop.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/native-objc-interop.html</a>
+  </p>
+</div>

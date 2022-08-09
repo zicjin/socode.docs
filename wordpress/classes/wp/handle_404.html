@@ -1,0 +1,95 @@
+<h1>WP::handle_404()</h1>  <section> <p>Set the Headers for 404, if nothing is found for requested URL.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Issue a 404 if a request doesn’t match any posts and doesn’t match any object (e.g. an existing-but-empty category, tag, author) and a 404 was not already issued, and if the request was not a search or the homepage.</p> <p>Otherwise, issue a 200.</p> <p>This sets headers after posts have been queried. handle_404() really means "handle status". By inspecting the result of querying posts, seemingly successful requests can be switched to a 404 so that canonical redirection logic can kick in.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp.php/">wp-includes/class-wp.php</a> </p> <pre data-language="php">public function handle_404() {
+		global $wp_query;
+
+		/**
+		 * Filters whether to short-circuit default header status handling.
+		 *
+		 * Returning a non-false value from the filter will short-circuit the handling
+		 * and return early.
+		 *
+		 * @since 4.5.0
+		 *
+		 * @param bool     $preempt  Whether to short-circuit default header status handling. Default false.
+		 * @param WP_Query $wp_query WordPress Query object.
+		 */
+		if ( false !== apply_filters( 'pre_handle_404', false, $wp_query ) ) {
+			return;
+		}
+
+		// If we've already issued a 404, bail.
+		if ( is_404() ) {
+			return;
+		}
+
+		$set_404 = true;
+
+		// Never 404 for the admin, robots, or favicon.
+		if ( is_admin() || is_robots() || is_favicon() ) {
+			$set_404 = false;
+
+			// If posts were found, check for paged content.
+		} elseif ( $wp_query-&gt;posts ) {
+			$content_found = true;
+
+			if ( is_singular() ) {
+				$post = isset( $wp_query-&gt;post ) ? $wp_query-&gt;post : null;
+
+				// Only set X-Pingback for single posts that allow pings.
+				if ( $post &amp;&amp; pings_open( $post ) &amp;&amp; ! headers_sent() ) {
+					header( 'X-Pingback: ' . get_bloginfo( 'pingback_url', 'display' ) );
+				}
+
+				// Check for paged content that exceeds the max number of pages.
+				$next = '&lt;!--nextpage--&gt;';
+				if ( $post &amp;&amp; ! empty( $this-&gt;query_vars['page'] ) ) {
+					// Check if content is actually intended to be paged.
+					if ( false !== strpos( $post-&gt;post_content, $next ) ) {
+						$page          = trim( $this-&gt;query_vars['page'], '/' );
+						$content_found = (int) $page &lt;= ( substr_count( $post-&gt;post_content, $next ) + 1 );
+					} else {
+						$content_found = false;
+					}
+				}
+			}
+
+			// The posts page does not support the &lt;!--nextpage--&gt; pagination.
+			if ( $wp_query-&gt;is_posts_page &amp;&amp; ! empty( $this-&gt;query_vars['page'] ) ) {
+				$content_found = false;
+			}
+
+			if ( $content_found ) {
+				$set_404 = false;
+			}
+
+			// We will 404 for paged queries, as no posts were found.
+		} elseif ( ! is_paged() ) {
+			$author = get_query_var( 'author' );
+
+			// Don't 404 for authors without posts as long as they matched an author on this site.
+			if ( is_author() &amp;&amp; is_numeric( $author ) &amp;&amp; $author &gt; 0 &amp;&amp; is_user_member_of_blog( $author )
+				// Don't 404 for these queries if they matched an object.
+				|| ( is_tag() || is_category() || is_tax() || is_post_type_archive() ) &amp;&amp; get_queried_object()
+				// Don't 404 for these queries either.
+				|| is_home() || is_search() || is_feed()
+			) {
+				$set_404 = false;
+			}
+		}
+
+		if ( $set_404 ) {
+			// Guess it's time to 404.
+			$wp_query-&gt;set_404();
+			status_header( 404 );
+			nocache_headers();
+		} else {
+			status_header( 200 );
+		}
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/query.php:</span> <a href="../../functions/is_favicon">is_favicon()</a> </td> <td class="related-desc"> <p>Is the query for the favicon.ico file?</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp.php:</span> <a href="../../hooks/pre_handle_404">pre_handle_404</a> </td> <td class="related-desc"> <p>Filters whether to short-circuit default header status handling.</p> </td> </tr> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="../../functions/get_bloginfo">get_bloginfo()</a> </td> <td class="related-desc"> <p>Retrieves information about the current site.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-query.php:</span> <a href="../wp_query/set_404">WP_Query::set_404()</a> </td> <td class="related-desc"> <p>Sets the 404 property and saves whether query is feed.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="../../functions/is_404">is_404()</a> </td> <td class="related-desc"> <p>Determines whether the query has resulted in a 404 (returns no results).</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="../../functions/is_robots">is_robots()</a> </td> <td class="related-desc"> <p>Is the query for the robots.txt file?</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="../../functions/is_singular">is_singular()</a> </td> <td class="related-desc"> <p>Determines whether the query is for an existing single post of any post type (post, attachment, page, custom post types).</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="../../functions/is_search">is_search()</a> </td> <td class="related-desc"> <p>Determines whether the query is for a search.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="../../functions/is_paged">is_paged()</a> </td> <td class="related-desc"> <p>Determines whether the query is for a paged result and not for the first page.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="../../functions/is_author">is_author()</a> </td> <td class="related-desc"> <p>Determines whether the query is for an existing author archive page.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="../../functions/is_tag">is_tag()</a> </td> <td class="related-desc"> <p>Determines whether the query is for an existing tag archive page.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="../../functions/is_category">is_category()</a> </td> <td class="related-desc"> <p>Determines whether the query is for an existing category archive page.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="../../functions/is_tax">is_tax()</a> </td> <td class="related-desc"> <p>Determines whether the query is for an existing custom taxonomy archive page.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="../../functions/is_home">is_home()</a> </td> <td class="related-desc"> <p>Determines whether the query is for the blog homepage.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="../../functions/is_feed">is_feed()</a> </td> <td class="related-desc"> <p>Determines whether the query is for a feed.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="../../functions/get_query_var">get_query_var()</a> </td> <td class="related-desc"> <p>Retrieves the value of a query variable in the <a href="../wp_query">WP_Query</a> class.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="../../functions/is_post_type_archive">is_post_type_archive()</a> </td> <td class="related-desc"> <p>Determines whether the query is for an existing post type archive page.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="../../functions/get_queried_object">get_queried_object()</a> </td> <td class="related-desc"> <p>Retrieves the currently queried object.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_admin">is_admin()</a> </td> <td class="related-desc"> <p>Determines whether the current request is for an administrative interface page.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/status_header">status_header()</a> </td> <td class="related-desc"> <p>Set HTTP status header.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/nocache_headers">nocache_headers()</a> </td> <td class="related-desc"> <p>Set the headers to prevent caching for the different browsers.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="../../functions/is_user_member_of_blog">is_user_member_of_blog()</a> </td> <td class="related-desc"> <p>Finds out whether a user is a member of a given blog.</p> </td> </tr> <tr> <td> <span>wp-includes/comment-template.php:</span> <a href="../../functions/pings_open">pings_open()</a> </td> <td class="related-desc"> <p>Determines whether the current post is open for pings.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp.php:</span> <a href="main">WP::main()</a> </td> <td class="related-desc"> <p>Sets up all of the variables required by the WordPress environment.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.0.0/" alt="WordPress 2.0.0">2.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp/handle_404" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp/handle_404</a>
+  </p>
+</div>

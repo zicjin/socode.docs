@@ -1,0 +1,84 @@
+<h1>WP_Widget::update_callback( int $deprecated = 1 )</h1>  <section> <p>Handles changed settings (Do NOT override).</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$deprecated</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description">Not used.</span> </p> <p class="default">Default value: 1</p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-widget.php/">wp-includes/class-wp-widget.php</a> </p> <pre data-language="php">public function update_callback( $deprecated = 1 ) {
+		global $wp_registered_widgets;
+
+		$all_instances = $this-&gt;get_settings();
+
+		// We need to update the data.
+		if ( $this-&gt;updated ) {
+			return;
+		}
+
+		if ( isset( $_POST['delete_widget'] ) &amp;&amp; $_POST['delete_widget'] ) {
+			// Delete the settings for this instance of the widget.
+			if ( isset( $_POST['the-widget-id'] ) ) {
+				$del_id = $_POST['the-widget-id'];
+			} else {
+				return;
+			}
+
+			if ( isset( $wp_registered_widgets[ $del_id ]['params'][0]['number'] ) ) {
+				$number = $wp_registered_widgets[ $del_id ]['params'][0]['number'];
+
+				if ( $this-&gt;id_base . '-' . $number == $del_id ) {
+					unset( $all_instances[ $number ] );
+				}
+			}
+		} else {
+			if ( isset( $_POST[ 'widget-' . $this-&gt;id_base ] ) &amp;&amp; is_array( $_POST[ 'widget-' . $this-&gt;id_base ] ) ) {
+				$settings = $_POST[ 'widget-' . $this-&gt;id_base ];
+			} elseif ( isset( $_POST['id_base'] ) &amp;&amp; $_POST['id_base'] == $this-&gt;id_base ) {
+				$num      = $_POST['multi_number'] ? (int) $_POST['multi_number'] : (int) $_POST['widget_number'];
+				$settings = array( $num =&gt; array() );
+			} else {
+				return;
+			}
+
+			foreach ( $settings as $number =&gt; $new_instance ) {
+				$new_instance = stripslashes_deep( $new_instance );
+				$this-&gt;_set( $number );
+
+				$old_instance = isset( $all_instances[ $number ] ) ? $all_instances[ $number ] : array();
+
+				$was_cache_addition_suspended = wp_suspend_cache_addition();
+				if ( $this-&gt;is_preview() &amp;&amp; ! $was_cache_addition_suspended ) {
+					wp_suspend_cache_addition( true );
+				}
+
+				$instance = $this-&gt;update( $new_instance, $old_instance );
+
+				if ( $this-&gt;is_preview() ) {
+					wp_suspend_cache_addition( $was_cache_addition_suspended );
+				}
+
+				/**
+				 * Filters a widget's settings before saving.
+				 *
+				 * Returning false will effectively short-circuit the widget's ability
+				 * to update settings.
+				 *
+				 * @since 2.8.0
+				 *
+				 * @param array     $instance     The current widget instance's settings.
+				 * @param array     $new_instance Array of new widget settings.
+				 * @param array     $old_instance Array of old widget settings.
+				 * @param WP_Widget $widget       The current widget instance.
+				 */
+				$instance = apply_filters( 'widget_update_callback', $instance, $new_instance, $old_instance, $this );
+
+				if ( false !== $instance ) {
+					$all_instances[ $number ] = $instance;
+				}
+
+				break; // Run only once.
+			}
+		}
+
+		$this-&gt;save_settings( $all_instances );
+		$this-&gt;updated = true;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/stripslashes_deep">stripslashes_deep()</a> </td> <td class="related-desc"> <p>Navigates through an array, object, or scalar, and removes slashes from the values.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_suspend_cache_addition">wp_suspend_cache_addition()</a> </td> <td class="related-desc"> <p>Temporarily suspend cache additions.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-widget.php:</span> <a href="get_settings">WP_Widget::get_settings()</a> </td> <td class="related-desc"> <p>Retrieves the settings for all instances of the widget class.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-widget.php:</span> <a href="save_settings">WP_Widget::save_settings()</a> </td> <td class="related-desc"> <p>Saves the settings for all instances of the widget class.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-widget.php:</span> <a href="../../hooks/widget_update_callback">widget_update_callback</a> </td> <td class="related-desc"> <p>Filters a widget’s settings before saving.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-widget.php:</span> <a href="_set">WP_Widget::_set()</a> </td> <td class="related-desc"> <p>Sets the internal order number for the widget instance.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-widget.php:</span> <a href="is_preview">WP_Widget::is_preview()</a> </td> <td class="related-desc"> <p>Determines whether the current request is inside the Customizer preview.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-widget.php:</span> <a href="update">WP_Widget::update()</a> </td> <td class="related-desc"> <p>Updates a particular instance of a widget.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.8.0/" alt="WordPress 2.8.0">2.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_widget/update_callback" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_widget/update_callback</a>
+  </p>
+</div>

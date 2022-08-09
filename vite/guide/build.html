@@ -1,0 +1,196 @@
+<h1 id="building-for-production" tabindex="-1">Building for Production </h1>
+<p>When it is time to deploy your app for production, simply run the <code>vite build</code> command. By default, it uses <code>&lt;root&gt;/index.html</code> as the build entry point, and produces an application bundle that is suitable to be served over a static hosting service. Check out the <a href="static-deploy">Deploying a Static Site</a> for guides about popular services.</p>
+<h2 id="browser-compatibility" tabindex="-1">Browser Compatibility </h2>
+<p>The production bundle assumes support for modern JavaScript. By default, Vite targets browsers which support the <a href="https://caniuse.com/es6-module" target="_blank" rel="noopener noreferrer">native ES Modules</a>, <a href="https://caniuse.com/es6-module-dynamic-import" target="_blank" rel="noopener noreferrer">native ESM dynamic import</a>, and <a href="https://caniuse.com/mdn-javascript_operators_import_meta" target="_blank" rel="noopener noreferrer"><code>import.<wbr>meta</wbr></code></a>:</p>
+<ul>
+<li>Chrome &gt;=87</li>
+<li>Firefox &gt;=78</li>
+<li>Safari &gt;=13</li>
+<li>Edge &gt;=88</li>
+</ul>
+<p>You can specify custom targets via the <a href="../config/build-options#build-target"><code>build.target</code> config option</a>, where the lowest target is <code>es2015</code>.</p>
+<p>Note that by default, Vite only handles syntax transforms and <strong>does not cover polyfills by default</strong>. You can check out <a href="https://polyfill.io/v3/" target="_blank" rel="noopener noreferrer">Polyfill.io</a> which is a service that automatically generates polyfill bundles based on the user's browser UserAgent string.</p>
+<p>Legacy browsers can be supported via <a href="https://github.com/vitejs/vite/tree/main/packages/plugin-legacy" target="_blank" rel="noopener noreferrer">@vitejs/plugin-legacy</a>, which will automatically generate legacy chunks and corresponding ES language feature polyfills. The legacy chunks are conditionally loaded only in browsers that do not have native ESM support.</p>
+<h2 id="public-base-path" tabindex="-1">Public Base Path </h2>
+<ul><li>Related: <a href="assets">Asset Handling</a>
+</li></ul>
+<p>If you are deploying your project under a nested public path, simply specify the <a href="../config/shared-options#base"><code>base</code> config option</a> and all asset paths will be rewritten accordingly. This option can also be specified as a command line flag, e.g. <code>vite build --base=/my/public/path/</code>.</p>
+<p>JS-imported asset URLs, CSS <code>url()</code> references, and asset references in your <code>.html</code> files are all automatically adjusted to respect this option during build.</p>
+<p>The exception is when you need to dynamically concatenate URLs on the fly. In this case, you can use the globally injected <code>import.<wbr>meta.env.BASE_URL</wbr></code> variable which will be the public base path. Note this variable is statically replaced during build so it must appear exactly as-is (i.e. <code>import.<wbr>meta.env['BASE_URL']</wbr></code> won't work).</p>
+<p>For advanced base path control, check out <a href="#advanced-base-options">Advanced Base Options</a>.</p>
+<h2 id="customizing-the-build" tabindex="-1">Customizing the Build </h2>
+<p>The build can be customized via various <a href="../config/build-options">build config options</a>. Specifically, you can directly adjust the underlying <a href="https://rollupjs.org/guide/en/#big-list-of-options" target="_blank" rel="noopener noreferrer">Rollup options</a> via <code>build.rollupOptions</code>:</p>
+<div class="language-js">
+<pre data-language="javascript">// vite.config.js
+export default defineConfig({
+  build: {
+    rollupOptions: {
+      // https://rollupjs.org/guide/en/#big-list-of-options
+    }
+  }
+})</pre>
+</div>
+<p>For example, you can specify multiple Rollup outputs with plugins that are only applied during build.</p>
+<h2 id="chunking-strategy" tabindex="-1">Chunking Strategy </h2>
+<p>You can configure how chunks are split using <code>build.rollupOptions.output.manualChunks</code> (see <a href="https://rollupjs.org/guide/en/#outputmanualchunks" target="_blank" rel="noopener noreferrer">Rollup docs</a>). Until Vite 2.8, the default chunking strategy divided the chunks into <code>index</code> and <code>vendor</code>. It is a good strategy for some SPAs, but it is hard to provide a general solution for every Vite target use case. From Vite 2.9, <code>manualChunks</code> is no longer modified by default. You can continue to use the Split Vendor Chunk strategy by adding the <code>splitVendorChunkPlugin</code> in your config file:</p>
+<div class="language-js">
+<pre data-language="javascript">// vite.config.js
+import { splitVendorChunkPlugin } from 'vite'
+export default defineConfig({
+  plugins: [splitVendorChunkPlugin()]
+})</pre>
+</div>
+<p>This strategy is also provided as a <code>splitVendorChunk({ cache: SplitVendorChunkCache })</code> factory, in case composition with custom logic is needed. <code>cache.reset()</code> needs to be called at <code>buildStart</code> for build watch mode to work correctly in this case.</p>
+<h2 id="rebuild-on-files-changes" tabindex="-1">Rebuild on files changes </h2>
+<p>You can enable rollup watcher with <code>vite build --watch</code>. Or, you can directly adjust the underlying <a href="https://rollupjs.org/guide/en/#watch-options" target="_blank" rel="noopener noreferrer"><code>WatcherOptions</code></a> via <code>build.watch</code>:</p>
+<div class="language-js">
+<pre data-language="javascript">// vite.config.js
+export default defineConfig({
+  build: {
+    watch: {
+      // https://rollupjs.org/guide/en/#watch-options
+    }
+  }
+})</pre>
+</div>
+<p>With the <code>--watch</code> flag enabled, changes to the <code>vite.config.js</code>, as well as any files to be bundled, will trigger a rebuild.</p>
+<h2 id="multi-page-app" tabindex="-1">Multi-Page App </h2>
+<p>Suppose you have the following source code structure:</p>
+<div class="language-">
+<pre data-language="javascript">├── package.json
+├── vite.config.js
+├── index.html
+├── main.js
+└── nested
+    ├── index.html
+    └── nested.js</pre>
+</div>
+<p>During dev, simply navigate or link to <code>/nested/</code> - it works as expected, just like for a normal static file server.</p>
+<p>During build, all you need to do is to specify multiple <code>.html</code> files as entry points:</p>
+<div class="language-js">
+<pre data-language="javascript">// vite.config.js
+import { resolve } from 'path'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  build: {
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        nested: resolve(__dirname, 'nested/index.html')
+      }
+    }
+  }
+})</pre>
+</div>
+<p>If you specify a different root, remember that <code>__dirname</code> will still be the folder of your vite.config.js file when resolving the input paths. Therefore, you will need to add your <code>root</code> entry to the arguments for <code>resolve</code>.</p>
+<h2 id="library-mode" tabindex="-1">Library Mode </h2>
+<p>When you are developing a browser-oriented library, you are likely spending most of the time on a test/demo page that imports your actual library. With Vite, you can use your <code>index.html</code> for that purpose to get the smooth development experience.</p>
+<p>When it is time to bundle your library for distribution, use the <a href="../config/build-options#build-lib"><code>build.lib</code> config option</a>. Make sure to also externalize any dependencies that you do not want to bundle into your library, e.g. <code>vue</code> or <code>react</code>:</p>
+<div class="language-js">
+<pre data-language="javascript">// vite.config.js
+import { resolve } from 'path'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  build: {
+    lib: {
+      entry: resolve(__dirname, 'lib/main.js'),
+      name: 'MyLib',
+      // the proper extensions will be added
+      fileName: 'my-lib'
+    },
+    rollupOptions: {
+      // make sure to externalize deps that shouldn't be bundled
+      // into your library
+      external: ['vue'],
+      output: {
+        // Provide global variables to use in the UMD build
+        // for externalized deps
+        globals: {
+          vue: 'Vue'
+        }
+      }
+    }
+  }
+})</pre>
+</div>
+<p>The entry file would contain exports that can be imported by users of your package:</p>
+<div class="language-js">
+<pre data-language="javascript">// lib/main.js
+import Foo from './Foo.vue'
+import Bar from './Bar.vue'
+export { Foo, Bar }</pre>
+</div>
+<p>Running <code>vite build</code> with this config uses a Rollup preset that is oriented towards shipping libraries and produces two bundle formats: <code>es</code> and <code>umd</code> (configurable via <code>build.lib</code>):</p>
+<div class="language-">
+<pre data-language="javascript">$ vite build
+building for production...
+dist/my-lib.js      0.08 KiB / gzip: 0.07 KiB
+dist/my-lib.umd.cjs 0.30 KiB / gzip: 0.16 KiB</pre>
+</div>
+<p>Recommended <code>package.json</code> for your lib:</p>
+<div class="language-json">
+<pre data-language="javascript">{
+  "name": "my-lib",
+  "type": "module",
+  "files": ["dist"],
+  "main": "./dist/my-lib.umd.cjs",
+  "module": "./dist/my-lib.js",
+  "exports": {
+    ".": {
+      "import": "./dist/my-lib.js",
+      "require": "./dist/my-lib.umd.cjs"
+    }
+  }
+}</pre>
+</div>
+<div class="tip custom-block">
+<strong class="custom-block-title">Note</strong><p>If the <code>package.json</code> does not contain <code>"type": "module"</code>, Vite will generate different file extensions for Node.js compatibility. <code>.js</code> will become <code>.mjs</code> and <code>.cjs</code> will become <code>.js</code>.</p>
+</div>
+<div class="tip custom-block">
+<strong class="custom-block-title">Environment Variables</strong><p>In library mode, all <code>import.<wbr>meta.env.*</wbr></code> usage are statically replaced when building for production. However, <code>process.<wbr>env.*</wbr></code> usage are not, so that consumers of your library can dynamically change it. If this is undesirable, you can use <code>define: { 'process.<wbr>env.</wbr></code><wbr><code>NODE_ENV': '"production"' }</code> for example to statically replace them.</wbr></p>
+</div>
+<h2 id="advanced-base-options" tabindex="-1">Advanced Base Options </h2>
+<div class="warning custom-block">
+<strong class="custom-block-title">WARNING</strong><p>This feature is experimental, the API may change in a future minor without following semver. Please always pin Vite's version to a minor when using it.</p>
+</div>
+<p>For advanced use cases, the deployed assets and public files may be in different paths, for example to use different cache strategies. A user may choose to deploy in three different paths:</p>
+<ul>
+<li>The generated entry HTML files (which may be processed during SSR)</li>
+<li>The generated hashed assets (JS, CSS, and other file types like images)</li>
+<li>The copied <a href="assets#the-public-directory">public files</a>
+</li>
+</ul>
+<p>A single static <a href="#public-base-path">base</a> isn't enough in these scenarios. Vite provides experimental support for advanced base options during build, using <code>experimental.renderBuiltUrl</code>.</p>
+<div class="language-js">
+<pre data-language="javascript">experimental: {
+  renderBuiltUrl: (filename: string, { hostType: 'js' | 'css' | 'html' }) =&gt; {
+    if (hostType === 'js') {
+      return { runtime: `window.__toCdnUrl(${JSON.stringify(filename)})` }
+    } else {
+      return { relative: true }
+    }
+  }
+}</pre>
+</div>
+<p>If the hashed assets and public files aren't deployed together, options for each group can be defined independently using asset <code>type</code> included in the third <code>context</code> param given to the function.</p>
+<div class="language-js">
+<pre data-language="javascript">experimental: {
+  renderBuiltUrl(filename: string, { hostType: 'js' | 'css' | 'html', type: 'public' | 'asset' }) {
+    if (type === 'public') {
+      return 'https://www.domain.com/' + filename
+    }
+    else if (path.extname(importer) === '.js') {
+      return { runtime: `window.__assetsPath(${JSON.stringify(filename)})` }
+    }
+    else {
+      return 'https://cdn.domain.com/assets/' + filename
+    }
+  }
+}</pre>
+</div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://vitejs.dev/guide/build.html" class="_attribution-link" target="_blank">https://vitejs.dev/guide/build.html</a>
+  </p>
+</div>

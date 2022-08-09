@@ -1,0 +1,63 @@
+<h1>is_serialized( string $data, bool $strict = true )</h1>  <section> <p>Check value to find if it was serialized.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>If $data is not an string, then returned value will always be false. Serialized data is always a string.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$data</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Value to check to see if was serialized.</span> </p> </dd> <dt>$strict</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> Whether to be strict about the end of the string. </span> </p> <p class="default">Default value: true</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> False if not serialized and true if it was.</p> </section>  <section> <h2 id="more-information">More Information</h2> <h5>Usage:</h5> <pre class="brush: php; title: ; notranslate" title="" data-language="php">is_serialized( $data );</pre> <h5>Notes:</h5> <p>Data might need to be <i>serialized</i> to allow it to be successfully stored and retrieved from a database in a form that PHP can understand.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/functions.php/">wp-includes/functions.php</a> </p> <pre data-language="php">function is_serialized( $data, $strict = true ) {
+	// If it isn't a string, it isn't serialized.
+	if ( ! is_string( $data ) ) {
+		return false;
+	}
+	$data = trim( $data );
+	if ( 'N;' === $data ) {
+		return true;
+	}
+	if ( strlen( $data ) &lt; 4 ) {
+		return false;
+	}
+	if ( ':' !== $data[1] ) {
+		return false;
+	}
+	if ( $strict ) {
+		$lastc = substr( $data, -1 );
+		if ( ';' !== $lastc &amp;&amp; '}' !== $lastc ) {
+			return false;
+		}
+	} else {
+		$semicolon = strpos( $data, ';' );
+		$brace     = strpos( $data, '}' );
+		// Either ; or } must exist.
+		if ( false === $semicolon &amp;&amp; false === $brace ) {
+			return false;
+		}
+		// But neither must be in the first X characters.
+		if ( false !== $semicolon &amp;&amp; $semicolon &lt; 3 ) {
+			return false;
+		}
+		if ( false !== $brace &amp;&amp; $brace &lt; 4 ) {
+			return false;
+		}
+	}
+	$token = $data[0];
+	switch ( $token ) {
+		case 's':
+			if ( $strict ) {
+				if ( '"' !== substr( $data, -2, 1 ) ) {
+					return false;
+				}
+			} elseif ( false === strpos( $data, '"' ) ) {
+				return false;
+			}
+			// Or else fall through.
+		case 'a':
+		case 'O':
+			return (bool) preg_match( "/^{$token}:[0-9]+:/s", $data );
+		case 'b':
+		case 'i':
+		case 'd':
+			$end = $strict ? '$' : '';
+			return (bool) preg_match( "/^{$token}:[0-9.E+-]+;$end/", $data );
+	}
+	return false;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_targeted_link_rel">wp_targeted_link_rel()</a> </td> <td class="related-desc"> <p>Adds <code>rel="noopener"</code> to all HTML A elements that have a target.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="../classes/wp_customize_manager/import_theme_starter_content">WP_Customize_Manager::import_theme_starter_content()</a> </td> <td class="related-desc"> <p>Imports theme starter content into the customized state.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/template.php:</span> <a href="_list_meta_row">_list_meta_row()</a> </td> <td class="related-desc"> <p>Outputs a single row of public meta data in the Custom Fields meta box.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="maybe_serialize">maybe_serialize()</a> </td> <td class="related-desc"> <p>Serialize data, if needed.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="maybe_unserialize">maybe_unserialize()</a> </td> <td class="related-desc"> <p>Unserialize data only if it was serialized.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.0.5/" alt="WordPress 2.0.5">2.0.5</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/is_serialized" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/is_serialized</a>
+  </p>
+</div>

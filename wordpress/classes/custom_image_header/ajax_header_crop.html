@@ -1,0 +1,65 @@
+<h1>Custom_Image_Header::ajax_header_crop()</h1>  <section> <p>Gets attachment uploaded by Media Manager, crops it, then saves it as a new object. Returns JSON-encoded object details.</p> </section> <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-custom-image-header.php/">wp-admin/includes/class-custom-image-header.php</a> </p> <pre data-language="php">public function ajax_header_crop() {
+		check_ajax_referer( 'image_editor-' . $_POST['id'], 'nonce' );
+
+		if ( ! current_user_can( 'edit_theme_options' ) ) {
+			wp_send_json_error();
+		}
+
+		if ( ! current_theme_supports( 'custom-header', 'uploads' ) ) {
+			wp_send_json_error();
+		}
+
+		$crop_details = $_POST['cropDetails'];
+
+		$dimensions = $this-&gt;get_header_dimensions(
+			array(
+				'height' =&gt; $crop_details['height'],
+				'width'  =&gt; $crop_details['width'],
+			)
+		);
+
+		$attachment_id = absint( $_POST['id'] );
+
+		$cropped = wp_crop_image(
+			$attachment_id,
+			(int) $crop_details['x1'],
+			(int) $crop_details['y1'],
+			(int) $crop_details['width'],
+			(int) $crop_details['height'],
+			(int) $dimensions['dst_width'],
+			(int) $dimensions['dst_height']
+		);
+
+		if ( ! $cropped || is_wp_error( $cropped ) ) {
+			wp_send_json_error( array( 'message' =&gt; __( 'Image could not be processed. Please go back and try again.' ) ) );
+		}
+
+		/** This filter is documented in wp-admin/includes/class-custom-image-header.php */
+		$cropped = apply_filters( 'wp_create_file_in_uploads', $cropped, $attachment_id ); // For replication.
+
+		$attachment = $this-&gt;create_attachment_object( $cropped, $attachment_id );
+
+		$previous = $this-&gt;get_previous_crop( $attachment );
+
+		if ( $previous ) {
+			$attachment['ID'] = $previous;
+		} else {
+			unset( $attachment['ID'] );
+		}
+
+		$new_attachment_id = $this-&gt;insert_attachment( $attachment, $cropped );
+
+		$attachment['attachment_id'] = $new_attachment_id;
+		$attachment['url']           = wp_get_attachment_url( $new_attachment_id );
+
+		$attachment['width']  = $dimensions['dst_width'];
+		$attachment['height'] = $dimensions['dst_height'];
+
+		wp_send_json_success( $attachment );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="get_previous_crop">Custom_Image_Header::get_previous_crop()</a> </td> <td class="related-desc"> <p>Get the ID of a previous crop from the same base image.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/image.php:</span> <a href="../../functions/wp_crop_image">wp_crop_image()</a> </td> <td class="related-desc"> <p>Crops an image to a given size.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="get_header_dimensions">Custom_Image_Header::get_header_dimensions()</a> </td> <td class="related-desc"> <p>Calculate width and height based on what the currently selected theme supports.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="create_attachment_object">Custom_Image_Header::create_attachment_object()</a> </td> <td class="related-desc"> <p>Create an attachment ‘object’.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="insert_attachment">Custom_Image_Header::insert_attachment()</a> </td> <td class="related-desc"> <p>Insert an attachment and its metadata.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="../../hooks/wp_create_file_in_uploads">wp_create_file_in_uploads</a> </td> <td class="related-desc"> <p>Fires after the header image is set or an error is returned.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="../../functions/current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="../../functions/current_theme_supports">current_theme_supports()</a> </td> <td class="related-desc"> <p>Checks a theme’s support for a given feature.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../../functions/check_ajax_referer">check_ajax_referer()</a> </td> <td class="related-desc"> <p>Verifies the Ajax request to prevent processing requests external of the blog.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_send_json_error">wp_send_json_error()</a> </td> <td class="related-desc"> <p>Send a JSON response back to an Ajax request, indicating failure.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/absint">absint()</a> </td> <td class="related-desc"> <p>Convert a value to non-negative integer.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_send_json_success">wp_send_json_success()</a> </td> <td class="related-desc"> <p>Send a JSON response back to an Ajax request, indicating success.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/wp_get_attachment_url">wp_get_attachment_url()</a> </td> <td class="related-desc"> <p>Retrieve the URL for an attachment.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.9.0/" alt="WordPress 3.9.0">3.9.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/custom_image_header/ajax_header_crop" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/custom_image_header/ajax_header_crop</a>
+  </p>
+</div>

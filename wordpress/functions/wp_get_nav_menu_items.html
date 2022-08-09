@@ -1,0 +1,111 @@
+<h1>wp_get_nav_menu_items( int|string|WP_Term $menu, array $args = array() )</h1>  <section> <p>Retrieves all menu items of a navigation menu.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Note: Most arguments passed to the <code>$args</code> parameter – save for ‘output_key’ – are specifically for retrieving nav_menu_item posts from <a href="get_posts">get_posts()</a> and may only indirectly affect the ultimate ordering and content of the resulting nav menu items that get returned from this function.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$menu</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>|<span class="string">string</span>|<span class="WP_Term"><a href="../classes/wp_term">WP_Term</a></span>)</span> <span class="required">(Required)</span> <span class="description">Menu ID, slug, name, or object.</span> </p> </dd> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description">Arguments to pass to <a href="get_posts">get_posts()</a>. <ul class="param-hash">
+<li>
+<b>'order'</b><br><i><span class="type">(string)</span></i> How to order nav menu items as queried with <a href="get_posts">get_posts()</a>. Will be ignored if 'output' is ARRAY_A. Default 'ASC'.</li> <li>
+<b>'orderby'</b><br><i><span class="type">(string)</span></i> Field to order menu items by as retrieved from <a href="get_posts">get_posts()</a>. Supply an orderby field via 'output_key' to affect the output order of nav menu items. Default 'menu_order'.</li> <li>
+<b>'post_type'</b><br><i><span class="type">(string)</span></i> Menu items post type. Default 'nav_menu_item'.</li> <li>
+<b>'post_status'</b><br><i><span class="type">(string)</span></i> Menu items post status. Default 'publish'.</li> <li>
+<b>'output'</b><br><i><span class="type">(string)</span></i> How to order outputted menu items. Default ARRAY_A.</li> <li>
+<b>'output_key'</b><br><i><span class="type">(string)</span></i> Key to use for ordering the actual menu items that get returned. Note that that is not a <a href="get_posts">get_posts()</a> argument and will only affect output of menu items processed in this function. Default 'menu_order'.</li> <li>
+<b>'nopaging'</b><br><i><span class="type">(bool)</span></i> Whether to retrieve all menu items (true) or paginate (false). Default true.</li> </ul> </span> </p> <p class="default">Default value: array()</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array|false)</span> Array of menu items, otherwise false.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/nav-menu.php/">wp-includes/nav-menu.php</a> </p> <pre data-language="php">function wp_get_nav_menu_items( $menu, $args = array() ) {
+	$menu = wp_get_nav_menu_object( $menu );
+
+	if ( ! $menu ) {
+		return false;
+	}
+
+	static $fetched = array();
+
+	if ( ! taxonomy_exists( 'nav_menu' ) ) {
+		return false;
+	}
+
+	$defaults = array(
+		'order'       =&gt; 'ASC',
+		'orderby'     =&gt; 'menu_order',
+		'post_type'   =&gt; 'nav_menu_item',
+		'post_status' =&gt; 'publish',
+		'output'      =&gt; ARRAY_A,
+		'output_key'  =&gt; 'menu_order',
+		'nopaging'    =&gt; true,
+		'tax_query'   =&gt; array(
+			array(
+				'taxonomy' =&gt; 'nav_menu',
+				'field'    =&gt; 'term_taxonomy_id',
+				'terms'    =&gt; $menu-&gt;term_taxonomy_id,
+			),
+		),
+	);
+	$args     = wp_parse_args( $args, $defaults );
+	if ( $menu-&gt;count &gt; 0 ) {
+		$items = get_posts( $args );
+	} else {
+		$items = array();
+	}
+
+	// Prime posts and terms caches.
+	if ( empty( $fetched[ $menu-&gt;term_id ] ) ) {
+		$fetched[ $menu-&gt;term_id ] = true;
+		$post_ids                  = array();
+		$term_ids                  = array();
+		foreach ( $items as $item ) {
+			$object_id = get_post_meta( $item-&gt;ID, '_menu_item_object_id', true );
+			$type      = get_post_meta( $item-&gt;ID, '_menu_item_type', true );
+
+			if ( 'post_type' === $type ) {
+				$post_ids[] = (int) $object_id;
+			} elseif ( 'taxonomy' === $type ) {
+				$term_ids[] = (int) $object_id;
+			}
+		}
+
+		if ( ! empty( $post_ids ) ) {
+			_prime_post_caches( $post_ids, false );
+		}
+		unset( $post_ids );
+
+		if ( ! empty( $term_ids ) ) {
+			_prime_term_caches( $term_ids );
+		}
+		unset( $term_ids );
+	}
+
+	$items = array_map( 'wp_setup_nav_menu_item', $items );
+
+	if ( ! is_admin() ) { // Remove invalid items only on front end.
+		$items = array_filter( $items, '_is_valid_nav_menu_item' );
+	}
+
+	if ( ARRAY_A === $args['output'] ) {
+		$items = wp_list_sort(
+			$items,
+			array(
+				$args['output_key'] =&gt; 'ASC',
+			)
+		);
+
+		$i = 1;
+
+		foreach ( $items as $k =&gt; $item ) {
+			$items[ $k ]-&gt;{$args['output_key']} = $i++;
+		}
+	}
+
+	/**
+	 * Filters the navigation menu items being returned.
+	 *
+	 * @since 3.0.0
+	 *
+	 * @param array  $items An array of menu item post objects.
+	 * @param object $menu  The menu object.
+	 * @param array  $args  An array of arguments used to retrieve menu item objects.
+	 */
+	return apply_filters( 'wp_get_nav_menu_items', $items, $menu, $args );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_list_sort">wp_list_sort()</a> </td> <td class="related-desc"> <p>Sorts an array of objects or arrays based on one or more orderby arguments.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="_prime_term_caches">_prime_term_caches()</a> </td> <td class="related-desc"> <p>Adds any terms from the given IDs to the cache that do not already exist in cache.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_admin">is_admin()</a> </td> <td class="related-desc"> <p>Determines whether the current request is for an administrative interface page.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_parse_args">wp_parse_args()</a> </td> <td class="related-desc"> <p>Merges user defined arguments into defaults array.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="taxonomy_exists">taxonomy_exists()</a> </td> <td class="related-desc"> <p>Determines whether the taxonomy name exists.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="_prime_post_caches">_prime_post_caches()</a> </td> <td class="related-desc"> <p>Adds any posts from the given IDs to the cache that do not already exist in cache.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_posts">get_posts()</a> </td> <td class="related-desc"> <p>Retrieves an array of the latest posts, or posts matching the given criteria.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post_meta">get_post_meta()</a> </td> <td class="related-desc"> <p>Retrieves a post meta field for the given post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/nav-menu.php:</span> <a href="../hooks/wp_get_nav_menu_items">wp_get_nav_menu_items</a> </td> <td class="related-desc"> <p>Filters the navigation menu items being returned.</p> </td> </tr> <tr> <td> <span>wp-includes/nav-menu.php:</span> <a href="wp_get_nav_menu_object">wp_get_nav_menu_object()</a> </td> <td class="related-desc"> <p>Returns a navigation menu object.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-customize-nav-menus.php:</span> <a href="../classes/wp_customize_nav_menus/customize_register">WP_Customize_Nav_Menus::customize_register()</a> </td> <td class="related-desc"> <p>Adds the customizer settings and controls.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/nav-menu.php:</span> <a href="wp_nav_menu_update_menu_items">wp_nav_menu_update_menu_items()</a> </td> <td class="related-desc"> <p>Saves nav menu items</p> </td> </tr> <tr> <td> <span>wp-admin/includes/nav-menu.php:</span> <a href="wp_get_nav_menu_to_edit">wp_get_nav_menu_to_edit()</a> </td> <td class="related-desc"> <p>Returns the menu formatted to edit.</p> </td> </tr> <tr> <td> <span>wp-includes/nav-menu-template.php:</span> <a href="wp_nav_menu">wp_nav_menu()</a> </td> <td class="related-desc"> <p>Displays a navigation menu.</p> </td> </tr> <tr> <td> <span>wp-includes/nav-menu.php:</span> <a href="_wp_auto_add_pages_to_menu">_wp_auto_add_pages_to_menu()</a> </td> <td class="related-desc"> <p>Automatically add newly published page objects to menus with that as an option.</p> </td> </tr> <tr> <td> <span>wp-includes/nav-menu.php:</span> <a href="wp_update_nav_menu_item">wp_update_nav_menu_item()</a> </td> <td class="related-desc"> <p>Saves the properties of a menu item or create a new one.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.0.0/" alt="WordPress 3.0.0">3.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_get_nav_menu_items" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_get_nav_menu_items</a>
+  </p>
+</div>

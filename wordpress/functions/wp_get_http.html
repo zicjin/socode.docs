@@ -1,0 +1,52 @@
+<h1>wp_get_http( string $url, string|bool $file_path = false, int $red = 1 )</h1> <div class="callout callout-warning">
+<p> This function has been deprecated. Use <a href="../classes/wp_http">WP_Http</a>() instead.</p> </div>  <section> <p>Perform a HTTP HEAD or GET request.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>If $file_path is a writable filename, this will do a GET request and write the file to that path.</p> <h3 id="see-also">See also</h3> <ul> <li><a href="../classes/wp_http">WP_Http</a></li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$url</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">URL to fetch.</span> </p> </dd> <dt>$file_path</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>|<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> File path to write request to. </span> </p> <p class="default">Default value: false</p> </dd> <dt>$red</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description"> The number of Redirects followed, Upon 5 being hit, returns false. </span> </p> <p class="default">Default value: 1</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool|string)</span> False on failure and string of headers if HEAD request.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/deprecated.php/">wp-includes/deprecated.php</a> </p> <pre data-language="php">function wp_get_http( $url, $file_path = false, $red = 1 ) {
+	_deprecated_function( __FUNCTION__, '4.4.0', 'WP_Http' );
+
+	@set_time_limit( 60 );
+
+	if ( $red &gt; 5 )
+		return false;
+
+	$options = array();
+	$options['redirection'] = 5;
+
+	if ( false == $file_path )
+		$options['method'] = 'HEAD';
+	else
+		$options['method'] = 'GET';
+
+	$response = wp_safe_remote_request( $url, $options );
+
+	if ( is_wp_error( $response ) )
+		return false;
+
+	$headers = wp_remote_retrieve_headers( $response );
+	$headers['response'] = wp_remote_retrieve_response_code( $response );
+
+	// WP_HTTP no longer follows redirects for HEAD requests.
+	if ( 'HEAD' == $options['method'] &amp;&amp; in_array($headers['response'], array(301, 302)) &amp;&amp; isset( $headers['location'] ) ) {
+		return wp_get_http( $headers['location'], $file_path, ++$red );
+	}
+
+	if ( false == $file_path )
+		return $headers;
+
+	// GET request - write it to the supplied filename.
+	$out_fp = fopen($file_path, 'w');
+	if ( !$out_fp )
+		return $headers;
+
+	fwrite( $out_fp,  wp_remote_retrieve_body( $response ) );
+	fclose($out_fp);
+	clearstatcache();
+
+	return $headers;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/functions.php:</span> <a href="_deprecated_function">_deprecated_function()</a> </td> <td class="related-desc"> <p>Mark a function as deprecated and inform when it has been used.</p> </td> </tr> <tr> <td> <span>wp-includes/deprecated.php:</span> <a href="wp_get_http">wp_get_http()</a> </td> <td class="related-desc"> <p>Perform a HTTP HEAD or GET request.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_safe_remote_request">wp_safe_remote_request()</a> </td> <td class="related-desc"> <p>Retrieve the raw response from a safe HTTP request.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_remote_retrieve_headers">wp_remote_retrieve_headers()</a> </td> <td class="related-desc"> <p>Retrieve only the headers from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_remote_retrieve_response_code">wp_remote_retrieve_response_code()</a> </td> <td class="related-desc"> <p>Retrieve only the response code from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_remote_retrieve_body">wp_remote_retrieve_body()</a> </td> <td class="related-desc"> <p>Retrieve only the body from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/deprecated.php:</span> <a href="wp_get_http">wp_get_http()</a> </td> <td class="related-desc"> <p>Perform a HTTP HEAD or GET request.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.4.0/" alt="WordPress 4.4.0">4.4.0</a></td> <td><span class="since-description">Use <a href="../classes/wp_http">WP_Http</a></span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.5.0/" alt="WordPress 2.5.0">2.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_get_http" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_get_http</a>
+  </p>
+</div>

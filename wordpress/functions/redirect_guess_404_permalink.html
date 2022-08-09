@@ -1,0 +1,101 @@
+<h1>redirect_guess_404_permalink()</h1>  <section> <p>Attempts to guess the correct URL for a 404 request based on query vars.</p> </section> <div class="content-toc">  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string|false)</span> The correct URL if one is found. False on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/canonical.php/">wp-includes/canonical.php</a> </p> <pre data-language="php">function redirect_guess_404_permalink() {
+	global $wpdb;
+
+	/**
+	 * Filters whether to attempt to guess a redirect URL for a 404 request.
+	 *
+	 * Returning a false value from the filter will disable the URL guessing
+	 * and return early without performing a redirect.
+	 *
+	 * @since 5.5.0
+	 *
+	 * @param bool $do_redirect_guess Whether to attempt to guess a redirect URL
+	 *                                for a 404 request. Default true.
+	 */
+	if ( false === apply_filters( 'do_redirect_guess_404_permalink', true ) ) {
+		return false;
+	}
+
+	/**
+	 * Short-circuits the redirect URL guessing for 404 requests.
+	 *
+	 * Returning a non-null value from the filter will effectively short-circuit
+	 * the URL guessing, returning the passed value instead.
+	 *
+	 * @since 5.5.0
+	 *
+	 * @param null|string|false $pre Whether to short-circuit guessing the redirect for a 404.
+	 *                               Default null to continue with the URL guessing.
+	 */
+	$pre = apply_filters( 'pre_redirect_guess_404_permalink', null );
+	if ( null !== $pre ) {
+		return $pre;
+	}
+
+	if ( get_query_var( 'name' ) ) {
+		/**
+		 * Filters whether to perform a strict guess for a 404 redirect.
+		 *
+		 * Returning a truthy value from the filter will redirect only exact post_name matches.
+		 *
+		 * @since 5.5.0
+		 *
+		 * @param bool $strict_guess Whether to perform a strict guess. Default false (loose guess).
+		 */
+		$strict_guess = apply_filters( 'strict_redirect_guess_404_permalink', false );
+
+		if ( $strict_guess ) {
+			$where = $wpdb-&gt;prepare( 'post_name = %s', get_query_var( 'name' ) );
+		} else {
+			$where = $wpdb-&gt;prepare( 'post_name LIKE %s', $wpdb-&gt;esc_like( get_query_var( 'name' ) ) . '%' );
+		}
+
+		// If any of post_type, year, monthnum, or day are set, use them to refine the query.
+		if ( get_query_var( 'post_type' ) ) {
+			if ( is_array( get_query_var( 'post_type' ) ) ) {
+				// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+				$where .= " AND post_type IN ('" . join( "', '", esc_sql( get_query_var( 'post_type' ) ) ) . "')";
+			} else {
+				$where .= $wpdb-&gt;prepare( ' AND post_type = %s', get_query_var( 'post_type' ) );
+			}
+		} else {
+			$where .= " AND post_type IN ('" . implode( "', '", get_post_types( array( 'public' =&gt; true ) ) ) . "')";
+		}
+
+		if ( get_query_var( 'year' ) ) {
+			$where .= $wpdb-&gt;prepare( ' AND YEAR(post_date) = %d', get_query_var( 'year' ) );
+		}
+		if ( get_query_var( 'monthnum' ) ) {
+			$where .= $wpdb-&gt;prepare( ' AND MONTH(post_date) = %d', get_query_var( 'monthnum' ) );
+		}
+		if ( get_query_var( 'day' ) ) {
+			$where .= $wpdb-&gt;prepare( ' AND DAYOFMONTH(post_date) = %d', get_query_var( 'day' ) );
+		}
+
+		$publicly_viewable_statuses = array_filter( get_post_stati(), 'is_post_status_viewable' );
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$post_id = $wpdb-&gt;get_var( "SELECT ID FROM $wpdb-&gt;posts WHERE $where AND post_status IN ('" . implode( "', '", esc_sql( $publicly_viewable_statuses ) ) . "')" );
+
+		if ( ! $post_id ) {
+			return false;
+		}
+
+		if ( get_query_var( 'feed' ) ) {
+			return get_post_comments_feed_link( $post_id, get_query_var( 'feed' ) );
+		} elseif ( get_query_var( 'page' ) &gt; 1 ) {
+			return trailingslashit( get_permalink( $post_id ) ) . user_trailingslashit( get_query_var( 'page' ), 'single_paged' );
+		} else {
+			return get_permalink( $post_id );
+		}
+	}
+
+	return false;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/canonical.php:</span> <a href="../hooks/do_redirect_guess_404_permalink">do_redirect_guess_404_permalink</a> </td> <td class="related-desc"> <p>Filters whether to attempt to guess a redirect URL for a 404 request.</p> </td> </tr> <tr> <td> <span>wp-includes/canonical.php:</span> <a href="../hooks/pre_redirect_guess_404_permalink">pre_redirect_guess_404_permalink</a> </td> <td class="related-desc"> <p>Short-circuits the redirect URL guessing for 404 requests.</p> </td> </tr> <tr> <td> <span>wp-includes/canonical.php:</span> <a href="../hooks/strict_redirect_guess_404_permalink">strict_redirect_guess_404_permalink</a> </td> <td class="related-desc"> <p>Filters whether to perform a strict guess for a 404 redirect.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/esc_like">wpdb::esc_like()</a> </td> <td class="related-desc"> <p>First half of escaping for <code>LIKE</code> special characters <code>%</code> and <code>_</code> before preparing for SQL.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_sql">esc_sql()</a> </td> <td class="related-desc"> <p>Escapes data for use in a MySQL query.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="trailingslashit">trailingslashit()</a> </td> <td class="related-desc"> <p>Appends a trailing slash.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="get_query_var">get_query_var()</a> </td> <td class="related-desc"> <p>Retrieves the value of a query variable in the <a href="../classes/wp_query">WP_Query</a> class.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="get_post_comments_feed_link">get_post_comments_feed_link()</a> </td> <td class="related-desc"> <p>Retrieves the permalink for the post comments feed.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="get_permalink">get_permalink()</a> </td> <td class="related-desc"> <p>Retrieves the full permalink for the current post or post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="user_trailingslashit">user_trailingslashit()</a> </td> <td class="related-desc"> <p>Retrieves a trailing-slashed string if the site is set for adding trailing slashes.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post_types">get_post_types()</a> </td> <td class="related-desc"> <p>Get a list of all registered post type objects.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post_stati">get_post_stati()</a> </td> <td class="related-desc"> <p>Get a list of post statuses.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/get_var">wpdb::get_var()</a> </td> <td class="related-desc"> <p>Retrieves one variable from the database.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/prepare">wpdb::prepare()</a> </td> <td class="related-desc"> <p>Prepares a SQL query for safe execution.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/canonical.php:</span> <a href="redirect_canonical">redirect_canonical()</a> </td> <td class="related-desc"> <p>Redirects incoming links to the proper URL based on the site url.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.3.0/" alt="WordPress 2.3.0">2.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/redirect_guess_404_permalink" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/redirect_guess_404_permalink</a>
+  </p>
+</div>

@@ -1,0 +1,102 @@
+<h1>wp_install( string $blog_title, string $user_name, string $user_email, bool $is_public, string $deprecated = '', string $user_password = '', string $language = '' )</h1>  <section> <p>Installs the site.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Runs the required functions to set up and populate the database, including primary admin user and initial options.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$blog_title</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Site title.</span> </p> </dd> <dt>$user_name</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">User's username.</span> </p> </dd> <dt>$user_email</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">User's email.</span> </p> </dd> <dt>$is_public</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Required)</span> <span class="description">Whether the site is public.</span> </p> </dd> <dt>$deprecated</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> Not used.</span> </p> <p class="default">Default value: ''</p> </dd> <dt>$user_password</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> User's chosen password. Default empty (random password).</span> </p> <p class="default">Default value: ''</p> </dd> <dt>$language</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> Language chosen. </span> </p> <p class="default">Default value: ''</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> Data for the newly installed site. </p>
+<ul class="param-hash">
+<li>
+<b>'url'</b><br><i><span class="type">(string)</span></i> The URL of the site.</li> <li>
+<b>'user_id'</b><br><i><span class="type">(int)</span></i> The ID of the site owner.</li> <li>
+<b>'password'</b><br><i><span class="type">(string)</span></i> The password of the site owner, if their user account didn't already exist.</li> <li>
+<b>'password_message'</b><br><i><span class="type">(string)</span></i> The explanatory message regarding the password.</li> </ul> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/upgrade.php/">wp-admin/includes/upgrade.php</a> </p> <pre data-language="php">function wp_install( $blog_title, $user_name, $user_email, $is_public, $deprecated = '', $user_password = '', $language = '' ) {
+		if ( ! empty( $deprecated ) ) {
+			_deprecated_argument( __FUNCTION__, '2.6.0' );
+		}
+
+		wp_check_mysql_version();
+		wp_cache_flush();
+		make_db_current_silent();
+		populate_options();
+		populate_roles();
+
+		update_option( 'blogname', $blog_title );
+		update_option( 'admin_email', $user_email );
+		update_option( 'blog_public', $is_public );
+
+		// Freshness of site - in the future, this could get more specific about actions taken, perhaps.
+		update_option( 'fresh_site', 1 );
+
+		if ( $language ) {
+			update_option( 'WPLANG', $language );
+		}
+
+		$guessurl = wp_guess_url();
+
+		update_option( 'siteurl', $guessurl );
+
+		// If not a public site, don't ping.
+		if ( ! $is_public ) {
+			update_option( 'default_pingback_flag', 0 );
+		}
+
+		/*
+		 * Create default user. If the user already exists, the user tables are
+		 * being shared among sites. Just set the role in that case.
+		 */
+		$user_id        = username_exists( $user_name );
+		$user_password  = trim( $user_password );
+		$email_password = false;
+		$user_created   = false;
+
+		if ( ! $user_id &amp;&amp; empty( $user_password ) ) {
+			$user_password = wp_generate_password( 12, false );
+			$message       = __( '&lt;strong&gt;&lt;em&gt;Note that password&lt;/em&gt;&lt;/strong&gt; carefully! It is a &lt;em&gt;random&lt;/em&gt; password that was generated just for you.' );
+			$user_id       = wp_create_user( $user_name, $user_password, $user_email );
+			update_user_meta( $user_id, 'default_password_nag', true );
+			$email_password = true;
+			$user_created   = true;
+		} elseif ( ! $user_id ) {
+			// Password has been provided.
+			$message      = '&lt;em&gt;' . __( 'Your chosen password.' ) . '&lt;/em&gt;';
+			$user_id      = wp_create_user( $user_name, $user_password, $user_email );
+			$user_created = true;
+		} else {
+			$message = __( 'User already exists. Password inherited.' );
+		}
+
+		$user = new WP_User( $user_id );
+		$user-&gt;set_role( 'administrator' );
+
+		if ( $user_created ) {
+			$user-&gt;user_url = $guessurl;
+			wp_update_user( $user );
+		}
+
+		wp_install_defaults( $user_id );
+
+		wp_install_maybe_enable_pretty_permalinks();
+
+		flush_rewrite_rules();
+
+		wp_new_blog_notification( $blog_title, $guessurl, $user_id, ( $email_password ? $user_password : __( 'The password you chose during installation.' ) ) );
+
+		wp_cache_flush();
+
+		/**
+		 * Fires after a site is fully installed.
+		 *
+		 * @since 3.9.0
+		 *
+		 * @param WP_User $user The site owner.
+		 */
+		do_action( 'wp_install', $user );
+
+		return array(
+			'url'              =&gt; $guessurl,
+			'user_id'          =&gt; $user_id,
+			'password'         =&gt; $user_password,
+			'password_message' =&gt; $message,
+		);
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/upgrade.php:</span> <a href="wp_install_maybe_enable_pretty_permalinks">wp_install_maybe_enable_pretty_permalinks()</a> </td> <td class="related-desc"> <p>Maybe enable pretty permalinks on installation.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/schema.php:</span> <a href="populate_roles">populate_roles()</a> </td> <td class="related-desc"> <p>Execute WordPress role creation for the various WordPress versions.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/schema.php:</span> <a href="populate_options">populate_options()</a> </td> <td class="related-desc"> <p>Create WordPress options and set the default values.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/upgrade.php:</span> <a href="wp_check_mysql_version">wp_check_mysql_version()</a> </td> <td class="related-desc"> <p>Checks the version of the installed MySQL binary.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/upgrade.php:</span> <a href="make_db_current_silent">make_db_current_silent()</a> </td> <td class="related-desc"> <p>Updates the database tables to a new schema, but without displaying results.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/upgrade.php:</span> <a href="wp_install_defaults">wp_install_defaults()</a> </td> <td class="related-desc"> <p>Creates the initial content for a newly-installed site.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/upgrade.php:</span> <a href="wp_new_blog_notification">wp_new_blog_notification()</a> </td> <td class="related-desc"> <p>Notifies the site admin that the installation of WordPress is complete.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/upgrade.php:</span> <a href="../hooks/wp_install">wp_install</a> </td> <td class="related-desc"> <p>Fires after a site is fully installed.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-user.php:</span> <a href="../classes/wp_user/__construct">WP_User::__construct()</a> </td> <td class="related-desc"> <p>Constructor.</p> </td> </tr> <tr> <td> <span>wp-includes/cache.php:</span> <a href="wp_cache_flush">wp_cache_flush()</a> </td> <td class="related-desc"> <p>Removes all cache items.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_generate_password">wp_generate_password()</a> </td> <td class="related-desc"> <p>Generates a random password drawn from the defined set of characters.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_guess_url">wp_guess_url()</a> </td> <td class="related-desc"> <p>Guess the URL for the site.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="_deprecated_argument">_deprecated_argument()</a> </td> <td class="related-desc"> <p>Mark a function argument as deprecated and inform when it has been used.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="update_option">update_option()</a> </td> <td class="related-desc"> <p>Updates the value of an option that was already added.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="wp_create_user">wp_create_user()</a> </td> <td class="related-desc"> <p>Provides a simpler way of inserting a user into the database.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="wp_update_user">wp_update_user()</a> </td> <td class="related-desc"> <p>Updates a user in the database.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="username_exists">username_exists()</a> </td> <td class="related-desc"> <p>Determines whether the given username exists.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="update_user_meta">update_user_meta()</a> </td> <td class="related-desc"> <p>Updates user meta field based on user ID.</p> </td> </tr> <tr> <td> <span>wp-includes/rewrite.php:</span> <a href="flush_rewrite_rules">flush_rewrite_rules()</a> </td> <td class="related-desc"> <p>Removes rewrite rules and then recreate rewrite rules.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.1.0/" alt="WordPress 2.1.0">2.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_install" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_install</a>
+  </p>
+</div>

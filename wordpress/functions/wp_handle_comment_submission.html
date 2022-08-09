@@ -1,0 +1,213 @@
+<h1>wp_handle_comment_submission( array $comment_data )</h1>  <section> <p>Handles the submission of a comment, usually posted to wp-comments-post.php via a comment form.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>This function expects unslashed data, as opposed to functions such as <code>wp_new_comment()</code> which expect slashed data.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$comment_data</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Comment data. <ul class="param-hash">
+<li>
+<b>'comment_post_ID'</b><br><i><span class="type">(string|int)</span></i> The ID of the post that relates to the comment.</li> <li>
+<b>'author'</b><br><i><span class="type">(string)</span></i> The name of the comment author.</li> <li>
+<b>'email'</b><br><i><span class="type">(string)</span></i> The comment author email address.</li> <li>
+<b>'url'</b><br><i><span class="type">(string)</span></i> The comment author URL.</li> <li>
+<b>'comment'</b><br><i><span class="type">(string)</span></i> The content of the comment.</li> <li>
+<b>'comment_parent'</b><br><i><span class="type">(string|int)</span></i> The ID of this comment's parent, if any. Default 0.</li> <li>
+<b>'_wp_unfiltered_html_comment'</b><br><i><span class="type">(string)</span></i> The nonce value for allowing unfiltered HTML.</li> </ul> </span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../classes/wp_comment">WP_Comment</a>|<a href="../classes/wp_error">WP_Error</a>)</span> A <a href="../classes/wp_comment">WP_Comment</a> object on success, a <a href="../classes/wp_error">WP_Error</a> object on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/comment.php/">wp-includes/comment.php</a> </p> <pre data-language="php">function wp_handle_comment_submission( $comment_data ) {
+
+	$comment_post_ID      = 0;
+	$comment_parent       = 0;
+	$user_ID              = 0;
+	$comment_author       = null;
+	$comment_author_email = null;
+	$comment_author_url   = null;
+	$comment_content      = null;
+
+	if ( isset( $comment_data['comment_post_ID'] ) ) {
+		$comment_post_ID = (int) $comment_data['comment_post_ID'];
+	}
+	if ( isset( $comment_data['author'] ) &amp;&amp; is_string( $comment_data['author'] ) ) {
+		$comment_author = trim( strip_tags( $comment_data['author'] ) );
+	}
+	if ( isset( $comment_data['email'] ) &amp;&amp; is_string( $comment_data['email'] ) ) {
+		$comment_author_email = trim( $comment_data['email'] );
+	}
+	if ( isset( $comment_data['url'] ) &amp;&amp; is_string( $comment_data['url'] ) ) {
+		$comment_author_url = trim( $comment_data['url'] );
+	}
+	if ( isset( $comment_data['comment'] ) &amp;&amp; is_string( $comment_data['comment'] ) ) {
+		$comment_content = trim( $comment_data['comment'] );
+	}
+	if ( isset( $comment_data['comment_parent'] ) ) {
+		$comment_parent = absint( $comment_data['comment_parent'] );
+	}
+
+	$post = get_post( $comment_post_ID );
+
+	if ( empty( $post-&gt;comment_status ) ) {
+
+		/**
+		 * Fires when a comment is attempted on a post that does not exist.
+		 *
+		 * @since 1.5.0
+		 *
+		 * @param int $comment_post_ID Post ID.
+		 */
+		do_action( 'comment_id_not_found', $comment_post_ID );
+
+		return new WP_Error( 'comment_id_not_found' );
+
+	}
+
+	// get_post_status() will get the parent status for attachments.
+	$status = get_post_status( $post );
+
+	if ( ( 'private' === $status ) &amp;&amp; ! current_user_can( 'read_post', $comment_post_ID ) ) {
+		return new WP_Error( 'comment_id_not_found' );
+	}
+
+	$status_obj = get_post_status_object( $status );
+
+	if ( ! comments_open( $comment_post_ID ) ) {
+
+		/**
+		 * Fires when a comment is attempted on a post that has comments closed.
+		 *
+		 * @since 1.5.0
+		 *
+		 * @param int $comment_post_ID Post ID.
+		 */
+		do_action( 'comment_closed', $comment_post_ID );
+
+		return new WP_Error( 'comment_closed', __( 'Sorry, comments are closed for this item.' ), 403 );
+
+	} elseif ( 'trash' === $status ) {
+
+		/**
+		 * Fires when a comment is attempted on a trashed post.
+		 *
+		 * @since 2.9.0
+		 *
+		 * @param int $comment_post_ID Post ID.
+		 */
+		do_action( 'comment_on_trash', $comment_post_ID );
+
+		return new WP_Error( 'comment_on_trash' );
+
+	} elseif ( ! $status_obj-&gt;public &amp;&amp; ! $status_obj-&gt;private ) {
+
+		/**
+		 * Fires when a comment is attempted on a post in draft mode.
+		 *
+		 * @since 1.5.1
+		 *
+		 * @param int $comment_post_ID Post ID.
+		 */
+		do_action( 'comment_on_draft', $comment_post_ID );
+
+		if ( current_user_can( 'read_post', $comment_post_ID ) ) {
+			return new WP_Error( 'comment_on_draft', __( 'Sorry, comments are not allowed for this item.' ), 403 );
+		} else {
+			return new WP_Error( 'comment_on_draft' );
+		}
+	} elseif ( post_password_required( $comment_post_ID ) ) {
+
+		/**
+		 * Fires when a comment is attempted on a password-protected post.
+		 *
+		 * @since 2.9.0
+		 *
+		 * @param int $comment_post_ID Post ID.
+		 */
+		do_action( 'comment_on_password_protected', $comment_post_ID );
+
+		return new WP_Error( 'comment_on_password_protected' );
+
+	} else {
+
+		/**
+		 * Fires before a comment is posted.
+		 *
+		 * @since 2.8.0
+		 *
+		 * @param int $comment_post_ID Post ID.
+		 */
+		do_action( 'pre_comment_on_post', $comment_post_ID );
+
+	}
+
+	// If the user is logged in.
+	$user = wp_get_current_user();
+	if ( $user-&gt;exists() ) {
+		if ( empty( $user-&gt;display_name ) ) {
+			$user-&gt;display_name = $user-&gt;user_login;
+		}
+		$comment_author       = $user-&gt;display_name;
+		$comment_author_email = $user-&gt;user_email;
+		$comment_author_url   = $user-&gt;user_url;
+		$user_ID              = $user-&gt;ID;
+		if ( current_user_can( 'unfiltered_html' ) ) {
+			if ( ! isset( $comment_data['_wp_unfiltered_html_comment'] )
+				|| ! wp_verify_nonce( $comment_data['_wp_unfiltered_html_comment'], 'unfiltered-html-comment_' . $comment_post_ID )
+			) {
+				kses_remove_filters(); // Start with a clean slate.
+				kses_init_filters();   // Set up the filters.
+				remove_filter( 'pre_comment_content', 'wp_filter_post_kses' );
+				add_filter( 'pre_comment_content', 'wp_filter_kses' );
+			}
+		}
+	} else {
+		if ( get_option( 'comment_registration' ) ) {
+			return new WP_Error( 'not_logged_in', __( 'Sorry, you must be logged in to comment.' ), 403 );
+		}
+	}
+
+	$comment_type = 'comment';
+
+	if ( get_option( 'require_name_email' ) &amp;&amp; ! $user-&gt;exists() ) {
+		if ( '' == $comment_author_email || '' == $comment_author ) {
+			return new WP_Error( 'require_name_email', __( '&lt;strong&gt;Error&lt;/strong&gt;: Please fill the required fields.' ), 200 );
+		} elseif ( ! is_email( $comment_author_email ) ) {
+			return new WP_Error( 'require_valid_email', __( '&lt;strong&gt;Error&lt;/strong&gt;: Please enter a valid email address.' ), 200 );
+		}
+	}
+
+	$commentdata = compact(
+		'comment_post_ID',
+		'comment_author',
+		'comment_author_email',
+		'comment_author_url',
+		'comment_content',
+		'comment_type',
+		'comment_parent',
+		'user_ID'
+	);
+
+	/**
+	 * Filters whether an empty comment should be allowed.
+	 *
+	 * @since 5.1.0
+	 *
+	 * @param bool  $allow_empty_comment Whether to allow empty comments. Default false.
+	 * @param array $commentdata         Array of comment data to be sent to wp_insert_comment().
+	 */
+	$allow_empty_comment = apply_filters( 'allow_empty_comment', false, $commentdata );
+	if ( '' === $comment_content &amp;&amp; ! $allow_empty_comment ) {
+		return new WP_Error( 'require_valid_comment', __( '&lt;strong&gt;Error&lt;/strong&gt;: Please type your comment text.' ), 200 );
+	}
+
+	$check_max_lengths = wp_check_comment_data_max_lengths( $commentdata );
+	if ( is_wp_error( $check_max_lengths ) ) {
+		return $check_max_lengths;
+	}
+
+	$comment_id = wp_new_comment( wp_slash( $commentdata ), true );
+	if ( is_wp_error( $comment_id ) ) {
+		return $comment_id;
+	}
+
+	if ( ! $comment_id ) {
+		return new WP_Error( 'comment_save_error', __( '&lt;strong&gt;Error&lt;/strong&gt;: The comment could not be saved. Please try again later.' ), 500 );
+	}
+
+	return get_comment( $comment_id );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/allow_empty_comment">allow_empty_comment</a> </td> <td class="related-desc"> <p>Filters whether an empty comment should be allowed.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="wp_check_comment_data_max_lengths">wp_check_comment_data_max_lengths()</a> </td> <td class="related-desc"> <p>Compares the lengths of comment data against the maximum character limits.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/comment_id_not_found">comment_id_not_found</a> </td> <td class="related-desc"> <p>Fires when a comment is attempted on a post that does not exist.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/comment_closed">comment_closed</a> </td> <td class="related-desc"> <p>Fires when a comment is attempted on a post that has comments closed.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/comment_on_trash">comment_on_trash</a> </td> <td class="related-desc"> <p>Fires when a comment is attempted on a trashed post.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/comment_on_draft">comment_on_draft</a> </td> <td class="related-desc"> <p>Fires when a comment is attempted on a post in draft mode.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/comment_on_password_protected">comment_on_password_protected</a> </td> <td class="related-desc"> <p>Fires when a comment is attempted on a password-protected post.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/pre_comment_on_post">pre_comment_on_post</a> </td> <td class="related-desc"> <p>Fires before a comment is posted.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_slash">wp_slash()</a> </td> <td class="related-desc"> <p>Adds slashes to a string or recursively adds slashes to strings within an array.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="is_email">is_email()</a> </td> <td class="related-desc"> <p>Verifies that an email is valid.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_verify_nonce">wp_verify_nonce()</a> </td> <td class="related-desc"> <p>Verifies that a correct security nonce was used with time limit.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_get_current_user">wp_get_current_user()</a> </td> <td class="related-desc"> <p>Retrieve the current user object.</p> </td> </tr> <tr> <td> <span>wp-includes/kses.php:</span> <a href="kses_remove_filters">kses_remove_filters()</a> </td> <td class="related-desc"> <p>Removes all KSES input form content filters.</p> </td> </tr> <tr> <td> <span>wp-includes/kses.php:</span> <a href="kses_init_filters">kses_init_filters()</a> </td> <td class="related-desc"> <p>Adds all KSES input form content filters.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="absint">absint()</a> </td> <td class="related-desc"> <p>Convert a value to non-negative integer.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="remove_filter">remove_filter()</a> </td> <td class="related-desc"> <p>Removes a callback function from a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="add_filter">add_filter()</a> </td> <td class="related-desc"> <p>Adds a callback function to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/post-template.php:</span> <a href="post_password_required">post_password_required()</a> </td> <td class="related-desc"> <p>Determines whether the post requires password and whether a correct password has been provided.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post_status">get_post_status()</a> </td> <td class="related-desc"> <p>Retrieve the post status based on the post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post_status_object">get_post_status_object()</a> </td> <td class="related-desc"> <p>Retrieve a post status object by name.</p> </td> </tr> <tr> <td> <span>wp-includes/comment-template.php:</span> <a href="comments_open">comments_open()</a> </td> <td class="related-desc"> <p>Determines whether the current post is open for comments.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="wp_new_comment">wp_new_comment()</a> </td> <td class="related-desc"> <p>Adds a new comment to the database.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="get_comment">get_comment()</a> </td> <td class="related-desc"> <p>Retrieves comment data given a comment ID or comment object.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../classes/wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.4.0/" alt="WordPress 4.4.0">4.4.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_handle_comment_submission" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_handle_comment_submission</a>
+  </p>
+</div>

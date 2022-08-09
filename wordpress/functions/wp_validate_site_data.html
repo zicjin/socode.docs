@@ -1,0 +1,58 @@
+<h1>wp_validate_site_data( WP_Error $errors, array $data, WP_Site|null $old_site = null )</h1>  <section> <p>Validates data for a site prior to inserting or updating in the database.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$errors</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Error"><a href="../classes/wp_error">WP_Error</a></span>)</span> <span class="required">(Required)</span> <span class="description">Error object, passed by reference. Will contain validation errors if any occurred.</span> </p> </dd> <dt>$data</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Associative array of complete site data. See <a href="wp_insert_site">wp_insert_site()</a> for the included data.</span> </p> </dd> <dt>$old_site</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Site"><a href="../classes/wp_site">WP_Site</a></span>|<span class="null">null</span>)</span> <span class="required">(Optional)</span> <span class="description">The old site object if the data belongs to a site being updated, or null if it is a new site being inserted.</span> </p> <p class="default">Default value: null</p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/ms-site.php/">wp-includes/ms-site.php</a> </p> <pre data-language="php">function wp_validate_site_data( $errors, $data, $old_site = null ) {
+	// A domain must always be present.
+	if ( empty( $data['domain'] ) ) {
+		$errors-&gt;add( 'site_empty_domain', __( 'Site domain must not be empty.' ) );
+	}
+
+	// A path must always be present.
+	if ( empty( $data['path'] ) ) {
+		$errors-&gt;add( 'site_empty_path', __( 'Site path must not be empty.' ) );
+	}
+
+	// A network ID must always be present.
+	if ( empty( $data['network_id'] ) ) {
+		$errors-&gt;add( 'site_empty_network_id', __( 'Site network ID must be provided.' ) );
+	}
+
+	// Both registration and last updated dates must always be present and valid.
+	$date_fields = array( 'registered', 'last_updated' );
+	foreach ( $date_fields as $date_field ) {
+		if ( empty( $data[ $date_field ] ) ) {
+			$errors-&gt;add( 'site_empty_' . $date_field, __( 'Both registration and last updated dates must be provided.' ) );
+			break;
+		}
+
+		// Allow '0000-00-00 00:00:00', although it be stripped out at this point.
+		if ( '0000-00-00 00:00:00' !== $data[ $date_field ] ) {
+			$month      = substr( $data[ $date_field ], 5, 2 );
+			$day        = substr( $data[ $date_field ], 8, 2 );
+			$year       = substr( $data[ $date_field ], 0, 4 );
+			$valid_date = wp_checkdate( $month, $day, $year, $data[ $date_field ] );
+			if ( ! $valid_date ) {
+				$errors-&gt;add( 'site_invalid_' . $date_field, __( 'Both registration and last updated dates must be valid dates.' ) );
+				break;
+			}
+		}
+	}
+
+	if ( ! empty( $errors-&gt;errors ) ) {
+		return;
+	}
+
+	// If a new site, or domain/path/network ID have changed, ensure uniqueness.
+	if ( ! $old_site
+		|| $data['domain'] !== $old_site-&gt;domain
+		|| $data['path'] !== $old_site-&gt;path
+		|| $data['network_id'] !== $old_site-&gt;network_id
+	) {
+		if ( domain_exists( $data['domain'], $data['path'], $data['network_id'] ) ) {
+			$errors-&gt;add( 'site_taken', __( 'Sorry, that site already exists!' ) );
+		}
+	}
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_checkdate">wp_checkdate()</a> </td> <td class="related-desc"> <p>Test if the supplied date is valid for the Gregorian calendar.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="domain_exists">domain_exists()</a> </td> <td class="related-desc"> <p>Checks whether a site name is already taken.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.1.0/" alt="WordPress 5.1.0">5.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_validate_site_data" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_validate_site_data</a>
+  </p>
+</div>

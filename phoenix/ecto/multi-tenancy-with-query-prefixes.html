@@ -1,5 +1,4 @@
-<h1>Multi tenancy with query prefixes</h1>
-<p>With Ecto we can run queries in different prefixes using a single pool of database connections. For databases engines such as Postgres, Ecto's prefix <a href="https://www.postgresql.org/docs/current/static/ddl-schemas.html">maps to Postgres' DDL schemas</a>. For MySQL, each prefix is a different database on its own.</p>
+<h1>   <span>Multi tenancy with query prefixes</span> </h1> <p>With Ecto we can run queries in different prefixes using a single pool of database connections. For databases engines such as Postgres, Ecto's prefix <a href="https://www.postgresql.org/docs/current/static/ddl-schemas.html">maps to Postgres' DDL schemas</a>. For MySQL, each prefix is a different database on its own.</p>
 <p>Query prefixes may be useful in different scenarios. For example, multi tenant apps running on PostgreSQL would define multiple prefixes, usually one per client, under a single database. The idea is that prefixes will provide data isolation between the different users of the application, guaranteeing either globally or at the data level that queries and commands act on a specific tenants.</p>
 <p>Prefixes may also be useful on high-traffic applications where data is partitioned upfront. For example, a gaming platform may break game data into isolated partitions, each named after a different prefix. A partition for a given player is either chosen at random or calculated based on the player information.</p>
 <p>Given each tenant has its own database structure, multi tenancy with query prefixes is expensive to setup. For example, migrations have to run individually for each prefix. Therefore this approach is useful when there is a limited or a slowly growing number of tenants.</p>
@@ -97,7 +96,7 @@ iex(1)&gt; MyApp.Repo.all MyApp.Sample
     timestamps
   end
 end</pre>
-<p>Now running <code class="inline">MyApp.Repo.all MyApp.Mapping</code> will by default run on the "main" prefix, regardless of the value configured for the connection on the <code class="inline">:after_connect</code> callback. Similar will happen to <code class="inline">insert</code>, <code class="inline">update</code>, and similar operations, the <code class="inline">@schema_prefix</code> is used unless the <code class="inline">:prefix</code> is explicitly changed via <a href="ecto#put_meta/2"><code class="inline">Ecto.put_meta/2</code></a> or by passing the <code class="inline">:prefix</code> option to the repository operation.</p>
+<p>Now running <code class="inline">MyApp.Repo.all MyApp.Mapping</code> will by default run on the "main" prefix, regardless of the value configured for the connection on the <code class="inline">:after_connect</code> callback. However, we may want to override the schema prefix too and Ecto gives us the opportunity to do so, let's see how.</p>
 <h2 id="per-query-and-per-struct-prefixes" class="section-heading">  Per-query and per-struct prefixes </h2> <p>Now, suppose that while still configured to connect to the "connection_prefix" on <code class="inline">:after_connect</code>, we run the following queries:</p>
 <pre data-language="elixir">iex(1)&gt; alias MyApp.Sample
 MyApp.Sample
@@ -128,8 +127,12 @@ iex(13)&gt; [sample] = MyApp.Repo.all(Sample, prefix: "public")
 [%MyApp.Sample{}]
 iex(14)&gt; Ecto.get_meta(sample, :prefix)
 "public"</pre>
-<p>Now we have data inserted in both prefixes.</p>
-<p>Prefixes in queries and structs always cascade. For example, if you run <code class="inline">MyApp.Repo.preload(post, [:comments])</code>, the association will be queried for and loaded in the same prefix as the <code class="inline">post</code> struct. If <code class="inline">post</code> has associations and you call <code class="inline">MyApp.Repo.insert(post)</code> or <code class="inline">MyApp.Repo.update(post)</code>, the associated data will also be inserted/updated in the same prefix as <code class="inline">post</code>. That's by design to facilitate working with groups of data in the same prefix, and especially because <strong>data in different prefixes must be kept isolated</strong>.</p>
+<p>Now we have data inserted in both prefixes. Note how we passed the <code class="inline">:prefix</code> option to <code class="inline">MyApp.Repo.all</code>. Almost all Repo operations accept <code class="inline">:prefix</code> as an option, with one important distinction:</p>
+<ul>
+<li><p>the <code class="inline">:prefix</code> option in query operations (<code class="inline">all/2</code>, <code class="inline">update_all/2</code>, and <code class="inline">delete_all/2</code>) is a fallback. It will only be used when a <code class="inline">@schema_prefix</code> or a query prefix was not previously specified</p></li>
+<li><p>the <code class="inline">:prefix</code> option in schema operations (<code class="inline">insert_all/3</code>, <code class="inline">insert/2</code>, <code class="inline">update/2</code>, etc) will override the <code class="inline">@schema_prefix</code> as well as any prefix in the struct/changeset</p></li>
+</ul>
+<p>This difference in behaviour is by design: we want to allow flexibility when writing queries but we want to enforce struct/changeset operations to always work isolated within a given prefix. In fact, if call <code class="inline">MyApp.Repo.insert(post)</code> or <code class="inline">MyApp.Repo.update(post)</code>, and the post includes associations, the associated data will also be inserted/updated in the same prefix as <code class="inline">post</code>.</p>
 <h2 id="per-from-join-prefixes" class="section-heading">  Per from/join prefixes </h2> <p>Finally, Ecto allows you to set the prefix individually for each <code class="inline">from</code> and <code class="inline">join</code> expression. Here's an example:</p>
 <pre data-language="elixir">from p in Post, prefix: "foo",
   join: c in Comment, prefix: "bar"</pre>
@@ -137,7 +140,7 @@ iex(14)&gt; Ecto.get_meta(sample, :prefix)
 <ol>
 <li>If the prefix option is given exclusively to join/from</li>
 <li>If the <code class="inline">@schema_prefix</code> is set in the related schema</li>
-<li>If the <code class="inline">:prefix</code> field given to the repo operation (i.e. <code class="inline">Repo.all query, prefix: prefix</code>)</li>
+<li>If the <code class="inline">:prefix</code> field given to the repo operation (i.e. <code class="inline">Repo.all(query, prefix: prefix)</code>)</li>
 <li>The connection prefix</li>
 </ol>
 <h2 id="migration-prefixes" class="section-heading">  Migration prefixes </h2> <p>When the connection prefix is set, it also changes the prefix migrations run on. However it is also possible to set the prefix through the command line or per table in the migration itself.</p>
@@ -167,10 +170,17 @@ $ mix ecto.migrate --prefix "prefix_128"
     end
   end
 end</pre>
-<h2 id="summing-up" class="section-heading">  Summing up </h2> <p>Ecto provides many conveniences for working with querying prefixes. Those conveniences allow developers to configure prefixes with different precedence, starting with the highest one:</p>
+<h2 id="summing-up" class="section-heading">  Summing up </h2> <p>Ecto provides many conveniences for working with querying prefixes. Those conveniences allow developers to configure prefixes with different precedence, starting with the highest one. When executing queries with <code class="inline">all</code>, <code class="inline">update_all</code> or <code class="inline">delete_all</code>, the prefix is computed as follows:</p>
 <ol>
 <li>from/join prefixes</li>
-<li>query/struct prefixes</li>
+<li>schema prefixes</li>
+<li>the <code class="inline">:prefix</code> option</li>
+<li>connection prefixes</li>
+</ol>
+<p>When working with schemas and changesets in <code class="inline">insert_all</code>, <code class="inline">insert</code>, <code class="inline">update</code>, and so forth, the precedence is:</p>
+<ol>
+<li>the <code class="inline">:prefix</code> option</li>
+<li>changeset prefixes</li>
 <li>schema prefixes</li>
 <li>connection prefixes</li>
 </ol>

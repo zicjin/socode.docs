@@ -1,0 +1,96 @@
+<h1>Custom_Image_Header::step_3()</h1>  <section> <p>Display third step of custom header image page.</p> </section> <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-custom-image-header.php/">wp-admin/includes/class-custom-image-header.php</a> </p> <pre data-language="php">public function step_3() {
+		check_admin_referer( 'custom-header-crop-image' );
+
+		if ( ! current_theme_supports( 'custom-header', 'uploads' ) ) {
+			wp_die(
+				'&lt;h1&gt;' . __( 'Something went wrong.' ) . '&lt;/h1&gt;' .
+				'&lt;p&gt;' . __( 'The active theme does not support uploading a custom header image.' ) . '&lt;/p&gt;',
+				403
+			);
+		}
+
+		if ( ! empty( $_POST['skip-cropping'] )
+			&amp;&amp; ! current_theme_supports( 'custom-header', 'flex-height' )
+			&amp;&amp; ! current_theme_supports( 'custom-header', 'flex-width' )
+		) {
+			wp_die(
+				'&lt;h1&gt;' . __( 'Something went wrong.' ) . '&lt;/h1&gt;' .
+				'&lt;p&gt;' . __( 'The active theme does not support a flexible sized header image.' ) . '&lt;/p&gt;',
+				403
+			);
+		}
+
+		if ( $_POST['oitar'] &gt; 1 ) {
+			$_POST['x1']     = $_POST['x1'] * $_POST['oitar'];
+			$_POST['y1']     = $_POST['y1'] * $_POST['oitar'];
+			$_POST['width']  = $_POST['width'] * $_POST['oitar'];
+			$_POST['height'] = $_POST['height'] * $_POST['oitar'];
+		}
+
+		$attachment_id = absint( $_POST['attachment_id'] );
+		$original      = get_attached_file( $attachment_id );
+
+		$dimensions = $this-&gt;get_header_dimensions(
+			array(
+				'height' =&gt; $_POST['height'],
+				'width'  =&gt; $_POST['width'],
+			)
+		);
+		$height     = $dimensions['dst_height'];
+		$width      = $dimensions['dst_width'];
+
+		if ( empty( $_POST['skip-cropping'] ) ) {
+			$cropped = wp_crop_image(
+				$attachment_id,
+				(int) $_POST['x1'],
+				(int) $_POST['y1'],
+				(int) $_POST['width'],
+				(int) $_POST['height'],
+				$width,
+				$height
+			);
+		} elseif ( ! empty( $_POST['create-new-attachment'] ) ) {
+			$cropped = _copy_image_file( $attachment_id );
+		} else {
+			$cropped = get_attached_file( $attachment_id );
+		}
+
+		if ( ! $cropped || is_wp_error( $cropped ) ) {
+			wp_die( __( 'Image could not be processed. Please go back and try again.' ), __( 'Image Processing Error' ) );
+		}
+
+		/** This filter is documented in wp-admin/includes/class-custom-image-header.php */
+		$cropped = apply_filters( 'wp_create_file_in_uploads', $cropped, $attachment_id ); // For replication.
+
+		$attachment = $this-&gt;create_attachment_object( $cropped, $attachment_id );
+
+		if ( ! empty( $_POST['create-new-attachment'] ) ) {
+			unset( $attachment['ID'] );
+		}
+
+		// Update the attachment.
+		$attachment_id = $this-&gt;insert_attachment( $attachment, $cropped );
+
+		$url = wp_get_attachment_url( $attachment_id );
+		$this-&gt;set_header_image( compact( 'url', 'attachment_id', 'width', 'height' ) );
+
+		// Cleanup.
+		$medium = str_replace( wp_basename( $original ), 'midsize-' . wp_basename( $original ), $original );
+		if ( file_exists( $medium ) ) {
+			wp_delete_file( $medium );
+		}
+
+		if ( empty( $_POST['create-new-attachment'] ) &amp;&amp; empty( $_POST['skip-cropping'] ) ) {
+			wp_delete_file( $original );
+		}
+
+		return $this-&gt;finished();
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_delete_file">wp_delete_file()</a> </td> <td class="related-desc"> <p>Delete a file</p> </td> </tr> <tr> <td> <span>wp-admin/includes/image.php:</span> <a href="../../functions/_copy_image_file">_copy_image_file()</a> </td> <td class="related-desc"> <p>Copy an existing image file.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/image.php:</span> <a href="../../functions/wp_crop_image">wp_crop_image()</a> </td> <td class="related-desc"> <p>Crops an image to a given size.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="get_header_dimensions">Custom_Image_Header::get_header_dimensions()</a> </td> <td class="related-desc"> <p>Calculate width and height based on what the currently selected theme supports.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="create_attachment_object">Custom_Image_Header::create_attachment_object()</a> </td> <td class="related-desc"> <p>Create an attachment ‘object’.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="insert_attachment">Custom_Image_Header::insert_attachment()</a> </td> <td class="related-desc"> <p>Insert an attachment and its metadata.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="set_header_image">Custom_Image_Header::set_header_image()</a> </td> <td class="related-desc"> <p>Choose a header image, selected from existing uploaded and default headers, or provide an array of uploaded header data (either new, or from media library).</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="finished">Custom_Image_Header::finished()</a> </td> <td class="related-desc"> <p>Display last step of custom header image page.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="../../hooks/wp_create_file_in_uploads">wp_create_file_in_uploads</a> </td> <td class="related-desc"> <p>Fires after the header image is set or an error is returned.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="../../functions/current_theme_supports">current_theme_supports()</a> </td> <td class="related-desc"> <p>Checks a theme’s support for a given feature.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/wp_basename">wp_basename()</a> </td> <td class="related-desc"> <p>i18n-friendly version of basename().</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../../functions/check_admin_referer">check_admin_referer()</a> </td> <td class="related-desc"> <p>Ensures intent by verifying that a user was referred from another admin page with the correct security nonce.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/absint">absint()</a> </td> <td class="related-desc"> <p>Convert a value to non-negative integer.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_die">wp_die()</a> </td> <td class="related-desc"> <p>Kills WordPress execution and displays HTML page with an error message.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/wp_get_attachment_url">wp_get_attachment_url()</a> </td> <td class="related-desc"> <p>Retrieve the URL for an attachment.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/get_attached_file">get_attached_file()</a> </td> <td class="related-desc"> <p>Retrieve attached file path based on attachment ID.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="admin_page">Custom_Image_Header::admin_page()</a> </td> <td class="related-desc"> <p>Display the page based on the current step.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.4.0/" alt="WordPress 4.4.0">4.4.0</a></td> <td><span class="since-description">Switched to using <a href="../../functions/wp_get_attachment_url">wp_get_attachment_url()</a> instead of the guid for retrieving the header image URL.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.1.0/" alt="WordPress 2.1.0">2.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/custom_image_header/step_3" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/custom_image_header/step_3</a>
+  </p>
+</div>

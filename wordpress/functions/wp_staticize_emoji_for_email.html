@@ -1,0 +1,64 @@
+<h1>wp_staticize_emoji_for_email( array $mail )</h1>  <section> <p>Converts emoji in emails into static images.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$mail</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">The email data array.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> The email data array, with emoji in the message staticized.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/formatting.php/">wp-includes/formatting.php</a> </p> <pre data-language="php">function wp_staticize_emoji_for_email( $mail ) {
+	if ( ! isset( $mail['message'] ) ) {
+		return $mail;
+	}
+
+	/*
+	 * We can only transform the emoji into images if it's a `text/html` email.
+	 * To do that, here's a cut down version of the same process that happens
+	 * in wp_mail() - get the `Content-Type` from the headers, if there is one,
+	 * then pass it through the {@see 'wp_mail_content_type'} filter, in case
+	 * a plugin is handling changing the `Content-Type`.
+	 */
+	$headers = array();
+	if ( isset( $mail['headers'] ) ) {
+		if ( is_array( $mail['headers'] ) ) {
+			$headers = $mail['headers'];
+		} else {
+			$headers = explode( "\n", str_replace( "\r\n", "\n", $mail['headers'] ) );
+		}
+	}
+
+	foreach ( $headers as $header ) {
+		if ( strpos( $header, ':' ) === false ) {
+			continue;
+		}
+
+		// Explode them out.
+		list( $name, $content ) = explode( ':', trim( $header ), 2 );
+
+		// Cleanup crew.
+		$name    = trim( $name );
+		$content = trim( $content );
+
+		if ( 'content-type' === strtolower( $name ) ) {
+			if ( strpos( $content, ';' ) !== false ) {
+				list( $type, $charset ) = explode( ';', $content );
+				$content_type           = trim( $type );
+			} else {
+				$content_type = trim( $content );
+			}
+			break;
+		}
+	}
+
+	// Set Content-Type if we don't have a content-type from the input headers.
+	if ( ! isset( $content_type ) ) {
+		$content_type = 'text/plain';
+	}
+
+	/** This filter is documented in wp-includes/pluggable.php */
+	$content_type = apply_filters( 'wp_mail_content_type', $content_type );
+
+	if ( 'text/html' === $content_type ) {
+		$mail['message'] = wp_staticize_emoji( $mail['message'] );
+	}
+
+	return $mail;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_staticize_emoji">wp_staticize_emoji()</a> </td> <td class="related-desc"> <p>Converts emoji to a static img element.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../hooks/wp_mail_content_type">wp_mail_content_type</a> </td> <td class="related-desc"> <p>Filters the <a href="wp_mail">wp_mail()</a> content type.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.2.0/" alt="WordPress 4.2.0">4.2.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_staticize_emoji_for_email" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_staticize_emoji_for_email</a>
+  </p>
+</div>

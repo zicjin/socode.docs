@@ -1,0 +1,46 @@
+<h1>taxonomy_meta_box_sanitize_cb_input( string $taxonomy, array|string $terms )</h1>  <section> <p>Sanitizes POST values from an input taxonomy metabox.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$taxonomy</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The taxonomy name.</span> </p> </dd> <dt>$terms</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>|<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Raw term data from the 'tax_input' field.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/post.php/">wp-admin/includes/post.php</a> </p> <pre data-language="php">function taxonomy_meta_box_sanitize_cb_input( $taxonomy, $terms ) {
+	/*
+	 * Assume that a 'tax_input' string is a comma-separated list of term names.
+	 * Some languages may use a character other than a comma as a delimiter, so we standardize on
+	 * commas before parsing the list.
+	 */
+	if ( ! is_array( $terms ) ) {
+		$comma = _x( ',', 'tag delimiter' );
+		if ( ',' !== $comma ) {
+			$terms = str_replace( $comma, ',', $terms );
+		}
+		$terms = explode( ',', trim( $terms, " \n\t\r\0\x0B," ) );
+	}
+
+	$clean_terms = array();
+	foreach ( $terms as $term ) {
+		// Empty terms are invalid input.
+		if ( empty( $term ) ) {
+			continue;
+		}
+
+		$_term = get_terms(
+			array(
+				'taxonomy'   =&gt; $taxonomy,
+				'name'       =&gt; $term,
+				'fields'     =&gt; 'ids',
+				'hide_empty' =&gt; false,
+			)
+		);
+
+		if ( ! empty( $_term ) ) {
+			$clean_terms[] = (int) $_term[0];
+		} else {
+			// No existing term was found, so pass the string. A new term will be created.
+			$clean_terms[] = $term;
+		}
+	}
+
+	return $clean_terms;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="_x">_x()</a> </td> <td class="related-desc"> <p>Retrieve translated string with gettext context.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="get_terms">get_terms()</a> </td> <td class="related-desc"> <p>Retrieves the terms in a given taxonomy or list of taxonomies.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.1.0/" alt="WordPress 5.1.0">5.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/taxonomy_meta_box_sanitize_cb_input" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/taxonomy_meta_box_sanitize_cb_input</a>
+  </p>
+</div>

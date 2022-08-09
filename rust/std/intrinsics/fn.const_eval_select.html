@@ -1,8 +1,25 @@
-<h1 class="fqn">Function std::intrinsics::const_eval_select</h1>
-<pre class="rust fn" data-language="rust">pub unsafe fn const_eval_select&lt;ARG, F, G, RET&gt;(    arg: ARG,     _called_in_const: F,     called_at_rt: G) -&gt; RET where    F: FnOnce&lt;ARG, Output = RET&gt;,    G: FnOnce&lt;ARG, Output = RET&gt; + Drop, </pre>
-<div class="item-info"><div class="stab unstable">
-<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>const_eval_select</code>)</div></div>
-<p>Selects which function to call depending on the context.</p> <p>If this function is evaluated at compile-time, then a call to this intrinsic will be replaced with a call to <code>called_in_const</code>. It gets replaced with a call to <code>called_at_rt</code> otherwise.</p> <h3 id="type-requirements" class="section-header">Type Requirements</h3> <p>The two functions must be both function items. They cannot be function pointers or closures.</p> <p><code>arg</code> will be the arguments that will be passed to either one of the two functions, therefore, both functions must accept the same type of arguments. Both functions must return RET.</p> <h3 id="safety" class="section-header">Safety</h3> <p>This intrinsic allows breaking <a href="https://en.wikipedia.org/wiki/Referential_transparency">referential transparency</a> in <code>const fn</code> and is therefore <code>unsafe</code>.</p> <p>Code that uses this intrinsic must be extremely careful to ensure that <code>const fn</code>s remain referentially-transparent independently of when they are evaluated.</p> <p>The Rust compiler assumes that it is sound to replace a call to a <code>const fn</code> with the result produced by evaluating it at compile-time. If evaluating the function at run-time were to produce a different result, or have any other observable side-effects, the behavior is undefined.</p><div class="_attribution">
+<h1 class="main-heading">Function std::intrinsics::const_eval_select</h1>
+<pre class="rust fn" data-language="rust">pub unsafe fn const_eval_select&lt;ARG, F, G, RET&gt;(    arg: ARG,     _called_in_const: F,     called_at_rt: G) -&gt; RET where    F: FnOnce&lt;ARG, Output = RET&gt;,    G: FnOnce&lt;ARG, Output = RET&gt;, </pre>
+<span class="item-info"><div class="stab unstable">
+<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>const_eval_select</code>)</div></span><p>Selects which function to call depending on the context.</p> <p>If this function is evaluated at compile-time, then a call to this intrinsic will be replaced with a call to <code>called_in_const</code>. It gets replaced with a call to <code>called_at_rt</code> otherwise.</p> <h2 id="type-requirements">Type Requirements</h2> <p>The two functions must be both function items. They cannot be function pointers or closures.</p> <p><code>arg</code> will be the arguments that will be passed to either one of the two functions, therefore, both functions must accept the same type of arguments. Both functions must return RET.</p> <h2 id="safety">Safety</h2> <p>The two functions must behave observably equivalent. Safe code in other crates may assume that calling a <code>const fn</code> at compile-time and at run-time produces the same result. A function that produces a different result when evaluated at run-time, or has any other observable side-effects, is <em>unsound</em>.</p> <p>Here is an example of how this could cause a problem:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">#![feature(const_eval_select)]
+use std::hint::unreachable_unchecked;
+use std::intrinsics::const_eval_select;
+
+// Crate A
+pub const fn inconsistent() -&gt; i32 {
+    fn runtime() -&gt; i32 { 1 }
+    const fn compiletime() -&gt; i32 { 2 }
+
+    unsafe {
+        // and `runtime`.
+        const_eval_select((), compiletime, runtime)
+    }
+}
+
+// Crate B
+const X: i32 = inconsistent();
+let x = inconsistent();
+if x != X { unsafe { unreachable_unchecked(); }}</pre></div> <p>This code causes Undefined Behavior when being run, since the <code>unreachable_unchecked</code> is actually being reached. The bug is in <em>crate A</em>, which violates the principle that a <code>const fn</code> must behave the same at compile-time and at run-time. The unsafe code in crate B is fine.</p><div class="_attribution">
   <p class="_attribution-p">
     <a href="https://doc.rust-lang.org/std/intrinsics/fn.const_eval_select.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/std/intrinsics/fn.const_eval_select.html</a>
   </p>

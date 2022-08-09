@@ -1,0 +1,47 @@
+<h1>get_file_data( string $file, array $default_headers, string $context = '' )</h1>  <section> <p>Retrieve metadata from a file.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Searches for metadata in the first 8 KB of a file, such as a plugin or theme. Each piece of metadata must be on its own line. Fields can not span multiple lines, the value will get cut at the end of the first line.</p> <p>If the file data is not within that first 8 KB, then the author should correct their plugin file and move the data headers to the top.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$file</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Absolute path to the file.</span> </p> </dd> <dt>$default_headers</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">List of headers, in the format <code>array( 'HeaderKey' =&gt; 'Header Name' )</code>.</span> </p> </dd> <dt>$context</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> If specified adds filter hook <a href="../hooks/extra_context_headers">'extra_$context_headers'</a>. </span> </p> <p class="default">Default value: ''</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string[])</span> Array of file header values keyed by header name.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/functions.php/">wp-includes/functions.php</a> </p> <pre data-language="php">function get_file_data( $file, $default_headers, $context = '' ) {
+	// Pull only the first 8 KB of the file in.
+	$file_data = file_get_contents( $file, false, null, 0, 8 * KB_IN_BYTES );
+
+	if ( false === $file_data ) {
+		$file_data = '';
+	}
+
+	// Make sure we catch CR-only line endings.
+	$file_data = str_replace( "\r", "\n", $file_data );
+
+	/**
+	 * Filters extra file headers by context.
+	 *
+	 * The dynamic portion of the hook name, `$context`, refers to
+	 * the context where extra headers might be loaded.
+	 *
+	 * @since 2.9.0
+	 *
+	 * @param array $extra_context_headers Empty array by default.
+	 */
+	$extra_headers = $context ? apply_filters( "extra_{$context}_headers", array() ) : array();
+	if ( $extra_headers ) {
+		$extra_headers = array_combine( $extra_headers, $extra_headers ); // Keys equal values.
+		$all_headers   = array_merge( $extra_headers, (array) $default_headers );
+	} else {
+		$all_headers = $default_headers;
+	}
+
+	foreach ( $all_headers as $field =&gt; $regex ) {
+		if ( preg_match( '/^(?:[ \t]*&lt;\?php)?[ \t\/*#@]*' . preg_quote( $regex, '/' ) . ':(.*)$/mi', $file_data, $match ) &amp;&amp; $match[1] ) {
+			$all_headers[ $field ] = _cleanup_header_comment( $match[1] );
+		} else {
+			$all_headers[ $field ] = '';
+		}
+	}
+
+	return $all_headers;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/functions.php:</span> <a href="_cleanup_header_comment">_cleanup_header_comment()</a> </td> <td class="related-desc"> <p>Strip close comment and close php tags from file headers used by WP.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../hooks/extra_context_headers">extra_{$context}_headers</a> </td> <td class="related-desc"> <p>Filters extra file headers by context.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/block-patterns.php:</span> <a href="_register_theme_block_patterns">_register_theme_block_patterns()</a> </td> <td class="related-desc"> <p>Register any patterns that the active theme may provide under its <code>./patterns/</code> directory. Each pattern is defined as a PHP file and defines its metadata using plugin-style headers. The minimum required definition is:</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-theme-upgrader.php:</span> <a href="../classes/theme_upgrader/check_package">Theme_Upgrader::check_package()</a> </td> <td class="related-desc"> <p>Checks that the package source contains a valid theme.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/plugin.php:</span> <a href="get_plugin_data">get_plugin_data()</a> </td> <td class="related-desc"> <p>Parses the plugin contents to retrieve plugin’s metadata.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="wp_get_pomo_file_data">wp_get_pomo_file_data()</a> </td> <td class="related-desc"> <p>Extract headers from a PO file.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-theme.php:</span> <a href="../classes/wp_theme/__construct">WP_Theme::__construct()</a> </td> <td class="related-desc"> <p>Constructor for <a href="../classes/wp_theme">WP_Theme</a>.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.9.0/" alt="WordPress 2.9.0">2.9.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/get_file_data" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/get_file_data</a>
+  </p>
+</div>

@@ -1,0 +1,271 @@
+<h1 data-toc="compatibility-guide-17" id="compatibility-guide-17.md">Compatibility guide for Kotlin 1.7</h1>
+<p id="81372ceb"><em id="45c889f5" class=""><a href="kotlin-evolution" id="758a26e0">Keeping the Language Modern</a></em> and <em id="aa60bfb9" class=""><a href="kotlin-evolution" id="e94c570f">Comfortable Updates</a></em> are among the fundamental principles in Kotlin Language Design. The former says that constructs which obstruct language evolution should be removed, and the latter says that this removal should be well-communicated beforehand to make code migration as smooth as possible.</p>
+<p id="b775eb91">While most of the language changes were already announced through other channels, like update changelogs or compiler warnings, this document summarizes them all, providing a complete reference for migration from Kotlin 1.6 to Kotlin 1.7.</p>
+<section class="chapter"><h2 id="basic-terms" data-toc="compatibility-guide-17#basic-terms">Basic terms</h2>
+<p id="55bfb77">In this document we introduce several kinds of compatibility:</p>
+<ul class="list _ul" id="14d9bb61">
+<li class="list__item" id="98e68ae9"><p><em id="84ae729b" class="">source</em>: source-incompatible change stops code that used to compile fine (without errors or warnings) from compiling anymore</p></li>
+<li class="list__item" id="c7465246"><p><em id="77d89eb0" class="">binary</em>: two binary artifacts are said to be binary-compatible if interchanging them doesn't lead to loading or linkage errors</p></li>
+<li class="list__item" id="3f53881e"><p><em id="b01c166" class="">behavioral</em>: a change is said to be behavioral-incompatible if the same program demonstrates different behavior before and after applying the change</p></li>
+</ul>
+<p id="9812ac0a">Remember that those definitions are given only for pure Kotlin. Compatibility of Kotlin code from the other languages perspective (for example, from Java) is out of the scope of this document.</p></section><section class="chapter"><h2 id="language" data-toc="compatibility-guide-17#language">Language</h2>
+<section class="chapter"><h3 id="make-safe-call-result-always-nullable" data-toc="compatibility-guide-17#make-safe-call-result-always-nullable">Make safe call result always nullable</h3>
+<aside data-type="tip" class="prompt" data-title="" id="ff504eb"><p id="fc6e1aaf"><b id="82ee7290" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-46860" id="77efc910" data-external="true" rel="noopener noreferrer">KT-46860</a></p>
+<p id="69b71525"><b id="e9e87a06" class="">Component</b>: Core language</p>
+<p id="bb5600b6"><b id="195a9cb6" class="">Incompatible change type</b>: source</p>
+<p id="c399917c"><b id="d4ce31dd" class="">Short summary</b>: Kotlin 1.7 will consider the type of safe call result always nullable, even when the receiver of the safe call is non-nullable</p>
+<p id="54360b60"><b id="2585521b" class="">Deprecation cycle</b>:</p>
+<ul class="list _ul" id="31c06c5">
+<li class="list__item" id="4ee24c0b"><p>&lt;1.3: report a warning on an unnecessary safe call on non-nullable receivers</p></li>
+<li class="list__item" id="239713eb"><p>1.6.20: warn additionally that the result of an unnecessary safe call will change its type in the next version</p></li>
+<li class="list__item" id="bd72ddcb"><p>1.7.0: change the type of safe call result to nullable,<br><code class="code ">-XXLanguage:-SafeCallsAreAlwaysNullable</code> can be used to temporarily revert to the pre-1.7 behavior</p></li>
+</ul></aside></section><section class="chapter"><h3 id="prohibit-the-delegation-of-super-calls-to-an-abstract-superclass-member" data-toc="compatibility-guide-17#prohibit-the-delegation-of-super-calls-to-an-abstract-superclass-member">Prohibit the delegation of super calls to an abstract superclass member</h3>
+<aside data-type="tip" class="prompt" data-title="" id="e4e379af"><p id="db140d83"><b id="d8c15c1c" class="">Issues</b>: <a href="https://youtrack.jetbrains.com/issue/KT-45508" id="92fccf14" data-external="true" rel="noopener noreferrer">KT-45508</a>, <a href="https://youtrack.jetbrains.com/issue/KT-49017" id="6f0612bc" data-external="true" rel="noopener noreferrer">KT-49017</a>, <a href="https://youtrack.jetbrains.com/issue/KT-38078" id="b77044d0" data-external="true" rel="noopener noreferrer">KT-38078</a></p>
+<p id="b1c3573"><b id="cbbf4934" class="">Component</b>: Core language</p>
+<p id="920d1bc6"><b id="598adff5" class="">Incompatible change type</b>: source</p>
+<p id="643e9734"><b id="f42e86fb" class="">Short summary</b>: Kotlin will report a compile error when an explicit or implicit super call is delegated to an <em id="eff7b35d" class="">abstract</em> member of the superclass, even if there's a default implementation in a super interface</p>
+<p id="2e816111"><b id="a7a12c8c" class="">Deprecation cycle</b>:</p>
+<ul class="list _ul" id="7117942f">
+<li class="list__item" id="fc035460"><p>1.5.20: introduce a warning when non-abstract classes that do not override all abstract members are used</p></li>
+<li class="list__item" id="d47ccb81"><p>1.7.0: report an error if a super call, in fact, accesses an abstract member from a superclass</p></li>
+<li class="list__item" id="31a395a9"><p>1.7.0: report an error if the <code class="code ">-Xjvm-default=all</code> or <code class="code ">-Xjvm-default=all-compatibility</code> compatibility modes are enabled; report an error in the progressive mode</p></li>
+<li class="list__item" id="56d2d182"><p>&gt;=1.8.0: report an error in all cases</p></li>
+</ul></aside></section><section class="chapter"><h3 id="prohibit-exposing-non-public-types-through-public-properties-declared-in-a-non-public-primary-constructor" data-toc="compatibility-guide-17#prohibit-exposing-non-public-types-through-public-properties-declared-in-a-non-public-primary-constructor">Prohibit exposing non-public types through public properties declared in a non-public primary constructor</h3>
+<aside data-type="tip" class="prompt" data-title="" id="abde2e91"><p id="5ffda15d"><b id="2719252f" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-28078" id="9059b81b" data-external="true" rel="noopener noreferrer">KT-28078</a></p>
+<p id="17c8ef2f"><b id="269eaf59" class="">Component</b>: Core language</p>
+<p id="f0942bda"><b id="fbbc1539" class="">Incompatible change type</b>: source</p>
+<p id="4067b8af"><b id="a1176e10" class="">Short summary</b>: Kotlin will prevent declaring public properties having non-public types in a private primary constructor. Accessing such properties from another package could lead to an <code class="code ">IllegalAccessError</code></p>
+<p id="6c7cc1b"><b id="8ddda40a" class="">Deprecation cycle</b>:</p>
+<ul class="list _ul" id="c50ff797">
+<li class="list__item" id="930400a0"><p>1.3.20: report a warning on a public property that has a non-public type and is declared in a non-public constructor</p></li>
+<li class="list__item" id="c785ebf0"><p>1.6.20: raise this warning to an error in the progressive mode</p></li>
+<li class="list__item" id="9ce25e4"><p>1.7.0: raise this warning to an error</p></li>
+</ul></aside></section><section class="chapter"><h3 id="prohibit-access-to-uninitialized-enum-entries-qualified-with-the-enum-name" data-toc="compatibility-guide-17#prohibit-access-to-uninitialized-enum-entries-qualified-with-the-enum-name">Prohibit access to uninitialized enum entries qualified with the enum name</h3>
+<aside data-type="tip" class="prompt" data-title="" id="a804e2e1"><p id="ebb7fff1"><b id="5e9f54bd" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-41124" id="6a8c1b95" data-external="true" rel="noopener noreferrer">KT-41124</a></p>
+<p id="ee7fcd3f"><b id="88b6607" class="">Component</b>: Core language</p>
+<p id="2c6c4684"><b id="d2841584" class="">Incompatible change type</b>: source</p>
+<p id="28907829"><b id="9378f68a" class="">Short summary</b>: Kotlin 1.7 will prohibit access to uninitialized enum entries from the enum static initializer block when these entries are qualified with the enum name</p>
+<p id="734b3ea2"><b id="ca5072bc" class="">Deprecation cycle</b>:</p>
+<ul class="list _ul" id="21937f3e"><li class="list__item" id="c6cf81c6"><p>1.7.0: report an error when uninitialized enum entries are accessed from the enum static initializer block</p></li></ul></aside></section><section class="chapter"><h3 id="prohibit-computing-constant-values-of-complex-boolean-expressions-in-when-condition-branches-and-conditions-of-loops" data-toc="compatibility-guide-17#prohibit-computing-constant-values-of-complex-boolean-expressions-in-when-condition-branches-and-conditions-of-loops">Prohibit computing constant values of complex boolean expressions in when condition branches and conditions of loops</h3>
+<aside data-type="tip" class="prompt" data-title="" id="e4bdc778"><p id="dbbb21b8"><b id="e9fea89" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-39883" id="71f243a1" data-external="true" rel="noopener noreferrer">KT-39883</a></p>
+<p id="9d901e4e"><b id="33da1a81" class="">Component</b>: Core language</p>
+<p id="cc52105"><b id="6b4bbdc9" class="">Incompatible change type</b>: source</p>
+<p id="1a3ad373"><b id="3fb0e5fa" class="">Short summary</b>: Kotlin will no longer make exhaustiveness and control flow assumptions based on constant boolean expressions other than literal <code class="code ">true</code> and <code class="code ">false</code></p>
+<p id="edfbc8a8"><b id="5292c67a" class="">Deprecation cycle</b>:</p>
+<ul class="list _ul" id="121e1709">
+<li class="list__item" id="f1fa9aad"><p>1.5.30: report a warning when exhaustiveness of <code class="code ">when</code> or control flow reachability is determined based on a complex constant boolean expression in <code class="code ">when</code> branch or loop condition</p></li>
+<li class="list__item" id="b21e595e"><p>1.7.0: raise this warning to an error</p></li>
+</ul></aside></section><section class="chapter"><h3 id="make-when-statements-with-enum-sealed-and-boolean-subjects-exhaustive-by-default" data-toc="compatibility-guide-17#make-when-statements-with-enum-sealed-and-boolean-subjects-exhaustive-by-default">Make when statements with enum, sealed, and Boolean subjects exhaustive by default</h3>
+<aside data-type="tip" class="prompt" data-title="" id="6ea99714"><p id="8f7f7b7c"><b id="c8a4ab51" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-47709" id="ee06b344" data-external="true" rel="noopener noreferrer">KT-47709</a></p>
+<p id="88565245"><b id="d393cc6" class="">Component</b>: Core language</p>
+<p id="fb623e"><b id="2805ce5" class="">Incompatible change type</b>: source</p>
+<p id="f0f05b4"><b id="96f695fc" class="">Short summary</b>: Kotlin 1.7 will report an error about the <code class="code ">when</code> statement with an enum, sealed, or Boolean subject being non-exhaustive</p>
+<p id="48bce1b2"><b id="21db4a18" class="">Deprecation cycle</b>:</p>
+<ul class="list _ul" id="f2ada2a0">
+<li class="list__item" id="828f25a"><p>1.6.0: introduce a warning when the <code class="code ">when</code> statement with an enum, sealed, or Boolean subject is non-exhaustive (error in the progressive mode)</p></li>
+<li class="list__item" id="afb005e"><p>1.7.0: raise this warning to an error</p></li>
+</ul></aside></section><section class="chapter"><h3 id="deprecate-confusing-grammar-in-when-with-subject" data-toc="compatibility-guide-17#deprecate-confusing-grammar-in-when-with-subject">Deprecate confusing grammar in when-with-subject</h3>
+<aside data-type="tip" class="prompt" data-title="" id="9a9be13b"><p id="33f01ea2"><b id="9a43e4d5" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-48385" id="ae7655e0" data-external="true" rel="noopener noreferrer">KT-48385</a></p>
+<p id="2c4eb580"><b id="419327bb" class="">Component</b>: Core language</p>
+<p id="60be861b"><b id="382d57d6" class="">Incompatible change type</b>: source</p>
+<p id="aaf68b1"><b id="17372e53" class="">Short summary</b>: Kotlin 1.6 deprecated several confusing grammar constructs in <code class="code ">when</code> condition expressions</p>
+<p id="b688ca0c"><b id="22244c41" class="">Deprecation cycle</b>:</p>
+<ul class="list _ul" id="dc6df601">
+<li class="list__item" id="5a7925f3"><p>1.6.20: introduce a deprecation warning on the affected expressions</p></li>
+<li class="list__item" id="92d534d5"><p>1.8.0: raise this warning to an error</p></li>
+<li class="list__item" id="6acee2ba"><p>&gt;= 1.8: repurpose some deprecated constructs for new language features</p></li>
+</ul></aside></section><section class="chapter"><h3 id="type-nullability-enhancement-improvements" data-toc="compatibility-guide-17#type-nullability-enhancement-improvements">Type nullability enhancement improvements</h3>
+<aside data-type="tip" class="prompt" data-title="" id="b19a2651"><p id="5a69fed2"><b id="2b6c5e3f" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-48623" id="a30932e0" data-external="true" rel="noopener noreferrer">KT-48623</a></p>
+<p id="8d2e091f"><b id="babf9cac" class="">Component</b>: Kotlin/JVM</p>
+<p id="7560a287"><b id="39c2a916" class="">Incompatible change type</b>: source</p>
+<p id="f7e75a28"><b id="a91ecbc2" class="">Short summary</b>: Kotlin 1.7 will change how it loads and interprets type nullability annotations in Java code</p>
+<p id="6ea0dfcf"><b id="8f7f2b01" class="">Deprecation cycle</b>:</p>
+<ul class="list _ul" id="383ffbdd">
+<li class="list__item" id="43a6ab05"><p>1.4.30: introduce warnings for cases where more precise type nullability could lead to an error</p></li>
+<li class="list__item" id="35c2e90d"><p>1.7.0: infer more precise nullability of Java types, <code class="code ">-XXLanguage:-TypeEnhancementImprovementsInStrictMode</code> can be used to temporarily revert to the pre-1.7 behavior</p></li>
+</ul></aside></section><section class="chapter"><h3 id="prevent-implicit-coercions-between-different-numeric-types" data-toc="compatibility-guide-17#prevent-implicit-coercions-between-different-numeric-types">Prevent implicit coercions between different numeric types</h3>
+<aside data-type="tip" class="prompt" data-title="" id="a874a57a"><p id="c9ec293"><b id="ed0db446" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-48645" id="1dd27c69" data-external="true" rel="noopener noreferrer">KT-48645</a></p>
+<p id="1effde57"><b id="6e117e81" class="">Component</b>: Kotlin/JVM</p>
+<p id="b23bb7fc"><b id="196b75be" class="">Incompatible change type</b>: behavioral</p>
+<p id="c078da7e"><b id="4d11da" class="">Short summary</b>: Kotlin will avoid converting numeric values automatically to a primitive numeric type where only a downcast to that type was needed semantically</p>
+<p id="2f012be5"><b id="1bef1582" class="">Deprecation cycle</b>:</p>
+<ul class="list _ul" id="58ab0c7d">
+<li class="list__item" id="ed6105e8"><p>&lt; 1.5.30: the old behavior in all affected cases</p></li>
+<li class="list__item" id="cee920dd"><p>1.5.30: fix the downcast behavior in generated property delegate accessors, <code class="code ">-Xuse-old-backend</code> can be used to temporarily revert to the pre-1.5.30 fix behavior</p></li>
+<li class="list__item" id="a0b4807c"><p>&gt;= 1.7.20: fix the downcast behavior in other affected cases</p></li>
+</ul></aside></section><section class="chapter"><h3 id="deprecate-the-enabled-and-the-compatibility-modes-of-the-compiler-option-xjvm-default" data-toc="compatibility-guide-17#deprecate-the-enabled-and-the-compatibility-modes-of-the-compiler-option-xjvm-default">Deprecate the enabled and the compatibility modes of the compiler option -Xjvm-default</h3>
+<aside data-type="tip" class="prompt" data-title="" id="604ef9b1"><p id="e8d7a41c"><b id="fd893bda" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-46329" id="1e465491" data-external="true" rel="noopener noreferrer">KT-46329</a></p>
+<p id="450955c4"><b id="4ae61ab" class="">Component</b>: Kotlin/JVM</p>
+<p id="9d9db379"><b id="9e03e252" class="">Incompatible change type</b>: source</p>
+<p id="8ec2f835"><b id="6b747a13" class="">Short summary</b>: Kotlin 1.6.20 warns about the usage of <code class="code ">enabled</code> and <code class="code ">compatibility</code> modes of the <code class="code ">-Xjvm-default</code> compiler option</p>
+<p id="e9397f58"><b id="fa576365" class="">Deprecation cycle</b>:</p>
+<ul class="list _ul" id="f3b46cf2">
+<li class="list__item" id="73010606"><p>1.6.20: introduce a warning on the <code class="code ">enabled</code> and <code class="code ">compatibility</code> modes of the <code class="code ">-Xjvm-default</code> compiler option</p></li>
+<li class="list__item" id="c42f28dd"><p>&gt;= 1.8.0: raise this warning to an error</p></li>
+</ul></aside></section><section class="chapter"><h3 id="prohibit-calls-to-functions-named-suspend-with-a-trailing-lambda" data-toc="compatibility-guide-17#prohibit-calls-to-functions-named-suspend-with-a-trailing-lambda">Prohibit calls to functions named suspend with a trailing lambda</h3>
+<aside data-type="tip" class="prompt" data-title="" id="731b048"><p id="adc41d59"><b id="2eb75de2" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-22562" id="84f5e2ca" data-external="true" rel="noopener noreferrer">KT-22562</a></p>
+<p id="5554115f"><b id="29930b88" class="">Component</b>: Core language</p>
+<p id="cf9a7277"><b id="d371fa85" class="">Incompatible change type</b>: source</p>
+<p id="74d896d3"><b id="ce2520d1" class="">Short summary</b>: Kotlin 1.6 no longer allows calling user functions named <code class="code ">suspend</code> that have the single argument of a functional type passed as a trailing lambda</p>
+<p id="86eb71a9"><b id="cdc27205" class="">Deprecation cycle</b>:</p>
+<ul class="list _ul" id="76d48ebb">
+<li class="list__item" id="30abe2fb"><p>1.3.0: introduce a warning on such function calls</p></li>
+<li class="list__item" id="e9ad6a76"><p>1.6.0: raise this warning to an error</p></li>
+<li class="list__item" id="56a84bc7"><p>1.7.0: introduce changes to the language grammar so that <code class="code ">suspend</code> before <code class="code ">{</code> is parsed as a keyword</p></li>
+</ul></aside></section><section class="chapter"><h3 id="prohibit-smart-cast-on-a-base-class-property-if-the-base-class-is-from-another-module" data-toc="compatibility-guide-17#prohibit-smart-cast-on-a-base-class-property-if-the-base-class-is-from-another-module">Prohibit smart cast on a base class property if the base class is from another module</h3>
+<aside data-type="tip" class="prompt" data-title="" id="c85025d2"><p id="351d040e"><b id="9b7b9790" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-52629" id="2464b2c" data-external="true" rel="noopener noreferrer">KT-52629</a></p>
+<p id="6f965d91"><b id="e2b838e5" class="">Component</b>: Core language</p>
+<p id="c0a4fb2"><b id="7cf946f1" class="">Incompatible change type</b>: source</p>
+<p id="cc4f7ef5"><b id="6aabc8a3" class="">Short summary</b>: Kotlin 1.7 will no longer allow smart casts on properties of a superclass if that class is located in another module</p>
+<p id="844870ed"><b id="1179cfc5" class="">Deprecation cycle</b>:</p>
+<ul class="list _ul" id="e7c48978">
+<li class="list__item" id="88f2c360"><p>1.6.0: report a warning on a smart cast on a property declared in the superclass located in another module</p></li>
+<li class="list__item" id="2fdaf107"><p>1.7.0: raise this warning to an error,<br><code class="code ">-XXLanguage:-ProhibitSmartcastsOnPropertyFromAlienBaseClass</code> can be used to temporarily revert to the pre-1.7 behavior</p></li>
+</ul></aside></section><section class="chapter"><h3 id="do-not-neglect-meaningful-constraints-during-type-inference" data-toc="compatibility-guide-17#do-not-neglect-meaningful-constraints-during-type-inference">Do not neglect meaningful constraints during type inference</h3>
+<aside data-type="tip" class="prompt" data-title="" id="93f97fa4"><p id="e5ac505c"><b id="aba9d557" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-52668" id="f30a4912" data-external="true" rel="noopener noreferrer">KT-52668</a></p>
+<p id="9b65c661"><b id="379488ba" class="">Component</b>: Core language</p>
+<p id="502205f4"><b id="7697b883" class="">Incompatible change type</b>: source</p>
+<p id="b5a14a23"><b id="d956868b" class="">Short summary</b>: Kotlin 1.4−1.6 neglected some type constraints during type inference due to an incorrect optimization. It could allow writing unsound code, causing <code class="code ">ClassCastException</code> at runtime. Kotlin 1.7 takes these constraints into account, thus prohibiting the unsound code</p>
+<p id="a342810b"><b id="3137dd85" class="">Deprecation cycle</b>:</p>
+<ul class="list _ul" id="15999039">
+<li class="list__item" id="fa6bac16"><p>1.5.20: report a warning on expressions where a type mismatch would happen if all the type inference constraints were taken into account</p></li>
+<li class="list__item" id="eddc1763"><p>1.7.0: take all the constraints into account, thus raising this warning to an error,<br><code class="code ">-XXLanguage:-ProperTypeInferenceConstraintsProcessing</code> can be used to temporarily revert to the pre-1.7 behavior</p></li>
+</ul></aside></section></section><section class="chapter"><h2 id="standard-library" data-toc="compatibility-guide-17#standard-library">Standard library</h2>
+<section class="chapter"><h3 id="gradually-change-the-return-type-of-collection-min-and-max-functions-to-non-nullable" data-toc="compatibility-guide-17#gradually-change-the-return-type-of-collection-min-and-max-functions-to-non-nullable">Gradually change the return type of collection min and max functions to non-nullable</h3>
+<aside data-type="tip" class="prompt" data-title="" id="f24f6bc7"><p id="8f469451"><b id="60c7f5d" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-38854" id="631cf2d9" data-external="true" rel="noopener noreferrer">KT-38854</a></p>
+<p id="78a4195f"><b id="963a812a" class="">Component</b>: kotlin-stdlib</p>
+<p id="5be602e9"><b id="7bc9d498" class="">Incompatible change type</b>: source</p>
+<p id="1ed36f67"><b id="fefe6898" class="">Short summary</b>: the return type of collection <code class="code ">min</code> and <code class="code ">max</code> functions will be changed to non-nullable in Kotlin 1.7</p>
+<p id="653d19f5"><b id="63002f9d" class="">Deprecation cycle</b>:</p>
+<ul class="list _ul" id="47db2fda">
+<li class="list__item" id="3cf8aa05"><p>1.4.0: introduce <code class="code ">...OrNull</code> functions as synonyms and deprecate the affected API (see details in the issue)</p></li>
+<li class="list__item" id="b2bc7ad7"><p>1.5.0: raise the deprecation level of the affected API to an error</p></li>
+<li class="list__item" id="94abd32d"><p>1.6.0: hide the deprecated functions from the public API</p></li>
+<li class="list__item" id="eec85342"><p>1.7.0: reintroduce the affected API but with non-nullable return type</p></li>
+</ul></aside></section><section class="chapter"><h3 id="deprecate-floating-point-array-functions-contains-indexof-lastindexof" data-toc="compatibility-guide-17#deprecate-floating-point-array-functions-contains-indexof-lastindexof">Deprecate floating-point array functions: contains, indexOf, lastIndexOf</h3>
+<aside data-type="tip" class="prompt" data-title="" id="367d7d11"><p id="7060a405"><b id="5f5ce29c" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-28753" id="1eaca254" data-external="true" rel="noopener noreferrer">KT-28753</a></p>
+<p id="298be658"><b id="3d5803c9" class="">Component</b>: kotlin-stdlib</p>
+<p id="844a078b"><b id="61fccda6" class="">Incompatible change type</b>: source</p>
+<p id="e3eee380"><b id="78bd93af" class="">Short summary</b>: Kotlin deprecates floating-point array functions <code class="code ">contains</code>, <code class="code ">indexOf</code>, <code class="code ">lastIndexOf</code> that compare values using the IEEE-754 order instead of the total order</p>
+<p id="a4b72c6d"><b id="8a81b067" class="">Deprecation cycle</b>:</p>
+<ul class="list _ul" id="47ab1d63">
+<li class="list__item" id="c546de25"><p>1.4.0: deprecate the affected functions with a warning</p></li>
+<li class="list__item" id="4d4fe46c"><p>1.6.0: raise the deprecation level to an error</p></li>
+<li class="list__item" id="77480c1f"><p>1.7.0: hide the deprecated functions from the public API</p></li>
+</ul></aside></section><section class="chapter"><h3 id="migrate-declarations-from-kotlin-dom-and-kotlin-browser-packages-to-kotlinx" data-toc="compatibility-guide-17#migrate-declarations-from-kotlin-dom-and-kotlin-browser-packages-to-kotlinx">Migrate declarations from kotlin.dom and kotlin.browser packages to kotlinx.*</h3>
+<aside data-type="tip" class="prompt" data-title="" id="f59d893f"><p id="3cc44d85"><b id="bb5287" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-39330" id="92268896" data-external="true" rel="noopener noreferrer">KT-39330</a></p>
+<p id="949856c3"><b id="e55c75" class="">Component</b>: kotlin-stdlib (JS)</p>
+<p id="5743b912"><b id="7f3e8f2a" class="">Incompatible change type</b>: source</p>
+<p id="f3f9828c"><b id="972f6b6b" class="">Short summary</b>: declarations from the <code class="code ">kotlin.dom</code> and <code class="code ">kotlin.browser</code> packages are moved to the corresponding <code class="code ">kotlinx.*</code> packages to prepare for extracting them from stdlib</p>
+<p id="c9426af9"><b id="f6998df8" class="">Deprecation cycle</b>:</p>
+<ul class="list _ul" id="5f7c2598">
+<li class="list__item" id="4788851b"><p>1.4.0: introduce the replacement API in <code class="code ">kotlinx.dom</code> and <code class="code ">kotlinx.browser</code> packages</p></li>
+<li class="list__item" id="14992e82"><p>1.4.0: deprecate the API in <code class="code ">kotlin.dom</code> and <code class="code ">kotlin.browser</code> packages and propose the new API above as a replacement</p></li>
+<li class="list__item" id="2c5e657e"><p>1.6.0: raise the deprecation level to an error</p></li>
+<li class="list__item" id="ca43fbd0"><p>&gt;= 1.8: remove the deprecated functions from stdlib</p></li>
+<li class="list__item" id="3e242c5e"><p>&gt;= 1.8: move the API in kotlinx.* packages to a separate library</p></li>
+</ul></aside></section><section class="chapter"><h3 id="deprecate-some-js-only-api" data-toc="compatibility-guide-17#deprecate-some-js-only-api">Deprecate some JS-only API</h3>
+<aside data-type="tip" class="prompt" data-title="" id="cb1f7eb"><p id="be8ed52e"><b id="74eb1dad" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-48587" id="99eb83d8" data-external="true" rel="noopener noreferrer">KT-48587</a></p>
+<p id="5dbea32a"><b id="5e0d0483" class="">Component</b>: kotlin-stdlib (JS)</p>
+<p id="9b07a86d"><b id="61c403ea" class="">Incompatible change type</b>: source</p>
+<p id="58036e87"><b id="64bd978b" class="">Short summary</b>: a number of JS-only functions in stdlib are deprecated for removal. They include: <code class="code ">String.concat(String)</code>, <code class="code ">String.match(regex: String)</code>, <code class="code ">String.matches(regex: String)</code>, and the <code class="code ">sort</code> functions on arrays taking a comparison function, for example, <code class="code ">Array&lt;out T&gt;.sort(comparison: (a: T, b: T) -&gt; Int)</code></p>
+<p id="a595e7f9"><b id="b0bf1d6f" class="">Deprecation cycle</b>:</p>
+<ul class="list _ul" id="a36a012a">
+<li class="list__item" id="12c7d722"><p>1.6.0: deprecate the affected functions with a warning</p></li>
+<li class="list__item" id="7c5cfe4d"><p>1.8.0: raise the deprecation level to an error</p></li>
+<li class="list__item" id="c1cd2795"><p>1.9.0: remove the deprecated functions from the public API</p></li>
+</ul></aside></section></section><section class="chapter"><h2 id="tools" data-toc="compatibility-guide-17#tools">Tools</h2>
+<section class="chapter"><h3 id="remove-kotlingradlesubplugin-class" data-toc="compatibility-guide-17#remove-kotlingradlesubplugin-class">Remove KotlinGradleSubplugin class</h3>
+<aside data-type="tip" class="prompt" data-title="" id="266e5425"><p id="6f4e3141"><b id="cc91f5eb" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-48831" id="57719676" data-external="true" rel="noopener noreferrer">KT-48831</a></p>
+<p id="5549cae5"><b id="53772b12" class="">Component</b>: Gradle</p>
+<p id="ffeae041"><b id="c85733ec" class="">Incompatible change type</b>: source</p>
+<p id="500d5b98"><b id="70798432" class="">Short summary</b>: remove the <code class="code ">KotlinGradleSubplugin</code> class. Use the <code class="code ">KotlinCompilerPluginSupportPlugin</code> class instead</p>
+<p id="5a2581da"><b id="deae0cd5" class="">Deprecation cycle</b>:</p>
+<ul class="list _ul" id="d71bebf">
+<li class="list__item" id="e04d8a56"><p>1.6.0: raise the deprecation level to an error</p></li>
+<li class="list__item" id="6f0c137"><p>1.7.0: remove the deprecated class</p></li>
+</ul></aside></section><section class="chapter"><h3 id="remove-useir-compiler-option" data-toc="compatibility-guide-17#remove-useir-compiler-option">Remove useIR compiler option</h3>
+<aside data-type="tip" class="prompt" data-title="" id="1c97cffa"><p id="e204dda0"><b id="296a2ad5" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-48847" id="d4dd4bee" data-external="true" rel="noopener noreferrer">KT-48847</a></p>
+<p id="73082ce0"><b id="9c080330" class="">Component</b>: Gradle</p>
+<p id="78ac18e8"><b id="40f3d1f7" class="">Incompatible change type</b>: source</p>
+<p id="4ce693b8"><b id="babc8c53" class="">Short summary</b>: remove the deprecated and hidden <code class="code ">useIR</code> compiler option</p>
+<p id="691bc47"><b id="456ad99b" class="">Deprecation cycle</b>:</p>
+<ul class="list _ul" id="58f58fe0">
+<li class="list__item" id="304c1ecc"><p>1.5.0: raise the deprecation level to a warning</p></li>
+<li class="list__item" id="42755852"><p>1.6.0: hide the option</p></li>
+<li class="list__item" id="991457be"><p>1.7.0: remove the deprecated option</p></li>
+</ul></aside></section><section class="chapter"><h3 id="deprecate-kapt-use-worker-api-gradle-property" data-toc="compatibility-guide-17#deprecate-kapt-use-worker-api-gradle-property">Deprecate kapt.use.worker.api Gradle property</h3>
+<aside data-type="tip" class="prompt" data-title="" id="2848dfc9"><p id="d7aa37d2"><b id="2162b7d1" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-48826" id="e39749e3" data-external="true" rel="noopener noreferrer">KT-48826</a></p>
+<p id="3cec787f"><b id="6acdbabe" class="">Component</b>: Gradle</p>
+<p id="39d048c5"><b id="fa9d2012" class="">Incompatible change type</b>: source</p>
+<p id="64f10294"><b id="63a95d58" class="">Short summary</b>: deprecate the <code class="code ">kapt.use.worker.api</code> property that allowed to run kapt via Gradle Workers API (default: true)</p>
+<p id="89cbb788"><b id="2d704aa1" class="">Deprecation cycle</b>:</p>
+<ul class="list _ul" id="aab4c992">
+<li class="list__item" id="ab8d7e50"><p>1.6.20: raise the deprecation level to a warning</p></li>
+<li class="list__item" id="5352aef0"><p>&gt;= 1.8.0: remove this property</p></li>
+</ul></aside></section><section class="chapter"><h3 id="remove-kotlin-experimental-coroutines-gradle-dsl-option-and-kotlin-coroutines-gradle-property" data-toc="compatibility-guide-17#remove-kotlin-experimental-coroutines-gradle-dsl-option-and-kotlin-coroutines-gradle-property">Remove kotlin.experimental.coroutines Gradle DSL option and kotlin.coroutines Gradle property</h3>
+<aside data-type="tip" class="prompt" data-title="" id="1050d369"><p id="b9ae2ed8"><b id="5f3a47f7" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-50494" id="907d49d0" data-external="true" rel="noopener noreferrer">KT-50494</a></p>
+<p id="ebade63e"><b id="c5d314ac" class="">Component</b>: Gradle</p>
+<p id="76086f9"><b id="82ba9745" class="">Incompatible change type</b>: source</p>
+<p id="db05c5a3"><b id="a13b4271" class="">Short summary</b>: remove the <code class="code ">kotlin.experimental.coroutines</code> Gradle DSL option and the <code class="code ">kotlin.coroutines</code> property</p>
+<p id="b845e632"><b id="d259d086" class="">Deprecation cycle</b>:</p>
+<ul class="list _ul" id="ee418049">
+<li class="list__item" id="c12c1f36"><p>1.6.20: raise the deprecation level to a warning</p></li>
+<li class="list__item" id="f9e751c0"><p>1.7.0: remove the DSL option, its enclosing <code class="code ">experimental</code> block, and the property</p></li>
+</ul></aside></section><section class="chapter"><h3 id="deprecate-useexperimentalannotation-compiler-option" data-toc="compatibility-guide-17#deprecate-useexperimentalannotation-compiler-option">Deprecate useExperimentalAnnotation compiler option</h3>
+<aside data-type="tip" class="prompt" data-title="" id="eed96208"><p id="4ad84b9c"><b id="c1cb98be" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-47763" id="5c2c6b2d" data-external="true" rel="noopener noreferrer">KT-47763</a></p>
+<p id="aa3603cd"><b id="2ad7f297" class="">Component</b>: Gradle</p>
+<p id="d0acf5e2"><b id="72a6688f" class="">Incompatible change type</b>: source</p>
+<p id="fa120817"><b id="41eb4b6e" class="">Short summary</b>: remove the hidden <code class="code ">useExperimentalAnnotation()</code> Gradle function used to opt in to using an API in a module. <code class="code ">optIn()</code> function can be used instead</p>
+<p id="189b2396"><b id="c023a575" class="">Deprecation cycle:</b></p>
+<ul class="list _ul" id="9e23c64e">
+<li class="list__item" id="4a1b7af7"><p>1.6.0: hide the deprecation option</p></li>
+<li class="list__item" id="a96e27ee"><p>1.7.0: remove the deprecated option</p></li>
+</ul></aside></section><section class="chapter"><h3 id="deprecate-kotlin-compiler-execution-strategy-system-property" data-toc="compatibility-guide-17#deprecate-kotlin-compiler-execution-strategy-system-property">Deprecate kotlin.compiler.execution.strategy system property</h3>
+<aside data-type="tip" class="prompt" data-title="" id="4e90157d"><p id="2be49290"><b id="65881c01" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-51830" id="d00276ba" data-external="true" rel="noopener noreferrer">KT-51830</a></p>
+<p id="a403068d"><b id="56558df0" class="">Component</b>: Gradle</p>
+<p id="36c42c3f"><b id="2d2b20d3" class="">Incompatible change type</b>: source</p>
+<p id="41d3a1d1"><b id="339a93cb" class="">Short summary</b>: deprecate the <code class="code ">kotlin.compiler.execution.strategy</code> system property used to choose a compiler execution strategy. <code class="code ">use the Gradle property</code>kotlin.compiler.execution.strategy<code class="code ">or the compile task property</code>compilerExecutionStrategy` instead</p>
+<p id="41437ed6"><b id="f8e0fd2a" class="">Deprecation cycle:</b></p>
+<ul class="list _ul" id="cd8707d1">
+<li class="list__item" id="510e64e7"><p>1.7.0: raise the deprecation level to a warning</p></li>
+<li class="list__item" id="86119c86"><p>&gt; 1.7.0: remove the property</p></li>
+</ul></aside></section><section class="chapter"><h3 id="remove-kotlinoptions-jdkhome-compiler-option" data-toc="compatibility-guide-17#remove-kotlinoptions-jdkhome-compiler-option">Remove kotlinOptions.jdkHome compiler option</h3>
+<aside data-type="tip" class="prompt" data-title="" id="bb8b6e22"><p id="79286778"><b id="2aabd2eb" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-46541" id="671672b1" data-external="true" rel="noopener noreferrer">KT-46541</a></p>
+<p id="8562274f"><b id="5d101c38" class="">Component</b>: Gradle</p>
+<p id="8a63ea2f"><b id="6e46bb74" class="">Incompatible change type</b>: source</p>
+<p id="7288bd7"><b id="39091cd1" class="">Short summary</b>: remove the <code class="code ">kotlinOptions.jdkHome</code> compiler option used to include a custom JDK from the specified location into the classpath instead of the default <code class="code ">JAVA_HOME</code>. Use <a href="gradle#gradle-java-toolchains-support" id="224e639b">Java toolchains</a> instead</p>
+<p id="a4be4c1b"><b id="eeab3e8f" class="">Deprecation cycle:</b></p>
+<ul class="list _ul" id="c2e355af">
+<li class="list__item" id="f65f61cf"><p>1.5.30: raise the deprecation level to a warning</p></li>
+<li class="list__item" id="638fbe01"><p>&gt; 1.7.0: remove the option</p></li>
+</ul></aside></section><section class="chapter"><h3 id="remove-nostdlib-compiler-option" data-toc="compatibility-guide-17#remove-nostdlib-compiler-option">Remove noStdlib compiler option</h3>
+<aside data-type="tip" class="prompt" data-title="" id="bc85d2b6"><p id="77d8343"><b id="15cc00cc" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-49011" id="d308c8d0" data-external="true" rel="noopener noreferrer">KT-49011</a></p>
+<p id="70a2ade"><b id="fde40f32" class="">Component</b>: Gradle</p>
+<p id="e543c724"><b id="a4cf66b1" class="">Incompatible change type</b>: source</p>
+<p id="a24fadba"><b id="33b1be13" class="">Short summary</b>: remove the <code class="code ">noStdlib</code> compiler option. The Gradle plugin uses the <code class="code ">kotlin.stdlib.default.dependency=true</code> property to control whether the Kotlin standard library is present</p>
+<p id="8bcd3e6a"><b id="e04435e" class="">Deprecation cycle:</b></p>
+<ul class="list _ul" id="6118084">
+<li class="list__item" id="13be528e"><p>1.5.0: raise the deprecation level to a warning</p></li>
+<li class="list__item" id="c95d4c34"><p>1.7.0: remove the option</p></li>
+</ul></aside></section><section class="chapter"><h3 id="remove-kotlin2js-and-kotlin-dce-plugin-plugins" data-toc="compatibility-guide-17#remove-kotlin2js-and-kotlin-dce-plugin-plugins">Remove kotlin2js and kotlin-dce-plugin plugins</h3>
+<aside data-type="tip" class="prompt" data-title="" id="f642a909"><p id="9b693d02"><b id="b001a964" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-48276" id="1946a973" data-external="true" rel="noopener noreferrer">KT-48276</a></p>
+<p id="fff00d76"><b id="351cdeb0" class="">Component</b>: Gradle</p>
+<p id="bc1059ca"><b id="48875dcf" class="">Incompatible change type</b>: source</p>
+<p id="bf51db8b"><b id="c2ed912a" class="">Short summary</b>: remove the <code class="code ">kotlin2js</code> and <code class="code ">kotlin-dce-plugin</code> plugins. Instead of <code class="code ">kotlin2js</code>, use the new <code class="code ">org.jetbrains.kotlin.js</code> plugin. Dead code elimination (DCE) works when the Kotlin/JS Gradle plugin is <a href="http://javascript-dce.md" id="95347d98" data-external="true" rel="noopener noreferrer">properly configured</a></p></aside><aside data-type="tip" class="prompt" data-title="" id="3e0a0e9"><p id="2fdee7a4"><b id="456f0d7f" class="">Deprecation cycle:</b></p>
+<ul class="list _ul" id="cc2184fe">
+<li class="list__item" id="eaba3ac2"><p>1.4.0: raise the deprecation level to a warning</p></li>
+<li class="list__item" id="9778b2f0"><p>1.7.0: remove the plugins</p></li>
+</ul></aside></section><section class="chapter"><h3 id="changes-in-compile-tasks" data-toc="compatibility-guide-17#changes-in-compile-tasks">Changes in compile tasks</h3>
+<aside data-type="tip" class="prompt" data-title="" id="e5db6fd8"><p id="a1c784b3"><b id="4f1d8515" class="">Issue</b>: <a href="https://youtrack.jetbrains.com/issue/KT-32805" id="29e68a80" data-external="true" rel="noopener noreferrer">KT-32805</a></p>
+<p id="73c72f63"><b id="3a561339" class="">Component</b>: Gradle</p>
+<p id="9731f4ce"><b id="14a7b0ce" class="">Incompatible change type</b>: source</p>
+<p id="45cdf33b"><b id="4b0da7d8" class="">Short summary</b>: Kotlin compile tasks no longer inherit the Gradle <code class="code ">AbstractCompile</code> task and that's why the <code class="code ">sourceCompatibility</code> and <code class="code ">targetCompatibility</code> inputs are no longer available in Kotlin users' scripts. The <code class="code ">SourceTask.stableSources</code> input is no longer available. The <code class="code ">sourceFilesExtensions</code> input was removed. The deprecated <code class="code ">Gradle destinationDir: File</code> output was replaced with the <code class="code ">destinationDirectory: DirectoryProperty</code> output. The <code class="code ">classpath</code> property of the <code class="code ">KotlinCompile</code> task is deprecated</p>
+<p id="a3ce73f3"><b id="fd64000e" class="">Deprecation cycle:</b></p>
+<ul class="list _ul" id="ae4fb636"><li class="list__item" id="5885a781"><p>1.7.0: inputs are not available, the output is replaced, the <code class="code ">classpath</code> property is deprecated</p></li></ul></aside></section></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="components-stability-pre-1-4">Stability of Kotlin components (pre 1.4)</a> <a class="navigation-links__next" href="compatibility-guide-16">Compatibility guide for Kotlin 1.6</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/compatibility-guide-17.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/compatibility-guide-17.html</a>
+  </p>
+</div>

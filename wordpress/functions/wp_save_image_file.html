@@ -1,0 +1,86 @@
+<h1>wp_save_image_file( string $filename, WP_Image_Editor $image, string $mime_type, int $post_id )</h1>  <section> <p>Saves image to file.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$filename</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Name of the file to be saved.</span> </p> </dd> <dt>$image</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Image_Editor"><a href="../classes/wp_image_editor">WP_Image_Editor</a></span>)</span> <span class="required">(Required)</span> <span class="description">The image editor instance.</span> </p> </dd> <dt>$mime_type</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The mime type of the image.</span> </p> </dd> <dt>$post_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">Attachment post ID.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> True on success, false on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/image-edit.php/">wp-admin/includes/image-edit.php</a> </p> <pre data-language="php">function wp_save_image_file( $filename, $image, $mime_type, $post_id ) {
+	if ( $image instanceof WP_Image_Editor ) {
+
+		/** This filter is documented in wp-admin/includes/image-edit.php */
+		$image = apply_filters( 'image_editor_save_pre', $image, $post_id );
+
+		/**
+		 * Filters whether to skip saving the image file.
+		 *
+		 * Returning a non-null value will short-circuit the save method,
+		 * returning that value instead.
+		 *
+		 * @since 3.5.0
+		 *
+		 * @param bool|null       $override  Value to return instead of saving. Default null.
+		 * @param string          $filename  Name of the file to be saved.
+		 * @param WP_Image_Editor $image     The image editor instance.
+		 * @param string          $mime_type The mime type of the image.
+		 * @param int             $post_id   Attachment post ID.
+		 */
+		$saved = apply_filters( 'wp_save_image_editor_file', null, $filename, $image, $mime_type, $post_id );
+
+		if ( null !== $saved ) {
+			return $saved;
+		}
+
+		return $image-&gt;save( $filename, $mime_type );
+	} else {
+		/* translators: 1: $image, 2: WP_Image_Editor */
+		_deprecated_argument( __FUNCTION__, '3.5.0', sprintf( __( '%1$s needs to be a %2$s object.' ), '$image', 'WP_Image_Editor' ) );
+
+		/** This filter is documented in wp-admin/includes/image-edit.php */
+		$image = apply_filters_deprecated( 'image_save_pre', array( $image, $post_id ), '3.5.0', 'image_editor_save_pre' );
+
+		/**
+		 * Filters whether to skip saving the image file.
+		 *
+		 * Returning a non-null value will short-circuit the save method,
+		 * returning that value instead.
+		 *
+		 * @since 2.9.0
+		 * @deprecated 3.5.0 Use {@see 'wp_save_image_editor_file'} instead.
+		 *
+		 * @param bool|null        $override  Value to return instead of saving. Default null.
+		 * @param string           $filename  Name of the file to be saved.
+		 * @param resource|GdImage $image     Image resource or GdImage instance.
+		 * @param string           $mime_type The mime type of the image.
+		 * @param int              $post_id   Attachment post ID.
+		 */
+		$saved = apply_filters_deprecated(
+			'wp_save_image_file',
+			array( null, $filename, $image, $mime_type, $post_id ),
+			'3.5.0',
+			'wp_save_image_editor_file'
+		);
+
+		if ( null !== $saved ) {
+			return $saved;
+		}
+
+		switch ( $mime_type ) {
+			case 'image/jpeg':
+				/** This filter is documented in wp-includes/class-wp-image-editor.php */
+				return imagejpeg( $image, $filename, apply_filters( 'jpeg_quality', 90, 'edit_image' ) );
+			case 'image/png':
+				return imagepng( $image, $filename );
+			case 'image/gif':
+				return imagegif( $image, $filename );
+			case 'image/webp':
+				if ( function_exists( 'imagewebp' ) ) {
+					return imagewebp( $image, $filename );
+				}
+				return false;
+			default:
+				return false;
+		}
+	}
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters_deprecated">apply_filters_deprecated()</a> </td> <td class="related-desc"> <p>Fires functions attached to a deprecated filter hook.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/image-edit.php:</span> <a href="../hooks/image_editor_save_pre">image_editor_save_pre</a> </td> <td class="related-desc"> <p>Filters the <a href="../classes/wp_image_editor">WP_Image_Editor</a> instance for the image to be streamed to the browser.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/image-edit.php:</span> <a href="../hooks/wp_save_image_editor_file">wp_save_image_editor_file</a> </td> <td class="related-desc"> <p>Filters whether to skip saving the image file.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/image-edit.php:</span> <a href="../hooks/image_save_pre">image_save_pre</a> </td> <td class="related-desc"> <p>Filters the GD image resource to be streamed to the browser.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/image-edit.php:</span> <a href="../hooks/wp_save_image_file">wp_save_image_file</a> </td> <td class="related-desc"> <p>Filters whether to skip saving the image file.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="_deprecated_argument">_deprecated_argument()</a> </td> <td class="related-desc"> <p>Mark a function argument as deprecated and inform when it has been used.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-image-editor.php:</span> <a href="../hooks/jpeg_quality">jpeg_quality</a> </td> <td class="related-desc"> <p>Filters the JPEG compression quality for backward-compatibility.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/image-edit.php:</span> <a href="wp_save_image">wp_save_image()</a> </td> <td class="related-desc"> <p>Saves image to post, along with enqueued changes in <code>$_REQUEST['history']</code>.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.9.0/" alt="WordPress 2.9.0">2.9.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_save_image_file" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_save_image_file</a>
+  </p>
+</div>

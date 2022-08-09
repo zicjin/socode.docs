@@ -1,0 +1,269 @@
+<h1>_wp_privacy_send_erasure_fulfillment_notification( int $request_id )</h1>  <section> <p>Notifies the user when their erasure request is fulfilled.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Without this, the user would never know if their data was actually erased.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$request_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">The privacy request post ID associated with this request.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/user.php/">wp-includes/user.php</a> </p> <pre data-language="php">function _wp_privacy_send_erasure_fulfillment_notification( $request_id ) {
+	$request = wp_get_user_request( $request_id );
+
+	if ( ! is_a( $request, 'WP_User_Request' ) || 'request-completed' !== $request-&gt;status ) {
+		return;
+	}
+
+	$already_notified = (bool) get_post_meta( $request_id, '_wp_user_notified', true );
+
+	if ( $already_notified ) {
+		return;
+	}
+
+	// Localize message content for user; fallback to site default for visitors.
+	if ( ! empty( $request-&gt;user_id ) ) {
+		$locale = get_user_locale( $request-&gt;user_id );
+	} else {
+		$locale = get_locale();
+	}
+
+	$switched_locale = switch_to_locale( $locale );
+
+	/**
+	 * Filters the recipient of the data erasure fulfillment notification.
+	 *
+	 * @since 4.9.6
+	 *
+	 * @param string          $user_email The email address of the notification recipient.
+	 * @param WP_User_Request $request    The request that is initiating the notification.
+	 */
+	$user_email = apply_filters( 'user_erasure_fulfillment_email_to', $request-&gt;email, $request );
+
+	$email_data = array(
+		'request'            =&gt; $request,
+		'message_recipient'  =&gt; $user_email,
+		'privacy_policy_url' =&gt; get_privacy_policy_url(),
+		'sitename'           =&gt; wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES ),
+		'siteurl'            =&gt; home_url(),
+	);
+
+	$subject = sprintf(
+		/* translators: Erasure request fulfilled notification email subject. %s: Site title. */
+		__( '[%s] Erasure Request Fulfilled' ),
+		$email_data['sitename']
+	);
+
+	/**
+	 * Filters the subject of the email sent when an erasure request is completed.
+	 *
+	 * @since 4.9.8
+	 * @deprecated 5.8.0 Use {@see 'user_erasure_fulfillment_email_subject'} instead.
+	 *
+	 * @param string $subject    The email subject.
+	 * @param string $sitename   The name of the site.
+	 * @param array  $email_data {
+	 *     Data relating to the account action email.
+	 *
+	 *     @type WP_User_Request $request            User request object.
+	 *     @type string          $message_recipient  The address that the email will be sent to. Defaults
+	 *                                               to the value of `$request-&gt;email`, but can be changed
+	 *                                               by the `user_erasure_fulfillment_email_to` filter.
+	 *     @type string          $privacy_policy_url Privacy policy URL.
+	 *     @type string          $sitename           The site name sending the mail.
+	 *     @type string          $siteurl            The site URL sending the mail.
+	 * }
+	 */
+	$subject = apply_filters_deprecated(
+		'user_erasure_complete_email_subject',
+		array( $subject, $email_data['sitename'], $email_data ),
+		'5.8.0',
+		'user_erasure_fulfillment_email_subject'
+	);
+
+	/**
+	 * Filters the subject of the email sent when an erasure request is completed.
+	 *
+	 * @since 5.8.0
+	 *
+	 * @param string $subject    The email subject.
+	 * @param string $sitename   The name of the site.
+	 * @param array  $email_data {
+	 *     Data relating to the account action email.
+	 *
+	 *     @type WP_User_Request $request            User request object.
+	 *     @type string          $message_recipient  The address that the email will be sent to. Defaults
+	 *                                               to the value of `$request-&gt;email`, but can be changed
+	 *                                               by the `user_erasure_fulfillment_email_to` filter.
+	 *     @type string          $privacy_policy_url Privacy policy URL.
+	 *     @type string          $sitename           The site name sending the mail.
+	 *     @type string          $siteurl            The site URL sending the mail.
+	 * }
+	 */
+	$subject = apply_filters( 'user_erasure_fulfillment_email_subject', $subject, $email_data['sitename'], $email_data );
+
+	/* translators: Do not translate SITENAME, SITEURL; those are placeholders. */
+	$content = __(
+		'Howdy,
+
+Your request to erase your personal data on ###SITENAME### has been completed.
+
+If you have any follow-up questions or concerns, please contact the site administrator.
+
+Regards,
+All at ###SITENAME###
+###SITEURL###'
+	);
+
+	if ( ! empty( $email_data['privacy_policy_url'] ) ) {
+		/* translators: Do not translate SITENAME, SITEURL, PRIVACY_POLICY_URL; those are placeholders. */
+		$content = __(
+			'Howdy,
+
+Your request to erase your personal data on ###SITENAME### has been completed.
+
+If you have any follow-up questions or concerns, please contact the site administrator.
+
+For more information, you can also read our privacy policy: ###PRIVACY_POLICY_URL###
+
+Regards,
+All at ###SITENAME###
+###SITEURL###'
+		);
+	}
+
+	/**
+	 * Filters the body of the data erasure fulfillment notification.
+	 *
+	 * The email is sent to a user when their data erasure request is fulfilled
+	 * by an administrator.
+	 *
+	 * The following strings have a special meaning and will get replaced dynamically:
+	 *
+	 * ###SITENAME###           The name of the site.
+	 * ###PRIVACY_POLICY_URL### Privacy policy page URL.
+	 * ###SITEURL###            The URL to the site.
+	 *
+	 * @since 4.9.6
+	 * @deprecated 5.8.0 Use {@see 'user_erasure_fulfillment_email_content'} instead.
+	 *                   For user request confirmation email content
+	 *                   use {@see 'user_request_confirmed_email_content'} instead.
+	 *
+	 * @param string $content The email content.
+	 * @param array  $email_data {
+	 *     Data relating to the account action email.
+	 *
+	 *     @type WP_User_Request $request            User request object.
+	 *     @type string          $message_recipient  The address that the email will be sent to. Defaults
+	 *                                               to the value of `$request-&gt;email`, but can be changed
+	 *                                               by the `user_erasure_fulfillment_email_to` filter.
+	 *     @type string          $privacy_policy_url Privacy policy URL.
+	 *     @type string          $sitename           The site name sending the mail.
+	 *     @type string          $siteurl            The site URL sending the mail.
+	 * }
+	 */
+	$content = apply_filters_deprecated(
+		'user_confirmed_action_email_content',
+		array( $content, $email_data ),
+		'5.8.0',
+		sprintf(
+			/* translators: 1 &amp; 2: Deprecation replacement options. */
+			__( '%1$s or %2$s' ),
+			'user_erasure_fulfillment_email_content',
+			'user_request_confirmed_email_content'
+		)
+	);
+
+	/**
+	 * Filters the body of the data erasure fulfillment notification.
+	 *
+	 * The email is sent to a user when their data erasure request is fulfilled
+	 * by an administrator.
+	 *
+	 * The following strings have a special meaning and will get replaced dynamically:
+	 *
+	 * ###SITENAME###           The name of the site.
+	 * ###PRIVACY_POLICY_URL### Privacy policy page URL.
+	 * ###SITEURL###            The URL to the site.
+	 *
+	 * @since 5.8.0
+	 *
+	 * @param string $content The email content.
+	 * @param array  $email_data {
+	 *     Data relating to the account action email.
+	 *
+	 *     @type WP_User_Request $request            User request object.
+	 *     @type string          $message_recipient  The address that the email will be sent to. Defaults
+	 *                                               to the value of `$request-&gt;email`, but can be changed
+	 *                                               by the `user_erasure_fulfillment_email_to` filter.
+	 *     @type string          $privacy_policy_url Privacy policy URL.
+	 *     @type string          $sitename           The site name sending the mail.
+	 *     @type string          $siteurl            The site URL sending the mail.
+	 * }
+	 */
+	$content = apply_filters( 'user_erasure_fulfillment_email_content', $content, $email_data );
+
+	$content = str_replace( '###SITENAME###', $email_data['sitename'], $content );
+	$content = str_replace( '###PRIVACY_POLICY_URL###', $email_data['privacy_policy_url'], $content );
+	$content = str_replace( '###SITEURL###', esc_url_raw( $email_data['siteurl'] ), $content );
+
+	$headers = '';
+
+	/**
+	 * Filters the headers of the data erasure fulfillment notification.
+	 *
+	 * @since 5.4.0
+	 * @deprecated 5.8.0 Use {@see 'user_erasure_fulfillment_email_headers'} instead.
+	 *
+	 * @param string|array $headers    The email headers.
+	 * @param string       $subject    The email subject.
+	 * @param string       $content    The email content.
+	 * @param int          $request_id The request ID.
+	 * @param array        $email_data {
+	 *     Data relating to the account action email.
+	 *
+	 *     @type WP_User_Request $request            User request object.
+	 *     @type string          $message_recipient  The address that the email will be sent to. Defaults
+	 *                                               to the value of `$request-&gt;email`, but can be changed
+	 *                                               by the `user_erasure_fulfillment_email_to` filter.
+	 *     @type string          $privacy_policy_url Privacy policy URL.
+	 *     @type string          $sitename           The site name sending the mail.
+	 *     @type string          $siteurl            The site URL sending the mail.
+	 * }
+	 */
+	$headers = apply_filters_deprecated(
+		'user_erasure_complete_email_headers',
+		array( $headers, $subject, $content, $request_id, $email_data ),
+		'5.8.0',
+		'user_erasure_fulfillment_email_headers'
+	);
+
+	/**
+	 * Filters the headers of the data erasure fulfillment notification.
+	 *
+	 * @since 5.8.0
+	 *
+	 * @param string|array $headers    The email headers.
+	 * @param string       $subject    The email subject.
+	 * @param string       $content    The email content.
+	 * @param int          $request_id The request ID.
+	 * @param array        $email_data {
+	 *     Data relating to the account action email.
+	 *
+	 *     @type WP_User_Request $request            User request object.
+	 *     @type string          $message_recipient  The address that the email will be sent to. Defaults
+	 *                                               to the value of `$request-&gt;email`, but can be changed
+	 *                                               by the `user_erasure_fulfillment_email_to` filter.
+	 *     @type string          $privacy_policy_url Privacy policy URL.
+	 *     @type string          $sitename           The site name sending the mail.
+	 *     @type string          $siteurl            The site URL sending the mail.
+	 * }
+	 */
+	$headers = apply_filters( 'user_erasure_fulfillment_email_headers', $headers, $subject, $content, $request_id, $email_data );
+
+	$email_sent = wp_mail( $user_email, $subject, $content, $headers );
+
+	if ( $switched_locale ) {
+		restore_previous_locale();
+	}
+
+	if ( $email_sent ) {
+		update_post_meta( $request_id, '_wp_user_notified', true );
+	}
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/user.php:</span> <a href="../hooks/user_erasure_fulfillment_email_headers">user_erasure_fulfillment_email_headers</a> </td> <td class="related-desc"> <p>Filters the headers of the data erasure fulfillment notification.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="../hooks/user_erasure_fulfillment_email_subject">user_erasure_fulfillment_email_subject</a> </td> <td class="related-desc"> <p>Filters the subject of the email sent when an erasure request is completed.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="../hooks/user_erasure_fulfillment_email_content">user_erasure_fulfillment_email_content</a> </td> <td class="related-desc"> <p>Filters the body of the data erasure fulfillment notification.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="wp_get_user_request">wp_get_user_request()</a> </td> <td class="related-desc"> <p>Returns the user request object for the specified request ID.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="../hooks/user_erasure_complete_email_headers">user_erasure_complete_email_headers</a> </td> <td class="related-desc"> <p>Filters the headers of the data erasure fulfillment notification.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="../hooks/user_erasure_fulfillment_email_to">user_erasure_fulfillment_email_to</a> </td> <td class="related-desc"> <p>Filters the recipient of the data erasure fulfillment notification.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="../hooks/user_erasure_complete_email_subject">user_erasure_complete_email_subject</a> </td> <td class="related-desc"> <p>Filters the subject of the email sent when an erasure request is completed.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="../hooks/user_confirmed_action_email_content">user_confirmed_action_email_content</a> </td> <td class="related-desc"> <p>Filters the body of the data erasure fulfillment notification.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="get_privacy_policy_url">get_privacy_policy_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the privacy policy page.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="restore_previous_locale">restore_previous_locale()</a> </td> <td class="related-desc"> <p>Restores the translations according to the previous locale.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="switch_to_locale">switch_to_locale()</a> </td> <td class="related-desc"> <p>Switches the translations according to the given locale.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="get_user_locale">get_user_locale()</a> </td> <td class="related-desc"> <p>Retrieves the locale of a user.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters_deprecated">apply_filters_deprecated()</a> </td> <td class="related-desc"> <p>Fires functions attached to a deprecated filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="get_locale">get_locale()</a> </td> <td class="related-desc"> <p>Retrieves the current locale.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_url_raw">esc_url_raw()</a> </td> <td class="related-desc"> <p>Performs <a href="esc_url">esc_url()</a> for database or redirect usage.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_specialchars_decode">wp_specialchars_decode()</a> </td> <td class="related-desc"> <p>Converts a number of HTML entities into their special characters.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_mail">wp_mail()</a> </td> <td class="related-desc"> <p>Sends an email, similar to PHP’s mail function.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="home_url">home_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL for the current site where the front end is accessible.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post_meta">get_post_meta()</a> </td> <td class="related-desc"> <p>Retrieves a post meta field for the given post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="update_post_meta">update_post_meta()</a> </td> <td class="related-desc"> <p>Updates a post meta field based on the given post ID.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.9.6/" alt="WordPress 4.9.6">4.9.6</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/_wp_privacy_send_erasure_fulfillment_notification" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/_wp_privacy_send_erasure_fulfillment_notification</a>
+  </p>
+</div>

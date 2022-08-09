@@ -1,0 +1,153 @@
+<h1>WP_REST_Server::serve_batch_request_v1( WP_REST_Request $batch_request )</h1>  <section> <p>Serves the batch/v1 request.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$batch_request</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_REST_Request"><a href="../wp_rest_request">WP_REST_Request</a></span>)</span> <span class="required">(Required)</span> <span class="description">The batch request object.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../wp_rest_response">WP_REST_Response</a>)</span> The generated response object.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/rest-api/class-wp-rest-server.php/">wp-includes/rest-api/class-wp-rest-server.php</a> </p> <pre data-language="php">public function serve_batch_request_v1( WP_REST_Request $batch_request ) {
+		$requests = array();
+
+		foreach ( $batch_request['requests'] as $args ) {
+			$parsed_url = wp_parse_url( $args['path'] );
+
+			if ( false === $parsed_url ) {
+				$requests[] = new WP_Error( 'parse_path_failed', __( 'Could not parse the path.' ), array( 'status' =&gt; 400 ) );
+
+				continue;
+			}
+
+			$single_request = new WP_REST_Request( isset( $args['method'] ) ? $args['method'] : 'POST', $parsed_url['path'] );
+
+			if ( ! empty( $parsed_url['query'] ) ) {
+				$query_args = null; // Satisfy linter.
+				wp_parse_str( $parsed_url['query'], $query_args );
+				$single_request-&gt;set_query_params( $query_args );
+			}
+
+			if ( ! empty( $args['body'] ) ) {
+				$single_request-&gt;set_body_params( $args['body'] );
+			}
+
+			if ( ! empty( $args['headers'] ) ) {
+				$single_request-&gt;set_headers( $args['headers'] );
+			}
+
+			$requests[] = $single_request;
+		}
+
+		$matches    = array();
+		$validation = array();
+		$has_error  = false;
+
+		foreach ( $requests as $single_request ) {
+			$match     = $this-&gt;match_request_to_handler( $single_request );
+			$matches[] = $match;
+			$error     = null;
+
+			if ( is_wp_error( $match ) ) {
+				$error = $match;
+			}
+
+			if ( ! $error ) {
+				list( $route, $handler ) = $match;
+
+				if ( isset( $handler['allow_batch'] ) ) {
+					$allow_batch = $handler['allow_batch'];
+				} else {
+					$route_options = $this-&gt;get_route_options( $route );
+					$allow_batch   = isset( $route_options['allow_batch'] ) ? $route_options['allow_batch'] : false;
+				}
+
+				if ( ! is_array( $allow_batch ) || empty( $allow_batch['v1'] ) ) {
+					$error = new WP_Error(
+						'rest_batch_not_allowed',
+						__( 'The requested route does not support batch requests.' ),
+						array( 'status' =&gt; 400 )
+					);
+				}
+			}
+
+			if ( ! $error ) {
+				$check_required = $single_request-&gt;has_valid_params();
+				if ( is_wp_error( $check_required ) ) {
+					$error = $check_required;
+				}
+			}
+
+			if ( ! $error ) {
+				$check_sanitized = $single_request-&gt;sanitize_params();
+				if ( is_wp_error( $check_sanitized ) ) {
+					$error = $check_sanitized;
+				}
+			}
+
+			if ( $error ) {
+				$has_error    = true;
+				$validation[] = $error;
+			} else {
+				$validation[] = true;
+			}
+		}
+
+		$responses = array();
+
+		if ( $has_error &amp;&amp; 'require-all-validate' === $batch_request['validation'] ) {
+			foreach ( $validation as $valid ) {
+				if ( is_wp_error( $valid ) ) {
+					$responses[] = $this-&gt;envelope_response( $this-&gt;error_to_response( $valid ), false )-&gt;get_data();
+				} else {
+					$responses[] = null;
+				}
+			}
+
+			return new WP_REST_Response(
+				array(
+					'failed'    =&gt; 'validation',
+					'responses' =&gt; $responses,
+				),
+				WP_Http::MULTI_STATUS
+			);
+		}
+
+		foreach ( $requests as $i =&gt; $single_request ) {
+			$clean_request = clone $single_request;
+			$clean_request-&gt;set_url_params( array() );
+			$clean_request-&gt;set_attributes( array() );
+			$clean_request-&gt;set_default_params( array() );
+
+			/** This filter is documented in wp-includes/rest-api/class-wp-rest-server.php */
+			$result = apply_filters( 'rest_pre_dispatch', null, $this, $clean_request );
+
+			if ( empty( $result ) ) {
+				$match = $matches[ $i ];
+				$error = null;
+
+				if ( is_wp_error( $validation[ $i ] ) ) {
+					$error = $validation[ $i ];
+				}
+
+				if ( is_wp_error( $match ) ) {
+					$result = $this-&gt;error_to_response( $match );
+				} else {
+					list( $route, $handler ) = $match;
+
+					if ( ! $error &amp;&amp; ! is_callable( $handler['callback'] ) ) {
+						$error = new WP_Error(
+							'rest_invalid_handler',
+							__( 'The handler for the route is invalid' ),
+							array( 'status' =&gt; 500 )
+						);
+					}
+
+					$result = $this-&gt;respond_to_request( $single_request, $route, $handler, $error );
+				}
+			}
+
+			/** This filter is documented in wp-includes/rest-api/class-wp-rest-server.php */
+			$result = apply_filters( 'rest_post_dispatch', rest_ensure_response( $result ), $this, $single_request );
+
+			$responses[] = $this-&gt;envelope_response( $result, false )-&gt;get_data();
+		}
+
+		return new WP_REST_Response( array( 'responses' =&gt; $responses ), WP_Http::MULTI_STATUS );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-server.php:</span> <a href="match_request_to_handler">WP_REST_Server::match_request_to_handler()</a> </td> <td class="related-desc"> <p>Matches a request object to its handler.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-server.php:</span> <a href="respond_to_request">WP_REST_Server::respond_to_request()</a> </td> <td class="related-desc"> <p>Dispatches the request to the callback handler.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="../../functions/rest_ensure_response">rest_ensure_response()</a> </td> <td class="related-desc"> <p>Ensures a REST response is a response object (for consistency).</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="../../functions/wp_parse_url">wp_parse_url()</a> </td> <td class="related-desc"> <p>A wrapper for PHP’s parse_url() function that handles consistency in the return values across PHP versions.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-request.php:</span> <a href="../wp_rest_request/__construct">WP_REST_Request::__construct()</a> </td> <td class="related-desc"> <p>Constructor.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-server.php:</span> <a href="../../hooks/rest_pre_dispatch">rest_pre_dispatch</a> </td> <td class="related-desc"> <p>Filters the pre-calculated result of a REST API dispatch request.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-server.php:</span> <a href="get_route_options">WP_REST_Server::get_route_options()</a> </td> <td class="related-desc"> <p>Retrieves specified options for a route.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-server.php:</span> <a href="envelope_response">WP_REST_Server::envelope_response()</a> </td> <td class="related-desc"> <p>Wraps the response in an envelope.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-server.php:</span> <a href="../../hooks/rest_post_dispatch">rest_post_dispatch</a> </td> <td class="related-desc"> <p>Filters the REST API response.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-server.php:</span> <a href="error_to_response">WP_REST_Server::error_to_response()</a> </td> <td class="related-desc"> <p>Converts an error to a response object.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/wp_parse_str">wp_parse_str()</a> </td> <td class="related-desc"> <p>Parses a string into variables to be stored in an array.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.6.0/" alt="WordPress 5.6.0">5.6.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_rest_server/serve_batch_request_v1" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_rest_server/serve_batch_request_v1</a>
+  </p>
+</div>

@@ -1,0 +1,304 @@
+<h1 id="deploying-a-static-site" tabindex="-1">Deploying a Static Site </h1>
+<p>The following guides are based on some shared assumptions:</p>
+<ul>
+<li>You are using the default build output location (<code>dist</code>). This location <a href="../config/build-options#build-outdir">can be changed using <code>build.outDir</code></a>, and you can extrapolate instructions from these guides in that case.</li>
+<li>You are using npm. You can use equivalent commands to run the scripts if you are using Yarn or other package managers.</li>
+<li>Vite is installed as a local dev dependency in your project, and you have setup the following npm scripts:</li>
+</ul>
+<div class="language-json">
+<pre data-language="javascript">{
+  "scripts": {
+    "build": "vite build",
+    "preview": "vite preview"
+  }
+}</pre>
+</div>
+<p>It is important to note that <code>vite preview</code> is intended for previewing the build locally and not meant as a production server.</p>
+<div class="tip custom-block">
+<strong class="custom-block-title">NOTE</strong><p>These guides provide instructions for performing a static deployment of your Vite site. Vite also supports Server Side Rendering. SSR refers to front-end frameworks that support running the same application in Node.js, pre-rendering it to HTML, and finally hydrating it on the client. Check out the <a href="ssr">SSR Guide</a> to learn about this feature. On the other hand, if you are looking for integration with traditional server-side frameworks, check out the <a href="backend-integration">Backend Integration guide</a> instead.</p>
+</div>
+<h2 id="building-the-app" tabindex="-1">Building the App </h2>
+<p>You may run <code>npm run build</code> command to build the app.</p>
+<div class="language-bash">
+<pre data-language="javascript">$ npm run build</pre>
+</div>
+<p>By default, the build output will be placed at <code>dist</code>. You may deploy this <code>dist</code> folder to any of your preferred platforms.</p>
+<h3 id="testing-the-app-locally" tabindex="-1">Testing the App Locally </h3>
+<p>Once you've built the app, you may test it locally by running <code>npm run preview</code> command.</p>
+<div class="language-bash">
+<pre data-language="javascript">$ npm run build
+$ npm run preview</pre>
+</div>
+<p>The <code>vite preview</code> command will boot up local static web server that serves the files from <code>dist</code> at <code>http://localhost:4173</code>. It's an easy way to check if the production build looks OK in your local environment.</p>
+<p>You may configure the port of the server by passing <code>--port</code> flag as an argument.</p>
+<div class="language-json">
+<pre data-language="javascript">{
+  "scripts": {
+    "preview": "vite preview --port 8080"
+  }
+}</pre>
+</div>
+<p>Now the <code>preview</code> command will launch the server at <code>http://localhost:8080</code>.</p>
+<h2 id="github-pages" tabindex="-1">GitHub Pages </h2>
+<ol>
+<li>
+<p>Set the correct <code>base</code> in <code>vite.config.js</code>.</p>
+<p>If you are deploying to <code>https://&lt;USERNAME&gt;.github.io/</code>, you can omit <code>base</code> as it defaults to <code>'/'</code>.</p>
+<p>If you are deploying to <code>https://&lt;USERNAME&gt;.github.io/&lt;REPO&gt;/</code>, for example your repository is at <code>https://github.com/&lt;USERNAME&gt;/&lt;REPO&gt;</code>, then set <code>base</code> to <code>'/&lt;REPO&gt;/'</code>.</p>
+</li>
+<li>
+<p>Inside your project, create <code>deploy.sh</code> with the following content (with highlighted lines uncommented appropriately), and run it to deploy:</p>
+<div class="language-bash">
+<div class="highlight-lines">
+<br><br><br><br><br><br><br><br><br><br><br><br>
+<br><br><br><br><br><br><br>
+<br><br>
+<br><br><br>
+</div>
+<pre data-language="javascript">#!/usr/bin/env sh
+
+# abort on errors
+set -e
+
+# build
+npm run build
+
+# navigate into the build output directory
+cd dist
+
+# if you are deploying to a custom domain
+# echo 'www.example.com' &gt; CNAME
+
+git init
+git checkout -b main
+git add -A
+git commit -m 'deploy'
+
+# if you are deploying to https://&lt;USERNAME&gt;.github.io
+# git push -f git@github.com:&lt;USERNAME&gt;/&lt;USERNAME&gt;.github.io.git main
+
+# if you are deploying to https://&lt;USERNAME&gt;.github.io/&lt;REPO&gt;
+# git push -f git@github.com:&lt;USERNAME&gt;/&lt;REPO&gt;.git main:gh-pages
+
+cd -</pre>
+</div>
+</li>
+</ol>
+<div class="tip custom-block">
+<strong class="custom-block-title">TIP</strong><p>You can also run the above script in your CI setup to enable automatic deployment on each push.</p>
+</div>
+<h2 id="gitlab-pages-and-gitlab-ci" tabindex="-1">GitLab Pages and GitLab CI </h2>
+<ol>
+<li>
+<p>Set the correct <code>base</code> in <code>vite.config.js</code>.</p>
+<p>If you are deploying to <code>https://&lt;USERNAME or GROUP&gt;.gitlab.io/</code>, you can omit <code>base</code> as it defaults to <code>'/'</code>.</p>
+<p>If you are deploying to <code>https://&lt;USERNAME or GROUP&gt;.gitlab.io/&lt;REPO&gt;/</code>, for example your repository is at <code>https://gitlab.com/&lt;USERNAME&gt;/&lt;REPO&gt;</code>, then set <code>base</code> to <code>'/&lt;REPO&gt;/'</code>.</p>
+</li>
+<li>
+<p>Create a file called <code>.gitlab-ci.yml</code> in the root of your project with the content below. This will build and deploy your site whenever you make changes to your content:</p>
+<div class="language-yaml">
+<pre data-language="javascript">image: node:16.5.0
+pages:
+  stage: deploy
+  cache:
+    key:
+      files:
+        - package-lock.json
+      prefix: npm
+    paths:
+      - node_modules/
+  script:
+    - npm install
+    - npm run build
+    - cp -a dist/. public/
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH</pre>
+</div>
+</li>
+</ol>
+<h2 id="netlify" tabindex="-1">Netlify </h2>
+<ol>
+<li>Install the <a href="https://cli.netlify.com/" target="_blank" rel="noopener noreferrer">Netlify CLI</a>.</li>
+<li>Create a new site using <code>ntl init</code>.</li>
+<li>Deploy using <code>ntl deploy</code>.</li>
+</ol>
+<div class="language-bash">
+<pre data-language="javascript"># Install the Netlify CLI
+$ npm install -g netlify-cli
+
+# Create a new site in Netlify
+$ ntl init
+
+# Deploy to a unique preview URL
+$ ntl deploy</pre>
+</div>
+<p>The Netlify CLI will share with you a preview URL to inspect. When you are ready to go into production, use the <code>prod</code> flag:</p>
+<div class="language-bash">
+<pre data-language="javascript"># Deploy the site into production
+$ ntl deploy --prod</pre>
+</div>
+<h2 id="vercel" tabindex="-1">Vercel </h2>
+<h3 id="vercel-cli" tabindex="-1">Vercel CLI </h3>
+<ol>
+<li>Install the <a href="https://vercel.com/cli" target="_blank" rel="noopener noreferrer">Vercel CLI</a> and run <code>vercel</code> to deploy.</li>
+<li>Vercel will detect that you are using Vite and will enable the correct settings for your deployment.</li>
+<li>Your application is deployed! (e.g. <a href="https://vite-vue-template.vercel.app/" target="_blank" rel="noopener noreferrer">vite-vue-template.vercel.app</a>)</li>
+</ol>
+<div class="language-bash">
+<pre data-language="javascript">$ npm i -g vercel
+$ vercel init vite
+Vercel CLI
+&gt; Success! Initialized "vite" example in ~/your-folder.
+- To deploy, `cd vite` and run `vercel`.</pre>
+</div>
+<h3 id="vercel-for-git" tabindex="-1">Vercel for Git </h3>
+<ol>
+<li>Push your code to your git repository (GitHub, GitLab, Bitbucket).</li>
+<li>
+<a href="https://vercel.com/new" target="_blank" rel="noopener noreferrer">Import your Vite project</a> into Vercel.</li>
+<li>Vercel will detect that you are using Vite and will enable the correct settings for your deployment.</li>
+<li>Your application is deployed! (e.g. <a href="https://vite-vue-template.vercel.app/" target="_blank" rel="noopener noreferrer">vite-vue-template.vercel.app</a>)</li>
+</ol>
+<p>After your project has been imported and deployed, all subsequent pushes to branches will generate <a href="https://vercel.com/docs/concepts/deployments/environments#preview" target="_blank" rel="noopener noreferrer">Preview Deployments</a>, and all changes made to the Production Branch (commonly “main”) will result in a <a href="https://vercel.com/docs/concepts/deployments/environments#production" target="_blank" rel="noopener noreferrer">Production Deployment</a>.</p>
+<p>Learn more about Vercel’s <a href="https://vercel.com/docs/concepts/git" target="_blank" rel="noopener noreferrer">Git Integration</a>.</p>
+<h2 id="cloudflare-pages" tabindex="-1">Cloudflare Pages </h2>
+<h3 id="cloudflare-pages-via-wrangler" tabindex="-1">Cloudflare Pages via Wrangler </h3>
+<ol>
+<li>Install <a href="https://developers.cloudflare.com/workers/wrangler/get-started/" target="_blank" rel="noopener noreferrer">Wrangler CLI</a>.</li>
+<li>Authenticate Wrangler with your Cloudflare account using <code>wrangler login</code>.</li>
+<li>Run your build command.</li>
+<li>Deploy using <code>npx wrangler pages publish dist</code>.</li>
+</ol>
+<div class="language-bash">
+<pre data-language="javascript"># Install Wrangler CLI
+$ npm install -g wrangler
+
+# Login to Cloudflare account from CLI
+$ wrangler login
+
+# Run your build command
+$ npm run build
+
+# Create new deployment
+$ npx wrangler pages publish dist</pre>
+</div>
+<p>After your assets are uploaded, Wrangler will give you a preview URL to inspect your site. When you log into the Cloudflare Pages dashboard, you will see your new project.</p>
+<h3 id="cloudflare-pages-with-git" tabindex="-1">Cloudflare Pages with Git </h3>
+<ol>
+<li>Push your code to your git repository (GitHub, GitLab).</li>
+<li>Log in to the Cloudflare dashboard and select your account in <strong>Account Home</strong> &gt; <strong>Pages</strong>.</li>
+<li>Select <strong>Create a new Project</strong> and the <strong>Connect Git</strong> option.</li>
+<li>Select the git project you want to deploy and click <strong>Begin setup</strong>
+</li>
+<li>Select the corresponding framework preset in the build setting depending on the Vite framework you have selected.</li>
+<li>Then save and deploy!</li>
+<li>Your application is deployed! (e.g <code>https://&lt;PROJECTNAME&gt;.pages.dev/</code>)</li>
+</ol>
+<p>After your project has been imported and deployed, all subsequent pushes to branches will generate <a href="https://developers.cloudflare.com/pages/platform/preview-deployments/" target="_blank" rel="noopener noreferrer">Preview Deployments</a> unless specified not to in your <a href="https://developers.cloudflare.com/pages/platform/branch-build-controls/" target="_blank" rel="noopener noreferrer">branch build controls</a>. All changes to the Production Branch (commonly “main”) will result in a Production Deployment.</p>
+<p>You can also add custom domains and handle custom build settings on Pages. Learn more about <a href="https://developers.cloudflare.com/pages/get-started/#manage-your-site" target="_blank" rel="noopener noreferrer">Cloudflare Pages Git Integration</a>.</p>
+<h2 id="google-firebase" tabindex="-1">Google Firebase </h2>
+<ol>
+<li><p>Make sure you have <a href="https://www.npmjs.com/package/firebase-tools" target="_blank" rel="noopener noreferrer">firebase-tools</a> installed.</p></li>
+<li>
+<p>Create <code>firebase.json</code> and <code>.firebaserc</code> at the root of your project with the following content:</p>
+<p><code>firebase.json</code>:</p>
+<div class="language-json">
+<pre data-language="javascript">{
+  "hosting": {
+    "public": "dist",
+    "ignore": [],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}</pre>
+</div>
+<p><code>.firebaserc</code>:</p>
+<div class="language-js">
+<pre data-language="javascript">{
+  "projects": {
+    "default": "&lt;YOUR_FIREBASE_ID&gt;"
+  }
+}</pre>
+</div>
+</li>
+<li><p>After running <code>npm run build</code>, deploy using the command <code>firebase deploy</code>.</p></li>
+</ol>
+<h2 id="surge" tabindex="-1">Surge </h2>
+<ol>
+<li><p>First install <a href="https://www.npmjs.com/package/surge" target="_blank" rel="noopener noreferrer">surge</a>, if you haven’t already.</p></li>
+<li><p>Run <code>npm run build</code>.</p></li>
+<li><p>Deploy to surge by typing <code>surge dist</code>.</p></li>
+</ol>
+<p>You can also deploy to a <a href="http://surge.sh/help/adding-a-custom-domain" target="_blank" rel="noopener noreferrer">custom domain</a> by adding <code>surge dist yourdomain.com</code>.</p>
+<h2 id="heroku" tabindex="-1">Heroku </h2>
+<ol>
+<li><p>Install <a href="https://devcenter.heroku.com/articles/heroku-cli" target="_blank" rel="noopener noreferrer">Heroku CLI</a>.</p></li>
+<li><p>Create a Heroku account by <a href="https://signup.heroku.com" target="_blank" rel="noopener noreferrer">signing up</a>.</p></li>
+<li>
+<p>Run <code>heroku login</code> and fill in your Heroku credentials:</p>
+<div class="language-bash">
+<pre data-language="javascript">$ heroku login</pre>
+</div>
+</li>
+<li>
+<p>Create a file called <code>static.json</code> in the root of your project with the below content:</p>
+<p><code>static.json</code>:</p>
+<div class="language-json">
+<pre data-language="javascript">{
+  "root": "./dist"
+}</pre>
+</div>
+<p>This is the configuration of your site; read more at <a href="https://github.com/heroku/heroku-buildpack-static" target="_blank" rel="noopener noreferrer">heroku-buildpack-static</a>.</p>
+</li>
+<li>
+<p>Set up your Heroku git remote:</p>
+<div class="language-bash">
+<pre data-language="javascript"># version change
+$ git init
+$ git add .
+$ git commit -m "My site ready for deployment."
+
+# creates a new app with a specified name
+$ heroku apps:create example</pre>
+</div>
+</li>
+<li>
+<p>Set buildpacks. We use <code>heroku/nodejs</code> to build the project and <code>heroku-buildpack-static</code> to serve it.</p>
+<div class="language-bash">
+<pre data-language="javascript"># set buildpacks
+$ heroku buildpacks:set heroku/nodejs
+$ heroku buildpacks:add https://github.com/heroku/heroku-buildpack-static.git</pre>
+</div>
+</li>
+<li>
+<p>Deploy your site:</p>
+<div class="language-bash">
+<pre data-language="javascript"># publish site
+$ git push heroku main
+
+# opens a browser to view the Dashboard version of Heroku CI
+$ heroku open</pre>
+</div>
+</li>
+</ol>
+<h2 id="azure-static-web-apps" tabindex="-1">Azure Static Web Apps </h2>
+<p>You can quickly deploy your Vite app with Microsoft Azure <a href="https://aka.ms/staticwebapps" target="_blank" rel="noopener noreferrer">Static Web Apps</a> service. You need:</p>
+<ul>
+<li>An Azure account and a subscription key. You can create a <a href="https://azure.microsoft.com/free" target="_blank" rel="noopener noreferrer">free Azure account here</a>.</li>
+<li>Your app code pushed to <a href="https://github.com" target="_blank" rel="noopener noreferrer">GitHub</a>.</li>
+<li>The <a href="https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-azurestaticwebapps" target="_blank" rel="noopener noreferrer">SWA Extension</a> in <a href="https://code.visualstudio.com" target="_blank" rel="noopener noreferrer">Visual Studio Code</a>.</li>
+</ul>
+<p>Install the extension in VS Code and navigate to your app root. Open the Static Web Apps extension, sign in to Azure, and click the '+' sign to create a new Static Web App. You will be prompted to designate which subscription key to use.</p>
+<p>Follow the wizard started by the extension to give your app a name, choose a framework preset, and designate the app root (usually <code>/</code>) and built file location <code>/dist</code>. The wizard will run and will create a GitHub action in your repo in a <code>.github</code> folder.</p>
+<p>The action will work to deploy your app (watch its progress in your repo's Actions tab) and, when successfully completed, you can view your app in the address provided in the extension's progress window by clicking the 'Browse Website' button that appears when the GitHub action has run.</p><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://vitejs.dev/guide/static-deploy.html" class="_attribution-link" target="_blank">https://vitejs.dev/guide/static-deploy.html</a>
+  </p>
+</div>

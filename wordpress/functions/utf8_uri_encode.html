@@ -1,0 +1,62 @@
+<h1>utf8_uri_encode( string $utf8_string, int $length, bool $encode_ascii_characters = false )</h1>  <section> <p>Encodes the Unicode values to be used in the URI.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$utf8_string</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">String to encode.</span> </p> </dd> <dt>$length</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">Max length of the string</span> </p> </dd> <dt>$encode_ascii_characters</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description">Whether to encode ascii characters such as &lt; " '</span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> String with Unicode encoded for URI.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/formatting.php/">wp-includes/formatting.php</a> </p> <pre data-language="php">function utf8_uri_encode( $utf8_string, $length = 0, $encode_ascii_characters = false ) {
+	$unicode        = '';
+	$values         = array();
+	$num_octets     = 1;
+	$unicode_length = 0;
+
+	mbstring_binary_safe_encoding();
+	$string_length = strlen( $utf8_string );
+	reset_mbstring_encoding();
+
+	for ( $i = 0; $i &lt; $string_length; $i++ ) {
+
+		$value = ord( $utf8_string[ $i ] );
+
+		if ( $value &lt; 128 ) {
+			$char                = chr( $value );
+			$encoded_char        = $encode_ascii_characters ? rawurlencode( $char ) : $char;
+			$encoded_char_length = strlen( $encoded_char );
+			if ( $length &amp;&amp; ( $unicode_length + $encoded_char_length ) &gt; $length ) {
+				break;
+			}
+			$unicode        .= $encoded_char;
+			$unicode_length += $encoded_char_length;
+		} else {
+			if ( count( $values ) == 0 ) {
+				if ( $value &lt; 224 ) {
+					$num_octets = 2;
+				} elseif ( $value &lt; 240 ) {
+					$num_octets = 3;
+				} else {
+					$num_octets = 4;
+				}
+			}
+
+			$values[] = $value;
+
+			if ( $length &amp;&amp; ( $unicode_length + ( $num_octets * 3 ) ) &gt; $length ) {
+				break;
+			}
+			if ( count( $values ) == $num_octets ) {
+				for ( $j = 0; $j &lt; $num_octets; $j++ ) {
+					$unicode .= '%' . dechex( $values[ $j ] );
+				}
+
+				$unicode_length += $num_octets * 3;
+
+				$values     = array();
+				$num_octets = 1;
+			}
+		}
+	}
+
+	return $unicode;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/functions.php:</span> <a href="mbstring_binary_safe_encoding">mbstring_binary_safe_encoding()</a> </td> <td class="related-desc"> <p>Set the mbstring internal encoding to a binary safe encoding when func_overload is enabled.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="reset_mbstring_encoding">reset_mbstring_encoding()</a> </td> <td class="related-desc"> <p>Reset the mbstring internal encoding to a users previously set encoding.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="sanitize_title_with_dashes">sanitize_title_with_dashes()</a> </td> <td class="related-desc"> <p>Sanitizes a title, replacing whitespace and a few other characters with dashes.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="_truncate_post_slug">_truncate_post_slug()</a> </td> <td class="related-desc"> <p>Truncate a post slug.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.8.3/" alt="WordPress 5.8.3">5.8.3</a></td> <td><span class="since-description">Added the <code>encode_ascii_characters</code> parameter.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/1.5.0/" alt="WordPress 1.5.0">1.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/utf8_uri_encode" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/utf8_uri_encode</a>
+  </p>
+</div>

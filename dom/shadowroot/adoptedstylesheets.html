@@ -1,0 +1,103 @@
+<h1>ShadowRoot.adoptedStyleSheets</h1>
+<div class="section-content">
+<p>The <code>adoptedStyleSheets</code> property of the <a href="../shadowroot"><code>ShadowRoot</code></a> interface sets an array of constructed stylesheets to be used by the shadow DOM subtree.</p> <div class="notecard note" id="sect1"> <p><strong>Note:</strong> A constructed stylesheet is a stylesheet created programmatically using the <a href="../cssstylesheet/cssstylesheet"><code>CSSStyleSheet()</code> constructor</a> (as compared to one created by a user-agent when importing a stylesheet from a script, imported using <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/style"><code>&lt;style&gt;</code></a> and <a href="https://developer.mozilla.org/en-US/docs/Web/CSS/@import"><code>@import</code></a>, or linked to via <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/link"><code>&lt;link&gt;</code></a>).</p> </div> <p> The same constructed stylesheet can be adopted by multiple <a href="../shadowroot"><code>ShadowRoot</code></a> instances, and by the parent document (using the <a href="../document/adoptedstylesheets"><code>Document.adoptedStyleSheets</code></a> property). Changing an adopted stylesheet will affect all the adopting objects. </p> <p> Stylesheets in the <code>adoptedStyleSheets</code> property are considered along with the shadow DOM's other stylesheets. For the purpose of determining the final computed CSS of any element, they are considered to have been added <em>after</em> the other stylesheets in the shadow DOM (<a href="../document/stylesheets"><code>ShadowRoot.styleSheets</code></a>). </p> <p>Only stylesheets created using the <a href="../cssstylesheet/cssstylesheet"><code>CSSStyleSheet()</code> constructor</a>, and from within the same parent <a href="../document"><code>Document</code></a> as the shadow root, may be adopted.</p>
+</div>
+<h2 id="value">Value</h2>
+<div class="section-content">
+<p>The value is an array of <a href="../cssstylesheet"><code>CSSStyleSheet()</code></a> instances that must have been created using the <a href="../cssstylesheet/cssstylesheet"><code>CSSStyleSheet()</code></a> constructor within the context of the shadow root's parent <a href="../document"><code>Document</code></a>.</p> <p> If the array needs to be modified, then a new array must be assigned (in-place mutations like <code>push()</code> will throw an exception). Note, however, that the <a href="../cssstylesheet"><code>CSSStyleSheet()</code></a> instances themselves can be modified, and these changes will apply wherever the stylesheet is adopted. </p>
+</div>
+<h2 id="examples">Examples</h2>
+
+<h3 id="adopting_a_stylesheet">Adopting a stylesheet</h3>
+<div class="section-content">
+<p>The code below first shows a stylesheet being constructed, and then <a href="../cssstylesheet/replacesync"><code>CSSStyleSheet.replaceSync()</code></a> is called to add a rule to the sheet.</p> <div class="code-example"><pre data-language="js"><span class="token comment">// Create an empty "constructed" stylesheet</span>
+<span class="token keyword">const</span> sheet <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">CSSStyleSheet</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token comment">// Apply a rule to the sheet</span>
+sheet<span class="token punctuation">.</span><span class="token function">replaceSync</span><span class="token punctuation">(</span><span class="token string">'a { color: red; }'</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+</pre></div> <p>We then create a <a href="../shadowroot"><code>ShadowRoot</code></a> and pass the sheet object to <code>adoptedStyleSheets</code> inside an array.</p> <div class="code-example"><pre data-language="js"><span class="token comment">// Create an element in the document and then create a shadow root:</span>
+<span class="token keyword">const</span> node <span class="token operator">=</span> document<span class="token punctuation">.</span><span class="token function">createElement</span><span class="token punctuation">(</span><span class="token string">'div'</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token keyword">const</span> shadow <span class="token operator">=</span> node<span class="token punctuation">.</span><span class="token function">attachShadow</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">mode</span><span class="token operator">:</span> <span class="token string">'open'</span> <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+<span class="token comment">//Adopt the sheet into the shadow DOM</span>
+shadow<span class="token punctuation">.</span>adoptedStyleSheets <span class="token operator">=</span> <span class="token punctuation">[</span>sheet<span class="token punctuation">]</span><span class="token punctuation">;</span>
+</pre></div> <p> We can still modify the stylesheets after they have been added to the array. Below we append a new rule to the same sheet using <a href="../cssstylesheet/insertrule"><code>CSSStyleSheet.insertRule()</code></a>. </p> <div class="code-example"><pre data-language="js"> sheet<span class="token punctuation">.</span><span class="token function">insertRule</span><span class="token punctuation">(</span><span class="token string">"* { background-color: blue; }"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+ <span class="token comment">// The document will now have blue background.</span>
+</pre></div>
+</div>
+<h3 id="append_a_new_stylesheet">Append a new stylesheet</h3>
+<div class="section-content">
+<p> To <em>append</em> a stylesheet to the <code>adoptedStyleSheets</code> property we have to create and assign a new array that contains both the original stylesheets in the property and the new style sheet. This is demonstrated for our shadow root object below using spread-syntax: </p> <div class="code-example"><pre data-language="js"><span class="token keyword">const</span> extraSheet <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">CSSStyleSheet</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+sheet<span class="token punctuation">.</span><span class="token function">replaceSync</span><span class="token punctuation">(</span><span class="token string">'p { color: green; }'</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+<span class="token comment">// Combine the existing sheets and new one</span>
+shadow<span class="token punctuation">.</span>adoptedStyleSheets <span class="token operator">=</span> <span class="token punctuation">[</span><span class="token operator">...</span>document<span class="token punctuation">.</span>adoptedStyleSheets<span class="token punctuation">,</span> extraSheet<span class="token punctuation">]</span><span class="token punctuation">;</span>
+</pre></div>
+</div>
+<h2 id="specifications">Specifications</h2>
+<div class="_table"><table class="standard-table">
+<thead><tr><th scope="col">Specification</th></tr></thead>
+<tbody><tr><td><a href="https://drafts.csswg.org/cssom/#dom-documentorshadowroot-adoptedstylesheets">CSS Object Model (CSSOM) <br><small># dom-documentorshadowroot-adoptedstylesheets</small></a></td></tr></tbody>
+</table></div>
+<h2 id="browser_compatibility">Browser compatibility</h2>
+<table>
+<thead>
+<tr id="bct-browser-type">
+<th></th>
+<th colspan="6">Desktop</th>
+<th colspan="6">Mobile</th>
+</tr>
+<tr id="bct-browsers">
+<th></th>
+<th>Chrome</th>
+<th>Edge</th>
+<th>Firefox</th>
+<th>Internet Explorer</th>
+<th>Opera</th>
+<th>Safari</th>
+<th>WebView Android</th>
+<th>Chrome Android</th>
+<th>Firefox for Android</th>
+<th>Opera Android</th>
+<th>Safari on IOS</th>
+<th>Samsung Internet</th>
+</tr>
+</thead>
+<tbody><tr>
+<th><code>adoptedStyleSheets</code></th>
+<td class="bc-supports-yes"><div>73</div></td>
+<td class="bc-supports-yes"><div>79</div></td>
+<td class="bc-supports-yes">
+<div>101</div>
+<div>75-101</div>
+<div>See <a href="https://bugzil.la/1613746">bug 1613746</a>.</div>
+</td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>60</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>73</div></td>
+<td class="bc-supports-yes"><div>73</div></td>
+<td class="bc-supports-yes"><div>101</div></td>
+<td class="bc-supports-yes"><div>50</div></td>
+<td class="bc-supports-no"><div>No</div></td>
+<td class="bc-supports-yes"><div>11.0</div></td>
+</tr></tbody>
+</table>
+<h2 id="see_also">See also</h2>
+<div class="section-content"><ul> <li>
+<a href="https://web.dev/constructable-stylesheets/" rel=" noopener">Constructable Stylesheets</a> (web.dev)</li> <li><a href="https://developer.mozilla.org/en-US/docs/Web/Web_Components/Using_shadow_DOM">Using the Shadow DOM</a></li> <li><a href="../cssstylesheet/cssstylesheet"><code>CSSStyleSheet()</code> constructor</a></li> <li><a href="../cssstylesheet/replacesync"><code>CSSStyleSheet.replaceSync()</code></a></li> <li><a href="../cssstylesheet/replace"><code>CSSStyleSheet.replace()</code></a></li> <li><a href="../cssstylesheet/insertrule"><code>CSSStyleSheet.insertRule()</code></a></li> <li><a href="../cssstylesheet/deleterule"><code>CSSStyleSheet.deleteRule()</code></a></li> </ul></div>
+<aside class="metadata"><div class="metadata-content-container">
+<div id="on-github" class="on-github">
+<h3>Found a problem with this page?</h3>
+<ul>
+<li><a href="https://github.com/mdn/content/edit/main/files/en-us/web/api/shadowroot/adoptedstylesheets/index.md" target="_blank" rel="noopener noreferrer">Edit on <b>GitHub</b></a></li>
+<li><a href="https://github.com/mdn/content/blob/main/files/en-us/web/api/shadowroot/adoptedstylesheets/index.md?plain=1" target="_blank" rel="noopener noreferrer">Source on <b>GitHub</b></a></li>
+<li><a href="https://github.com/mdn/content/issues/new?template=page-report.yml&amp;mdn-url=https%3A%2F%2Fdeveloper.mozilla.org%2Fen-US%2Fdocs%2FWeb%2FAPI%2FShadowRoot%2FadoptedStyleSheets&amp;metadata=%3C%21--+Do+not+make+changes+below+this+line+--%3E%0A%3Cdetails%3E%0A%3Csummary%3EPage+report+details%3C%2Fsummary%3E%0A%0A*+Folder%3A+%60en-us%2Fweb%2Fapi%2Fshadowroot%2Fadoptedstylesheets%60%0A*+MDN+URL%3A+https%3A%2F%2Fdeveloper.mozilla.org%2Fen-US%2Fdocs%2FWeb%2FAPI%2FShadowRoot%2FadoptedStyleSheets%0A*+GitHub+URL%3A+https%3A%2F%2Fgithub.com%2Fmdn%2Fcontent%2Fblob%2Fmain%2Ffiles%2Fen-us%2Fweb%2Fapi%2Fshadowroot%2Fadoptedstylesheets%2Findex.md%0A*+Last+commit%3A+https%3A%2F%2Fgithub.com%2Fmdn%2Fcontent%2Fcommit%2F2a66f671294834b3dc64622935d720f408385a77%0A*+Document+last+modified%3A+2022-07-02T02%3A49%3A01.000Z%0A%0A%3C%2Fdetails%3E" target="_blank" rel="noopener noreferrer">Report a problem with this content on <b>GitHub</b></a></li>
+<li>Want to fix the problem yourself? See <a href="https://github.com/mdn/content/blob/main/README.md" target="_blank" rel="noopener noreferrer">our Contribution guide</a>.</li>
+</ul>
+</div>
+<p class="last-modified-date"><b>Last modified:</b> <time datetime="2022-07-02T02:49:01.000Z">Jul 2, 2022</time>, <a href="adoptedstylesheets/contributors.txt">by MDN contributors</a></p>
+</div></aside><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.mozilla.org/en-US/docs/Web/API/ShadowRoot/adoptedStyleSheets" class="_attribution-link" target="_blank">https://developer.mozilla.org/en-US/docs/Web/API/ShadowRoot/adoptedStyleSheets</a>
+  </p>
+</div>

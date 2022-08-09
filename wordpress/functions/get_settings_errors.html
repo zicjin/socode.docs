@@ -1,0 +1,52 @@
+<h1>get_settings_errors( string $setting = '', bool $sanitize = false )</h1>  <section> <p>Fetches settings errors registered by <a href="add_settings_error">add_settings_error()</a>.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Checks the $wp_settings_errors array for any errors declared during the current pageload and returns them.</p> <p>If changes were just submitted ($_GET[‘settings-updated’]) and settings errors were saved to the ‘settings_errors’ transient then those errors will be returned instead. This is used to pass errors back across pageloads.</p> <p>Use the $sanitize argument to manually re-sanitize the option before returning errors. This is useful if you have errors or notices you want to show even when the user hasn’t submitted data (i.e. when they first load an options page, or in the <a href="../hooks/admin_notices">‘admin_notices’</a> action hook).</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$setting</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> Slug title of a specific setting whose errors you want.</span> </p> <p class="default">Default value: ''</p> </dd> <dt>$sanitize</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> Whether to re-sanitize the setting value before returning errors.</span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> Array of settings errors. </p>
+<ul class="param-hash">
+<li>
+<b>'setting'</b><br><i><span class="type">(string)</span></i> Slug title of the setting to which this error applies.</li> <li>
+<b>'code'</b><br><i><span class="type">(string)</span></i> Slug-name to identify the error. Used as part of 'id' attribute in HTML output.</li> <li>
+<b>'message'</b><br><i><span class="type">(string)</span></i> The formatted message text to display to the user (will be shown inside styled <code>&lt;div&gt;</code> and <code>&lt;p&gt;</code> tags).</li> <li>
+<b>'type'</b><br><i><span class="type">(string)</span></i> Optional. Message type, controls HTML class. Possible values include 'error', 'success', 'warning', 'info'. Default 'error'.</li> </ul> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/template.php/">wp-admin/includes/template.php</a> </p> <pre data-language="php">function get_settings_errors( $setting = '', $sanitize = false ) {
+	global $wp_settings_errors;
+
+	/*
+	 * If $sanitize is true, manually re-run the sanitization for this option
+	 * This allows the $sanitize_callback from register_setting() to run, adding
+	 * any settings errors you want to show by default.
+	 */
+	if ( $sanitize ) {
+		sanitize_option( $setting, get_option( $setting ) );
+	}
+
+	// If settings were passed back from options.php then use them.
+	if ( isset( $_GET['settings-updated'] ) &amp;&amp; $_GET['settings-updated'] &amp;&amp; get_transient( 'settings_errors' ) ) {
+		$wp_settings_errors = array_merge( (array) $wp_settings_errors, get_transient( 'settings_errors' ) );
+		delete_transient( 'settings_errors' );
+	}
+
+	// Check global in case errors have been added on this pageload.
+	if ( empty( $wp_settings_errors ) ) {
+		return array();
+	}
+
+	// Filter the results to those of a specific setting if one was set.
+	if ( $setting ) {
+		$setting_errors = array();
+
+		foreach ( (array) $wp_settings_errors as $key =&gt; $details ) {
+			if ( $setting === $details['setting'] ) {
+				$setting_errors[] = $wp_settings_errors[ $key ];
+			}
+		}
+
+		return $setting_errors;
+	}
+
+	return $wp_settings_errors;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="sanitize_option">sanitize_option()</a> </td> <td class="related-desc"> <p>Sanitizes various option values based on the nature of the option.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_transient">get_transient()</a> </td> <td class="related-desc"> <p>Retrieves the value of a transient.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="delete_transient">delete_transient()</a> </td> <td class="related-desc"> <p>Deletes a transient.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/template.php:</span> <a href="settings_errors">settings_errors()</a> </td> <td class="related-desc"> <p>Displays settings errors registered by <a href="add_settings_error">add_settings_error()</a>.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.0.0/" alt="WordPress 3.0.0">3.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/get_settings_errors" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/get_settings_errors</a>
+  </p>
+</div>

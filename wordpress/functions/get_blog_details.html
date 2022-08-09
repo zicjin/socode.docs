@@ -1,0 +1,154 @@
+<h1>get_blog_details( int|string|array $fields = null, bool $get_all = true )</h1>  <section> <p>Retrieve the details for a blog from the blogs table and blog options.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$fields</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>|<span class="string">string</span>|<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description"> A blog ID, a blog slug, or an array of fields to query against. If not specified the current blog ID is used.</span> </p> <p class="default">Default value: null</p> </dd> <dt>$get_all</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description">Whether to retrieve all details or only the details in the blogs table. Default is true.</span> </p> <p class="default">Default value: true</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../classes/wp_site">WP_Site</a>|false)</span> Blog details on success. False on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/ms-blogs.php/">wp-includes/ms-blogs.php</a> </p> <pre data-language="php">function get_blog_details( $fields = null, $get_all = true ) {
+	global $wpdb;
+
+	if ( is_array( $fields ) ) {
+		if ( isset( $fields['blog_id'] ) ) {
+			$blog_id = $fields['blog_id'];
+		} elseif ( isset( $fields['domain'] ) &amp;&amp; isset( $fields['path'] ) ) {
+			$key  = md5( $fields['domain'] . $fields['path'] );
+			$blog = wp_cache_get( $key, 'blog-lookup' );
+			if ( false !== $blog ) {
+				return $blog;
+			}
+			if ( 'www.' === substr( $fields['domain'], 0, 4 ) ) {
+				$nowww = substr( $fields['domain'], 4 );
+				$blog  = $wpdb-&gt;get_row( $wpdb-&gt;prepare( "SELECT * FROM $wpdb-&gt;blogs WHERE domain IN (%s,%s) AND path = %s ORDER BY CHAR_LENGTH(domain) DESC", $nowww, $fields['domain'], $fields['path'] ) );
+			} else {
+				$blog = $wpdb-&gt;get_row( $wpdb-&gt;prepare( "SELECT * FROM $wpdb-&gt;blogs WHERE domain = %s AND path = %s", $fields['domain'], $fields['path'] ) );
+			}
+			if ( $blog ) {
+				wp_cache_set( $blog-&gt;blog_id . 'short', $blog, 'blog-details' );
+				$blog_id = $blog-&gt;blog_id;
+			} else {
+				return false;
+			}
+		} elseif ( isset( $fields['domain'] ) &amp;&amp; is_subdomain_install() ) {
+			$key  = md5( $fields['domain'] );
+			$blog = wp_cache_get( $key, 'blog-lookup' );
+			if ( false !== $blog ) {
+				return $blog;
+			}
+			if ( 'www.' === substr( $fields['domain'], 0, 4 ) ) {
+				$nowww = substr( $fields['domain'], 4 );
+				$blog  = $wpdb-&gt;get_row( $wpdb-&gt;prepare( "SELECT * FROM $wpdb-&gt;blogs WHERE domain IN (%s,%s) ORDER BY CHAR_LENGTH(domain) DESC", $nowww, $fields['domain'] ) );
+			} else {
+				$blog = $wpdb-&gt;get_row( $wpdb-&gt;prepare( "SELECT * FROM $wpdb-&gt;blogs WHERE domain = %s", $fields['domain'] ) );
+			}
+			if ( $blog ) {
+				wp_cache_set( $blog-&gt;blog_id . 'short', $blog, 'blog-details' );
+				$blog_id = $blog-&gt;blog_id;
+			} else {
+				return false;
+			}
+		} else {
+			return false;
+		}
+	} else {
+		if ( ! $fields ) {
+			$blog_id = get_current_blog_id();
+		} elseif ( ! is_numeric( $fields ) ) {
+			$blog_id = get_id_from_blogname( $fields );
+		} else {
+			$blog_id = $fields;
+		}
+	}
+
+	$blog_id = (int) $blog_id;
+
+	$all     = $get_all ? '' : 'short';
+	$details = wp_cache_get( $blog_id . $all, 'blog-details' );
+
+	if ( $details ) {
+		if ( ! is_object( $details ) ) {
+			if ( -1 == $details ) {
+				return false;
+			} else {
+				// Clear old pre-serialized objects. Cache clients do better with that.
+				wp_cache_delete( $blog_id . $all, 'blog-details' );
+				unset( $details );
+			}
+		} else {
+			return $details;
+		}
+	}
+
+	// Try the other cache.
+	if ( $get_all ) {
+		$details = wp_cache_get( $blog_id . 'short', 'blog-details' );
+	} else {
+		$details = wp_cache_get( $blog_id, 'blog-details' );
+		// If short was requested and full cache is set, we can return.
+		if ( $details ) {
+			if ( ! is_object( $details ) ) {
+				if ( -1 == $details ) {
+					return false;
+				} else {
+					// Clear old pre-serialized objects. Cache clients do better with that.
+					wp_cache_delete( $blog_id, 'blog-details' );
+					unset( $details );
+				}
+			} else {
+				return $details;
+			}
+		}
+	}
+
+	if ( empty( $details ) ) {
+		$details = WP_Site::get_instance( $blog_id );
+		if ( ! $details ) {
+			// Set the full cache.
+			wp_cache_set( $blog_id, -1, 'blog-details' );
+			return false;
+		}
+	}
+
+	if ( ! $details instanceof WP_Site ) {
+		$details = new WP_Site( $details );
+	}
+
+	if ( ! $get_all ) {
+		wp_cache_set( $blog_id . $all, $details, 'blog-details' );
+		return $details;
+	}
+
+	$switched_blog = false;
+
+	if ( get_current_blog_id() !== $blog_id ) {
+		switch_to_blog( $blog_id );
+		$switched_blog = true;
+	}
+
+	$details-&gt;blogname   = get_option( 'blogname' );
+	$details-&gt;siteurl    = get_option( 'siteurl' );
+	$details-&gt;post_count = get_option( 'post_count' );
+	$details-&gt;home       = get_option( 'home' );
+
+	if ( $switched_blog ) {
+		restore_current_blog();
+	}
+
+	/**
+	 * Filters a blog's details.
+	 *
+	 * @since MU (3.0.0)
+	 * @deprecated 4.7.0 Use {@see 'site_details'} instead.
+	 *
+	 * @param WP_Site $details The blog details.
+	 */
+	$details = apply_filters_deprecated( 'blog_details', array( $details ), '4.7.0', 'site_details' );
+
+	wp_cache_set( $blog_id . $all, $details, 'blog-details' );
+
+	$key = md5( $details-&gt;domain . $details-&gt;path );
+	wp_cache_set( $key, $details, 'blog-lookup' );
+
+	return $details;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters_deprecated">apply_filters_deprecated()</a> </td> <td class="related-desc"> <p>Fires functions attached to a deprecated filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-site.php:</span> <a href="../classes/wp_site/get_instance">WP_Site::get_instance()</a> </td> <td class="related-desc"> <p>Retrieves a site from the database by its ID.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-site.php:</span> <a href="../classes/wp_site/__construct">WP_Site::__construct()</a> </td> <td class="related-desc"> <p>Creates a new <a href="../classes/wp_site">WP_Site</a> object.</p> </td> </tr> <tr> <td> <span>wp-includes/cache.php:</span> <a href="wp_cache_get">wp_cache_get()</a> </td> <td class="related-desc"> <p>Retrieves the cache contents from the cache by key and group.</p> </td> </tr> <tr> <td> <span>wp-includes/cache.php:</span> <a href="wp_cache_set">wp_cache_set()</a> </td> <td class="related-desc"> <p>Saves the data to the cache.</p> </td> </tr> <tr> <td> <span>wp-includes/cache.php:</span> <a href="wp_cache_delete">wp_cache_delete()</a> </td> <td class="related-desc"> <p>Removes the cache contents matching key and group.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="get_current_blog_id">get_current_blog_id()</a> </td> <td class="related-desc"> <p>Retrieve the current site ID.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-load.php:</span> <a href="is_subdomain_install">is_subdomain_install()</a> </td> <td class="related-desc"> <p>Whether a subdomain configuration is enabled.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-blogs.php:</span> <a href="switch_to_blog">switch_to_blog()</a> </td> <td class="related-desc"> <p>Switch the current blog.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-blogs.php:</span> <a href="restore_current_blog">restore_current_blog()</a> </td> <td class="related-desc"> <p>Restore the current blog, after calling <a href="switch_to_blog">switch_to_blog()</a>.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-blogs.php:</span> <a href="get_id_from_blogname">get_id_from_blogname()</a> </td> <td class="related-desc"> <p>Retrieves a sites ID given its (subdomain or directory) slug.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-blogs.php:</span> <a href="../hooks/blog_details">blog_details</a> </td> <td class="related-desc"> <p>Filters a blog’s details.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/get_row">wpdb::get_row()</a> </td> <td class="related-desc"> <p>Retrieves one row from the database.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/prepare">wpdb::prepare()</a> </td> <td class="related-desc"> <p>Prepares a SQL query for safe execution.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="wp_lostpassword_url">wp_lostpassword_url()</a> </td> <td class="related-desc"> <p>Returns the URL that allows the user to retrieve the lost password</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/mu.3.0.0/" alt="WordPress MU (3.0.0)">MU (3.0.0)</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/get_blog_details" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/get_blog_details</a>
+  </p>
+</div>

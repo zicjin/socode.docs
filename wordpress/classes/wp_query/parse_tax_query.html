@@ -1,0 +1,239 @@
+<h1>WP_Query::parse_tax_query( array $q )</h1>  <section> <p>Parses various taxonomy related query vars.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>For BC, this method is not marked as protected. See [28987].</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$q</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">The query variables. Passed by reference.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-query.php/">wp-includes/class-wp-query.php</a> </p> <pre data-language="php">public function parse_tax_query( &amp;$q ) {
+		if ( ! empty( $q['tax_query'] ) &amp;&amp; is_array( $q['tax_query'] ) ) {
+			$tax_query = $q['tax_query'];
+		} else {
+			$tax_query = array();
+		}
+
+		if ( ! empty( $q['taxonomy'] ) &amp;&amp; ! empty( $q['term'] ) ) {
+			$tax_query[] = array(
+				'taxonomy' =&gt; $q['taxonomy'],
+				'terms'    =&gt; array( $q['term'] ),
+				'field'    =&gt; 'slug',
+			);
+		}
+
+		foreach ( get_taxonomies( array(), 'objects' ) as $taxonomy =&gt; $t ) {
+			if ( 'post_tag' === $taxonomy ) {
+				continue; // Handled further down in the $q['tag'] block.
+			}
+
+			if ( $t-&gt;query_var &amp;&amp; ! empty( $q[ $t-&gt;query_var ] ) ) {
+				$tax_query_defaults = array(
+					'taxonomy' =&gt; $taxonomy,
+					'field'    =&gt; 'slug',
+				);
+
+				if ( ! empty( $t-&gt;rewrite['hierarchical'] ) ) {
+					$q[ $t-&gt;query_var ] = wp_basename( $q[ $t-&gt;query_var ] );
+				}
+
+				$term = $q[ $t-&gt;query_var ];
+
+				if ( is_array( $term ) ) {
+					$term = implode( ',', $term );
+				}
+
+				if ( strpos( $term, '+' ) !== false ) {
+					$terms = preg_split( '/[+]+/', $term );
+					foreach ( $terms as $term ) {
+						$tax_query[] = array_merge(
+							$tax_query_defaults,
+							array(
+								'terms' =&gt; array( $term ),
+							)
+						);
+					}
+				} else {
+					$tax_query[] = array_merge(
+						$tax_query_defaults,
+						array(
+							'terms' =&gt; preg_split( '/[,]+/', $term ),
+						)
+					);
+				}
+			}
+		}
+
+		// If query string 'cat' is an array, implode it.
+		if ( is_array( $q['cat'] ) ) {
+			$q['cat'] = implode( ',', $q['cat'] );
+		}
+
+		// Category stuff.
+
+		if ( ! empty( $q['cat'] ) &amp;&amp; ! $this-&gt;is_singular ) {
+			$cat_in     = array();
+			$cat_not_in = array();
+
+			$cat_array = preg_split( '/[,\s]+/', urldecode( $q['cat'] ) );
+			$cat_array = array_map( 'intval', $cat_array );
+			$q['cat']  = implode( ',', $cat_array );
+
+			foreach ( $cat_array as $cat ) {
+				if ( $cat &gt; 0 ) {
+					$cat_in[] = $cat;
+				} elseif ( $cat &lt; 0 ) {
+					$cat_not_in[] = abs( $cat );
+				}
+			}
+
+			if ( ! empty( $cat_in ) ) {
+				$tax_query[] = array(
+					'taxonomy'         =&gt; 'category',
+					'terms'            =&gt; $cat_in,
+					'field'            =&gt; 'term_id',
+					'include_children' =&gt; true,
+				);
+			}
+
+			if ( ! empty( $cat_not_in ) ) {
+				$tax_query[] = array(
+					'taxonomy'         =&gt; 'category',
+					'terms'            =&gt; $cat_not_in,
+					'field'            =&gt; 'term_id',
+					'operator'         =&gt; 'NOT IN',
+					'include_children' =&gt; true,
+				);
+			}
+			unset( $cat_array, $cat_in, $cat_not_in );
+		}
+
+		if ( ! empty( $q['category__and'] ) &amp;&amp; 1 === count( (array) $q['category__and'] ) ) {
+			$q['category__and'] = (array) $q['category__and'];
+			if ( ! isset( $q['category__in'] ) ) {
+				$q['category__in'] = array();
+			}
+			$q['category__in'][] = absint( reset( $q['category__and'] ) );
+			unset( $q['category__and'] );
+		}
+
+		if ( ! empty( $q['category__in'] ) ) {
+			$q['category__in'] = array_map( 'absint', array_unique( (array) $q['category__in'] ) );
+			$tax_query[]       = array(
+				'taxonomy'         =&gt; 'category',
+				'terms'            =&gt; $q['category__in'],
+				'field'            =&gt; 'term_id',
+				'include_children' =&gt; false,
+			);
+		}
+
+		if ( ! empty( $q['category__not_in'] ) ) {
+			$q['category__not_in'] = array_map( 'absint', array_unique( (array) $q['category__not_in'] ) );
+			$tax_query[]           = array(
+				'taxonomy'         =&gt; 'category',
+				'terms'            =&gt; $q['category__not_in'],
+				'operator'         =&gt; 'NOT IN',
+				'include_children' =&gt; false,
+			);
+		}
+
+		if ( ! empty( $q['category__and'] ) ) {
+			$q['category__and'] = array_map( 'absint', array_unique( (array) $q['category__and'] ) );
+			$tax_query[]        = array(
+				'taxonomy'         =&gt; 'category',
+				'terms'            =&gt; $q['category__and'],
+				'field'            =&gt; 'term_id',
+				'operator'         =&gt; 'AND',
+				'include_children' =&gt; false,
+			);
+		}
+
+		// If query string 'tag' is array, implode it.
+		if ( is_array( $q['tag'] ) ) {
+			$q['tag'] = implode( ',', $q['tag'] );
+		}
+
+		// Tag stuff.
+
+		if ( '' !== $q['tag'] &amp;&amp; ! $this-&gt;is_singular &amp;&amp; $this-&gt;query_vars_changed ) {
+			if ( strpos( $q['tag'], ',' ) !== false ) {
+				$tags = preg_split( '/[,\r\n\t ]+/', $q['tag'] );
+				foreach ( (array) $tags as $tag ) {
+					$tag                 = sanitize_term_field( 'slug', $tag, 0, 'post_tag', 'db' );
+					$q['tag_slug__in'][] = $tag;
+				}
+			} elseif ( preg_match( '/[+\r\n\t ]+/', $q['tag'] ) || ! empty( $q['cat'] ) ) {
+				$tags = preg_split( '/[+\r\n\t ]+/', $q['tag'] );
+				foreach ( (array) $tags as $tag ) {
+					$tag                  = sanitize_term_field( 'slug', $tag, 0, 'post_tag', 'db' );
+					$q['tag_slug__and'][] = $tag;
+				}
+			} else {
+				$q['tag']            = sanitize_term_field( 'slug', $q['tag'], 0, 'post_tag', 'db' );
+				$q['tag_slug__in'][] = $q['tag'];
+			}
+		}
+
+		if ( ! empty( $q['tag_id'] ) ) {
+			$q['tag_id'] = absint( $q['tag_id'] );
+			$tax_query[] = array(
+				'taxonomy' =&gt; 'post_tag',
+				'terms'    =&gt; $q['tag_id'],
+			);
+		}
+
+		if ( ! empty( $q['tag__in'] ) ) {
+			$q['tag__in'] = array_map( 'absint', array_unique( (array) $q['tag__in'] ) );
+			$tax_query[]  = array(
+				'taxonomy' =&gt; 'post_tag',
+				'terms'    =&gt; $q['tag__in'],
+			);
+		}
+
+		if ( ! empty( $q['tag__not_in'] ) ) {
+			$q['tag__not_in'] = array_map( 'absint', array_unique( (array) $q['tag__not_in'] ) );
+			$tax_query[]      = array(
+				'taxonomy' =&gt; 'post_tag',
+				'terms'    =&gt; $q['tag__not_in'],
+				'operator' =&gt; 'NOT IN',
+			);
+		}
+
+		if ( ! empty( $q['tag__and'] ) ) {
+			$q['tag__and'] = array_map( 'absint', array_unique( (array) $q['tag__and'] ) );
+			$tax_query[]   = array(
+				'taxonomy' =&gt; 'post_tag',
+				'terms'    =&gt; $q['tag__and'],
+				'operator' =&gt; 'AND',
+			);
+		}
+
+		if ( ! empty( $q['tag_slug__in'] ) ) {
+			$q['tag_slug__in'] = array_map( 'sanitize_title_for_query', array_unique( (array) $q['tag_slug__in'] ) );
+			$tax_query[]       = array(
+				'taxonomy' =&gt; 'post_tag',
+				'terms'    =&gt; $q['tag_slug__in'],
+				'field'    =&gt; 'slug',
+			);
+		}
+
+		if ( ! empty( $q['tag_slug__and'] ) ) {
+			$q['tag_slug__and'] = array_map( 'sanitize_title_for_query', array_unique( (array) $q['tag_slug__and'] ) );
+			$tax_query[]        = array(
+				'taxonomy' =&gt; 'post_tag',
+				'terms'    =&gt; $q['tag_slug__and'],
+				'field'    =&gt; 'slug',
+				'operator' =&gt; 'AND',
+			);
+		}
+
+		$this-&gt;tax_query = new WP_Tax_Query( $tax_query );
+
+		/**
+		 * Fires after taxonomy-related query vars have been parsed.
+		 *
+		 * @since 3.7.0
+		 *
+		 * @param WP_Query $query The WP_Query instance.
+		 */
+		do_action( 'parse_tax_query', $this );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/wp_basename">wp_basename()</a> </td> <td class="related-desc"> <p>i18n-friendly version of basename().</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-query.php:</span> <a href="../../hooks/parse_tax_query">parse_tax_query</a> </td> <td class="related-desc"> <p>Fires after taxonomy-related query vars have been parsed.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/absint">absint()</a> </td> <td class="related-desc"> <p>Convert a value to non-negative integer.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-tax-query.php:</span> <a href="../wp_tax_query/__construct">WP_Tax_Query::__construct()</a> </td> <td class="related-desc"> <p>Constructor.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="../../functions/sanitize_term_field">sanitize_term_field()</a> </td> <td class="related-desc"> <p>Sanitizes the field value in the term based on the context.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="../../functions/get_taxonomies">get_taxonomies()</a> </td> <td class="related-desc"> <p>Retrieves a list of registered taxonomy names or objects.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-query.php:</span> <a href="get_posts">WP_Query::get_posts()</a> </td> <td class="related-desc"> <p>Retrieves an array of posts based on query variables.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-query.php:</span> <a href="parse_query">WP_Query::parse_query()</a> </td> <td class="related-desc"> <p>Parse a query string and set query type booleans.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.1.0/" alt="WordPress 3.1.0">3.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_query/parse_tax_query" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_query/parse_tax_query</a>
+  </p>
+</div>

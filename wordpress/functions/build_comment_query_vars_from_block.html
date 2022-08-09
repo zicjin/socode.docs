@@ -1,0 +1,62 @@
+<h1>build_comment_query_vars_from_block( WP_Block $block )</h1>  <section> <p>Helper function that constructs a comment query vars array from the passed block properties.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>It’s used with the Comment Query Loop inner blocks.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$block</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Block"><a href="../classes/wp_block">WP_Block</a></span>)</span> <span class="required">(Required)</span> <span class="description">Block instance.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> Returns the comment query parameters to use with the <a href="../classes/wp_comment_query">WP_Comment_Query</a> constructor.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/blocks.php/">wp-includes/blocks.php</a> </p> <pre data-language="php">function build_comment_query_vars_from_block( $block ) {
+
+	$comment_args = array(
+		'orderby'       =&gt; 'comment_date_gmt',
+		'order'         =&gt; 'ASC',
+		'status'        =&gt; 'approve',
+		'no_found_rows' =&gt; false,
+	);
+
+	if ( is_user_logged_in() ) {
+		$comment_args['include_unapproved'] = array( get_current_user_id() );
+	} else {
+		$unapproved_email = wp_get_unapproved_comment_author_email();
+
+		if ( $unapproved_email ) {
+			$comment_args['include_unapproved'] = array( $unapproved_email );
+		}
+	}
+
+	if ( ! empty( $block-&gt;context['postId'] ) ) {
+		$comment_args['post_id'] = (int) $block-&gt;context['postId'];
+	}
+
+	if ( get_option( 'thread_comments' ) ) {
+		$comment_args['hierarchical'] = 'threaded';
+	} else {
+		$comment_args['hierarchical'] = false;
+	}
+
+	if ( get_option( 'page_comments' ) === '1' || get_option( 'page_comments' ) === true ) {
+		$per_page     = get_option( 'comments_per_page' );
+		$default_page = get_option( 'default_comments_page' );
+		if ( $per_page &gt; 0 ) {
+			$comment_args['number'] = $per_page;
+
+			$page = (int) get_query_var( 'cpage' );
+			if ( $page ) {
+				$comment_args['paged'] = $page;
+			} elseif ( 'oldest' === $default_page ) {
+				$comment_args['paged'] = 1;
+			} elseif ( 'newest' === $default_page ) {
+				$max_num_pages = (int) ( new WP_Comment_Query( $comment_args ) )-&gt;max_num_pages;
+				if ( 0 !== $max_num_pages ) {
+					$comment_args['paged'] = $max_num_pages;
+				}
+			}
+			// Set the `cpage` query var to ensure the previous and next pagination links are correct
+			// when inheriting the Discussion Settings.
+			if ( 0 === $page &amp;&amp; isset( $comment_args['paged'] ) &amp;&amp; $comment_args['paged'] &gt; 0 ) {
+				set_query_var( 'cpage', $comment_args['paged'] );
+			}
+		}
+	}
+
+	return $comment_args;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/comment.php:</span> <a href="wp_get_unapproved_comment_author_email">wp_get_unapproved_comment_author_email()</a> </td> <td class="related-desc"> <p>Gets unapproved comment author’s email.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-comment-query.php:</span> <a href="../classes/wp_comment_query/__construct">WP_Comment_Query::__construct()</a> </td> <td class="related-desc"> <p>Constructor.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="is_user_logged_in">is_user_logged_in()</a> </td> <td class="related-desc"> <p>Determines whether the current visitor is a logged in user.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="get_query_var">get_query_var()</a> </td> <td class="related-desc"> <p>Retrieves the value of a query variable in the <a href="../classes/wp_query">WP_Query</a> class.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="set_query_var">set_query_var()</a> </td> <td class="related-desc"> <p>Sets the value of a query variable in the <a href="../classes/wp_query">WP_Query</a> class.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="get_current_user_id">get_current_user_id()</a> </td> <td class="related-desc"> <p>Gets the current user’s ID.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/6.0.0/" alt="WordPress 6.0.0">6.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/build_comment_query_vars_from_block" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/build_comment_query_vars_from_block</a>
+  </p>
+</div>

@@ -1,0 +1,143 @@
+<h1>media_upload_type_url_form( string $type = null, object $errors = null, int $id = null )</h1>  <section> <p>Outputs the legacy media upload form for external media.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$type</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> </p> <p class="default">Default value: null</p> </dd> <dt>$errors</dt> <dd> <p class="desc"> <span class="type">(<span class="object">object</span>)</span> <span class="required">(Optional)</span> </p> <p class="default">Default value: null</p> </dd> <dt>$id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> </p> <p class="default">Default value: null</p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/media.php/">wp-admin/includes/media.php</a> </p> <pre data-language="php">function media_upload_type_url_form( $type = null, $errors = null, $id = null ) {
+	if ( null === $type ) {
+		$type = 'image';
+	}
+
+	media_upload_header();
+
+	$post_id = isset( $_REQUEST['post_id'] ) ? (int) $_REQUEST['post_id'] : 0;
+
+	$form_action_url = admin_url( "media-upload.php?type=$type&amp;tab=type&amp;post_id=$post_id" );
+	/** This filter is documented in wp-admin/includes/media.php */
+	$form_action_url = apply_filters( 'media_upload_form_url', $form_action_url, $type );
+	$form_class      = 'media-upload-form type-form validate';
+
+	if ( get_user_setting( 'uploader' ) ) {
+		$form_class .= ' html-uploader';
+	}
+
+	?&gt;
+	&lt;form enctype="multipart/form-data" method="post" action="&lt;?php echo esc_url( $form_action_url ); ?&gt;" class="&lt;?php echo $form_class; ?&gt;" id="&lt;?php echo $type; ?&gt;-form"&gt;
+	&lt;input type="hidden" name="post_id" id="post_id" value="&lt;?php echo (int) $post_id; ?&gt;" /&gt;
+		&lt;?php wp_nonce_field( 'media-form' ); ?&gt;
+
+	&lt;h3 class="media-title"&gt;&lt;?php _e( 'Insert media from another website' ); ?&gt;&lt;/h3&gt;
+
+	&lt;script type="text/javascript"&gt;
+	var addExtImage = {
+
+	width : '',
+	height : '',
+	align : 'alignnone',
+
+	insert : function() {
+		var t = this, html, f = document.forms[0], cls, title = '', alt = '', caption = '';
+
+		if ( '' === f.src.value || '' === t.width )
+			return false;
+
+		if ( f.alt.value )
+			alt = f.alt.value.replace(/'/g, '&amp;#039;').replace(/"/g, '&amp;quot;').replace(/&lt;/g, '&amp;lt;').replace(/&gt;/g, '&amp;gt;');
+
+		&lt;?php
+		/** This filter is documented in wp-admin/includes/media.php */
+		if ( ! apply_filters( 'disable_captions', '' ) ) {
+			?&gt;
+			if ( f.caption.value ) {
+				caption = f.caption.value.replace(/\r\n|\r/g, '\n');
+				caption = caption.replace(/&lt;[a-zA-Z0-9]+( [^&lt;&gt;]+)?&gt;/g, function(a){
+					return a.replace(/[\r\n\t]+/, ' ');
+				});
+
+				caption = caption.replace(/\s*\n\s*/g, '&lt;br /&gt;');
+			}
+			&lt;?php
+		}
+
+		?&gt;
+		cls = caption ? '' : ' class="'+t.align+'"';
+
+		html = '&lt;img alt="'+alt+'" src="'+f.src.value+'"'+cls+' width="'+t.width+'" height="'+t.height+'" /&gt;';
+
+		if ( f.url.value ) {
+			url = f.url.value.replace(/'/g, '&amp;#039;').replace(/"/g, '&amp;quot;').replace(/&lt;/g, '&amp;lt;').replace(/&gt;/g, '&amp;gt;');
+			html = '&lt;a href="'+url+'"&gt;'+html+'&lt;/a&gt;';
+		}
+
+		if ( caption )
+			html = '[caption id="" align="'+t.align+'" width="'+t.width+'"]'+html+caption+'[/caption]';
+
+		var win = window.dialogArguments || opener || parent || top;
+		win.send_to_editor(html);
+		return false;
+	},
+
+	resetImageData : function() {
+		var t = addExtImage;
+
+		t.width = t.height = '';
+		document.getElementById('go_button').style.color = '#bbb';
+		if ( ! document.forms[0].src.value )
+			document.getElementById('status_img').innerHTML = '';
+		else document.getElementById('status_img').innerHTML = '&lt;img src="&lt;?php echo esc_url( admin_url( 'images/no.png' ) ); ?&gt;" alt="" /&gt;';
+	},
+
+	updateImageData : function() {
+		var t = addExtImage;
+
+		t.width = t.preloadImg.width;
+		t.height = t.preloadImg.height;
+		document.getElementById('go_button').style.color = '#333';
+		document.getElementById('status_img').innerHTML = '&lt;img src="&lt;?php echo esc_url( admin_url( 'images/yes.png' ) ); ?&gt;" alt="" /&gt;';
+	},
+
+	getImageData : function() {
+		if ( jQuery('table.describe').hasClass('not-image') )
+			return;
+
+		var t = addExtImage, src = document.forms[0].src.value;
+
+		if ( ! src ) {
+			t.resetImageData();
+			return false;
+		}
+
+		document.getElementById('status_img').innerHTML = '&lt;img src="&lt;?php echo esc_url( admin_url( 'images/spinner-2x.gif' ) ); ?&gt;" alt="" width="16" height="16" /&gt;';
+		t.preloadImg = new Image();
+		t.preloadImg.onload = t.updateImageData;
+		t.preloadImg.onerror = t.resetImageData;
+		t.preloadImg.src = src;
+	}
+	};
+
+	jQuery( function($) {
+		$('.media-types input').click( function() {
+			$('table.describe').toggleClass('not-image', $('#not-image').prop('checked') );
+		});
+	} );
+	&lt;/script&gt;
+
+	&lt;div id="media-items"&gt;
+	&lt;div class="media-item media-blank"&gt;
+	&lt;?php
+	/**
+	 * Filters the insert media from URL form HTML.
+	 *
+	 * @since 3.3.0
+	 *
+	 * @param string $form_html The insert from URL form HTML.
+	 */
+	echo apply_filters( 'type_url_form_media', wp_media_insert_url_form( $type ) );
+
+	?&gt;
+	&lt;/div&gt;
+	&lt;/div&gt;
+	&lt;/form&gt;
+	&lt;?php
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="wp_media_insert_url_form">wp_media_insert_url_form()</a> </td> <td class="related-desc"> <p>Creates the form for external url.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="../hooks/media_upload_form_url">media_upload_form_url</a> </td> <td class="related-desc"> <p>Filters the media upload form action URL.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="../hooks/type_url_form_media">type_url_form_media</a> </td> <td class="related-desc"> <p>Filters the insert media from URL form HTML.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="media_upload_header">media_upload_header()</a> </td> <td class="related-desc"> <p>Outputs the legacy media upload header.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="../hooks/disable_captions">disable_captions</a> </td> <td class="related-desc"> <p>Filters whether to disable captions.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="_e">_e()</a> </td> <td class="related-desc"> <p>Display translated text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_nonce_field">wp_nonce_field()</a> </td> <td class="related-desc"> <p>Retrieve or display nonce hidden field for forms.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="admin_url">admin_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the admin area for the current site.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_user_setting">get_user_setting()</a> </td> <td class="related-desc"> <p>Retrieves user interface setting value based on setting name.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.7.0/" alt="WordPress 2.7.0">2.7.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/media_upload_type_url_form" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/media_upload_type_url_form</a>
+  </p>
+</div>

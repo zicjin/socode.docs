@@ -1,0 +1,69 @@
+<h1>wp_get_missing_image_subsizes( int $attachment_id )</h1>  <section> <p>Compare the existing image sub-sizes (as saved in the attachment meta) to the currently registered image sub-sizes, and return the difference.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Registered sub-sizes that are larger than the image are skipped.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$attachment_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">The image attachment post ID.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array[])</span> Associative array of arrays of image sub-size information for missing image sizes, keyed by image size name.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/image.php/">wp-admin/includes/image.php</a> </p> <pre data-language="php">function wp_get_missing_image_subsizes( $attachment_id ) {
+	if ( ! wp_attachment_is_image( $attachment_id ) ) {
+		return array();
+	}
+
+	$registered_sizes = wp_get_registered_image_subsizes();
+	$image_meta       = wp_get_attachment_metadata( $attachment_id );
+
+	// Meta error?
+	if ( empty( $image_meta ) ) {
+		return $registered_sizes;
+	}
+
+	// Use the originally uploaded image dimensions as full_width and full_height.
+	if ( ! empty( $image_meta['original_image'] ) ) {
+		$image_file = wp_get_original_image_path( $attachment_id );
+		$imagesize  = wp_getimagesize( $image_file );
+	}
+
+	if ( ! empty( $imagesize ) ) {
+		$full_width  = $imagesize[0];
+		$full_height = $imagesize[1];
+	} else {
+		$full_width  = (int) $image_meta['width'];
+		$full_height = (int) $image_meta['height'];
+	}
+
+	$possible_sizes = array();
+
+	// Skip registered sizes that are too large for the uploaded image.
+	foreach ( $registered_sizes as $size_name =&gt; $size_data ) {
+		if ( image_resize_dimensions( $full_width, $full_height, $size_data['width'], $size_data['height'], $size_data['crop'] ) ) {
+			$possible_sizes[ $size_name ] = $size_data;
+		}
+	}
+
+	if ( empty( $image_meta['sizes'] ) ) {
+		$image_meta['sizes'] = array();
+	}
+
+	/*
+	 * Remove sizes that already exist. Only checks for matching "size names".
+	 * It is possible that the dimensions for a particular size name have changed.
+	 * For example the user has changed the values on the Settings -&gt; Media screen.
+	 * However we keep the old sub-sizes with the previous dimensions
+	 * as the image may have been used in an older post.
+	 */
+	$missing_sizes = array_diff_key( $possible_sizes, $image_meta['sizes'] );
+
+	/**
+	 * Filters the array of missing image sub-sizes for an uploaded image.
+	 *
+	 * @since 5.3.0
+	 *
+	 * @param array[] $missing_sizes Associative array of arrays of image sub-size information for
+	 *                               missing image sizes, keyed by image size name.
+	 * @param array   $image_meta    The image meta data.
+	 * @param int     $attachment_id The image attachment post ID.
+	 */
+	return apply_filters( 'wp_get_missing_image_subsizes', $missing_sizes, $image_meta, $attachment_id );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/media.php:</span> <a href="wp_getimagesize">wp_getimagesize()</a> </td> <td class="related-desc"> <p>Allows PHP’s getimagesize() to be debuggable when necessary.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_get_original_image_path">wp_get_original_image_path()</a> </td> <td class="related-desc"> <p>Retrieves the path to an uploaded image file.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="wp_get_registered_image_subsizes">wp_get_registered_image_subsizes()</a> </td> <td class="related-desc"> <p>Returns a normalized list of all currently registered image sub-sizes.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/image.php:</span> <a href="../hooks/wp_get_missing_image_subsizes">wp_get_missing_image_subsizes</a> </td> <td class="related-desc"> <p>Filters the array of missing image sub-sizes for an uploaded image.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="image_resize_dimensions">image_resize_dimensions()</a> </td> <td class="related-desc"> <p>Retrieves calculated resize dimensions for use in <a href="../classes/wp_image_editor">WP_Image_Editor</a>.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_attachment_is_image">wp_attachment_is_image()</a> </td> <td class="related-desc"> <p>Determines whether an attachment is an image.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_get_attachment_metadata">wp_get_attachment_metadata()</a> </td> <td class="related-desc"> <p>Retrieves attachment metadata for attachment ID.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/image.php:</span> <a href="wp_update_image_subsizes">wp_update_image_subsizes()</a> </td> <td class="related-desc"> <p>If any of the currently registered image sub-sizes are missing, create them and update the image meta data.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-attachments-controller.php:</span> <a href="../classes/wp_rest_attachments_controller/prepare_item_for_response">WP_REST_Attachments_Controller::prepare_item_for_response()</a> </td> <td class="related-desc"> <p>Prepares a single attachment output for response.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.3.0/" alt="WordPress 5.3.0">5.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_get_missing_image_subsizes" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_get_missing_image_subsizes</a>
+  </p>
+</div>

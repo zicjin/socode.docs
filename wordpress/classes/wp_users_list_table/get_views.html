@@ -1,0 +1,96 @@
+<h1>WP_Users_List_Table::get_views()</h1>  <section> <p>Return an associative array listing all the views that can be used with this table.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Provides a list of roles and user count for that role for easy Filtersing of the user table.</p> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string[])</span> An array of HTML links keyed by their view.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-users-list-table.php/">wp-admin/includes/class-wp-users-list-table.php</a> </p> <pre data-language="php">protected function get_views() {
+		global $role;
+
+		$wp_roles = wp_roles();
+
+		$count_users = ! wp_is_large_user_count();
+
+		if ( $this-&gt;is_site_users ) {
+			$url = 'site-users.php?id=' . $this-&gt;site_id;
+		} else {
+			$url = 'users.php';
+		}
+
+		$role_links              = array();
+		$avail_roles             = array();
+		$all_text                = __( 'All' );
+		$current_link_attributes = empty( $role ) ? ' class="current" aria-current="page"' : '';
+
+		if ( $count_users ) {
+			if ( $this-&gt;is_site_users ) {
+				switch_to_blog( $this-&gt;site_id );
+				$users_of_blog = count_users( 'time', $this-&gt;site_id );
+				restore_current_blog();
+			} else {
+				$users_of_blog = count_users();
+			}
+
+			$total_users = $users_of_blog['total_users'];
+			$avail_roles =&amp; $users_of_blog['avail_roles'];
+			unset( $users_of_blog );
+
+			$all_text = sprintf(
+				/* translators: %s: Number of users. */
+				_nx(
+					'All &lt;span class="count"&gt;(%s)&lt;/span&gt;',
+					'All &lt;span class="count"&gt;(%s)&lt;/span&gt;',
+					$total_users,
+					'users'
+				),
+				number_format_i18n( $total_users )
+			);
+		}
+
+		$role_links['all'] = sprintf( '&lt;a href="%s"%s&gt;%s&lt;/a&gt;', $url, $current_link_attributes, $all_text );
+
+		foreach ( $wp_roles-&gt;get_names() as $this_role =&gt; $name ) {
+			if ( $count_users &amp;&amp; ! isset( $avail_roles[ $this_role ] ) ) {
+				continue;
+			}
+
+			$current_link_attributes = '';
+
+			if ( $this_role === $role ) {
+				$current_link_attributes = ' class="current" aria-current="page"';
+			}
+
+			$name = translate_user_role( $name );
+			if ( $count_users ) {
+				$name = sprintf(
+					/* translators: 1: User role name, 2: Number of users. */
+					__( '%1$s &lt;span class="count"&gt;(%2$s)&lt;/span&gt;' ),
+					$name,
+					number_format_i18n( $avail_roles[ $this_role ] )
+				);
+			}
+
+			$role_links[ $this_role ] = "&lt;a href='" . esc_url( add_query_arg( 'role', $this_role, $url ) ) . "'$current_link_attributes&gt;$name&lt;/a&gt;";
+		}
+
+		if ( ! empty( $avail_roles['none'] ) ) {
+
+			$current_link_attributes = '';
+
+			if ( 'none' === $role ) {
+				$current_link_attributes = ' class="current" aria-current="page"';
+			}
+
+			$name = __( 'No role' );
+			$name = sprintf(
+				/* translators: 1: User role name, 2: Number of users. */
+				__( '%1$s &lt;span class="count"&gt;(%2$s)&lt;/span&gt;' ),
+				$name,
+				number_format_i18n( $avail_roles['none'] )
+			);
+
+			$role_links['none'] = "&lt;a href='" . esc_url( add_query_arg( 'role', 'none', $url ) ) . "'$current_link_attributes&gt;$name&lt;/a&gt;";
+		}
+
+		return $role_links;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/user.php:</span> <a href="../../functions/wp_is_large_user_count">wp_is_large_user_count()</a> </td> <td class="related-desc"> <p>Determines whether the site has a large number of users.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="../../functions/wp_roles">wp_roles()</a> </td> <td class="related-desc"> <p>Retrieves the global <a href="../wp_roles">WP_Roles</a> instance and instantiates it if necessary.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-roles.php:</span> <a href="../wp_roles/get_names">WP_Roles::get_names()</a> </td> <td class="related-desc"> <p>Retrieve list of role names.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/translate_user_role">translate_user_role()</a> </td> <td class="related-desc"> <p>Translates role name.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/_nx">_nx()</a> </td> <td class="related-desc"> <p>Translates and retrieves the singular or plural form based on the supplied number, with gettext context.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/add_query_arg">add_query_arg()</a> </td> <td class="related-desc"> <p>Retrieves a modified URL query string.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/number_format_i18n">number_format_i18n()</a> </td> <td class="related-desc"> <p>Convert float number to format based on the locale.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="../../functions/count_users">count_users()</a> </td> <td class="related-desc"> <p>Counts number of users who have each of the user roles.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-blogs.php:</span> <a href="../../functions/switch_to_blog">switch_to_blog()</a> </td> <td class="related-desc"> <p>Switch the current blog.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-blogs.php:</span> <a href="../../functions/restore_current_blog">restore_current_blog()</a> </td> <td class="related-desc"> <p>Restore the current blog, after calling <a href="../../functions/switch_to_blog">switch_to_blog()</a>.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.1.0/" alt="WordPress 3.1.0">3.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_users_list_table/get_views" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_users_list_table/get_views</a>
+  </p>
+</div>

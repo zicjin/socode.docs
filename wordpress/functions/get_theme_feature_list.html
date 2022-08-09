@@ -1,0 +1,106 @@
+<h1>get_theme_feature_list( bool $api = true )</h1>  <section> <p>Retrieves list of WordPress theme features (aka theme tags).</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$api</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> Whether try to fetch tags from the WordPress.org API. Defaults to true.</span> </p> <p class="default">Default value: true</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> Array of features keyed by category with translations keyed by slug.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/theme.php/">wp-admin/includes/theme.php</a> </p> <pre data-language="php">function get_theme_feature_list( $api = true ) {
+	// Hard-coded list is used if API is not accessible.
+	$features = array(
+
+		__( 'Subject' )  =&gt; array(
+			'blog'           =&gt; __( 'Blog' ),
+			'e-commerce'     =&gt; __( 'E-Commerce' ),
+			'education'      =&gt; __( 'Education' ),
+			'entertainment'  =&gt; __( 'Entertainment' ),
+			'food-and-drink' =&gt; __( 'Food &amp; Drink' ),
+			'holiday'        =&gt; __( 'Holiday' ),
+			'news'           =&gt; __( 'News' ),
+			'photography'    =&gt; __( 'Photography' ),
+			'portfolio'      =&gt; __( 'Portfolio' ),
+		),
+
+		__( 'Features' ) =&gt; array(
+			'accessibility-ready'   =&gt; __( 'Accessibility Ready' ),
+			'block-patterns'        =&gt; __( 'Block Editor Patterns' ),
+			'block-styles'          =&gt; __( 'Block Editor Styles' ),
+			'custom-background'     =&gt; __( 'Custom Background' ),
+			'custom-colors'         =&gt; __( 'Custom Colors' ),
+			'custom-header'         =&gt; __( 'Custom Header' ),
+			'custom-logo'           =&gt; __( 'Custom Logo' ),
+			'editor-style'          =&gt; __( 'Editor Style' ),
+			'featured-image-header' =&gt; __( 'Featured Image Header' ),
+			'featured-images'       =&gt; __( 'Featured Images' ),
+			'footer-widgets'        =&gt; __( 'Footer Widgets' ),
+			'full-site-editing'     =&gt; __( 'Full Site Editing' ),
+			'full-width-template'   =&gt; __( 'Full Width Template' ),
+			'post-formats'          =&gt; __( 'Post Formats' ),
+			'sticky-post'           =&gt; __( 'Sticky Post' ),
+			'template-editing'      =&gt; __( 'Template Editing' ),
+			'theme-options'         =&gt; __( 'Theme Options' ),
+		),
+
+		__( 'Layout' )   =&gt; array(
+			'grid-layout'   =&gt; __( 'Grid Layout' ),
+			'one-column'    =&gt; __( 'One Column' ),
+			'two-columns'   =&gt; __( 'Two Columns' ),
+			'three-columns' =&gt; __( 'Three Columns' ),
+			'four-columns'  =&gt; __( 'Four Columns' ),
+			'left-sidebar'  =&gt; __( 'Left Sidebar' ),
+			'right-sidebar' =&gt; __( 'Right Sidebar' ),
+			'wide-blocks'   =&gt; __( 'Wide Blocks' ),
+		),
+
+	);
+
+	if ( ! $api || ! current_user_can( 'install_themes' ) ) {
+		return $features;
+	}
+
+	$feature_list = get_site_transient( 'wporg_theme_feature_list' );
+	if ( ! $feature_list ) {
+		set_site_transient( 'wporg_theme_feature_list', array(), 3 * HOUR_IN_SECONDS );
+	}
+
+	if ( ! $feature_list ) {
+		$feature_list = themes_api( 'feature_list', array() );
+		if ( is_wp_error( $feature_list ) ) {
+			return $features;
+		}
+	}
+
+	if ( ! $feature_list ) {
+		return $features;
+	}
+
+	set_site_transient( 'wporg_theme_feature_list', $feature_list, 3 * HOUR_IN_SECONDS );
+
+	$category_translations = array(
+		'Layout'   =&gt; __( 'Layout' ),
+		'Features' =&gt; __( 'Features' ),
+		'Subject'  =&gt; __( 'Subject' ),
+	);
+
+	$wporg_features = array();
+
+	// Loop over the wp.org canonical list and apply translations.
+	foreach ( (array) $feature_list as $feature_category =&gt; $feature_items ) {
+		if ( isset( $category_translations[ $feature_category ] ) ) {
+			$feature_category = $category_translations[ $feature_category ];
+		}
+
+		$wporg_features[ $feature_category ] = array();
+
+		foreach ( $feature_items as $feature ) {
+			if ( isset( $features[ $feature_category ][ $feature ] ) ) {
+				$wporg_features[ $feature_category ][ $feature ] = $features[ $feature_category ][ $feature ];
+			} else {
+				$wporg_features[ $feature_category ][ $feature ] = $feature;
+			}
+		}
+	}
+
+	return $wporg_features;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/theme.php:</span> <a href="themes_api">themes_api()</a> </td> <td class="related-desc"> <p>Retrieves theme installer pages from the WordPress.org Themes API.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="set_site_transient">set_site_transient()</a> </td> <td class="related-desc"> <p>Sets/updates the value of a site transient.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_site_transient">get_site_transient()</a> </td> <td class="related-desc"> <p>Retrieves the value of a site transient.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/customize/class-wp-customize-themes-section.php:</span> <a href="../classes/wp_customize_themes_section/filter_drawer_content_template">WP_Customize_Themes_Section::filter_drawer_content_template()</a> </td> <td class="related-desc"> <p>Render the filter drawer portion of a themes section as a JS template.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/theme-install.php:</span> <a href="install_themes_dashboard">install_themes_dashboard()</a> </td> <td class="related-desc"> <p>Displays tags filter for themes.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-theme.php:</span> <a href="../classes/wp_theme/translate_header">WP_Theme::translate_header()</a> </td> <td class="related-desc"> <p>Translates a theme header.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.8.1/" alt="WordPress 5.8.1">5.8.1</a></td> <td><span class="since-description">Added 'Template Editing' feature.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.0/" alt="WordPress 5.5.0">5.5.0</a></td> <td><span class="since-description">Added 'Wide Blocks' layout option.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.9.0/" alt="WordPress 4.9.0">4.9.0</a></td> <td><span class="since-description">Removed 'BuddyPress', 'Custom Menu', 'Flexible Header', 'Front Page Posting', 'Microformats', 'RTL Language Support', 'Threaded Comments', and 'Translation Ready' features.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.6.0/" alt="WordPress 4.6.0">4.6.0</a></td> <td><span class="since-description">Added 'Blog', 'E-Commerce', 'Education', 'Entertainment', 'Food &amp; Drink', 'Holiday', 'News', 'Photography', and 'Portfolio' subjects. Removed 'Photoblogging' and 'Seasonal' subjects.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.9.0/" alt="WordPress 3.9.0">3.9.0</a></td> <td><span class="since-description">Combined 'Layout' and 'Columns' filters.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.8.0/" alt="WordPress 3.8.0">3.8.0</a></td> <td><span class="since-description">Added 'Accessibility Ready' feature and 'Responsive Layout' option.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.5.0/" alt="WordPress 3.5.0">3.5.0</a></td> <td><span class="since-description">Added 'Flexible Header' feature.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.2.0/" alt="WordPress 3.2.0">3.2.0</a></td> <td><span class="since-description">Added 'Gray' color and 'Featured Image Header', 'Featured Images', 'Full Width Template', and 'Post Formats' features.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.1.0/" alt="WordPress 3.1.0">3.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/get_theme_feature_list" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/get_theme_feature_list</a>
+  </p>
+</div>

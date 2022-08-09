@@ -1,0 +1,67 @@
+<h1>WP_REST_Request::sanitize_params()</h1>  <section> <p>Sanitizes (where possible) the params on the request.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>This is primarily based off the sanitize_callback param on each registered argument.</p> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(true|<a href="../wp_error">WP_Error</a>)</span> True if parameters were sanitized, <a href="../wp_error">WP_Error</a> if an error occurred during sanitization.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/rest-api/class-wp-rest-request.php/">wp-includes/rest-api/class-wp-rest-request.php</a> </p> <pre data-language="php">public function sanitize_params() {
+		$attributes = $this-&gt;get_attributes();
+
+		// No arguments set, skip sanitizing.
+		if ( empty( $attributes['args'] ) ) {
+			return true;
+		}
+
+		$order = $this-&gt;get_parameter_order();
+
+		$invalid_params  = array();
+		$invalid_details = array();
+
+		foreach ( $order as $type ) {
+			if ( empty( $this-&gt;params[ $type ] ) ) {
+				continue;
+			}
+
+			foreach ( $this-&gt;params[ $type ] as $key =&gt; $value ) {
+				if ( ! isset( $attributes['args'][ $key ] ) ) {
+					continue;
+				}
+
+				$param_args = $attributes['args'][ $key ];
+
+				// If the arg has a type but no sanitize_callback attribute, default to rest_parse_request_arg.
+				if ( ! array_key_exists( 'sanitize_callback', $param_args ) &amp;&amp; ! empty( $param_args['type'] ) ) {
+					$param_args['sanitize_callback'] = 'rest_parse_request_arg';
+				}
+				// If there's still no sanitize_callback, nothing to do here.
+				if ( empty( $param_args['sanitize_callback'] ) ) {
+					continue;
+				}
+
+				/** @var mixed|WP_Error $sanitized_value */
+				$sanitized_value = call_user_func( $param_args['sanitize_callback'], $value, $this, $key );
+
+				if ( is_wp_error( $sanitized_value ) ) {
+					$invalid_params[ $key ]  = implode( ' ', $sanitized_value-&gt;get_error_messages() );
+					$invalid_details[ $key ] = rest_convert_error_to_response( $sanitized_value )-&gt;get_data();
+				} else {
+					$this-&gt;params[ $type ][ $key ] = $sanitized_value;
+				}
+			}
+		}
+
+		if ( $invalid_params ) {
+			return new WP_Error(
+				'rest_invalid_param',
+				/* translators: %s: List of invalid parameters. */
+				sprintf( __( 'Invalid parameter(s): %s' ), implode( ', ', array_keys( $invalid_params ) ) ),
+				array(
+					'status'  =&gt; 400,
+					'params'  =&gt; $invalid_params,
+					'details' =&gt; $invalid_details,
+				)
+			);
+		}
+
+		return true;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="../../functions/rest_convert_error_to_response">rest_convert_error_to_response()</a> </td> <td class="related-desc"> <p>Converts an error to a response object.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-request.php:</span> <a href="get_attributes">WP_REST_Request::get_attributes()</a> </td> <td class="related-desc"> <p>Retrieves the attributes for the request.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-request.php:</span> <a href="get_parameter_order">WP_REST_Request::get_parameter_order()</a> </td> <td class="related-desc"> <p>Retrieves the parameter priority order.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.4.0/" alt="WordPress 4.4.0">4.4.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_rest_request/sanitize_params" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_rest_request/sanitize_params</a>
+  </p>
+</div>

@@ -1,0 +1,61 @@
+<h1>WP_REST_URL_Details_Controller::parse_url_details( WP_REST_REQUEST $request )</h1>  <section> <p>Retrieves the contents of the title tag from the HTML response.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$request</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_REST_REQUEST">WP_REST_REQUEST</span>)</span> <span class="required">(Required)</span> <span class="description">Full details about the request.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../wp_rest_response">WP_REST_Response</a>|<a href="../wp_error">WP_Error</a>)</span> The parsed details as a response object. <a href="../wp_error">WP_Error</a> if there are errors.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/rest-api/endpoints/class-wp-rest-url-details-controller.php/">wp-includes/rest-api/endpoints/class-wp-rest-url-details-controller.php</a> </p> <pre data-language="php">public function parse_url_details( $request ) {
+		$url = untrailingslashit( $request['url'] );
+
+		if ( empty( $url ) ) {
+			return new WP_Error( 'rest_invalid_url', __( 'Invalid URL' ), array( 'status' =&gt; 404 ) );
+		}
+
+		// Transient per URL.
+		$cache_key = $this-&gt;build_cache_key_for_url( $url );
+
+		// Attempt to retrieve cached response.
+		$cached_response = $this-&gt;get_cache( $cache_key );
+
+		if ( ! empty( $cached_response ) ) {
+			$remote_url_response = $cached_response;
+		} else {
+			$remote_url_response = $this-&gt;get_remote_url( $url );
+
+			// Exit if we don't have a valid body or it's empty.
+			if ( is_wp_error( $remote_url_response ) || empty( $remote_url_response ) ) {
+				return $remote_url_response;
+			}
+
+			// Cache the valid response.
+			$this-&gt;set_cache( $cache_key, $remote_url_response );
+		}
+
+		$html_head     = $this-&gt;get_document_head( $remote_url_response );
+		$meta_elements = $this-&gt;get_meta_with_content_elements( $html_head );
+
+		$data = $this-&gt;add_additional_fields_to_object(
+			array(
+				'title'       =&gt; $this-&gt;get_title( $html_head ),
+				'icon'        =&gt; $this-&gt;get_icon( $html_head, $url ),
+				'description' =&gt; $this-&gt;get_description( $meta_elements ),
+				'image'       =&gt; $this-&gt;get_image( $meta_elements, $url ),
+			),
+			$request
+		);
+
+		// Wrap the data in a response object.
+		$response = rest_ensure_response( $data );
+
+		/**
+		 * Filters the URL data for the response.
+		 *
+		 * @since 5.9.0
+		 *
+		 * @param WP_REST_Response $response            The response object.
+		 * @param string           $url                 The requested URL.
+		 * @param WP_REST_Request  $request             Request object.
+		 * @param string           $remote_url_response HTTP response body from the remote URL.
+		 */
+		return apply_filters( 'rest_prepare_url_details', $response, $url, $request, $remote_url_response );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-url-details-controller.php:</span> <a href="build_cache_key_for_url">WP_REST_URL_Details_Controller::build_cache_key_for_url()</a> </td> <td class="related-desc"> <p>Utility function to build cache key for a given URL.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-url-details-controller.php:</span> <a href="get_cache">WP_REST_URL_Details_Controller::get_cache()</a> </td> <td class="related-desc"> <p>Utility function to retrieve a value from the cache at a given key.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-url-details-controller.php:</span> <a href="set_cache">WP_REST_URL_Details_Controller::set_cache()</a> </td> <td class="related-desc"> <p>Utility function to cache a given data set at a given cache key.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-url-details-controller.php:</span> <a href="get_document_head">WP_REST_URL_Details_Controller::get_document_head()</a> </td> <td class="related-desc"> <p>Retrieves the head element section.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-url-details-controller.php:</span> <a href="get_meta_with_content_elements">WP_REST_URL_Details_Controller::get_meta_with_content_elements()</a> </td> <td class="related-desc"> <p>Gets all the meta tag elements that have a ‘content’ attribute.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-url-details-controller.php:</span> <a href="get_title">WP_REST_URL_Details_Controller::get_title()</a> </td> <td class="related-desc"> <p>Parses the title tag contents from the provided HTML.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-url-details-controller.php:</span> <a href="get_icon">WP_REST_URL_Details_Controller::get_icon()</a> </td> <td class="related-desc"> <p>Parses the site icon from the provided HTML.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-url-details-controller.php:</span> <a href="get_description">WP_REST_URL_Details_Controller::get_description()</a> </td> <td class="related-desc"> <p>Parses the meta description from the provided HTML.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-url-details-controller.php:</span> <a href="get_image">WP_REST_URL_Details_Controller::get_image()</a> </td> <td class="related-desc"> <p>Parses the Open Graph (OG) Image from the provided HTML.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-url-details-controller.php:</span> <a href="get_remote_url">WP_REST_URL_Details_Controller::get_remote_url()</a> </td> <td class="related-desc"> <p>Retrieves the document title from a remote URL.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-url-details-controller.php:</span> <a href="../../hooks/rest_prepare_url_details">rest_prepare_url_details</a> </td> <td class="related-desc"> <p>Filters the URL data for the response.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="../../functions/rest_ensure_response">rest_ensure_response()</a> </td> <td class="related-desc"> <p>Ensures a REST response is a response object (for consistency).</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/untrailingslashit">untrailingslashit()</a> </td> <td class="related-desc"> <p>Removes trailing forward slashes and backslashes if they exist.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.9.0/" alt="WordPress 5.9.0">5.9.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_rest_url_details_controller/parse_url_details" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_rest_url_details_controller/parse_url_details</a>
+  </p>
+</div>

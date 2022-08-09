@@ -1,0 +1,39 @@
+<h1>Plugin_Upgrader::delete_old_plugin( bool|WP_Error $removed, string $local_destination, string $remote_destination, array $plugin )</h1>  <section> <p>Deletes the old plugin during an upgrade.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Hooked to the <a href="../../hooks/upgrader_clear_destination">‘upgrader_clear_destination’</a> filter by <a href="upgrade">Plugin_Upgrader::upgrade()</a> and <a href="bulk_upgrade">Plugin_Upgrader::bulk_upgrade()</a>.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$removed</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>|<span class="WP_Error"><a href="../wp_error">WP_Error</a></span>)</span> <span class="required">(Required)</span> <span class="description">Whether the destination was cleared. True on success, <a href="../wp_error">WP_Error</a> on failure.</span> </p> </dd> <dt>$local_destination</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The local package destination.</span> </p> </dd> <dt>$remote_destination</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The remote package destination.</span> </p> </dd> <dt>$plugin</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Extra arguments passed to hooked filters.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool|<a href="../wp_error">WP_Error</a>)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-plugin-upgrader.php/">wp-admin/includes/class-plugin-upgrader.php</a> </p> <pre data-language="php">public function delete_old_plugin( $removed, $local_destination, $remote_destination, $plugin ) {
+		global $wp_filesystem;
+
+		if ( is_wp_error( $removed ) ) {
+			return $removed; // Pass errors through.
+		}
+
+		$plugin = isset( $plugin['plugin'] ) ? $plugin['plugin'] : '';
+		if ( empty( $plugin ) ) {
+			return new WP_Error( 'bad_request', $this-&gt;strings['bad_request'] );
+		}
+
+		$plugins_dir     = $wp_filesystem-&gt;wp_plugins_dir();
+		$this_plugin_dir = trailingslashit( dirname( $plugins_dir . $plugin ) );
+
+		if ( ! $wp_filesystem-&gt;exists( $this_plugin_dir ) ) { // If it's already vanished.
+			return $removed;
+		}
+
+		// If plugin is in its own directory, recursively delete the directory.
+		// Base check on if plugin includes directory separator AND that it's not the root plugin folder.
+		if ( strpos( $plugin, '/' ) &amp;&amp; $this_plugin_dir !== $plugins_dir ) {
+			$deleted = $wp_filesystem-&gt;delete( $this_plugin_dir, true );
+		} else {
+			$deleted = $wp_filesystem-&gt;delete( $plugins_dir . $plugin );
+		}
+
+		if ( ! $deleted ) {
+			return new WP_Error( 'remove_old_failed', $this-&gt;strings['remove_old_failed'] );
+		}
+
+		return true;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/trailingslashit">trailingslashit()</a> </td> <td class="related-desc"> <p>Appends a trailing slash.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.8.0/" alt="WordPress 2.8.0">2.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/plugin_upgrader/delete_old_plugin" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/plugin_upgrader/delete_old_plugin</a>
+  </p>
+</div>

@@ -1,0 +1,36 @@
+<h1>WP_Customize_Setting::_multidimensional_preview_filter( mixed $original )</h1>  <section> <p>Callback function to filter multidimensional theme mods and options.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>For all multidimensional settings of a given type, the preview filter for the first setting previewed will be used to apply the values for the others.</p> <h3 id="see-also">See also</h3> <ul> <li>WP_Customize_Setting::$aggregated_multidimensionals</li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$original</dt> <dd> <p class="desc"> <span class="type">(<span class="mixed">mixed</span>)</span> <span class="required">(Required)</span> <span class="description">Original root value.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(mixed)</span> New or old value.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-customize-setting.php/">wp-includes/class-wp-customize-setting.php</a> </p> <pre data-language="php">final public function _multidimensional_preview_filter( $original ) {
+		if ( ! $this-&gt;is_current_blog_previewed() ) {
+			return $original;
+		}
+
+		$id_base = $this-&gt;id_data['base'];
+
+		// If no settings have been previewed yet (which should not be the case, since $this is), just pass through the original value.
+		if ( empty( self::$aggregated_multidimensionals[ $this-&gt;type ][ $id_base ]['previewed_instances'] ) ) {
+			return $original;
+		}
+
+		foreach ( self::$aggregated_multidimensionals[ $this-&gt;type ][ $id_base ]['previewed_instances'] as $previewed_setting ) {
+			// Skip applying previewed value for any settings that have already been applied.
+			if ( ! empty( self::$aggregated_multidimensionals[ $this-&gt;type ][ $id_base ]['preview_applied_instances'][ $previewed_setting-&gt;id ] ) ) {
+				continue;
+			}
+
+			// Do the replacements of the posted/default sub value into the root value.
+			$value = $previewed_setting-&gt;post_value( $previewed_setting-&gt;default );
+			$root  = self::$aggregated_multidimensionals[ $previewed_setting-&gt;type ][ $id_base ]['root_value'];
+			$root  = $previewed_setting-&gt;multidimensional_replace( $root, $previewed_setting-&gt;id_data['keys'], $value );
+			self::$aggregated_multidimensionals[ $previewed_setting-&gt;type ][ $id_base ]['root_value'] = $root;
+
+			// Mark this setting having been applied so that it will be skipped when the filter is called again.
+			self::$aggregated_multidimensionals[ $previewed_setting-&gt;type ][ $id_base ]['preview_applied_instances'][ $previewed_setting-&gt;id ] = true;
+		}
+
+		return self::$aggregated_multidimensionals[ $this-&gt;type ][ $id_base ]['root_value'];
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-customize-setting.php:</span> <a href="is_current_blog_previewed">WP_Customize_Setting::is_current_blog_previewed()</a> </td> <td class="related-desc"> <p>Return true if the current site is not the same as the previewed site.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.4.0/" alt="WordPress 4.4.0">4.4.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_customize_setting/_multidimensional_preview_filter" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_customize_setting/_multidimensional_preview_filter</a>
+  </p>
+</div>

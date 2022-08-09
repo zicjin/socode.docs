@@ -1,0 +1,76 @@
+<h1>WP_MS_Sites_List_Table::handle_row_actions( array $item, string $column_name, string $primary )</h1>  <section> <p>Generates and displays row action links.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$item</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Site being acted upon.</span> </p> </dd> <dt>$column_name</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Current column name.</span> </p> </dd> <dt>$primary</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Primary column name.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> Row actions output for sites in Multisite, or an empty string if the current column is not the primary column.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-ms-sites-list-table.php/">wp-admin/includes/class-wp-ms-sites-list-table.php</a> </p> <pre data-language="php">protected function handle_row_actions( $item, $column_name, $primary ) {
+		if ( $primary !== $column_name ) {
+			return '';
+		}
+
+		// Restores the more descriptive, specific name for use within this method.
+		$blog     = $item;
+		$blogname = untrailingslashit( $blog['domain'] . $blog['path'] );
+
+		// Preordered.
+		$actions = array(
+			'edit'       =&gt; '',
+			'backend'    =&gt; '',
+			'activate'   =&gt; '',
+			'deactivate' =&gt; '',
+			'archive'    =&gt; '',
+			'unarchive'  =&gt; '',
+			'spam'       =&gt; '',
+			'unspam'     =&gt; '',
+			'delete'     =&gt; '',
+			'visit'      =&gt; '',
+		);
+
+		$actions['edit']    = '&lt;a href="' . esc_url( network_admin_url( 'site-info.php?id=' . $blog['blog_id'] ) ) . '"&gt;' . __( 'Edit' ) . '&lt;/a&gt;';
+		$actions['backend'] = "&lt;a href='" . esc_url( get_admin_url( $blog['blog_id'] ) ) . "' class='edit'&gt;" . __( 'Dashboard' ) . '&lt;/a&gt;';
+		if ( get_network()-&gt;site_id != $blog['blog_id'] ) {
+			if ( '1' == $blog['deleted'] ) {
+				$actions['activate'] = '&lt;a href="' . esc_url( wp_nonce_url( network_admin_url( 'sites.php?action=confirm&amp;amp;action2=activateblog&amp;amp;id=' . $blog['blog_id'] ), 'activateblog_' . $blog['blog_id'] ) ) . '"&gt;' . __( 'Activate' ) . '&lt;/a&gt;';
+			} else {
+				$actions['deactivate'] = '&lt;a href="' . esc_url( wp_nonce_url( network_admin_url( 'sites.php?action=confirm&amp;amp;action2=deactivateblog&amp;amp;id=' . $blog['blog_id'] ), 'deactivateblog_' . $blog['blog_id'] ) ) . '"&gt;' . __( 'Deactivate' ) . '&lt;/a&gt;';
+			}
+
+			if ( '1' == $blog['archived'] ) {
+				$actions['unarchive'] = '&lt;a href="' . esc_url( wp_nonce_url( network_admin_url( 'sites.php?action=confirm&amp;amp;action2=unarchiveblog&amp;amp;id=' . $blog['blog_id'] ), 'unarchiveblog_' . $blog['blog_id'] ) ) . '"&gt;' . __( 'Unarchive' ) . '&lt;/a&gt;';
+			} else {
+				$actions['archive'] = '&lt;a href="' . esc_url( wp_nonce_url( network_admin_url( 'sites.php?action=confirm&amp;amp;action2=archiveblog&amp;amp;id=' . $blog['blog_id'] ), 'archiveblog_' . $blog['blog_id'] ) ) . '"&gt;' . _x( 'Archive', 'verb; site' ) . '&lt;/a&gt;';
+			}
+
+			if ( '1' == $blog['spam'] ) {
+				$actions['unspam'] = '&lt;a href="' . esc_url( wp_nonce_url( network_admin_url( 'sites.php?action=confirm&amp;amp;action2=unspamblog&amp;amp;id=' . $blog['blog_id'] ), 'unspamblog_' . $blog['blog_id'] ) ) . '"&gt;' . _x( 'Not Spam', 'site' ) . '&lt;/a&gt;';
+			} else {
+				$actions['spam'] = '&lt;a href="' . esc_url( wp_nonce_url( network_admin_url( 'sites.php?action=confirm&amp;amp;action2=spamblog&amp;amp;id=' . $blog['blog_id'] ), 'spamblog_' . $blog['blog_id'] ) ) . '"&gt;' . _x( 'Spam', 'site' ) . '&lt;/a&gt;';
+			}
+
+			if ( current_user_can( 'delete_site', $blog['blog_id'] ) ) {
+				$actions['delete'] = '&lt;a href="' . esc_url( wp_nonce_url( network_admin_url( 'sites.php?action=confirm&amp;amp;action2=deleteblog&amp;amp;id=' . $blog['blog_id'] ), 'deleteblog_' . $blog['blog_id'] ) ) . '"&gt;' . __( 'Delete' ) . '&lt;/a&gt;';
+			}
+		}
+
+		$actions['visit'] = "&lt;a href='" . esc_url( get_home_url( $blog['blog_id'], '/' ) ) . "' rel='bookmark'&gt;" . __( 'Visit' ) . '&lt;/a&gt;';
+
+		/**
+		 * Filters the action links displayed for each site in the Sites list table.
+		 *
+		 * The 'Edit', 'Dashboard', 'Delete', and 'Visit' links are displayed by
+		 * default for each site. The site's status determines whether to show the
+		 * 'Activate' or 'Deactivate' link, 'Unarchive' or 'Archive' links, and
+		 * 'Not Spam' or 'Spam' link for each site.
+		 *
+		 * @since 3.1.0
+		 *
+		 * @param string[] $actions  An array of action links to be displayed.
+		 * @param int      $blog_id  The site ID.
+		 * @param string   $blogname Site path, formatted depending on whether it is a sub-domain
+		 *                           or subdirectory multisite installation.
+		 */
+		$actions = apply_filters( 'manage_sites_action_links', array_filter( $actions ), $blog['blog_id'], $blogname );
+
+		return $this-&gt;row_actions( $actions );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/ms-network.php:</span> <a href="../../functions/get_network">get_network()</a> </td> <td class="related-desc"> <p>Retrieves network data given a network ID or network object.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-ms-sites-list-table.php:</span> <a href="../../hooks/manage_sites_action_links">manage_sites_action_links</a> </td> <td class="related-desc"> <p>Filters the action links displayed for each site in the Sites list table.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="../../functions/current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/_x">_x()</a> </td> <td class="related-desc"> <p>Retrieve translated string with gettext context.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/untrailingslashit">untrailingslashit()</a> </td> <td class="related-desc"> <p>Removes trailing forward slashes and backslashes if they exist.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_nonce_url">wp_nonce_url()</a> </td> <td class="related-desc"> <p>Retrieve URL with nonce added to URL query.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="../../functions/network_admin_url">network_admin_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the admin area for the network.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="../../functions/get_admin_url">get_admin_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the admin area for a given site.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="../../functions/get_home_url">get_home_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL for a given site where the front end is accessible.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.9.0/" alt="WordPress 5.9.0">5.9.0</a></td> <td><span class="since-description">Renamed <code>$blog</code> to <code>$item</code> to match parent class for PHP 8 named parameter support.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.3.0/" alt="WordPress 4.3.0">4.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_ms_sites_list_table/handle_row_actions" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_ms_sites_list_table/handle_row_actions</a>
+  </p>
+</div>

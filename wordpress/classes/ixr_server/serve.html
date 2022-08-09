@@ -1,0 +1,56 @@
+<h1>IXR_Server::serve( $data = false )</h1>   <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/ixr/class-ixr-server.php/">wp-includes/IXR/class-IXR-server.php</a> </p> <pre data-language="php">function serve($data = false)
+    {
+        if (!$data) {
+            if (isset($_SERVER['REQUEST_METHOD']) &amp;&amp; $_SERVER['REQUEST_METHOD'] !== 'POST') {
+                if ( function_exists( 'status_header' ) ) {
+                    status_header( 405 ); // WP #20986
+                    header( 'Allow: POST' );
+                }
+                header('Content-Type: text/plain'); // merged from WP #9093
+                die('XML-RPC server accepts POST requests only.');
+            }
+
+            $data = file_get_contents('php://input');
+        }
+        $this-&gt;message = new IXR_Message($data);
+        if (!$this-&gt;message-&gt;parse()) {
+            $this-&gt;error(-32700, 'parse error. not well formed');
+        }
+        if ($this-&gt;message-&gt;messageType != 'methodCall') {
+            $this-&gt;error(-32600, 'server error. invalid xml-rpc. not conforming to spec. Request must be a methodCall');
+        }
+        $result = $this-&gt;call($this-&gt;message-&gt;methodName, $this-&gt;message-&gt;params);
+
+        // Is the result an error?
+        if (is_a($result, 'IXR_Error')) {
+            $this-&gt;error($result);
+        }
+
+        // Encode the result
+        $r = new IXR_Value($result);
+        $resultxml = $r-&gt;getXml();
+
+        // Create the XML
+        $xml = &lt;&lt;&lt;EOD
+&lt;methodResponse&gt;
+  &lt;params&gt;
+    &lt;param&gt;
+      &lt;value&gt;
+      $resultxml
+      &lt;/value&gt;
+    &lt;/param&gt;
+  &lt;/params&gt;
+&lt;/methodResponse&gt;
+
+EOD;
+      // Send it
+      $this-&gt;output($xml);
+    }</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/IXR/class-IXR-server.php:</span> <a href="error">IXR_Server::error()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-includes/IXR/class-IXR-server.php:</span> <a href="output">IXR_Server::output()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-includes/IXR/class-IXR-server.php:</span> <a href="call">IXR_Server::call()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-includes/IXR/class-IXR-value.php:</span> <a href="../ixr_value/__construct">IXR_Value::__construct()</a> </td> <td class="related-desc"> <p>PHP5 constructor.</p> </td> </tr> <tr> <td> <span>wp-includes/IXR/class-IXR-message.php:</span> <a href="../ixr_message/__construct">IXR_Message::__construct()</a> </td> <td class="related-desc"> <p>PHP5 constructor.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/status_header">status_header()</a> </td> <td class="related-desc"> <p>Set HTTP status header.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/IXR/class-IXR-server.php:</span> <a href="__construct">IXR_Server::__construct()</a> </td> <td class="related-desc"> <p>PHP5 constructor.</p> </td> </tr> </tbody>
+
+</table> </article> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/ixr_server/serve" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/ixr_server/serve</a>
+  </p>
+</div>

@@ -1,0 +1,66 @@
+<h1>WP_Customize_Manager::unsanitized_post_values( array $args = array() )</h1>  <section> <p>Gets dirty pre-sanitized setting values in the current customized state.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>The returned array consists of a merge of three sources:</p> <ol> <li>If the theme is not currently active, then the base array is any stashed theme mods that were modified previously but never published.</li> <li>The values from the current changeset, if it exists.</li> <li>If the user can customize, the values parsed from the incoming <code>$_POST['customized']</code> JSON data.</li> <li>Any programmatically-set post values via <code>WP_Customize_Manager::set_post_value()</code>.</li> </ol> <p>The name "unsanitized_post_values" is a carry-over from when the customized state was exclusively sourced from <code>$_POST['customized']</code>. Nevertheless, the value returned will come from the current changeset post and from the incoming post data.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description">Args. <ul class="param-hash">
+<li>
+<b>'exclude_changeset'</b><br><i><span class="type">(bool)</span></i> Whether the changeset values should also be excluded. Defaults to false.</li> <li>
+<b>'exclude_post_data'</b><br><i><span class="type">(bool)</span></i> Whether the post input values should also be excluded. Defaults to false when lacking the customize capability.</li> </ul> </span> </p> <p class="default">Default value: array()</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-customize-manager.php/">wp-includes/class-wp-customize-manager.php</a> </p> <pre data-language="php">public function unsanitized_post_values( $args = array() ) {
+		$args = array_merge(
+			array(
+				'exclude_changeset' =&gt; false,
+				'exclude_post_data' =&gt; ! current_user_can( 'customize' ),
+			),
+			$args
+		);
+
+		$values = array();
+
+		// Let default values be from the stashed theme mods if doing a theme switch and if no changeset is present.
+		if ( ! $this-&gt;is_theme_active() ) {
+			$stashed_theme_mods = get_option( 'customize_stashed_theme_mods' );
+			$stylesheet         = $this-&gt;get_stylesheet();
+			if ( isset( $stashed_theme_mods[ $stylesheet ] ) ) {
+				$values = array_merge( $values, wp_list_pluck( $stashed_theme_mods[ $stylesheet ], 'value' ) );
+			}
+		}
+
+		if ( ! $args['exclude_changeset'] ) {
+			foreach ( $this-&gt;changeset_data() as $setting_id =&gt; $setting_params ) {
+				if ( ! array_key_exists( 'value', $setting_params ) ) {
+					continue;
+				}
+				if ( isset( $setting_params['type'] ) &amp;&amp; 'theme_mod' === $setting_params['type'] ) {
+
+					// Ensure that theme mods values are only used if they were saved under the active theme.
+					$namespace_pattern = '/^(?P&lt;stylesheet&gt;.+?)::(?P&lt;setting_id&gt;.+)$/';
+					if ( preg_match( $namespace_pattern, $setting_id, $matches ) &amp;&amp; $this-&gt;get_stylesheet() === $matches['stylesheet'] ) {
+						$values[ $matches['setting_id'] ] = $setting_params['value'];
+					}
+				} else {
+					$values[ $setting_id ] = $setting_params['value'];
+				}
+			}
+		}
+
+		if ( ! $args['exclude_post_data'] ) {
+			if ( ! isset( $this-&gt;_post_values ) ) {
+				if ( isset( $_POST['customized'] ) ) {
+					$post_values = json_decode( wp_unslash( $_POST['customized'] ), true );
+				} else {
+					$post_values = array();
+				}
+				if ( is_array( $post_values ) ) {
+					$this-&gt;_post_values = $post_values;
+				} else {
+					$this-&gt;_post_values = array();
+				}
+			}
+			$values = array_merge( $values, $this-&gt;_post_values );
+		}
+		return $values;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="changeset_data">WP_Customize_Manager::changeset_data()</a> </td> <td class="related-desc"> <p>Gets changeset data.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="../../functions/current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="get_stylesheet">WP_Customize_Manager::get_stylesheet()</a> </td> <td class="related-desc"> <p>Retrieves the stylesheet name of the previewed theme.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="is_theme_active">WP_Customize_Manager::is_theme_active()</a> </td> <td class="related-desc"> <p>Checks if the current theme is active.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/wp_unslash">wp_unslash()</a> </td> <td class="related-desc"> <p>Removes slashes from a string or recursively removes slashes from strings within an array.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_list_pluck">wp_list_pluck()</a> </td> <td class="related-desc"> <p>Plucks a certain field out of each object or array in an array.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../../functions/get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="_publish_changeset_values">WP_Customize_Manager::_publish_changeset_values()</a> </td> <td class="related-desc"> <p>Publishes the values of a changeset.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="save_changeset_post">WP_Customize_Manager::save_changeset_post()</a> </td> <td class="related-desc"> <p>Saves the post for the loaded changeset.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="customize_pane_settings">WP_Customize_Manager::customize_pane_settings()</a> </td> <td class="related-desc"> <p>Prints JavaScript settings for parent window.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="register_dynamic_settings">WP_Customize_Manager::register_dynamic_settings()</a> </td> <td class="related-desc"> <p>Adds settings from the POST data that were not added with code, e.g. dynamically-created settings for Widgets</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="set_post_value">WP_Customize_Manager::set_post_value()</a> </td> <td class="related-desc"> <p>Overrides a setting’s value in the current customized state.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="customize_preview_settings">WP_Customize_Manager::customize_preview_settings()</a> </td> <td class="related-desc"> <p>Prints JavaScript settings for preview frame.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="post_value">WP_Customize_Manager::post_value()</a> </td> <td class="related-desc"> <p>Returns the sanitized value for a given setting from the current customized state.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.7.0/" alt="WordPress 4.7.0">4.7.0</a></td> <td><span class="since-description">Added <code>$args</code> parameter and merging with changeset values and stashed theme mods.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.1.1/" alt="WordPress 4.1.1">4.1.1</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_customize_manager/unsanitized_post_values" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_customize_manager/unsanitized_post_values</a>
+  </p>
+</div>

@@ -1,0 +1,56 @@
+<h1>WP_User_Query::parse_orderby( string $orderby )</h1>  <section> <p>Parses and sanitizes ‘orderby’ keys passed to the user query.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$orderby</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Alias for the field to order by.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> Value to used in the ORDER clause, if <code>$orderby</code> is valid.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-user-query.php/">wp-includes/class-wp-user-query.php</a> </p> <pre data-language="php">protected function parse_orderby( $orderby ) {
+		global $wpdb;
+
+		$meta_query_clauses = $this-&gt;meta_query-&gt;get_clauses();
+
+		$_orderby = '';
+		if ( in_array( $orderby, array( 'login', 'nicename', 'email', 'url', 'registered' ), true ) ) {
+			$_orderby = 'user_' . $orderby;
+		} elseif ( in_array( $orderby, array( 'user_login', 'user_nicename', 'user_email', 'user_url', 'user_registered' ), true ) ) {
+			$_orderby = $orderby;
+		} elseif ( 'name' === $orderby || 'display_name' === $orderby ) {
+			$_orderby = 'display_name';
+		} elseif ( 'post_count' === $orderby ) {
+			// @todo Avoid the JOIN.
+			$where             = get_posts_by_author_sql( 'post' );
+			$this-&gt;query_from .= " LEFT OUTER JOIN (
+				SELECT post_author, COUNT(*) as post_count
+				FROM $wpdb-&gt;posts
+				$where
+				GROUP BY post_author
+			) p ON ({$wpdb-&gt;users}.ID = p.post_author)
+			";
+			$_orderby          = 'post_count';
+		} elseif ( 'ID' === $orderby || 'id' === $orderby ) {
+			$_orderby = 'ID';
+		} elseif ( 'meta_value' === $orderby || $this-&gt;get( 'meta_key' ) == $orderby ) {
+			$_orderby = "$wpdb-&gt;usermeta.meta_value";
+		} elseif ( 'meta_value_num' === $orderby ) {
+			$_orderby = "$wpdb-&gt;usermeta.meta_value+0";
+		} elseif ( 'include' === $orderby &amp;&amp; ! empty( $this-&gt;query_vars['include'] ) ) {
+			$include     = wp_parse_id_list( $this-&gt;query_vars['include'] );
+			$include_sql = implode( ',', $include );
+			$_orderby    = "FIELD( $wpdb-&gt;users.ID, $include_sql )";
+		} elseif ( 'nicename__in' === $orderby ) {
+			$sanitized_nicename__in = array_map( 'esc_sql', $this-&gt;query_vars['nicename__in'] );
+			$nicename__in           = implode( "','", $sanitized_nicename__in );
+			$_orderby               = "FIELD( user_nicename, '$nicename__in' )";
+		} elseif ( 'login__in' === $orderby ) {
+			$sanitized_login__in = array_map( 'esc_sql', $this-&gt;query_vars['login__in'] );
+			$login__in           = implode( "','", $sanitized_login__in );
+			$_orderby            = "FIELD( user_login, '$login__in' )";
+		} elseif ( isset( $meta_query_clauses[ $orderby ] ) ) {
+			$meta_clause = $meta_query_clauses[ $orderby ];
+			$_orderby    = sprintf( 'CAST(%s.meta_value AS %s)', esc_sql( $meta_clause['alias'] ), esc_sql( $meta_clause['cast'] ) );
+		}
+
+		return $_orderby;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_sql">esc_sql()</a> </td> <td class="related-desc"> <p>Escapes data for use in a MySQL query.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_parse_id_list">wp_parse_id_list()</a> </td> <td class="related-desc"> <p>Cleans up an array, comma- or space-separated list of IDs.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-user-query.php:</span> <a href="get">WP_User_Query::get()</a> </td> <td class="related-desc"> <p>Retrieves query variable.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/get_posts_by_author_sql">get_posts_by_author_sql()</a> </td> <td class="related-desc"> <p>Retrieve the post SQL based on capability, author, and type.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-user-query.php:</span> <a href="prepare_query">WP_User_Query::prepare_query()</a> </td> <td class="related-desc"> <p>Prepares the query variables.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.2.0/" alt="WordPress 4.2.0">4.2.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_user_query/parse_orderby" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_user_query/parse_orderby</a>
+  </p>
+</div>

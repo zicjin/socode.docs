@@ -1,0 +1,71 @@
+<h1>WP_Tax_Query::transform_query( array $query, string $resulting_field )</h1>  <section> <p>Transforms a single query, from one field to another.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Operates on the <code>$query</code> object by reference. In the case of error, <code>$query</code> is converted to a <a href="../wp_error">WP_Error</a> object.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$query</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">The single query. Passed by reference.</span> </p> </dd> <dt>$resulting_field</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The resulting field. Accepts 'slug', 'name', 'term_taxonomy_id', or 'term_id'. Default 'term_id'.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-tax-query.php/">wp-includes/class-wp-tax-query.php</a> </p> <pre data-language="php">public function transform_query( &amp;$query, $resulting_field ) {
+		if ( empty( $query['terms'] ) ) {
+			return;
+		}
+
+		if ( $query['field'] == $resulting_field ) {
+			return;
+		}
+
+		$resulting_field = sanitize_key( $resulting_field );
+
+		// Empty 'terms' always results in a null transformation.
+		$terms = array_filter( $query['terms'] );
+		if ( empty( $terms ) ) {
+			$query['terms'] = array();
+			$query['field'] = $resulting_field;
+			return;
+		}
+
+		$args = array(
+			'get'                    =&gt; 'all',
+			'number'                 =&gt; 0,
+			'taxonomy'               =&gt; $query['taxonomy'],
+			'update_term_meta_cache' =&gt; false,
+			'orderby'                =&gt; 'none',
+		);
+
+		// Term query parameter name depends on the 'field' being searched on.
+		switch ( $query['field'] ) {
+			case 'slug':
+				$args['slug'] = $terms;
+				break;
+			case 'name':
+				$args['name'] = $terms;
+				break;
+			case 'term_taxonomy_id':
+				$args['term_taxonomy_id'] = $terms;
+				break;
+			default:
+				$args['include'] = wp_parse_id_list( $terms );
+				break;
+		}
+
+		if ( ! is_taxonomy_hierarchical( $query['taxonomy'] ) ) {
+			$args['number'] = count( $terms );
+		}
+
+		$term_query = new WP_Term_Query();
+		$term_list  = $term_query-&gt;query( $args );
+
+		if ( is_wp_error( $term_list ) ) {
+			$query = $term_list;
+			return;
+		}
+
+		if ( 'AND' === $query['operator'] &amp;&amp; count( $term_list ) &lt; count( $query['terms'] ) ) {
+			$query = new WP_Error( 'inexistent_terms', __( 'Inexistent terms.' ) );
+			return;
+		}
+
+		$query['terms'] = wp_list_pluck( $term_list, $resulting_field );
+		$query['field'] = $resulting_field;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-term-query.php:</span> <a href="../wp_term_query/__construct">WP_Term_Query::__construct()</a> </td> <td class="related-desc"> <p>Constructor.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/sanitize_key">sanitize_key()</a> </td> <td class="related-desc"> <p>Sanitizes a string key.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_parse_id_list">wp_parse_id_list()</a> </td> <td class="related-desc"> <p>Cleans up an array, comma- or space-separated list of IDs.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_list_pluck">wp_list_pluck()</a> </td> <td class="related-desc"> <p>Plucks a certain field out of each object or array in an array.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="../../functions/is_taxonomy_hierarchical">is_taxonomy_hierarchical()</a> </td> <td class="related-desc"> <p>Determines whether the taxonomy object is hierarchical.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-tax-query.php:</span> <a href="clean_query">WP_Tax_Query::clean_query()</a> </td> <td class="related-desc"> <p>Validates a single query.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.2.0/" alt="WordPress 3.2.0">3.2.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_tax_query/transform_query" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_tax_query/transform_query</a>
+  </p>
+</div>

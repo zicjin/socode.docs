@@ -1,0 +1,82 @@
+<h1>excerpt_remove_blocks( string $content )</h1>  <section> <p>Parses blocks out of a content string, and renders those appropriate for the excerpt.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>As the excerpt should be a small string of text relevant to the full post content, this function renders the blocks that are most likely to contain such text.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$content</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The content to parse.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> The parsed and filtered content.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/blocks.php/">wp-includes/blocks.php</a> </p> <pre data-language="php">function excerpt_remove_blocks( $content ) {
+	$allowed_inner_blocks = array(
+		// Classic blocks have their blockName set to null.
+		null,
+		'core/freeform',
+		'core/heading',
+		'core/html',
+		'core/list',
+		'core/media-text',
+		'core/paragraph',
+		'core/preformatted',
+		'core/pullquote',
+		'core/quote',
+		'core/table',
+		'core/verse',
+	);
+
+	$allowed_wrapper_blocks = array(
+		'core/columns',
+		'core/column',
+		'core/group',
+	);
+
+	/**
+	 * Filters the list of blocks that can be used as wrapper blocks, allowing
+	 * excerpts to be generated from the `innerBlocks` of these wrappers.
+	 *
+	 * @since 5.8.0
+	 *
+	 * @param string[] $allowed_wrapper_blocks The list of names of allowed wrapper blocks.
+	 */
+	$allowed_wrapper_blocks = apply_filters( 'excerpt_allowed_wrapper_blocks', $allowed_wrapper_blocks );
+
+	$allowed_blocks = array_merge( $allowed_inner_blocks, $allowed_wrapper_blocks );
+
+	/**
+	 * Filters the list of blocks that can contribute to the excerpt.
+	 *
+	 * If a dynamic block is added to this list, it must not generate another
+	 * excerpt, as this will cause an infinite loop to occur.
+	 *
+	 * @since 5.0.0
+	 *
+	 * @param string[] $allowed_blocks The list of names of allowed blocks.
+	 */
+	$allowed_blocks = apply_filters( 'excerpt_allowed_blocks', $allowed_blocks );
+	$blocks         = parse_blocks( $content );
+	$output         = '';
+
+	foreach ( $blocks as $block ) {
+		if ( in_array( $block['blockName'], $allowed_blocks, true ) ) {
+			if ( ! empty( $block['innerBlocks'] ) ) {
+				if ( in_array( $block['blockName'], $allowed_wrapper_blocks, true ) ) {
+					$output .= _excerpt_render_inner_blocks( $block, $allowed_blocks );
+					continue;
+				}
+
+				// Skip the block if it has disallowed or nested inner blocks.
+				foreach ( $block['innerBlocks'] as $inner_block ) {
+					if (
+						! in_array( $inner_block['blockName'], $allowed_inner_blocks, true ) ||
+						! empty( $inner_block['innerBlocks'] )
+					) {
+						continue 2;
+					}
+				}
+			}
+
+			$output .= render_block( $block );
+		}
+	}
+
+	return $output;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="_excerpt_render_inner_blocks">_excerpt_render_inner_blocks()</a> </td> <td class="related-desc"> <p>Render inner blocks from the allowed wrapper blocks for generating an excerpt.</p> </td> </tr> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="../hooks/excerpt_allowed_wrapper_blocks">excerpt_allowed_wrapper_blocks</a> </td> <td class="related-desc"> <p>Filters the list of blocks that can be used as wrapper blocks, allowing excerpts to be generated from the <code>innerBlocks</code> of these wrappers.</p> </td> </tr> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="parse_blocks">parse_blocks()</a> </td> <td class="related-desc"> <p>Parses blocks out of a content string.</p> </td> </tr> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="render_block">render_block()</a> </td> <td class="related-desc"> <p>Renders a single block into a HTML string.</p> </td> </tr> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="../hooks/excerpt_allowed_blocks">excerpt_allowed_blocks</a> </td> <td class="related-desc"> <p>Filters the list of blocks that can contribute to the excerpt.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_trim_excerpt">wp_trim_excerpt()</a> </td> <td class="related-desc"> <p>Generates an excerpt from the content, if needed.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.0.0/" alt="WordPress 5.0.0">5.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/excerpt_remove_blocks" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/excerpt_remove_blocks</a>
+  </p>
+</div>

@@ -1,0 +1,52 @@
+<h1>WP_Media_List_Table::prepare_items()</h1>   <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-media-list-table.php/">wp-admin/includes/class-wp-media-list-table.php</a> </p> <pre data-language="php">public function prepare_items() {
+		global $mode, $wp_query, $post_mime_types, $avail_post_mime_types;
+
+		$mode = empty( $_REQUEST['mode'] ) ? 'list' : $_REQUEST['mode'];
+
+		/*
+		 * Exclude attachments scheduled for deletion in the next two hours
+		 * if they are for zip packages for interrupted or failed updates.
+		 * See File_Upload_Upgrader class.
+		 */
+		$not_in = array();
+
+		$crons = _get_cron_array();
+
+		if ( is_array( $crons ) ) {
+			foreach ( $crons as $cron ) {
+				if ( isset( $cron['upgrader_scheduled_cleanup'] ) ) {
+					$details = reset( $cron['upgrader_scheduled_cleanup'] );
+
+					if ( ! empty( $details['args'][0] ) ) {
+						$not_in[] = (int) $details['args'][0];
+					}
+				}
+			}
+		}
+
+		if ( ! empty( $_REQUEST['post__not_in'] ) &amp;&amp; is_array( $_REQUEST['post__not_in'] ) ) {
+			$not_in = array_merge( array_values( $_REQUEST['post__not_in'] ), $not_in );
+		}
+
+		if ( ! empty( $not_in ) ) {
+			$_REQUEST['post__not_in'] = $not_in;
+		}
+
+		list( $post_mime_types, $avail_post_mime_types ) = wp_edit_attachments_query( $_REQUEST );
+
+		$this-&gt;is_trash = isset( $_REQUEST['attachment-filter'] ) &amp;&amp; 'trash' === $_REQUEST['attachment-filter'];
+
+		$this-&gt;set_pagination_args(
+			array(
+				'total_items' =&gt; $wp_query-&gt;found_posts,
+				'total_pages' =&gt; $wp_query-&gt;max_num_pages,
+				'per_page'    =&gt; $wp_query-&gt;query_vars['posts_per_page'],
+			)
+		);
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/post.php:</span> <a href="../../functions/wp_edit_attachments_query">wp_edit_attachments_query()</a> </td> <td class="related-desc"> <p>Executes a query for attachments. An array of <a href="../wp_query">WP_Query</a> arguments can be passed in, which will override the arguments set by this function.</p> </td> </tr> <tr> <td> <span>wp-includes/cron.php:</span> <a href="../../functions/_get_cron_array">_get_cron_array()</a> </td> <td class="related-desc"> <p>Retrieve cron info array option.</p> </td> </tr> </tbody>
+
+</table> </article> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_media_list_table/prepare_items" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_media_list_table/prepare_items</a>
+  </p>
+</div>

@@ -1,0 +1,68 @@
+<h1>register_block_style_handle( array $metadata, string $field_name )</h1>  <section> <p>Finds a style handle for the block metadata field. It detects when a path to file was provided and registers the style under automatically generated handle name. It returns unprocessed style handle otherwise.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$metadata</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Block metadata.</span> </p> </dd> <dt>$field_name</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Field name to pick from metadata.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string|false)</span> Style handle provided directly or created through style's registration, or false on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/blocks.php/">wp-includes/blocks.php</a> </p> <pre data-language="php">function register_block_style_handle( $metadata, $field_name ) {
+	if ( empty( $metadata[ $field_name ] ) ) {
+		return false;
+	}
+	$wpinc_path_norm = wp_normalize_path( realpath( ABSPATH . WPINC ) );
+	$theme_path_norm = wp_normalize_path( get_theme_file_path() );
+	$is_core_block   = isset( $metadata['file'] ) &amp;&amp; 0 === strpos( $metadata['file'], $wpinc_path_norm );
+	if ( $is_core_block &amp;&amp; ! wp_should_load_separate_core_block_assets() ) {
+		return false;
+	}
+
+	// Check whether styles should have a ".min" suffix or not.
+	$suffix = SCRIPT_DEBUG ? '' : '.min';
+
+	$style_handle = $metadata[ $field_name ];
+	$style_path   = remove_block_asset_path_prefix( $metadata[ $field_name ] );
+
+	if ( $style_handle === $style_path &amp;&amp; ! $is_core_block ) {
+		return $style_handle;
+	}
+
+	$style_uri = plugins_url( $style_path, $metadata['file'] );
+	if ( $is_core_block ) {
+		$style_path = "style$suffix.css";
+		$style_uri  = includes_url( 'blocks/' . str_replace( 'core/', '', $metadata['name'] ) . "/style$suffix.css" );
+	}
+
+	$style_path_norm = wp_normalize_path( realpath( dirname( $metadata['file'] ) . '/' . $style_path ) );
+	$is_theme_block  = 0 === strpos( $style_path_norm, $theme_path_norm );
+
+	if ( $is_theme_block ) {
+		$style_uri = get_theme_file_uri( str_replace( $theme_path_norm, '', $style_path_norm ) );
+	}
+
+	$style_handle   = generate_block_asset_handle( $metadata['name'], $field_name );
+	$block_dir      = dirname( $metadata['file'] );
+	$style_file     = realpath( "$block_dir/$style_path" );
+	$has_style_file = false !== $style_file;
+	$version        = ! $is_core_block &amp;&amp; isset( $metadata['version'] ) ? $metadata['version'] : false;
+	$style_uri      = $has_style_file ? $style_uri : false;
+	$result         = wp_register_style(
+		$style_handle,
+		$style_uri,
+		array(),
+		$version
+	);
+	if ( file_exists( str_replace( '.css', '-rtl.css', $style_file ) ) ) {
+		wp_style_add_data( $style_handle, 'rtl', 'replace' );
+	}
+	if ( $has_style_file ) {
+		wp_style_add_data( $style_handle, 'path', $style_file );
+	}
+
+	$rtl_file = str_replace( "$suffix.css", "-rtl$suffix.css", $style_file );
+	if ( is_rtl() &amp;&amp; file_exists( $rtl_file ) ) {
+		wp_style_add_data( $style_handle, 'path', $rtl_file );
+	}
+
+	return $result ? $style_handle : false;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/script-loader.php:</span> <a href="wp_should_load_separate_core_block_assets">wp_should_load_separate_core_block_assets()</a> </td> <td class="related-desc"> <p>Checks whether separate styles should be loaded for core blocks on-render.</p> </td> </tr> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="generate_block_asset_handle">generate_block_asset_handle()</a> </td> <td class="related-desc"> <p>Generates the name for an asset based on the name of the block and the field name provided.</p> </td> </tr> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="remove_block_asset_path_prefix">remove_block_asset_path_prefix()</a> </td> <td class="related-desc"> <p>Removes the block asset’s path prefix if provided.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="get_theme_file_path">get_theme_file_path()</a> </td> <td class="related-desc"> <p>Retrieves the path of a file in the theme.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="get_theme_file_uri">get_theme_file_uri()</a> </td> <td class="related-desc"> <p>Retrieves the URL of a file in the theme.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_normalize_path">wp_normalize_path()</a> </td> <td class="related-desc"> <p>Normalize a filesystem path.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="is_rtl">is_rtl()</a> </td> <td class="related-desc"> <p>Determines whether the current locale is right-to-left (RTL).</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="plugins_url">plugins_url()</a> </td> <td class="related-desc"> <p>Retrieves a URL within the plugins or mu-plugins directory.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="includes_url">includes_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the includes directory.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.wp-styles.php:</span> <a href="wp_register_style">wp_register_style()</a> </td> <td class="related-desc"> <p>Register a CSS stylesheet.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.wp-styles.php:</span> <a href="wp_style_add_data">wp_style_add_data()</a> </td> <td class="related-desc"> <p>Add metadata to a CSS stylesheet.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="register_block_type_from_metadata">register_block_type_from_metadata()</a> </td> <td class="related-desc"> <p>Registers a block type from the metadata stored in the <code>block.json</code> file.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.0/" alt="WordPress 5.5.0">5.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/register_block_style_handle" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/register_block_style_handle</a>
+  </p>
+</div>

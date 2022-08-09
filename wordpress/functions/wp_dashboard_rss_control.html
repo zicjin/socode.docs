@@ -1,0 +1,47 @@
+<h1>wp_dashboard_rss_control( string $widget_id, array $form_inputs = array() )</h1>  <section> <p>The RSS dashboard widget control.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Sets up $args to be used as input to <a href="wp_widget_rss_form">wp_widget_rss_form()</a>. Handles POST data from RSS-type widgets.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$widget_id</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> </p> </dd> <dt>$form_inputs</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> </p> <p class="default">Default value: array()</p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/dashboard.php/">wp-admin/includes/dashboard.php</a> </p> <pre data-language="php">function wp_dashboard_rss_control( $widget_id, $form_inputs = array() ) {
+	$widget_options = get_option( 'dashboard_widget_options' );
+
+	if ( ! $widget_options ) {
+		$widget_options = array();
+	}
+
+	if ( ! isset( $widget_options[ $widget_id ] ) ) {
+		$widget_options[ $widget_id ] = array();
+	}
+
+	$number = 1; // Hack to use wp_widget_rss_form().
+
+	$widget_options[ $widget_id ]['number'] = $number;
+
+	if ( 'POST' === $_SERVER['REQUEST_METHOD'] &amp;&amp; isset( $_POST['widget-rss'][ $number ] ) ) {
+		$_POST['widget-rss'][ $number ]         = wp_unslash( $_POST['widget-rss'][ $number ] );
+		$widget_options[ $widget_id ]           = wp_widget_rss_process( $_POST['widget-rss'][ $number ] );
+		$widget_options[ $widget_id ]['number'] = $number;
+
+		// Title is optional. If black, fill it if possible.
+		if ( ! $widget_options[ $widget_id ]['title'] &amp;&amp; isset( $_POST['widget-rss'][ $number ]['title'] ) ) {
+			$rss = fetch_feed( $widget_options[ $widget_id ]['url'] );
+			if ( is_wp_error( $rss ) ) {
+				$widget_options[ $widget_id ]['title'] = htmlentities( __( 'Unknown Feed' ) );
+			} else {
+				$widget_options[ $widget_id ]['title'] = htmlentities( strip_tags( $rss-&gt;get_title() ) );
+				$rss-&gt;__destruct();
+				unset( $rss );
+			}
+		}
+
+		update_option( 'dashboard_widget_options', $widget_options );
+
+		$locale    = get_user_locale();
+		$cache_key = 'dash_v2_' . md5( $widget_id . '_' . $locale );
+		delete_transient( $cache_key );
+	}
+
+	wp_widget_rss_form( $widget_options[ $widget_id ], $form_inputs );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="get_user_locale">get_user_locale()</a> </td> <td class="related-desc"> <p>Retrieves the locale of a user.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_unslash">wp_unslash()</a> </td> <td class="related-desc"> <p>Removes slashes from a string or recursively removes slashes from strings within an array.</p> </td> </tr> <tr> <td> <span>wp-includes/widgets.php:</span> <a href="wp_widget_rss_process">wp_widget_rss_process()</a> </td> <td class="related-desc"> <p>Process RSS feed widget data and optionally retrieve feed items.</p> </td> </tr> <tr> <td> <span>wp-includes/widgets.php:</span> <a href="wp_widget_rss_form">wp_widget_rss_form()</a> </td> <td class="related-desc"> <p>Display RSS widget options form.</p> </td> </tr> <tr> <td> <span>wp-includes/feed.php:</span> <a href="fetch_feed">fetch_feed()</a> </td> <td class="related-desc"> <p>Build SimplePie object based on RSS or Atom feed from URL.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="update_option">update_option()</a> </td> <td class="related-desc"> <p>Updates the value of an option that was already added.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="delete_transient">delete_transient()</a> </td> <td class="related-desc"> <p>Deletes a transient.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.5.0/" alt="WordPress 2.5.0">2.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_dashboard_rss_control" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_dashboard_rss_control</a>
+  </p>
+</div>

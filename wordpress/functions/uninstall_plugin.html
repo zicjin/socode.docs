@@ -1,0 +1,60 @@
+<h1>uninstall_plugin( string $plugin )</h1>  <section> <p>Uninstalls a single plugin.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Calls the uninstall hook, if it is available.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$plugin</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Path to the plugin file relative to the plugins directory.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(true|void)</span> True if a plugin's uninstall.php file has been found and included. Void otherwise.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/plugin.php/">wp-admin/includes/plugin.php</a> </p> <pre data-language="php">function uninstall_plugin( $plugin ) {
+	$file = plugin_basename( $plugin );
+
+	$uninstallable_plugins = (array) get_option( 'uninstall_plugins' );
+
+	/**
+	 * Fires in uninstall_plugin() immediately before the plugin is uninstalled.
+	 *
+	 * @since 4.5.0
+	 *
+	 * @param string $plugin                Path to the plugin file relative to the plugins directory.
+	 * @param array  $uninstallable_plugins Uninstallable plugins.
+	 */
+	do_action( 'pre_uninstall_plugin', $plugin, $uninstallable_plugins );
+
+	if ( file_exists( WP_PLUGIN_DIR . '/' . dirname( $file ) . '/uninstall.php' ) ) {
+		if ( isset( $uninstallable_plugins[ $file ] ) ) {
+			unset( $uninstallable_plugins[ $file ] );
+			update_option( 'uninstall_plugins', $uninstallable_plugins );
+		}
+		unset( $uninstallable_plugins );
+
+		define( 'WP_UNINSTALL_PLUGIN', $file );
+
+		wp_register_plugin_realpath( WP_PLUGIN_DIR . '/' . $file );
+		include_once WP_PLUGIN_DIR . '/' . dirname( $file ) . '/uninstall.php';
+
+		return true;
+	}
+
+	if ( isset( $uninstallable_plugins[ $file ] ) ) {
+		$callable = $uninstallable_plugins[ $file ];
+		unset( $uninstallable_plugins[ $file ] );
+		update_option( 'uninstall_plugins', $uninstallable_plugins );
+		unset( $uninstallable_plugins );
+
+		wp_register_plugin_realpath( WP_PLUGIN_DIR . '/' . $file );
+		include_once WP_PLUGIN_DIR . '/' . $file;
+
+		add_action( "uninstall_{$file}", $callable );
+
+		/**
+		 * Fires in uninstall_plugin() once the plugin has been uninstalled.
+		 *
+		 * The action concatenates the 'uninstall_' prefix with the basename of the
+		 * plugin passed to uninstall_plugin() to create a dynamically-named action.
+		 *
+		 * @since 2.7.0
+		 */
+		do_action( "uninstall_{$file}" );
+	}
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/plugin.php:</span> <a href="../hooks/pre_uninstall_plugin">pre_uninstall_plugin</a> </td> <td class="related-desc"> <p>Fires in <a href="uninstall_plugin">uninstall_plugin()</a> immediately before the plugin is uninstalled.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/plugin.php:</span> <a href="../hooks/uninstall_file">uninstall_{$file}</a> </td> <td class="related-desc"> <p>Fires in <a href="uninstall_plugin">uninstall_plugin()</a> once the plugin has been uninstalled.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="plugin_basename">plugin_basename()</a> </td> <td class="related-desc"> <p>Gets the basename of a plugin.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="wp_register_plugin_realpath">wp_register_plugin_realpath()</a> </td> <td class="related-desc"> <p>Register a plugin’s real path.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="add_action">add_action()</a> </td> <td class="related-desc"> <p>Adds a callback function to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="update_option">update_option()</a> </td> <td class="related-desc"> <p>Updates the value of an option that was already added.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/plugin.php:</span> <a href="delete_plugins">delete_plugins()</a> </td> <td class="related-desc"> <p>Removes directory and files of a plugin for a list of plugins.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.7.0/" alt="WordPress 2.7.0">2.7.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/uninstall_plugin" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/uninstall_plugin</a>
+  </p>
+</div>

@@ -1,0 +1,57 @@
+<h1>Theme_Upgrader::install( string $package, array $args = array() )</h1>  <section> <p>Install a theme package.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$package</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The full local path or URI of the package.</span> </p> </dd> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description">Other arguments for installing a theme package. <ul class="param-hash">
+<li>
+<b>'clear_update_cache'</b><br><i><span class="type">(bool)</span></i> Whether to clear the updates cache if successful. Default true.</li> </ul> </span> </p> <p class="default">Default value: array()</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool|<a href="../wp_error">WP_Error</a>)</span> True if the installation was successful, false or a <a href="../wp_error">WP_Error</a> object otherwise.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-theme-upgrader.php/">wp-admin/includes/class-theme-upgrader.php</a> </p> <pre data-language="php">public function install( $package, $args = array() ) {
+		$defaults    = array(
+			'clear_update_cache' =&gt; true,
+			'overwrite_package'  =&gt; false, // Do not overwrite files.
+		);
+		$parsed_args = wp_parse_args( $args, $defaults );
+
+		$this-&gt;init();
+		$this-&gt;install_strings();
+
+		add_filter( 'upgrader_source_selection', array( $this, 'check_package' ) );
+		add_filter( 'upgrader_post_install', array( $this, 'check_parent_theme_filter' ), 10, 3 );
+
+		if ( $parsed_args['clear_update_cache'] ) {
+			// Clear cache so wp_update_themes() knows about the new theme.
+			add_action( 'upgrader_process_complete', 'wp_clean_themes_cache', 9, 0 );
+		}
+
+		$this-&gt;run(
+			array(
+				'package'           =&gt; $package,
+				'destination'       =&gt; get_theme_root(),
+				'clear_destination' =&gt; $parsed_args['overwrite_package'],
+				'clear_working'     =&gt; true,
+				'hook_extra'        =&gt; array(
+					'type'   =&gt; 'theme',
+					'action' =&gt; 'install',
+				),
+			)
+		);
+
+		remove_action( 'upgrader_process_complete', 'wp_clean_themes_cache', 9 );
+		remove_filter( 'upgrader_source_selection', array( $this, 'check_package' ) );
+		remove_filter( 'upgrader_post_install', array( $this, 'check_parent_theme_filter' ) );
+
+		if ( ! $this-&gt;result || is_wp_error( $this-&gt;result ) ) {
+			return $this-&gt;result;
+		}
+
+		// Refresh the Theme Update information.
+		wp_clean_themes_cache( $parsed_args['clear_update_cache'] );
+
+		if ( $parsed_args['overwrite_package'] ) {
+			/** This action is documented in wp-admin/includes/class-plugin-upgrader.php */
+			do_action( 'upgrader_overwrote_package', $package, $this-&gt;new_theme_data, 'theme' );
+		}
+
+		return true;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-plugin-upgrader.php:</span> <a href="../../hooks/upgrader_overwrote_package">upgrader_overwrote_package</a> </td> <td class="related-desc"> <p>Fires when the upgrader has successfully overwritten a currently installed plugin or theme with an uploaded zip package.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-theme-upgrader.php:</span> <a href="install_strings">Theme_Upgrader::install_strings()</a> </td> <td class="related-desc"> <p>Initialize the installation strings.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="../../functions/get_theme_root">get_theme_root()</a> </td> <td class="related-desc"> <p>Retrieves path to themes directory.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="../../functions/wp_clean_themes_cache">wp_clean_themes_cache()</a> </td> <td class="related-desc"> <p>Clears the cache held by <a href="../../functions/get_theme_roots">get_theme_roots()</a> and <a href="../wp_theme">WP_Theme</a>.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_parse_args">wp_parse_args()</a> </td> <td class="related-desc"> <p>Merges user defined arguments into defaults array.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/remove_action">remove_action()</a> </td> <td class="related-desc"> <p>Removes a callback function from an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/add_filter">add_filter()</a> </td> <td class="related-desc"> <p>Adds a callback function to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/add_action">add_action()</a> </td> <td class="related-desc"> <p>Adds a callback function to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/remove_filter">remove_filter()</a> </td> <td class="related-desc"> <p>Removes a callback function from a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.7.0/" alt="WordPress 3.7.0">3.7.0</a></td> <td><span class="since-description">The <code>$args</code> parameter was added, making clearing the update cache optional.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.8.0/" alt="WordPress 2.8.0">2.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/theme_upgrader/install" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/theme_upgrader/install</a>
+  </p>
+</div>

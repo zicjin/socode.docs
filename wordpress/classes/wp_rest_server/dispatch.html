@@ -1,0 +1,59 @@
+<h1>WP_REST_Server::dispatch( WP_REST_Request $request )</h1>  <section> <p>Matches the request to a callback and call it.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$request</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_REST_Request"><a href="../wp_rest_request">WP_REST_Request</a></span>)</span> <span class="required">(Required)</span> <span class="description">Request to attempt dispatching.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../wp_rest_response">WP_REST_Response</a>)</span> Response returned by the callback.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/rest-api/class-wp-rest-server.php/">wp-includes/rest-api/class-wp-rest-server.php</a> </p> <pre data-language="php">public function dispatch( $request ) {
+		/**
+		 * Filters the pre-calculated result of a REST API dispatch request.
+		 *
+		 * Allow hijacking the request before dispatching by returning a non-empty. The returned value
+		 * will be used to serve the request instead.
+		 *
+		 * @since 4.4.0
+		 *
+		 * @param mixed           $result  Response to replace the requested version with. Can be anything
+		 *                                 a normal endpoint can return, or null to not hijack the request.
+		 * @param WP_REST_Server  $server  Server instance.
+		 * @param WP_REST_Request $request Request used to generate the response.
+		 */
+		$result = apply_filters( 'rest_pre_dispatch', null, $this, $request );
+
+		if ( ! empty( $result ) ) {
+			return $result;
+		}
+
+		$error   = null;
+		$matched = $this-&gt;match_request_to_handler( $request );
+
+		if ( is_wp_error( $matched ) ) {
+			return $this-&gt;error_to_response( $matched );
+		}
+
+		list( $route, $handler ) = $matched;
+
+		if ( ! is_callable( $handler['callback'] ) ) {
+			$error = new WP_Error(
+				'rest_invalid_handler',
+				__( 'The handler for the route is invalid.' ),
+				array( 'status' =&gt; 500 )
+			);
+		}
+
+		if ( ! is_wp_error( $error ) ) {
+			$check_required = $request-&gt;has_valid_params();
+			if ( is_wp_error( $check_required ) ) {
+				$error = $check_required;
+			} else {
+				$check_sanitized = $request-&gt;sanitize_params();
+				if ( is_wp_error( $check_sanitized ) ) {
+					$error = $check_sanitized;
+				}
+			}
+		}
+
+		return $this-&gt;respond_to_request( $request, $route, $handler, $error );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-server.php:</span> <a href="match_request_to_handler">WP_REST_Server::match_request_to_handler()</a> </td> <td class="related-desc"> <p>Matches a request object to its handler.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-server.php:</span> <a href="respond_to_request">WP_REST_Server::respond_to_request()</a> </td> <td class="related-desc"> <p>Dispatches the request to the callback handler.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-server.php:</span> <a href="../../hooks/rest_pre_dispatch">rest_pre_dispatch</a> </td> <td class="related-desc"> <p>Filters the pre-calculated result of a REST API dispatch request.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-server.php:</span> <a href="error_to_response">WP_REST_Server::error_to_response()</a> </td> <td class="related-desc"> <p>Converts an error to a response object.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-server.php:</span> <a href="serve_request">WP_REST_Server::serve_request()</a> </td> <td class="related-desc"> <p>Handles serving a REST API request.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-server.php:</span> <a href="embed_links">WP_REST_Server::embed_links()</a> </td> <td class="related-desc"> <p>Embeds the links from the data into the request.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.4.0/" alt="WordPress 4.4.0">4.4.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_rest_server/dispatch" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_rest_server/dispatch</a>
+  </p>
+</div>

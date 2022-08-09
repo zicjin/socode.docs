@@ -1,0 +1,51 @@
+<h1>wp_is_site_initialized( int|WP_Site $site_id )</h1>  <section> <p>Checks whether a site is initialized.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>A site is considered initialized when its database tables are present.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$site_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>|<span class="WP_Site"><a href="../classes/wp_site">WP_Site</a></span>)</span> <span class="required">(Required)</span> <span class="description">Site ID or object.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> True if the site is initialized, false otherwise.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/ms-site.php/">wp-includes/ms-site.php</a> </p> <pre data-language="php">function wp_is_site_initialized( $site_id ) {
+	global $wpdb;
+
+	if ( is_object( $site_id ) ) {
+		$site_id = $site_id-&gt;blog_id;
+	}
+	$site_id = (int) $site_id;
+
+	/**
+	 * Filters the check for whether a site is initialized before the database is accessed.
+	 *
+	 * Returning a non-null value will effectively short-circuit the function, returning
+	 * that value instead.
+	 *
+	 * @since 5.1.0
+	 *
+	 * @param bool|null $pre     The value to return instead. Default null
+	 *                           to continue with the check.
+	 * @param int       $site_id The site ID that is being checked.
+	 */
+	$pre = apply_filters( 'pre_wp_is_site_initialized', null, $site_id );
+	if ( null !== $pre ) {
+		return (bool) $pre;
+	}
+
+	$switch = false;
+	if ( get_current_blog_id() !== $site_id ) {
+		$switch = true;
+		remove_action( 'switch_blog', 'wp_switch_roles_and_user', 1 );
+		switch_to_blog( $site_id );
+	}
+
+	$suppress = $wpdb-&gt;suppress_errors();
+	$result   = (bool) $wpdb-&gt;get_results( "DESCRIBE {$wpdb-&gt;posts}" );
+	$wpdb-&gt;suppress_errors( $suppress );
+
+	if ( $switch ) {
+		restore_current_blog();
+		add_action( 'switch_blog', 'wp_switch_roles_and_user', 1, 2 );
+	}
+
+	return $result;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/ms-site.php:</span> <a href="../hooks/pre_wp_is_site_initialized">pre_wp_is_site_initialized</a> </td> <td class="related-desc"> <p>Filters the check for whether a site is initialized before the database is accessed.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="get_current_blog_id">get_current_blog_id()</a> </td> <td class="related-desc"> <p>Retrieve the current site ID.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="remove_action">remove_action()</a> </td> <td class="related-desc"> <p>Removes a callback function from an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="add_action">add_action()</a> </td> <td class="related-desc"> <p>Adds a callback function to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-blogs.php:</span> <a href="switch_to_blog">switch_to_blog()</a> </td> <td class="related-desc"> <p>Switch the current blog.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-blogs.php:</span> <a href="restore_current_blog">restore_current_blog()</a> </td> <td class="related-desc"> <p>Restore the current blog, after calling <a href="switch_to_blog">switch_to_blog()</a>.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/get_results">wpdb::get_results()</a> </td> <td class="related-desc"> <p>Retrieves an entire SQL result set from the database (i.e., many rows).</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/suppress_errors">wpdb::suppress_errors()</a> </td> <td class="related-desc"> <p>Enables or disables suppressing of database errors.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/ms-site.php:</span> <a href="wp_update_blog_public_option_on_site_update">wp_update_blog_public_option_on_site_update()</a> </td> <td class="related-desc"> <p>Updates the <code>blog_public</code> option for a given site ID.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-site.php:</span> <a href="wp_initialize_site">wp_initialize_site()</a> </td> <td class="related-desc"> <p>Runs the initialization routine for a given site.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-site.php:</span> <a href="wp_uninitialize_site">wp_uninitialize_site()</a> </td> <td class="related-desc"> <p>Runs the uninitialization routine for a given site.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.1.0/" alt="WordPress 5.1.0">5.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_is_site_initialized" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_is_site_initialized</a>
+  </p>
+</div>

@@ -1,0 +1,124 @@
+<h1>_wp_ajax_menu_quick_search( array $request = array() )</h1>  <section> <p>Prints the appropriate response to a menu quick search.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$request</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description">The unsanitized request values.</span> </p> <p class="default">Default value: array()</p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/nav-menu.php/">wp-admin/includes/nav-menu.php</a> </p> <pre data-language="php">function _wp_ajax_menu_quick_search( $request = array() ) {
+	$args            = array();
+	$type            = isset( $request['type'] ) ? $request['type'] : '';
+	$object_type     = isset( $request['object_type'] ) ? $request['object_type'] : '';
+	$query           = isset( $request['q'] ) ? $request['q'] : '';
+	$response_format = isset( $request['response-format'] ) ? $request['response-format'] : '';
+
+	if ( ! $response_format || ! in_array( $response_format, array( 'json', 'markup' ), true ) ) {
+		$response_format = 'json';
+	}
+
+	if ( 'markup' === $response_format ) {
+		$args['walker'] = new Walker_Nav_Menu_Checklist;
+	}
+
+	if ( 'get-post-item' === $type ) {
+		if ( post_type_exists( $object_type ) ) {
+			if ( isset( $request['ID'] ) ) {
+				$object_id = (int) $request['ID'];
+				if ( 'markup' === $response_format ) {
+					echo walk_nav_menu_tree( array_map( 'wp_setup_nav_menu_item', array( get_post( $object_id ) ) ), 0, (object) $args );
+				} elseif ( 'json' === $response_format ) {
+					echo wp_json_encode(
+						array(
+							'ID'         =&gt; $object_id,
+							'post_title' =&gt; get_the_title( $object_id ),
+							'post_type'  =&gt; get_post_type( $object_id ),
+						)
+					);
+					echo "\n";
+				}
+			}
+		} elseif ( taxonomy_exists( $object_type ) ) {
+			if ( isset( $request['ID'] ) ) {
+				$object_id = (int) $request['ID'];
+				if ( 'markup' === $response_format ) {
+					echo walk_nav_menu_tree( array_map( 'wp_setup_nav_menu_item', array( get_term( $object_id, $object_type ) ) ), 0, (object) $args );
+				} elseif ( 'json' === $response_format ) {
+					$post_obj = get_term( $object_id, $object_type );
+					echo wp_json_encode(
+						array(
+							'ID'         =&gt; $object_id,
+							'post_title' =&gt; $post_obj-&gt;name,
+							'post_type'  =&gt; $object_type,
+						)
+					);
+					echo "\n";
+				}
+			}
+		}
+	} elseif ( preg_match( '/quick-search-(posttype|taxonomy)-([a-zA-Z_-]*\b)/', $type, $matches ) ) {
+		if ( 'posttype' === $matches[1] &amp;&amp; get_post_type_object( $matches[2] ) ) {
+			$post_type_obj = _wp_nav_menu_meta_box_object( get_post_type_object( $matches[2] ) );
+			$args          = array_merge(
+				$args,
+				array(
+					'no_found_rows'          =&gt; true,
+					'update_post_meta_cache' =&gt; false,
+					'update_post_term_cache' =&gt; false,
+					'posts_per_page'         =&gt; 10,
+					'post_type'              =&gt; $matches[2],
+					's'                      =&gt; $query,
+				)
+			);
+			if ( isset( $post_type_obj-&gt;_default_query ) ) {
+				$args = array_merge( $args, (array) $post_type_obj-&gt;_default_query );
+			}
+			$search_results_query = new WP_Query( $args );
+			if ( ! $search_results_query-&gt;have_posts() ) {
+				return;
+			}
+			while ( $search_results_query-&gt;have_posts() ) {
+				$post = $search_results_query-&gt;next_post();
+				if ( 'markup' === $response_format ) {
+					$var_by_ref = $post-&gt;ID;
+					echo walk_nav_menu_tree( array_map( 'wp_setup_nav_menu_item', array( get_post( $var_by_ref ) ) ), 0, (object) $args );
+				} elseif ( 'json' === $response_format ) {
+					echo wp_json_encode(
+						array(
+							'ID'         =&gt; $post-&gt;ID,
+							'post_title' =&gt; get_the_title( $post-&gt;ID ),
+							'post_type'  =&gt; $matches[2],
+						)
+					);
+					echo "\n";
+				}
+			}
+		} elseif ( 'taxonomy' === $matches[1] ) {
+			$terms = get_terms(
+				array(
+					'taxonomy'   =&gt; $matches[2],
+					'name__like' =&gt; $query,
+					'number'     =&gt; 10,
+					'hide_empty' =&gt; false,
+				)
+			);
+			if ( empty( $terms ) || is_wp_error( $terms ) ) {
+				return;
+			}
+			foreach ( (array) $terms as $term ) {
+				if ( 'markup' === $response_format ) {
+					echo walk_nav_menu_tree( array_map( 'wp_setup_nav_menu_item', array( $term ) ), 0, (object) $args );
+				} elseif ( 'json' === $response_format ) {
+					echo wp_json_encode(
+						array(
+							'ID'         =&gt; $term-&gt;term_id,
+							'post_title' =&gt; $term-&gt;name,
+							'post_type'  =&gt; $matches[2],
+						)
+					);
+					echo "\n";
+				}
+			}
+		}
+	}
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_json_encode">wp_json_encode()</a> </td> <td class="related-desc"> <p>Encode a variable into JSON, with some sanity checks.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-walker-nav-menu-checklist.php:</span> <a href="../classes/walker_nav_menu_checklist/__construct">Walker_Nav_Menu_Checklist::__construct()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-admin/includes/nav-menu.php:</span> <a href="_wp_nav_menu_meta_box_object">_wp_nav_menu_meta_box_object()</a> </td> <td class="related-desc"> <p>Adds custom arguments to some of the meta box object types.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-query.php:</span> <a href="../classes/wp_query/__construct">WP_Query::__construct()</a> </td> <td class="related-desc"> <p>Constructor.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="get_terms">get_terms()</a> </td> <td class="related-desc"> <p>Retrieves the terms in a given taxonomy or list of taxonomies.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="taxonomy_exists">taxonomy_exists()</a> </td> <td class="related-desc"> <p>Determines whether the taxonomy name exists.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="get_term">get_term()</a> </td> <td class="related-desc"> <p>Gets all term data from database by term ID.</p> </td> </tr> <tr> <td> <span>wp-includes/nav-menu-template.php:</span> <a href="walk_nav_menu_tree">walk_nav_menu_tree()</a> </td> <td class="related-desc"> <p>Retrieves the HTML list content for nav menu items.</p> </td> </tr> <tr> <td> <span>wp-includes/post-template.php:</span> <a href="get_the_title">get_the_title()</a> </td> <td class="related-desc"> <p>Retrieves the post title.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="post_type_exists">post_type_exists()</a> </td> <td class="related-desc"> <p>Determines whether a post type is registered.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post_type">get_post_type()</a> </td> <td class="related-desc"> <p>Retrieves the post type of the current post or of a given post.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post_type_object">get_post_type_object()</a> </td> <td class="related-desc"> <p>Retrieves a post type object by name.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/ajax-actions.php:</span> <a href="wp_ajax_menu_quick_search">wp_ajax_menu_quick_search()</a> </td> <td class="related-desc"> <p>Ajax handler for menu quick searching.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.0.0/" alt="WordPress 3.0.0">3.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/_wp_ajax_menu_quick_search" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/_wp_ajax_menu_quick_search</a>
+  </p>
+</div>

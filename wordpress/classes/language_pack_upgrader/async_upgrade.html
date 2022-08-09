@@ -1,0 +1,63 @@
+<h1>Language_Pack_Upgrader::async_upgrade( false|WP_Upgrader $upgrader = false )</h1>  <section> <p>Asynchronously upgrades language packs after other upgrades have been made.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Hooked to the <a href="../../hooks/upgrader_process_complete">‘upgrader_process_complete’</a> action by default.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$upgrader</dt> <dd> <p class="desc"> <span class="type">(<span class="false">false</span>|<span class="WP_Upgrader"><a href="../wp_upgrader">WP_Upgrader</a></span>)</span> <span class="required">(Optional)</span> <span class="description"> <a href="../wp_upgrader">WP_Upgrader</a> instance or false. If <code>$upgrader</code> is a <a href="../language_pack_upgrader">Language_Pack_Upgrader</a> instance, the method will bail to avoid recursion. Otherwise unused. </span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-language-pack-upgrader.php/">wp-admin/includes/class-language-pack-upgrader.php</a> </p> <pre data-language="php">public static function async_upgrade( $upgrader = false ) {
+		// Avoid recursion.
+		if ( $upgrader &amp;&amp; $upgrader instanceof Language_Pack_Upgrader ) {
+			return;
+		}
+
+		// Nothing to do?
+		$language_updates = wp_get_translation_updates();
+		if ( ! $language_updates ) {
+			return;
+		}
+
+		/*
+		 * Avoid messing with VCS installations, at least for now.
+		 * Noted: this is not the ideal way to accomplish this.
+		 */
+		$check_vcs = new WP_Automatic_Updater;
+		if ( $check_vcs-&gt;is_vcs_checkout( WP_CONTENT_DIR ) ) {
+			return;
+		}
+
+		foreach ( $language_updates as $key =&gt; $language_update ) {
+			$update = ! empty( $language_update-&gt;autoupdate );
+
+			/**
+			 * Filters whether to asynchronously update translation for core, a plugin, or a theme.
+			 *
+			 * @since 4.0.0
+			 *
+			 * @param bool   $update          Whether to update.
+			 * @param object $language_update The update offer.
+			 */
+			$update = apply_filters( 'async_update_translation', $update, $language_update );
+
+			if ( ! $update ) {
+				unset( $language_updates[ $key ] );
+			}
+		}
+
+		if ( empty( $language_updates ) ) {
+			return;
+		}
+
+		// Re-use the automatic upgrader skin if the parent upgrader is using it.
+		if ( $upgrader &amp;&amp; $upgrader-&gt;skin instanceof Automatic_Upgrader_Skin ) {
+			$skin = $upgrader-&gt;skin;
+		} else {
+			$skin = new Language_Pack_Upgrader_Skin(
+				array(
+					'skip_header_footer' =&gt; true,
+				)
+			);
+		}
+
+		$lp_upgrader = new Language_Pack_Upgrader( $skin );
+		$lp_upgrader-&gt;bulk_upgrade( $language_updates );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-language-pack-upgrader.php:</span> <a href="../../hooks/async_update_translation">async_update_translation</a> </td> <td class="related-desc"> <p>Filters whether to asynchronously update translation for core, a plugin, or a theme.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-language-pack-upgrader-skin.php:</span> <a href="../language_pack_upgrader_skin/__construct">Language_Pack_Upgrader_Skin::__construct()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-includes/update.php:</span> <a href="../../functions/wp_get_translation_updates">wp_get_translation_updates()</a> </td> <td class="related-desc"> <p>Retrieves a list of all language updates available.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.7.0/" alt="WordPress 3.7.0">3.7.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/language_pack_upgrader/async_upgrade" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/language_pack_upgrader/async_upgrade</a>
+  </p>
+</div>

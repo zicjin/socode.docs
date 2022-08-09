@@ -1,0 +1,71 @@
+<h1>make_site_theme_from_default( string $theme_name, string $template )</h1>  <section> <p>Creates a site theme from the default theme.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2>  </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$theme_name</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The name of the theme.</span> </p> </dd> <dt>$template</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The directory name of the theme.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(void|false)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/upgrade.php/">wp-admin/includes/upgrade.php</a> </p> <pre data-language="php">function make_site_theme_from_default( $theme_name, $template ) {
+	$site_dir    = WP_CONTENT_DIR . "/themes/$template";
+	$default_dir = WP_CONTENT_DIR . '/themes/' . WP_DEFAULT_THEME;
+
+	// Copy files from the default theme to the site theme.
+	// $files = array( 'index.php', 'comments.php', 'comments-popup.php', 'footer.php', 'header.php', 'sidebar.php', 'style.css' );
+
+	$theme_dir = @opendir( $default_dir );
+	if ( $theme_dir ) {
+		while ( ( $theme_file = readdir( $theme_dir ) ) !== false ) {
+			if ( is_dir( "$default_dir/$theme_file" ) ) {
+				continue;
+			}
+			if ( ! copy( "$default_dir/$theme_file", "$site_dir/$theme_file" ) ) {
+				return;
+			}
+			chmod( "$site_dir/$theme_file", 0777 );
+		}
+
+		closedir( $theme_dir );
+	}
+
+	// Rewrite the theme header.
+	$stylelines = explode( "\n", implode( '', file( "$site_dir/style.css" ) ) );
+	if ( $stylelines ) {
+		$f = fopen( "$site_dir/style.css", 'w' );
+
+		foreach ( $stylelines as $line ) {
+			if ( strpos( $line, 'Theme Name:' ) !== false ) {
+				$line = 'Theme Name: ' . $theme_name;
+			} elseif ( strpos( $line, 'Theme URI:' ) !== false ) {
+				$line = 'Theme URI: ' . __get_option( 'url' );
+			} elseif ( strpos( $line, 'Description:' ) !== false ) {
+				$line = 'Description: Your theme.';
+			} elseif ( strpos( $line, 'Version:' ) !== false ) {
+				$line = 'Version: 1';
+			} elseif ( strpos( $line, 'Author:' ) !== false ) {
+				$line = 'Author: You';
+			}
+			fwrite( $f, $line . "\n" );
+		}
+		fclose( $f );
+	}
+
+	// Copy the images.
+	umask( 0 );
+	if ( ! mkdir( "$site_dir/images", 0777 ) ) {
+		return false;
+	}
+
+	$images_dir = @opendir( "$default_dir/images" );
+	if ( $images_dir ) {
+		while ( ( $image = readdir( $images_dir ) ) !== false ) {
+			if ( is_dir( "$default_dir/images/$image" ) ) {
+				continue;
+			}
+			if ( ! copy( "$default_dir/images/$image", "$site_dir/images/$image" ) ) {
+				return;
+			}
+			chmod( "$site_dir/images/$image", 0777 );
+		}
+
+		closedir( $images_dir );
+	}
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/upgrade.php:</span> <a href="make_site_theme">make_site_theme()</a> </td> <td class="related-desc"> <p>Creates a site theme.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/1.5.0/" alt="WordPress 1.5.0">1.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/make_site_theme_from_default" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/make_site_theme_from_default</a>
+  </p>
+</div>

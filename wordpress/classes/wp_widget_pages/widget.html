@@ -1,0 +1,83 @@
+<h1>WP_Widget_Pages::widget( array $args, array $instance )</h1>  <section> <p>Outputs the content for the current Pages widget instance.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Display arguments including 'before_title', 'after_title', 'before_widget', and 'after_widget'.</span> </p> </dd> <dt>$instance</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Settings for the current Pages widget instance.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/widgets/class-wp-widget-pages.php/">wp-includes/widgets/class-wp-widget-pages.php</a> </p> <pre data-language="php">public function widget( $args, $instance ) {
+		$default_title = __( 'Pages' );
+		$title         = ! empty( $instance['title'] ) ? $instance['title'] : $default_title;
+
+		/**
+		 * Filters the widget title.
+		 *
+		 * @since 2.6.0
+		 *
+		 * @param string $title    The widget title. Default 'Pages'.
+		 * @param array  $instance Array of settings for the current widget.
+		 * @param mixed  $id_base  The widget ID.
+		 */
+		$title = apply_filters( 'widget_title', $title, $instance, $this-&gt;id_base );
+
+		$sortby  = empty( $instance['sortby'] ) ? 'menu_order' : $instance['sortby'];
+		$exclude = empty( $instance['exclude'] ) ? '' : $instance['exclude'];
+
+		if ( 'menu_order' === $sortby ) {
+			$sortby = 'menu_order, post_title';
+		}
+
+		$output = wp_list_pages(
+			/**
+			 * Filters the arguments for the Pages widget.
+			 *
+			 * @since 2.8.0
+			 * @since 4.9.0 Added the `$instance` parameter.
+			 *
+			 * @see wp_list_pages()
+			 *
+			 * @param array $args     An array of arguments to retrieve the pages list.
+			 * @param array $instance Array of settings for the current widget.
+			 */
+			apply_filters(
+				'widget_pages_args',
+				array(
+					'title_li'    =&gt; '',
+					'echo'        =&gt; 0,
+					'sort_column' =&gt; $sortby,
+					'exclude'     =&gt; $exclude,
+				),
+				$instance
+			)
+		);
+
+		if ( ! empty( $output ) ) {
+			echo $args['before_widget'];
+			if ( $title ) {
+				echo $args['before_title'] . $title . $args['after_title'];
+			}
+
+			$format = current_theme_supports( 'html5', 'navigation-widgets' ) ? 'html5' : 'xhtml';
+
+			/** This filter is documented in wp-includes/widgets/class-wp-nav-menu-widget.php */
+			$format = apply_filters( 'navigation_widgets_format', $format );
+
+			if ( 'html5' === $format ) {
+				// The title may be filtered: Strip out HTML and make sure the aria-label is never empty.
+				$title      = trim( strip_tags( $title ) );
+				$aria_label = $title ? $title : $default_title;
+				echo '&lt;nav aria-label="' . esc_attr( $aria_label ) . '"&gt;';
+			}
+			?&gt;
+
+			&lt;ul&gt;
+				&lt;?php echo $output; ?&gt;
+			&lt;/ul&gt;
+
+			&lt;?php
+			if ( 'html5' === $format ) {
+				echo '&lt;/nav&gt;';
+			}
+
+			echo $args['after_widget'];
+		}
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/widgets/class-wp-nav-menu-widget.php:</span> <a href="../../hooks/navigation_widgets_format">navigation_widgets_format</a> </td> <td class="related-desc"> <p>Filters the HTML format of widgets with navigation links.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="../../functions/current_theme_supports">current_theme_supports()</a> </td> <td class="related-desc"> <p>Checks a theme’s support for a given feature.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/widgets/class-wp-widget-pages.php:</span> <a href="../../hooks/widget_title">widget_title</a> </td> <td class="related-desc"> <p>Filters the widget title.</p> </td> </tr> <tr> <td> <span>wp-includes/widgets/class-wp-widget-pages.php:</span> <a href="../../hooks/widget_pages_args">widget_pages_args</a> </td> <td class="related-desc"> <p>Filters the arguments for the Pages widget.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/post-template.php:</span> <a href="../../functions/wp_list_pages">wp_list_pages()</a> </td> <td class="related-desc"> <p>Retrieves or displays a list of pages (or hierarchical post type items) in list (li) format.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.8.0/" alt="WordPress 2.8.0">2.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_widget_pages/widget" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_widget_pages/widget</a>
+  </p>
+</div>

@@ -1,0 +1,89 @@
+<h1>wp_comments_personal_data_exporter( string $email_address, int $page = 1 )</h1>  <section> <p>Finds and exports personal data associated with an email address from the comments table.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$email_address</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The comment author email address.</span> </p> </dd> <dt>$page</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description">Comment page.</span> </p> <p class="default">Default value: 1</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> An array of personal data.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/comment.php/">wp-includes/comment.php</a> </p> <pre data-language="php">function wp_comments_personal_data_exporter( $email_address, $page = 1 ) {
+	// Limit us to 500 comments at a time to avoid timing out.
+	$number = 500;
+	$page   = (int) $page;
+
+	$data_to_export = array();
+
+	$comments = get_comments(
+		array(
+			'author_email'              =&gt; $email_address,
+			'number'                    =&gt; $number,
+			'paged'                     =&gt; $page,
+			'order_by'                  =&gt; 'comment_ID',
+			'order'                     =&gt; 'ASC',
+			'update_comment_meta_cache' =&gt; false,
+		)
+	);
+
+	$comment_prop_to_export = array(
+		'comment_author'       =&gt; __( 'Comment Author' ),
+		'comment_author_email' =&gt; __( 'Comment Author Email' ),
+		'comment_author_url'   =&gt; __( 'Comment Author URL' ),
+		'comment_author_IP'    =&gt; __( 'Comment Author IP' ),
+		'comment_agent'        =&gt; __( 'Comment Author User Agent' ),
+		'comment_date'         =&gt; __( 'Comment Date' ),
+		'comment_content'      =&gt; __( 'Comment Content' ),
+		'comment_link'         =&gt; __( 'Comment URL' ),
+	);
+
+	foreach ( (array) $comments as $comment ) {
+		$comment_data_to_export = array();
+
+		foreach ( $comment_prop_to_export as $key =&gt; $name ) {
+			$value = '';
+
+			switch ( $key ) {
+				case 'comment_author':
+				case 'comment_author_email':
+				case 'comment_author_url':
+				case 'comment_author_IP':
+				case 'comment_agent':
+				case 'comment_date':
+					$value = $comment-&gt;{$key};
+					break;
+
+				case 'comment_content':
+					$value = get_comment_text( $comment-&gt;comment_ID );
+					break;
+
+				case 'comment_link':
+					$value = get_comment_link( $comment-&gt;comment_ID );
+					$value = sprintf(
+						'&lt;a href="%s" target="_blank" rel="noopener"&gt;%s&lt;/a&gt;',
+						esc_url( $value ),
+						esc_html( $value )
+					);
+					break;
+			}
+
+			if ( ! empty( $value ) ) {
+				$comment_data_to_export[] = array(
+					'name'  =&gt; $name,
+					'value' =&gt; $value,
+				);
+			}
+		}
+
+		$data_to_export[] = array(
+			'group_id'          =&gt; 'comments',
+			'group_label'       =&gt; __( 'Comments' ),
+			'group_description' =&gt; __( 'User&amp;#8217;s comment data.' ),
+			'item_id'           =&gt; "comment-{$comment-&gt;comment_ID}",
+			'data'              =&gt; $comment_data_to_export,
+		);
+	}
+
+	$done = count( $comments ) &lt; $number;
+
+	return array(
+		'data' =&gt; $data_to_export,
+		'done' =&gt; $done,
+	);
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_html">esc_html()</a> </td> <td class="related-desc"> <p>Escaping for HTML blocks.</p> </td> </tr> <tr> <td> <span>wp-includes/comment-template.php:</span> <a href="get_comment_text">get_comment_text()</a> </td> <td class="related-desc"> <p>Retrieves the text of the current comment.</p> </td> </tr> <tr> <td> <span>wp-includes/comment-template.php:</span> <a href="get_comment_link">get_comment_link()</a> </td> <td class="related-desc"> <p>Retrieves the link to a given comment.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="get_comments">get_comments()</a> </td> <td class="related-desc"> <p>Retrieves a list of comments.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.9.6/" alt="WordPress 4.9.6">4.9.6</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_comments_personal_data_exporter" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_comments_personal_data_exporter</a>
+  </p>
+</div>

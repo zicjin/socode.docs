@@ -1,0 +1,57 @@
+<h1>Custom_Image_Header::set_header_image( mixed $choice )</h1>  <section> <p>Choose a header image, selected from existing uploaded and default headers, or provide an array of uploaded header data (either new, or from media library).</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$choice</dt> <dd> <p class="desc"> <span class="type">(<span class="mixed">mixed</span>)</span> <span class="required">(Required)</span> <span class="description">Which header image to select. Allows for values of 'random-default-image', for randomly cycling among the default images; 'random-uploaded-image', for randomly cycling among the uploaded images; the key of a default image registered for that theme; and the key of an image uploaded for that theme (the attachment ID of the image). Or an array of arguments: attachment_id, url, width, height. All are required.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-custom-image-header.php/">wp-admin/includes/class-custom-image-header.php</a> </p> <pre data-language="php">final public function set_header_image( $choice ) {
+		if ( is_array( $choice ) || is_object( $choice ) ) {
+			$choice = (array) $choice;
+
+			if ( ! isset( $choice['attachment_id'] ) || ! isset( $choice['url'] ) ) {
+				return;
+			}
+
+			$choice['url'] = esc_url_raw( $choice['url'] );
+
+			$header_image_data = (object) array(
+				'attachment_id' =&gt; $choice['attachment_id'],
+				'url'           =&gt; $choice['url'],
+				'thumbnail_url' =&gt; $choice['url'],
+				'height'        =&gt; $choice['height'],
+				'width'         =&gt; $choice['width'],
+			);
+
+			update_post_meta( $choice['attachment_id'], '_wp_attachment_is_custom_header', get_stylesheet() );
+
+			set_theme_mod( 'header_image', $choice['url'] );
+			set_theme_mod( 'header_image_data', $header_image_data );
+
+			return;
+		}
+
+		if ( in_array( $choice, array( 'remove-header', 'random-default-image', 'random-uploaded-image' ), true ) ) {
+			set_theme_mod( 'header_image', $choice );
+			remove_theme_mod( 'header_image_data' );
+
+			return;
+		}
+
+		$uploaded = get_uploaded_header_images();
+
+		if ( $uploaded &amp;&amp; isset( $uploaded[ $choice ] ) ) {
+			$header_image_data = $uploaded[ $choice ];
+		} else {
+			$this-&gt;process_default_headers();
+			if ( isset( $this-&gt;default_headers[ $choice ] ) ) {
+				$header_image_data = $this-&gt;default_headers[ $choice ];
+			} else {
+				return;
+			}
+		}
+
+		set_theme_mod( 'header_image', esc_url_raw( $header_image_data['url'] ) );
+		set_theme_mod( 'header_image_data', $header_image_data );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="process_default_headers">Custom_Image_Header::process_default_headers()</a> </td> <td class="related-desc"> <p>Process the default headers</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="../../functions/set_theme_mod">set_theme_mod()</a> </td> <td class="related-desc"> <p>Updates theme modification value for the active theme.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="../../functions/remove_theme_mod">remove_theme_mod()</a> </td> <td class="related-desc"> <p>Removes theme modification name from active theme list.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="../../functions/get_uploaded_header_images">get_uploaded_header_images()</a> </td> <td class="related-desc"> <p>Gets the header images uploaded for the active theme.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="../../functions/get_stylesheet">get_stylesheet()</a> </td> <td class="related-desc"> <p>Retrieves name of the current stylesheet.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_url_raw">esc_url_raw()</a> </td> <td class="related-desc"> <p>Performs <a href="../../functions/esc_url">esc_url()</a> for database or redirect usage.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/update_post_meta">update_post_meta()</a> </td> <td class="related-desc"> <p>Updates a post meta field based on the given post ID.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="step_2">Custom_Image_Header::step_2()</a> </td> <td class="related-desc"> <p>Display second step of custom header image page.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="step_3">Custom_Image_Header::step_3()</a> </td> <td class="related-desc"> <p>Display third step of custom header image page.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="remove_header_image">Custom_Image_Header::remove_header_image()</a> </td> <td class="related-desc"> <p>Remove a header image.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="take_action">Custom_Image_Header::take_action()</a> </td> <td class="related-desc"> <p>Execute custom header modification.</p> </td> </tr> <tr> <td> <span>wp-includes/customize/class-wp-customize-header-image-setting.php:</span> <a href="../wp_customize_header_image_setting/update">WP_Customize_Header_Image_Setting::update()</a> </td> <td class="related-desc"> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.4.0/" alt="WordPress 3.4.0">3.4.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/custom_image_header/set_header_image" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/custom_image_header/set_header_image</a>
+  </p>
+</div>

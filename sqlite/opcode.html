@@ -10,7 +10,7 @@
 <p> This article also uses the terms "bytecode program" and "prepared statement" interchangeably, as they are mostly the same thing. </p>
 <h2 id="vdbe_source_code">
 <span>2.1. </span>VDBE Source Code</h2> <p>The source code to the bytecode engine is in the <a href="http://www.sqlite.org/src/file/src/vdbe.c">vdbe.c</a> source file. The <a href="opcode#codes">opcode definitions</a> in this document are derived from comments in that source file. The source code comments are the canonical source of information about the bytecode engine. When in doubt, refer to the source code.</p> <p>In addition to the primary vdbe.c source code file, there are other helper code files in the source tree, all of whose names begin with "vdbe" - short for "Virtual DataBase Engine". </p>
-<p>Remember that the names and meanings of opcodes often change from one release of SQLite to the next. So if you are studying the <a href="lang_explain">EXPLAIN</a> output from SQLite, you should reference the version of this document (or the vdbe.c source code) that corresponds to the version of SQLite that ran the <a href="lang_explain">EXPLAIN</a>. Otherwise, the description of the opcodes may not be accurate. This document is derived from SQLite version 3.35.0 check-in <a href="https://www.sqlite.org/src/timeline?c=acd63062eb067">acd63062eb067</a> dated 2021-03-12. </p>
+<p>Remember that the names and meanings of opcodes often change from one release of SQLite to the next. So if you are studying the <a href="lang_explain">EXPLAIN</a> output from SQLite, you should reference the version of this document (or the vdbe.c source code) that corresponds to the version of SQLite that ran the <a href="lang_explain">EXPLAIN</a>. Otherwise, the description of the opcodes may not be accurate. This document is derived from SQLite version 3.38.0 check-in <a href="https://www.sqlite.org/src/timeline?c=40fa792d359f8">40fa792d359f8</a> dated 2022-02-22. </p>
 <h2 id="instruction_format">
 <span>2.2. </span>Instruction Format</h2> <p>A bytecoded program in SQLite consists of one or more instructions. Each instruction has an opcode and five operands named P1, P2 P3, P4, and P5. The P1, P2, and P3 operands are 32-bit signed integers. These operands often refer to registers. For instructions that operate on b-tree cursors, the P1 operand is usually the cursor number. For jump instructions, P2 is usually the jump destination. P4 may be a 32-bit signed integer, a 64-bit signed integer, a 64-bit floating point value, a string literal, a Blob literal, a pointer to a collating sequence comparison function, or a pointer to the implementation of an application-defined SQL function, or various other things. P5 is an 16-bit unsigned integer normally used to hold flags. Bits of the P5 flag can sometimes affect the opcode in subtle ways. For example, if the SQLITE_NULLEQ (0x0080) bit of the P5 operand is set on the <a href="opcode#Eq">Eq</a> opcode, then the NULL values compare equal to one another. Otherwise NULL values compare different from one another. </p>
 <p>Some opcodes use all five operands. Some opcodes use one or two. Some opcodes use none of the operands.</p>
@@ -66,8 +66,8 @@ addr  opcode         p1    p2    p3    p4        
 <li> <a href="pragma#pragma_vdbe_listing">PRAGMA vdbe_listing</a> </li>
 <li> <a href="pragma#pragma_vdbe_trace">PRAGMA vdbe_trace</a> </li>
 </ul> <h1 id="the_opcodes">
-<span>4. </span>The Opcodes</h1> <p>There are currently 178 opcodes defined by the virtual machine. All currently defined opcodes are described in the table below. This table was generated automatically by scanning the source code from the file <a href="http://www.sqlite.org/src/artifact/b79b222f07690874d436eef4ad5e76845b2796e7094b1d0545cc94333f0d8e50">vdbe.c</a>. </p>
-<p id="codes">Remember: The VDBE opcodes are <u>not</u> part of the interface definition for SQLite. The number of opcodes and their names and meanings change from one release of SQLite to the next. The opcodes shown in the table below are valid for SQLite version 3.35.0 check-in <a href="https://www.sqlite.org/src/timeline?c=acd63062eb067">acd63062eb067</a> dated 2021-03-12.  </p>   <table cellspacing="0" cellpaddin> <tr>
+<span>4. </span>The Opcodes</h1> <p>There are currently 184 opcodes defined by the virtual machine. All currently defined opcodes are described in the table below. This table was generated automatically by scanning the source code from the file <a href="http://www.sqlite.org/src/artifact/e179d2d6551c6cc3dda7f6f233f9fe3d3c8da2f9bfc46eaabb4b54dc4337d3cf">vdbe.c</a>. </p>
+<p id="codes">Remember: The VDBE opcodes are <u>not</u> part of the interface definition for SQLite. The number of opcodes and their names and meanings change from one release of SQLite to the next. The opcodes shown in the table below are valid for SQLite version 3.38.0 check-in <a href="https://www.sqlite.org/src/timeline?c=40fa792d359f8">40fa792d359f8</a> dated 2022-02-22.  </p>   <table cellspacing="0" cellpaddin> <tr>
 <th>Opcode Name</th>
 <th>Description</th>
 </tr> <tr>
@@ -124,7 +124,7 @@ addr  opcode         p1    p2    p3    p4        
 <td>Take the bit-wise OR of the values in register P1 and P2 and store the result in register P3. If either input is NULL, the result is NULL.</td>
 </tr> <tr>
 <td valign="top" id="Blob"> Blob </td>
-<td>P4 points to a blob of data P1 bytes long. Store this blob in register P2.</td>
+<td>P4 points to a blob of data P1 bytes long. Store this blob in register P2. If P4 is a NULL pointer, then construct a zero-filled blob that is P1 bytes long in P2.</td>
 </tr> <tr>
 <td valign="top" id="Cast"> Cast </td>
 <td>Force the value in register P1 to be the type defined by P2. <p></p>
@@ -139,12 +139,8 @@ addr  opcode         p1    p2    p3    p4        
 <td valign="top" id="Checkpoint"> Checkpoint </td>
 <td>Checkpoint database P1. This is a no-op if P1 is not currently in WAL mode. Parameter P2 is one of SQLITE_CHECKPOINT_PASSIVE, FULL, RESTART, or TRUNCATE. Write 1 or 0 into mem[P3] if the checkpoint returns SQLITE_BUSY or not, respectively. Write the number of pages in the WAL after the checkpoint into mem[P3+1] and the number of pages in the WAL that have been checkpointed after the checkpoint completes into mem[P3+2]. However on an error, mem[P3+1] and mem[P3+2] are initialized to -1.</td>
 </tr> <tr>
-<td valign="top" id="ChngCntRow"> ChngCntRow </td>
-<td>Output value in register P1 as the chance count for a DML statement, due to the "PRAGMA count_changes=ON" setting. Or, if there was a foreign key error in the statement, trigger the error now. <p>This opcode is a variant of <a href="opcode#ResultRow">ResultRow</a> that checks the foreign key immediate constraint count and throws an error if the count is non-zero. The P2 opcode must be 1.</p>
-</td>
-</tr> <tr>
 <td valign="top" id="Clear"> Clear </td>
-<td>Delete all contents of the database table or index whose root page in the database file is given by P1. But, unlike <a href="opcode#Destroy">Destroy</a>, do not remove the table or index from the database file. <p>The table being clear is in the main database file if P2==0. If P2==1 then the table to be clear is in the auxiliary database file that is used to store tables create using CREATE TEMPORARY TABLE.</p> <p>If the P3 value is non-zero, then the table referred to must be an intkey table (an SQL table, not an index). In this case the row change count is incremented by the number of rows in the table being cleared. If P3 is greater than zero, then the value stored in register P3 is also incremented by the number of rows in the table being cleared.</p> <p>See also: <a href="opcode#Destroy">Destroy</a></p>
+<td>Delete all contents of the database table or index whose root page in the database file is given by P1. But, unlike <a href="opcode#Destroy">Destroy</a>, do not remove the table or index from the database file. <p>The table being clear is in the main database file if P2==0. If P2==1 then the table to be clear is in the auxiliary database file that is used to store tables create using CREATE TEMPORARY TABLE.</p> <p>If the P3 value is non-zero, then the row change count is incremented by the number of rows in the table being cleared. If P3 is greater than zero, then the value stored in register P3 is also incremented by the number of rows in the table being cleared.</p> <p>See also: <a href="opcode#Destroy">Destroy</a></p>
 </td>
 </tr> <tr>
 <td valign="top" id="Close"> Close </td>
@@ -216,8 +212,8 @@ addr  opcode         p1    p2    p3    p4        
 <td valign="top" id="DropTrigger"> DropTrigger </td>
 <td>Remove the internal (in-memory) data structures that describe the trigger named P4 in database P1. This is called after a trigger is dropped from disk (using the <a href="opcode#Destroy">Destroy</a> opcode) in order to keep the internal representation of the schema consistent with what is on disk.</td>
 </tr> <tr>
-<td valign="top" id="ElseNotEq"> ElseNotEq </td>
-<td>This opcode must follow an <a href="opcode#Lt">Lt</a> or <a href="opcode#Gt">Gt</a> comparison operator. There can be zero or more OP_ReleaseReg opcodes intervening, but no other opcodes are allowed to occur between this instruction and the previous <a href="opcode#Lt">Lt</a> or <a href="opcode#Gt">Gt</a>. Furthermore, the prior <a href="opcode#Lt">Lt</a> or <a href="opcode#Gt">Gt</a> must have the SQLITE_STOREP2 bit set in the P5 field. <p>If result of an <a href="opcode#Eq">Eq</a> comparison on the same two operands as the prior <a href="opcode#Lt">Lt</a> or <a href="opcode#Gt">Gt</a> would have been NULL or false (0), then then jump to P2. If the result of an <a href="opcode#Eq">Eq</a> comparison on the two previous operands would have been true (1), then fall through.</p>
+<td valign="top" id="ElseEq"> ElseEq </td>
+<td>This opcode must follow an <a href="opcode#Lt">Lt</a> or <a href="opcode#Gt">Gt</a> comparison operator. There can be zero or more OP_ReleaseReg opcodes intervening, but no other opcodes are allowed to occur between this instruction and the previous <a href="opcode#Lt">Lt</a> or <a href="opcode#Gt">Gt</a>. <p>If result of an <a href="opcode#Eq">Eq</a> comparison on the same two operands as the prior <a href="opcode#Lt">Lt</a> or <a href="opcode#Gt">Gt</a> would have been true, then jump to P2. If the result of an <a href="opcode#Eq">Eq</a> comparison on the two previous operands would have been false or NULL, then fall through.</p>
 </td>
 </tr> <tr>
 <td valign="top" id="EndCoroutine"> EndCoroutine </td>
@@ -225,15 +221,26 @@ addr  opcode         p1    p2    p3    p4        
 </td>
 </tr> <tr>
 <td valign="top" id="Eq"> Eq </td>
-<td>Compare the values in register P1 and P3. If reg(P3)==reg(P1) then jump to address P2. Or if the SQLITE_STOREP2 flag is set in P5, then store the result of comparison in register P2. <p>The SQLITE_AFF_MASK portion of P5 must be an affinity character - SQLITE_AFF_TEXT, SQLITE_AFF_INTEGER, and so forth. An attempt is made to coerce both inputs according to this affinity before the comparison is made. If the SQLITE_AFF_MASK is 0x00, then numeric affinity is used. Note that the affinity conversions are stored back into the input registers P1 and P3. So this opcode can cause persistent changes to registers P1 and P3.</p> <p>Once any conversions have taken place, and neither value is NULL, the values are compared. If both values are blobs then memcmp() is used to determine the results of the comparison. If both values are text, then the appropriate collating function specified in P4 is used to do the comparison. If P4 is not specified then memcmp() is used to compare text string. If both values are numeric, then a numeric comparison is used. If the two values are of different types, then numbers are considered less than strings and strings are considered less than blobs.</p> <p>If SQLITE_NULLEQ is set in P5 then the result of comparison is always either true or false and is never NULL. If both operands are NULL then the result of comparison is true. If either operand is NULL then the result is false. If neither operand is NULL the result is the same as it would be if the SQLITE_NULLEQ flag were omitted from P5.</p> <p>If both SQLITE_STOREP2 and SQLITE_KEEPNULL flags are set then the content of r[P2] is only changed if the new value is NULL or 0 (false). In other words, a prior r[P2] value will not be overwritten by 1 (true).</p>
+<td>Compare the values in register P1 and P3. If reg(P3)==reg(P1) then jump to address P2. <p>The SQLITE_AFF_MASK portion of P5 must be an affinity character - SQLITE_AFF_TEXT, SQLITE_AFF_INTEGER, and so forth. An attempt is made to coerce both inputs according to this affinity before the comparison is made. If the SQLITE_AFF_MASK is 0x00, then numeric affinity is used. Note that the affinity conversions are stored back into the input registers P1 and P3. So this opcode can cause persistent changes to registers P1 and P3.</p> <p>Once any conversions have taken place, and neither value is NULL, the values are compared. If both values are blobs then memcmp() is used to determine the results of the comparison. If both values are text, then the appropriate collating function specified in P4 is used to do the comparison. If P4 is not specified then memcmp() is used to compare text string. If both values are numeric, then a numeric comparison is used. If the two values are of different types, then numbers are considered less than strings and strings are considered less than blobs.</p> <p>If SQLITE_NULLEQ is set in P5 then the result of comparison is always either true or false and is never NULL. If both operands are NULL then the result of comparison is true. If either operand is NULL then the result is false. If neither operand is NULL the result is the same as it would be if the SQLITE_NULLEQ flag were omitted from P5.</p> <p>This opcode saves the result of comparison for use by the new <a href="opcode#Jump">Jump</a> opcode.</p>
 </td>
 </tr> <tr>
 <td valign="top" id="Expire"> Expire </td>
 <td>Cause precompiled statements to expire. When an expired statement is executed using sqlite3_step() it will either automatically reprepare itself (if it was originally created using sqlite3_prepare_v2()) or it will fail with SQLITE_SCHEMA. <p>If P1 is 0, then all SQL statements become expired. If P1 is non-zero, then only the currently executing statement is expired.</p> <p>If P2 is 0, then SQL statements are expired immediately. If P2 is 1, then running SQL statements are allowed to continue to run to completion. The P2==1 case occurs when a CREATE INDEX or similar schema change happens that might help the statement run faster but which does not affect the correctness of operation.</p>
 </td>
 </tr> <tr>
+<td valign="top" id="Filter"> Filter </td>
+<td>Compute a hash on the key contained in the P4 registers starting with r[P3]. Check to see if that hash is found in the bloom filter hosted by register P1. If it is not present then maybe jump to P2. Otherwise fall through. <p>False negatives are harmless. It is always safe to fall through, even if the value is in the bloom filter. A false negative causes more CPU cycles to be used, but it should still yield the correct answer. However, an incorrect answer may well arise from a false positive - if the jump is taken when it should fall through.</p>
+</td>
+</tr> <tr>
+<td valign="top" id="FilterAdd"> FilterAdd </td>
+<td>Compute a hash on the P4 registers starting with r[P3] and add that hash to the bloom filter contained in r[P1].</td>
+</tr> <tr>
 <td valign="top" id="FinishSeek"> FinishSeek </td>
 <td>If cursor P1 was previously moved via <a href="opcode#DeferredSeek">DeferredSeek</a>, complete that seek operation now, without further delay. If the cursor seek has already occurred, this instruction is a no-op.</td>
+</tr> <tr>
+<td valign="top" id="FkCheck"> FkCheck </td>
+<td>Halt with an SQLITE_CONSTRAINT error if there are any unresolved foreign key constraint violations. If there are no foreign key constraint violations, this is a no-op. <p>FK constraint violations are also checked when the prepared statement exits. This opcode is used to raise foreign key constraint errors prior to returning results such as a row change count or the result of a RETURNING clause.</p>
+</td>
 </tr> <tr>
 <td valign="top" id="FkCounter"> FkCounter </td>
 <td>Increment a "constraint counter" by P2 (P2 may be negative or positive). If P1 is non-zero, the database constraint counter is incremented (deferred foreign key constraints). Otherwise, if P1 is zero, the statement counter is incremented (immediate foreign key constraints).</td>
@@ -271,7 +278,7 @@ addr  opcode         p1    p2    p3    p4        
 <td>Check the value in register P3. If it is NULL then <a href="opcode#Halt">Halt</a> using parameter P1, P2, and P4 as if this were a <a href="opcode#Halt">Halt</a> instruction. If the value in register P3 is not NULL, then this routine is a no-op. The P5 parameter should be 1.</td>
 </tr> <tr>
 <td valign="top" id="IdxDelete"> IdxDelete </td>
-<td>The content of P3 registers starting at register P2 form an unpacked index key. This opcode removes that entry from the index opened by cursor P1. <p>If P5 is not zero, then raise an SQLITE_CORRUPT_INDEX error if no matching index entry is found. This happens when running an UPDATE or DELETE statement and the index entry to be updated or deleted is not found. For some uses of <a href="opcode#IdxDelete">IdxDelete</a> (example: the EXCEPT operator) it does not matter that no matching entry is found. For those cases, P5 is zero.</p>
+<td>The content of P3 registers starting at register P2 form an unpacked index key. This opcode removes that entry from the index opened by cursor P1. <p>If P5 is not zero, then raise an SQLITE_CORRUPT_INDEX error if no matching index entry is found. This happens when running an UPDATE or DELETE statement and the index entry to be updated or deleted is not found. For some uses of <a href="opcode#IdxDelete">IdxDelete</a> (example: the EXCEPT operator) it does not matter that no matching entry is found. For those cases, P5 is zero. Also, do not raise this (self-correcting and non-critical) error if in writable_schema mode.</p>
 </td>
 </tr> <tr>
 <td valign="top" id="IdxGE"> IdxGE </td>
@@ -356,6 +363,9 @@ addr  opcode         p1    p2    p3    p4        
 <td valign="top" id="IsNull"> IsNull </td>
 <td>Jump to P2 if the value in register P1 is NULL.</td>
 </tr> <tr>
+<td valign="top" id="IsNullOrType"> IsNullOrType </td>
+<td>Jump to P2 if the value in register P1 is NULL or has a datatype P3. P3 is an integer which should be one of SQLITE_INTEGER, SQLITE_FLOAT, SQLITE_BLOB, SQLITE_NULL, or SQLITE_TEXT.</td>
+</tr> <tr>
 <td valign="top" id="IsTrue"> IsTrue </td>
 <td>This opcode implements the IS TRUE, IS FALSE, IS NOT TRUE, and IS NOT FALSE operators. <p>Interpret the value in register P1 as a boolean value. Store that boolean (a 0 or 1) in register P2. Or if the value in register P1 is NULL, then the P3 is stored in register P2. Invert the answer if P4 is 1.</p> <p>The logic is summarized like this:</p> <p></p>
 <ul> <li> If P3==0 and P4==0 then r[P2] := r[P1] IS TRUE </li>
@@ -383,7 +393,7 @@ addr  opcode         p1    p2    p3    p4        
 <td>Read the sqlite_stat1 table for database P1 and load the content of that table into the internal index hash table. This will cause the analysis to be used when preparing all subsequent queries.</td>
 </tr> <tr>
 <td valign="top" id="Lt"> Lt </td>
-<td>Compare the values in register P1 and P3. If reg(P3)&lt;reg(P1) then jump to address P2. Or if the SQLITE_STOREP2 flag is set in P5 store the result of comparison (0 or 1 or NULL) into register P2. <p>If the SQLITE_JUMPIFNULL bit of P5 is set and either reg(P1) or reg(P3) is NULL then the take the jump. If the SQLITE_JUMPIFNULL bit is clear then fall through if either operand is NULL.</p> <p>The SQLITE_AFF_MASK portion of P5 must be an affinity character - SQLITE_AFF_TEXT, SQLITE_AFF_INTEGER, and so forth. An attempt is made to coerce both inputs according to this affinity before the comparison is made. If the SQLITE_AFF_MASK is 0x00, then numeric affinity is used. Note that the affinity conversions are stored back into the input registers P1 and P3. So this opcode can cause persistent changes to registers P1 and P3.</p> <p>Once any conversions have taken place, and neither value is NULL, the values are compared. If both values are blobs then memcmp() is used to determine the results of the comparison. If both values are text, then the appropriate collating function specified in P4 is used to do the comparison. If P4 is not specified then memcmp() is used to compare text string. If both values are numeric, then a numeric comparison is used. If the two values are of different types, then numbers are considered less than strings and strings are considered less than blobs.</p>
+<td>Compare the values in register P1 and P3. If reg(P3)&lt;reg(P1) then jump to address P2. <p>If the SQLITE_JUMPIFNULL bit of P5 is set and either reg(P1) or reg(P3) is NULL then the take the jump. If the SQLITE_JUMPIFNULL bit is clear then fall through if either operand is NULL.</p> <p>The SQLITE_AFF_MASK portion of P5 must be an affinity character - SQLITE_AFF_TEXT, SQLITE_AFF_INTEGER, and so forth. An attempt is made to coerce both inputs according to this affinity before the comparison is made. If the SQLITE_AFF_MASK is 0x00, then numeric affinity is used. Note that the affinity conversions are stored back into the input registers P1 and P3. So this opcode can cause persistent changes to registers P1 and P3.</p> <p>Once any conversions have taken place, and neither value is NULL, the values are compared. If both values are blobs then memcmp() is used to determine the results of the comparison. If both values are text, then the appropriate collating function specified in P4 is used to do the comparison. If P4 is not specified then memcmp() is used to compare text string. If both values are numeric, then a numeric comparison is used. If the two values are of different types, then numbers are considered less than strings and strings are considered less than blobs.</p> <p>This opcode saves the result of comparison for use by the new <a href="opcode#Jump">Jump</a> opcode.</p>
 </td>
 </tr> <tr>
 <td valign="top" id="MakeRecord"> MakeRecord </td>
@@ -408,8 +418,7 @@ addr  opcode         p1    p2    p3    p4        
 <td>Force the value in register P1 to be an integer. If the value in P1 is not an integer and cannot be converted into an integer without data loss, then jump immediately to P2, or if P2==0 raise an SQLITE_MISMATCH exception.</td>
 </tr> <tr>
 <td valign="top" id="Ne"> Ne </td>
-<td>This works just like the Eq opcode except that the jump is taken if the operands in registers P1 and P3 are not equal. See the Eq opcode for additional information. <p>If both SQLITE_STOREP2 and SQLITE_KEEPNULL flags are set then the content of r[P2] is only changed if the new value is NULL or 1 (true). In other words, a prior r[P2] value will not be overwritten by 0 (false).</p>
-</td>
+<td>This works just like the Eq opcode except that the jump is taken if the operands in registers P1 and P3 are not equal. See the Eq opcode for additional information.</td>
 </tr> <tr>
 <td valign="top" id="NewRowid"> NewRowid </td>
 <td>Get a new integer record number (a.k.a "rowid") used as the key to a table. The record number is not previously used as a key in the database table that cursor P1 points to. The new record number is written written to register P2. <p>If P3&gt;0 then P3 is a register in the root frame of this VDBE that holds the largest previously generated record number. No new record numbers are allowed to be less than this value. When this value reaches its maximum, an SQLITE_FULL error is generated. The P3 register is updated with the ' generated record number. This P3 mechanism is used to help implement the AUTOINCREMENT feature.</p>
@@ -621,9 +630,9 @@ addr  opcode         p1    p2    p3    p4        
 <td valign="top" id="SeekScan"> SeekScan </td>
 <td>This opcode is a prefix opcode to <a href="opcode#SeekGE">SeekGE</a>. In other words, this opcode must be immediately followed by <a href="opcode#SeekGE">SeekGE</a>. This constraint is checked by assert() statements. <p>This opcode uses the P1 through P4 operands of the subsequent <a href="opcode#SeekGE">SeekGE</a>. In the text that follows, the operands of the subsequent <a href="opcode#SeekGE">SeekGE</a> opcode are denoted as SeekOP.P1 through SeekOP.P4. Only the P1 and P2 operands of this opcode are also used, and are called This.P1 and This.P2.</p> <p>This opcode helps to optimize IN operators on a multi-column index where the IN operator is on the later terms of the index by avoiding unnecessary seeks on the btree, substituting steps to the next row of the b-tree instead. A correct answer is obtained if this opcode is omitted or is a no-op.</p> <p>The <a href="opcode#SeekGE">SeekGE</a>.P3 and <a href="opcode#SeekGE">SeekGE</a>.P4 operands identify an unpacked key which is the desired entry that we want the cursor <a href="opcode#SeekGE">SeekGE</a>.P1 to be pointing to. Call this <a href="opcode#SeekGE">SeekGE</a>.P4/P5 row the "target".</p> <p>If the <a href="opcode#SeekGE">SeekGE</a>.P1 cursor is not currently pointing to a valid row, then this opcode is a no-op and control passes through into the <a href="opcode#SeekGE">SeekGE</a>.</p> <p>If the <a href="opcode#SeekGE">SeekGE</a>.P1 cursor is pointing to a valid row, then that row might be the target row, or it might be near and slightly before the target row. This opcode attempts to position the cursor on the target row by, perhaps by invoking sqlite3BtreeStep() on the cursor between 0 and This.P1 times.</p> <p>There are three possible outcomes from this opcode:</p>
 <ol> <p></p>
-<li> If after This.P1 steps, the cursor is still point to a place that is earlier in the btree than the target row, then fall through into the subsquence <a href="opcode#SeekGE">SeekGE</a> opcode. <p></p>
+<li> If after This.P1 steps, the cursor is still pointing to a place that is earlier in the btree than the target row, then fall through into the subsquence <a href="opcode#SeekGE">SeekGE</a> opcode. <p></p>
 </li>
-<li> If the cursor is successfully moved to the target row by 0 or more sqlite3BtreeNext() calls, then jump to This.P2, which will land just past the <a href="opcode#IdxGT">IdxGT</a> opcode that follows the <a href="opcode#SeekGE">SeekGE</a>. <p></p>
+<li> If the cursor is successfully moved to the target row by 0 or more sqlite3BtreeNext() calls, then jump to This.P2, which will land just past the <a href="opcode#IdxGT">IdxGT</a> or <a href="opcode#IdxGE">IdxGE</a> opcode that follows the <a href="opcode#SeekGE">SeekGE</a>. <p></p>
 </li>
 <li> If the cursor ends up past the target row (indicating the the target row does not exist in the btree) then jump to SeekOP.P2. </li>
 </ol>
@@ -699,6 +708,13 @@ addr  opcode         p1    p2    p3    p4        
 <td>Begin a transaction on database P1 if a transaction is not already active. If P2 is non-zero, then a write-transaction is started, or if a read-transaction is already active, it is upgraded to a write-transaction. If P2 is zero, then a read-transaction is started. If P2 is 2 or more then an exclusive transaction is started. <p>P1 is the index of the database file on which the transaction is started. Index 0 is the main database file and index 1 is the file used for temporary tables. Indices of 2 or more are used for attached databases.</p> <p>If a write-transaction is started and the Vdbe.usesStmtJournal flag is true (this flag is set if the Vdbe may modify more than one row and may throw an ABORT exception), a statement transaction may also be opened. More specifically, a statement transaction is opened iff the database connection is currently not in autocommit mode, or if there are other active statements. A statement transaction allows the changes made by this VDBE to be rolled back after an error without having to roll back the entire transaction. If no error is encountered, the statement transaction will automatically commit when the VDBE halts.</p> <p>If P5!=0 then this opcode also checks the schema cookie against P3 and the schema generation counter against P4. The cookie changes its value whenever the database schema changes. This operation is used to detect when that the cookie has changed and that the current process needs to reread the schema. If the schema cookie in P3 differs from the schema cookie in the database header or if the schema generation counter in P4 differs from the current generation counter, then an SQLITE_SCHEMA error is raised and execution halts. The sqlite3_step() wrapper function might then reprepare the statement and rerun it from the beginning.</p>
 </td>
 </tr> <tr>
+<td valign="top" id="TypeCheck"> TypeCheck </td>
+<td>Apply affinities to the range of P2 registers beginning with P1. Take the affinities from the Table object in P4. If any value cannot be coerced into the correct type, then raise an error. <p>This opcode is similar to <a href="opcode#Affinity">Affinity</a> except that this opcode forces the register type to the Table column type. This is used to implement "strict affinity".</p> <p>GENERATED ALWAYS AS ... STATIC columns are only checked if P3 is zero. When P3 is non-zero, no type checking occurs for static generated columns. Virtual columns are computed at query time and so they are never checked.</p> <p>Preconditions:</p> <p></p>
+<ul> <li> P2 should be the number of non-virtual columns in the table of P4. </li>
+<li> Table P4 should be a STRICT table. </li>
+</ul> <p>If any precondition is false, an assertion fault occurs.</p>
+</td>
+</tr> <tr>
 <td valign="top" id="Vacuum"> Vacuum </td>
 <td>Vacuum the entire database P1. P1 is 0 for "main", and 2 or more for an attached database. The "temp" database may not be vacuumed. <p>If P2 is not zero, then it is a register holding a string which is the file into which the result of vacuum should be written. When P2 is zero, the vacuum overwrites the original database.</p>
 </td>
@@ -725,6 +741,9 @@ addr  opcode         p1    p2    p3    p4        
 <td>P1 is a cursor opened using <a href="opcode#VOpen">VOpen</a>. P2 is an address to jump to if the filtered result set is empty. <p>P4 is either NULL or a string that was generated by the xBestIndex method of the module. The interpretation of the P4 string is left to the module implementation.</p> <p>This opcode invokes the xFilter method on the virtual table specified by P1. The integer query plan parameter to xFilter is stored in register P3. Register P3+1 stores the argc parameter to be passed to the xFilter method. Registers P3+2..P3+1+argc are the argc additional parameters which are passed to xFilter as argv. Register P3+2 becomes argv[0] when passed to xFilter.</p> <p>A jump is made to P2 if the result set after filtering would be empty.</p>
 </td>
 </tr> <tr>
+<td valign="top" id="VInitIn"> VInitIn </td>
+<td>Set register P2 to be a pointer to a ValueList object for cursor P1 with cache register P3 and output register P3+1. This ValueList object can be used as the first argument to sqlite3_vtab_in_first() and sqlite3_vtab_in_next() to extract all of the values stored in the P1 cursor. Register P3 is used to hold the values returned by sqlite3_vtab_in_first() and sqlite3_vtab_in_next().</td>
+</tr> <tr>
 <td valign="top" id="VNext"> VNext </td>
 <td>Advance virtual table P1 to the next row in its result set and jump to instruction P2. Or, if the virtual table has reached the end of its result set, then fall through to the next instruction.</td>
 </tr> <tr>
@@ -741,6 +760,9 @@ addr  opcode         p1    p2    p3    p4        
 <td valign="top" id="Yield"> Yield </td>
 <td>Swap the program counter with the value in register P1. This has the effect of yielding to a coroutine. <p>If the coroutine that is launched by this instruction ends with <a href="opcode#Yield">Yield</a> or <a href="opcode#Return">Return</a> then continue to the next instruction. But if the coroutine launched by this instruction ends with <a href="opcode#EndCoroutine">EndCoroutine</a>, then jump to P2 rather than continuing with the next instruction.</p> <p>See also: <a href="opcode#InitCoroutine">InitCoroutine</a></p>
 </td>
+</tr> <tr>
+<td valign="top" id="ZeroOrNull"> ZeroOrNull </td>
+<td>If all both registers P1 and P3 are NOT NULL, then store a zero in register P2. If either registers P1 or P3 are NULL then put a NULL in register P2.</td>
 </tr> </table>  <div class="_attribution">
   <p class="_attribution-p">
     SQLite is in the Public Domain.<br>

@@ -1,0 +1,140 @@
+<h1 class="devsite-page-title">tf.tensor_scatter_nd_update</h1>       <table class="tfo-notebook-buttons tfo-api nocontent" align="left">  <td> <a target="_blank" href="https://github.com/tensorflow/tensorflow/blob/v2.9.0/tensorflow/python/ops/array_ops.py#L5781-L6065">  View source on GitHub </a> </td> </table> <p>Scatter <code translate="no" dir="ltr">updates</code> into an existing tensor according to <code translate="no" dir="ltr">indices</code>.</p> <section class="expandable"> <h4 class="showalways" id="view-aliases" data-text="View aliases">View aliases</h4> <p> <b>Compat aliases for migration</b> </p>
+<p>See <a href="https://www.tensorflow.org/guide/migrate">Migration guide</a> for more details.</p> <p><a href="https://www.tensorflow.org/api_docs/python/tf/tensor_scatter_nd_update"><code translate="no" dir="ltr">tf.compat.v1.tensor_scatter_nd_update</code></a>, <a href="https://www.tensorflow.org/api_docs/python/tf/tensor_scatter_nd_update"><code translate="no" dir="ltr">tf.compat.v1.tensor_scatter_update</code></a></p> </section> <pre class="devsite-click-to-copy prettyprint lang-py tfo-signature-link" translate="no" dir="ltr" data-language="cpp">
+tf.tensor_scatter_nd_update(
+    tensor, indices, updates, name=None
+)
+</pre>  <p>This operation creates a new tensor by applying sparse <code translate="no" dir="ltr">updates</code> to the input <code translate="no" dir="ltr">tensor</code>. This is similar to an index assignment.</p> <pre class="prettyprint" translate="no" dir="ltr" data-language="cpp"># Not implemented: tensors cannot be updated inplace.
+tensor[indices] = updates
+</pre> <p>If an out of bound index is found on CPU, an error is returned.</p> <blockquote> <aside class="warning"><strong>Warning:</strong><span> There are some GPU specific semantics for this operation.</span></aside> <ul> <li>If an out of bound index is found, the index is ignored.</li> <li>The order in which updates are applied is nondeterministic, so the output will be nondeterministic if <code translate="no" dir="ltr">indices</code> contains duplicates.</li> </ul> </blockquote> <p>This operation is very similar to <a href="scatter_nd"><code translate="no" dir="ltr">tf.scatter_nd</code></a>, except that the updates are scattered onto an existing tensor (as opposed to a zero-tensor). If the memory for the existing tensor cannot be re-used, a copy is made and updated.</p> <h4 id="in_general" data-text="In general:">In general:</h4> <ul> <li>
+<code translate="no" dir="ltr">indices</code> is an integer tensor - the indices to update in <code translate="no" dir="ltr">tensor</code>.</li> <li>
+<code translate="no" dir="ltr">indices</code> has <strong>at least two</strong> axes, the last axis is the depth of the index vectors.</li> <li>For each index vector in <code translate="no" dir="ltr">indices</code> there is a corresponding entry in <code translate="no" dir="ltr">updates</code>.</li> <li>If the length of the index vectors matches the rank of the <code translate="no" dir="ltr">tensor</code>, then the index vectors each point to scalars in <code translate="no" dir="ltr">tensor</code> and each update is a scalar.</li> <li>If the length of the index vectors is less than the rank of <code translate="no" dir="ltr">tensor</code>, then the index vectors each point to slices of <code translate="no" dir="ltr">tensor</code> and shape of the updates must match that slice.</li> </ul> <p>Overall this leads to the following shape constraints:</p> <pre class="prettyprint" translate="no" dir="ltr" data-language="cpp">assert tf.rank(indices) &gt;= 2
+index_depth = indices.shape[-1]
+batch_shape = indices.shape[:-1]
+assert index_depth &lt;= tf.rank(tensor)
+outer_shape = tensor.shape[:index_depth]
+inner_shape = tensor.shape[index_depth:]
+assert updates.shape == batch_shape + inner_shape
+</pre> <p>Typical usage is often much simpler than this general form, and it can be better understood starting with simple examples:</p> <h3 id="scalar_updates" data-text="Scalar updates">Scalar updates</h3> <p>The simplest usage inserts scalar elements into a tensor by index. In this case, the <code translate="no" dir="ltr">index_depth</code> must equal the rank of the input <code translate="no" dir="ltr">tensor</code>, slice each column of <code translate="no" dir="ltr">indices</code> is an index into an axis of the input <code translate="no" dir="ltr">tensor</code>.</p> <p>In this simplest case the shape constraints are:</p> <pre class="prettyprint" translate="no" dir="ltr" data-language="cpp">num_updates, index_depth = indices.shape.as_list()
+assert updates.shape == [num_updates]
+assert index_depth == tf.rank(tensor)`
+</pre> <p>For example, to insert 4 scattered elements in a rank-1 tensor with 8 elements.</p> <div style="width:70%; margin:auto; margin-bottom:10px; margin-top:20px;"> <img style="width:100%" src="data:image/png;base64,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"> </div> <p>This scatter operation would look like this:</p> <pre class="devsite-click-to-copy prettyprint lang-py" translate="no" dir="ltr" data-language="cpp">
+tensor = [0, 0, 0, 0, 0, 0, 0, 0]    # tf.rank(tensor) == 1
+indices = [[1], [3], [4], [7]]       # num_updates == 4, index_depth == 1
+updates = [9, 10, 11, 12]            # num_updates == 4
+print(tf.tensor_scatter_nd_update(tensor, indices, updates))
+tf.Tensor([ 0 9  0 10  11  0  0 12], shape=(8,), dtype=int32)
+</pre> <p>The length (first axis) of <code translate="no" dir="ltr">updates</code> must equal the length of the <code translate="no" dir="ltr">indices</code>: <code translate="no" dir="ltr">num_updates</code>. This is the number of updates being inserted. Each scalar update is inserted into <code translate="no" dir="ltr">tensor</code> at the indexed location.</p> <p>For a higher rank input <code translate="no" dir="ltr">tensor</code> scalar updates can be inserted by using an <code translate="no" dir="ltr">index_depth</code> that matches <a href="rank"><code translate="no" dir="ltr">tf.rank(tensor)</code></a>:</p> <pre class="devsite-click-to-copy prettyprint lang-py" translate="no" dir="ltr" data-language="cpp">
+tensor = [[1, 1], [1, 1], [1, 1]]    # tf.rank(tensor) == 2
+indices = [[0, 1], [2, 0]]           # num_updates == 2, index_depth == 2
+updates = [5, 10]                    # num_updates == 2
+print(tf.tensor_scatter_nd_update(tensor, indices, updates))
+tf.Tensor(
+    [[ 1  5]
+     [ 1  1]
+     [10  1]], shape=(3, 2), dtype=int32)
+</pre> <h3 id="slice_updates" data-text="Slice updates">Slice updates</h3> <p>When the input <code translate="no" dir="ltr">tensor</code> has more than one axis scatter can be used to update entire slices.</p> <p>In this case it's helpful to think of the input <code translate="no" dir="ltr">tensor</code> as being a two level array-of-arrays. The shape of this two level array is split into the <code translate="no" dir="ltr">outer_shape</code> and the <code translate="no" dir="ltr">inner_shape</code>.</p> <p><code translate="no" dir="ltr">indices</code> indexes into the outer level of the input tensor (<code translate="no" dir="ltr">outer_shape</code>). and replaces the sub-array at that location with the corresponding item from the <code translate="no" dir="ltr">updates</code> list. The shape of each update is <code translate="no" dir="ltr">inner_shape</code>.</p> <p>When updating a list of slices the shape constraints are:</p> <pre class="prettyprint" translate="no" dir="ltr" data-language="cpp">num_updates, index_depth = indices.shape.as_list()
+inner_shape = tensor.shape[:index_depth]
+outer_shape = tensor.shape[index_depth:]
+assert updates.shape == [num_updates, inner_shape]
+</pre> <p>For example, to update rows of a <code translate="no" dir="ltr">(6, 3)</code> <code translate="no" dir="ltr">tensor</code>:</p> <pre class="devsite-click-to-copy prettyprint lang-py" translate="no" dir="ltr" data-language="cpp">
+tensor = tf.zeros([6, 3], dtype=tf.int32)
+</pre> <p>Use an index depth of one.</p> <pre class="devsite-click-to-copy prettyprint lang-py" translate="no" dir="ltr" data-language="cpp">
+indices = tf.constant([[2], [4]])     # num_updates == 2, index_depth == 1
+num_updates, index_depth = indices.shape.as_list()
+</pre> <p>The <code translate="no" dir="ltr">outer_shape</code> is <code translate="no" dir="ltr">6</code>, the inner shape is <code translate="no" dir="ltr">3</code>:</p> <pre class="devsite-click-to-copy prettyprint lang-py" translate="no" dir="ltr" data-language="cpp">
+outer_shape = tensor.shape[:index_depth]
+inner_shape = tensor.shape[index_depth:]
+</pre> <p>2 rows are being indexed so 2 <code translate="no" dir="ltr">updates</code> must be supplied. Each update must be shaped to match the <code translate="no" dir="ltr">inner_shape</code>.</p> <pre class="devsite-click-to-copy prettyprint lang-py" translate="no" dir="ltr" data-language="cpp">
+# num_updates == 2, inner_shape==3
+updates = tf.constant([[1, 2, 3],
+                       [4, 5, 6]])
+</pre> <h4 id="altogether_this_gives" data-text="Altogether this gives:">Altogether this gives:</h4> <pre class="devsite-click-to-copy prettyprint lang-py" translate="no" dir="ltr" data-language="cpp">
+tf.tensor_scatter_nd_update(tensor, indices, updates).numpy()
+array([[0, 0, 0],
+       [0, 0, 0],
+       [1, 2, 3],
+       [0, 0, 0],
+       [4, 5, 6],
+       [0, 0, 0]], dtype=int32)
+</pre> <h4 id="more_slice_update_examples" data-text="More slice update examples">More slice update examples</h4> <p>A tensor representing a batch of uniformly sized video clips naturally has 5 axes: <code translate="no" dir="ltr">[batch_size, time, width, height, channels]</code>.</p> <h4 id="for_example" data-text="For example:">For example:</h4> <pre class="devsite-click-to-copy prettyprint lang-py" translate="no" dir="ltr" data-language="cpp">
+batch_size, time, width, height, channels = 13,11,7,5,3
+video_batch = tf.zeros([batch_size, time, width, height, channels])
+</pre> <p>To replace a selection of video clips:</p> <ul> <li>Use an <code translate="no" dir="ltr">index_depth</code> of 1 (indexing the <code translate="no" dir="ltr">outer_shape</code>: <code translate="no" dir="ltr">[batch_size]</code>)</li> <li>Provide updates each with a shape matching the <code translate="no" dir="ltr">inner_shape</code>: <code translate="no" dir="ltr">[time, width, height, channels]</code>.</li> </ul> <p>To replace the first two clips with ones:</p> <pre class="devsite-click-to-copy prettyprint lang-py" translate="no" dir="ltr" data-language="cpp">
+indices = [[0],[1]]
+new_clips = tf.ones([2, time, width, height, channels])
+tf.tensor_scatter_nd_update(video_batch, indices, new_clips)
+</pre> <p>To replace a selection of frames in the videos:</p> <ul> <li>
+<code translate="no" dir="ltr">indices</code> must have an <code translate="no" dir="ltr">index_depth</code> of 2 for the <code translate="no" dir="ltr">outer_shape</code>: <code translate="no" dir="ltr">[batch_size, time]</code>.</li> <li>
+<code translate="no" dir="ltr">updates</code> must be shaped like a list of images. Each update must have a shape, matching the <code translate="no" dir="ltr">inner_shape</code>: <code translate="no" dir="ltr">[width, height, channels]</code>.</li> </ul> <p>To replace the first frame of the first three video clips:</p> <pre class="devsite-click-to-copy prettyprint lang-py" translate="no" dir="ltr" data-language="cpp">
+indices = [[0, 0], [1, 0], [2, 0]] # num_updates=3, index_depth=2
+new_images = tf.ones([
+  # num_updates=3, inner_shape=(width, height, channels)
+  3, width, height, channels])
+tf.tensor_scatter_nd_update(video_batch, indices, new_images)
+</pre> <h3 id="folded_indices" data-text="Folded indices">Folded indices</h3> <p>In simple cases it's convenient to think of <code translate="no" dir="ltr">indices</code> and <code translate="no" dir="ltr">updates</code> as lists, but this is not a strict requirement. Instead of a flat <code translate="no" dir="ltr">num_updates</code>, the <code translate="no" dir="ltr">indices</code> and <code translate="no" dir="ltr">updates</code> can be folded into a <code translate="no" dir="ltr">batch_shape</code>. This <code translate="no" dir="ltr">batch_shape</code> is all axes of the <code translate="no" dir="ltr">indices</code>, except for the innermost <code translate="no" dir="ltr">index_depth</code> axis.</p> <pre class="prettyprint" translate="no" dir="ltr" data-language="cpp">index_depth = indices.shape[-1]
+batch_shape = indices.shape[:-1]
+</pre>
+<blockquote class="note">
+<strong>Note:</strong><span> The one exception is that the <code translate="no" dir="ltr">batch_shape</code> cannot be <code translate="no" dir="ltr">[]</code>. You can't update a single index by passing indices with shape <code translate="no" dir="ltr">[index_depth]</code>.</span>
+</blockquote> <p><code translate="no" dir="ltr">updates</code> must have a matching <code translate="no" dir="ltr">batch_shape</code> (the axes before <code translate="no" dir="ltr">inner_shape</code>).</p> <pre class="prettyprint" translate="no" dir="ltr" data-language="cpp">assert updates.shape == batch_shape + inner_shape
+</pre>
+<blockquote class="note">
+<strong>Note:</strong><span> The result is equivalent to flattening the <code translate="no" dir="ltr">batch_shape</code> axes of <code translate="no" dir="ltr">indices</code> and <code translate="no" dir="ltr">updates</code>. This generalization just avoids the need for reshapes when it is more natural to construct "folded" indices and updates.</span>
+</blockquote> <p>With this generalization the full shape constraints are:</p> <pre class="prettyprint" translate="no" dir="ltr" data-language="cpp">assert tf.rank(indices) &gt;= 2
+index_depth = indices.shape[-1]
+batch_shape = indices.shape[:-1]
+assert index_depth &lt;= tf.rank(tensor)
+outer_shape = tensor.shape[:index_depth]
+inner_shape = tensor.shape[index_depth:]
+assert updates.shape == batch_shape + inner_shape
+</pre> <p>For example, to draw an <code translate="no" dir="ltr">X</code> on a <code translate="no" dir="ltr">(5,5)</code> matrix start with these indices:</p> <pre class="devsite-click-to-copy prettyprint lang-py" translate="no" dir="ltr" data-language="cpp">
+tensor = tf.zeros([5,5])
+indices = tf.constant([
+ [[0,0],
+  [1,1],
+  [2,2],
+  [3,3],
+  [4,4]],
+ [[0,4],
+  [1,3],
+  [2,2],
+  [3,1],
+  [4,0]],
+])
+indices.shape.as_list()  # batch_shape == [2, 5], index_depth == 2
+[2, 5, 2]
+</pre> <p>Here the <code translate="no" dir="ltr">indices</code> do not have a shape of <code translate="no" dir="ltr">[num_updates, index_depth]</code>, but a shape of <code translate="no" dir="ltr">batch_shape+[index_depth]</code>.</p> <p>Since the <code translate="no" dir="ltr">index_depth</code> is equal to the rank of <code translate="no" dir="ltr">tensor</code>:</p> <ul> <li>
+<code translate="no" dir="ltr">outer_shape</code> is <code translate="no" dir="ltr">(5,5)</code>
+</li> <li>
+<code translate="no" dir="ltr">inner_shape</code> is <code translate="no" dir="ltr">()</code> - each update is scalar</li> <li>
+<code translate="no" dir="ltr">updates.shape</code> is <code translate="no" dir="ltr">batch_shape + inner_shape == (5,2) + ()</code>
+</li> </ul> <pre class="devsite-click-to-copy prettyprint lang-py" translate="no" dir="ltr" data-language="cpp">
+updates = [
+  [1,1,1,1,1],
+  [1,1,1,1,1],
+]
+</pre> <p>Putting this together gives:</p> <pre class="devsite-click-to-copy prettyprint lang-py" translate="no" dir="ltr" data-language="cpp">
+tf.tensor_scatter_nd_update(tensor, indices, updates).numpy()
+array([[1., 0., 0., 0., 1.],
+       [0., 1., 0., 1., 0.],
+       [0., 0., 1., 0., 0.],
+       [0., 1., 0., 1., 0.],
+       [1., 0., 0., 0., 1.]], dtype=float32)
+</pre>  
+<table class="responsive fixed orange"> <colgroup>
+<col width="214px">
+<col>
+</colgroup> <tr><th colspan="2">Args</th></tr> 
+<tr> <td> <code translate="no" dir="ltr">tensor</code> </td> <td> Tensor to copy/update. </td> </tr>
+<tr> <td> <code translate="no" dir="ltr">indices</code> </td> <td> Indices to update. </td> </tr>
+<tr> <td> <code translate="no" dir="ltr">updates</code> </td> <td> Updates to apply at the indices. </td> </tr>
+<tr> <td> <code translate="no" dir="ltr">name</code> </td> <td> Optional name for the operation. </td> </tr> </table>  
+<table class="responsive fixed orange"> <colgroup>
+<col width="214px">
+<col>
+</colgroup> <tr><th colspan="2">Returns</th></tr> <tr class="alt"> <td colspan="2"> A new tensor with the given shape and updates applied according to the indices. </td> </tr> 
+</table>  <devsite-thumb-rating position="footer"> </devsite-thumb-rating><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://www.tensorflow.org/versions/r2.9/api_docs/python/tf/tensor_scatter_nd_update" class="_attribution-link" target="_blank">https://www.tensorflow.org/versions/r2.9/api_docs/python/tf/tensor_scatter_nd_update</a>
+  </p>
+</div>

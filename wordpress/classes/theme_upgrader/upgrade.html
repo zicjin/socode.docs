@@ -1,0 +1,73 @@
+<h1>Theme_Upgrader::upgrade( string $theme, array $args = array() )</h1>  <section> <p>Upgrade a theme.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$theme</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The theme slug.</span> </p> </dd> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description">Other arguments for upgrading a theme. <ul class="param-hash">
+<li>
+<b>'clear_update_cache'</b><br><i><span class="type">(bool)</span></i> Whether to clear the update cache if successful. Default true.</li> </ul> </span> </p> <p class="default">Default value: array()</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool|<a href="../wp_error">WP_Error</a>)</span> True if the upgrade was successful, false or a <a href="../wp_error">WP_Error</a> object otherwise.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-theme-upgrader.php/">wp-admin/includes/class-theme-upgrader.php</a> </p> <pre data-language="php">public function upgrade( $theme, $args = array() ) {
+		$defaults    = array(
+			'clear_update_cache' =&gt; true,
+		);
+		$parsed_args = wp_parse_args( $args, $defaults );
+
+		$this-&gt;init();
+		$this-&gt;upgrade_strings();
+
+		// Is an update available?
+		$current = get_site_transient( 'update_themes' );
+		if ( ! isset( $current-&gt;response[ $theme ] ) ) {
+			$this-&gt;skin-&gt;before();
+			$this-&gt;skin-&gt;set_result( false );
+			$this-&gt;skin-&gt;error( 'up_to_date' );
+			$this-&gt;skin-&gt;after();
+			return false;
+		}
+
+		$r = $current-&gt;response[ $theme ];
+
+		add_filter( 'upgrader_pre_install', array( $this, 'current_before' ), 10, 2 );
+		add_filter( 'upgrader_post_install', array( $this, 'current_after' ), 10, 2 );
+		add_filter( 'upgrader_clear_destination', array( $this, 'delete_old_theme' ), 10, 4 );
+		if ( $parsed_args['clear_update_cache'] ) {
+			// Clear cache so wp_update_themes() knows about the new theme.
+			add_action( 'upgrader_process_complete', 'wp_clean_themes_cache', 9, 0 );
+		}
+
+		$this-&gt;run(
+			array(
+				'package'           =&gt; $r['package'],
+				'destination'       =&gt; get_theme_root( $theme ),
+				'clear_destination' =&gt; true,
+				'clear_working'     =&gt; true,
+				'hook_extra'        =&gt; array(
+					'theme'  =&gt; $theme,
+					'type'   =&gt; 'theme',
+					'action' =&gt; 'update',
+				),
+			)
+		);
+
+		remove_action( 'upgrader_process_complete', 'wp_clean_themes_cache', 9 );
+		remove_filter( 'upgrader_pre_install', array( $this, 'current_before' ) );
+		remove_filter( 'upgrader_post_install', array( $this, 'current_after' ) );
+		remove_filter( 'upgrader_clear_destination', array( $this, 'delete_old_theme' ) );
+
+		if ( ! $this-&gt;result || is_wp_error( $this-&gt;result ) ) {
+			return $this-&gt;result;
+		}
+
+		wp_clean_themes_cache( $parsed_args['clear_update_cache'] );
+
+		// Ensure any future auto-update failures trigger a failure email by removing
+		// the last failure notification from the list when themes update successfully.
+		$past_failure_emails = get_option( 'auto_plugin_theme_update_emails', array() );
+
+		if ( isset( $past_failure_emails[ $theme ] ) ) {
+			unset( $past_failure_emails[ $theme ] );
+			update_option( 'auto_plugin_theme_update_emails', $past_failure_emails );
+		}
+
+		return true;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-theme-upgrader.php:</span> <a href="upgrade_strings">Theme_Upgrader::upgrade_strings()</a> </td> <td class="related-desc"> <p>Initialize the upgrade strings.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="../../functions/get_theme_root">get_theme_root()</a> </td> <td class="related-desc"> <p>Retrieves path to themes directory.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="../../functions/wp_clean_themes_cache">wp_clean_themes_cache()</a> </td> <td class="related-desc"> <p>Clears the cache held by <a href="../../functions/get_theme_roots">get_theme_roots()</a> and <a href="../wp_theme">WP_Theme</a>.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_parse_args">wp_parse_args()</a> </td> <td class="related-desc"> <p>Merges user defined arguments into defaults array.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/remove_action">remove_action()</a> </td> <td class="related-desc"> <p>Removes a callback function from an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/add_filter">add_filter()</a> </td> <td class="related-desc"> <p>Adds a callback function to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/add_action">add_action()</a> </td> <td class="related-desc"> <p>Adds a callback function to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/remove_filter">remove_filter()</a> </td> <td class="related-desc"> <p>Removes a callback function from a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../../functions/get_site_transient">get_site_transient()</a> </td> <td class="related-desc"> <p>Retrieves the value of a site transient.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../../functions/update_option">update_option()</a> </td> <td class="related-desc"> <p>Updates the value of an option that was already added.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../../functions/get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.7.0/" alt="WordPress 3.7.0">3.7.0</a></td> <td><span class="since-description">The <code>$args</code> parameter was added, making clearing the update cache optional.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.8.0/" alt="WordPress 2.8.0">2.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/theme_upgrader/upgrade" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/theme_upgrader/upgrade</a>
+  </p>
+</div>

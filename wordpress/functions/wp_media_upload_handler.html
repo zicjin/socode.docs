@@ -1,0 +1,130 @@
+<h1>wp_media_upload_handler()</h1>  <section> <p>Handles the process of uploading media.</p> </section> <div class="content-toc">  <section> <h2 id="return">Return</h2> <p><span class="return-type">(null|string)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/media.php/">wp-admin/includes/media.php</a> </p> <pre data-language="php">function wp_media_upload_handler() {
+	$errors = array();
+	$id     = 0;
+
+	if ( isset( $_POST['html-upload'] ) &amp;&amp; ! empty( $_FILES ) ) {
+		check_admin_referer( 'media-form' );
+		// Upload File button was clicked.
+		$id = media_handle_upload( 'async-upload', $_REQUEST['post_id'] );
+		unset( $_FILES );
+
+		if ( is_wp_error( $id ) ) {
+			$errors['upload_error'] = $id;
+			$id                     = false;
+		}
+	}
+
+	if ( ! empty( $_POST['insertonlybutton'] ) ) {
+		$src = $_POST['src'];
+
+		if ( ! empty( $src ) &amp;&amp; ! strpos( $src, '://' ) ) {
+			$src = "http://$src";
+		}
+
+		if ( isset( $_POST['media_type'] ) &amp;&amp; 'image' !== $_POST['media_type'] ) {
+			$title = esc_html( wp_unslash( $_POST['title'] ) );
+			if ( empty( $title ) ) {
+				$title = esc_html( wp_basename( $src ) );
+			}
+
+			if ( $title &amp;&amp; $src ) {
+				$html = "&lt;a href='" . esc_url( $src ) . "'&gt;$title&lt;/a&gt;";
+			}
+
+			$type = 'file';
+			$ext  = preg_replace( '/^.+?\.([^.]+)$/', '$1', $src );
+
+			if ( $ext ) {
+				$ext_type = wp_ext2type( $ext );
+				if ( 'audio' === $ext_type || 'video' === $ext_type ) {
+					$type = $ext_type;
+				}
+			}
+
+			/**
+			 * Filters the URL sent to the editor for a specific media type.
+			 *
+			 * The dynamic portion of the hook name, `$type`, refers to the type
+			 * of media being sent.
+			 *
+			 * Possible hook names include:
+			 *
+			 *  - `audio_send_to_editor_url`
+			 *  - `file_send_to_editor_url`
+			 *  - `video_send_to_editor_url`
+			 *
+			 * @since 3.3.0
+			 *
+			 * @param string $html  HTML markup sent to the editor.
+			 * @param string $src   Media source URL.
+			 * @param string $title Media title.
+			 */
+			$html = apply_filters( "{$type}_send_to_editor_url", $html, esc_url_raw( $src ), $title );
+		} else {
+			$align = '';
+			$alt   = esc_attr( wp_unslash( $_POST['alt'] ) );
+
+			if ( isset( $_POST['align'] ) ) {
+				$align = esc_attr( wp_unslash( $_POST['align'] ) );
+				$class = " class='align$align'";
+			}
+
+			if ( ! empty( $src ) ) {
+				$html = "&lt;img src='" . esc_url( $src ) . "' alt='$alt'$class /&gt;";
+			}
+
+			/**
+			 * Filters the image URL sent to the editor.
+			 *
+			 * @since 2.8.0
+			 *
+			 * @param string $html  HTML markup sent to the editor for an image.
+			 * @param string $src   Image source URL.
+			 * @param string $alt   Image alternate, or alt, text.
+			 * @param string $align The image alignment. Default 'alignnone'. Possible values include
+			 *                      'alignleft', 'aligncenter', 'alignright', 'alignnone'.
+			 */
+			$html = apply_filters( 'image_send_to_editor_url', $html, esc_url_raw( $src ), $alt, $align );
+		}
+
+		return media_send_to_editor( $html );
+	}
+
+	if ( isset( $_POST['save'] ) ) {
+		$errors['upload_notice'] = __( 'Saved.' );
+		wp_enqueue_script( 'admin-gallery' );
+
+		return wp_iframe( 'media_upload_gallery_form', $errors );
+
+	} elseif ( ! empty( $_POST ) ) {
+		$return = media_upload_form_handler();
+
+		if ( is_string( $return ) ) {
+			return $return;
+		}
+
+		if ( is_array( $return ) ) {
+			$errors = $return;
+		}
+	}
+
+	if ( isset( $_GET['tab'] ) &amp;&amp; 'type_url' === $_GET['tab'] ) {
+		$type = 'image';
+
+		if ( isset( $_GET['type'] ) &amp;&amp; in_array( $_GET['type'], array( 'video', 'audio', 'file' ), true ) ) {
+			$type = $_GET['type'];
+		}
+
+		return wp_iframe( 'media_upload_type_url_form', $type, $errors, $id );
+	}
+
+	return wp_iframe( 'media_upload_type_form', 'image', $errors, $id );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="media_upload_form_handler">media_upload_form_handler()</a> </td> <td class="related-desc"> <p>Handles form submissions for the legacy media uploader.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="../hooks/type_send_to_editor_url">{$type}_send_to_editor_url</a> </td> <td class="related-desc"> <p>Filters the URL sent to the editor for a specific media type.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="../hooks/image_send_to_editor_url">image_send_to_editor_url</a> </td> <td class="related-desc"> <p>Filters the image URL sent to the editor.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="media_handle_upload">media_handle_upload()</a> </td> <td class="related-desc"> <p>Saves a file submitted from a POST request and create an attachment post for it.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="media_send_to_editor">media_send_to_editor()</a> </td> <td class="related-desc"> <p>Adds image HTML to editor.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="wp_iframe">wp_iframe()</a> </td> <td class="related-desc"> <p>Outputs the iframe to display the media upload page.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_unslash">wp_unslash()</a> </td> <td class="related-desc"> <p>Removes slashes from a string or recursively removes slashes from strings within an array.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_basename">wp_basename()</a> </td> <td class="related-desc"> <p>i18n-friendly version of basename().</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_html">esc_html()</a> </td> <td class="related-desc"> <p>Escaping for HTML blocks.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_url_raw">esc_url_raw()</a> </td> <td class="related-desc"> <p>Performs <a href="esc_url">esc_url()</a> for database or redirect usage.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="check_admin_referer">check_admin_referer()</a> </td> <td class="related-desc"> <p>Ensures intent by verifying that a user was referred from another admin page with the correct security nonce.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.wp-scripts.php:</span> <a href="wp_enqueue_script">wp_enqueue_script()</a> </td> <td class="related-desc"> <p>Enqueue a script.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_ext2type">wp_ext2type()</a> </td> <td class="related-desc"> <p>Retrieve the file type based on the extension name.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/deprecated.php:</span> <a href="media_upload_image">media_upload_image()</a> </td> <td class="related-desc"> <p>Handles uploading an image.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/deprecated.php:</span> <a href="media_upload_audio">media_upload_audio()</a> </td> <td class="related-desc"> <p>Handles uploading an audio file.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/deprecated.php:</span> <a href="media_upload_video">media_upload_video()</a> </td> <td class="related-desc"> <p>Handles uploading a video file.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/deprecated.php:</span> <a href="media_upload_file">media_upload_file()</a> </td> <td class="related-desc"> <p>Handles uploading a generic file.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.5.0/" alt="WordPress 2.5.0">2.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_media_upload_handler" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_media_upload_handler</a>
+  </p>
+</div>

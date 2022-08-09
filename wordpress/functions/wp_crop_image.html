@@ -1,0 +1,55 @@
+<h1>wp_crop_image( string|int $src, int $src_x, int $src_y, int $src_w, int $src_h, int $dst_w, int $dst_h, bool|false $src_abs = false, string|false $dst_file = false )</h1>  <section> <p>Crops an image to a given size.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$src</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>|<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">The source file or Attachment ID.</span> </p> </dd> <dt>$src_x</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">The start x position to crop from.</span> </p> </dd> <dt>$src_y</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">The start y position to crop from.</span> </p> </dd> <dt>$src_w</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">The width to crop.</span> </p> </dd> <dt>$src_h</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">The height to crop.</span> </p> </dd> <dt>$dst_w</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">The destination width.</span> </p> </dd> <dt>$dst_h</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">The destination height.</span> </p> </dd> <dt>$src_abs</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>|<span class="false">false</span>)</span> <span class="required">(Optional)</span> <span class="description"> If the source crop points are absolute.</span> </p> <p class="default">Default value: false</p> </dd> <dt>$dst_file</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>|<span class="false">false</span>)</span> <span class="required">(Optional)</span> <span class="description"> The destination file to write to.</span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string|<a href="../classes/wp_error">WP_Error</a>)</span> New filepath on success, <a href="../classes/wp_error">WP_Error</a> on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/image.php/">wp-admin/includes/image.php</a> </p> <pre data-language="php">function wp_crop_image( $src, $src_x, $src_y, $src_w, $src_h, $dst_w, $dst_h, $src_abs = false, $dst_file = false ) {
+	$src_file = $src;
+	if ( is_numeric( $src ) ) { // Handle int as attachment ID.
+		$src_file = get_attached_file( $src );
+
+		if ( ! file_exists( $src_file ) ) {
+			// If the file doesn't exist, attempt a URL fopen on the src link.
+			// This can occur with certain file replication plugins.
+			$src = _load_image_to_edit_path( $src, 'full' );
+		} else {
+			$src = $src_file;
+		}
+	}
+
+	$editor = wp_get_image_editor( $src );
+	if ( is_wp_error( $editor ) ) {
+		return $editor;
+	}
+
+	$src = $editor-&gt;crop( $src_x, $src_y, $src_w, $src_h, $dst_w, $dst_h, $src_abs );
+	if ( is_wp_error( $src ) ) {
+		return $src;
+	}
+
+	if ( ! $dst_file ) {
+		$dst_file = str_replace( wp_basename( $src_file ), 'cropped-' . wp_basename( $src_file ), $src_file );
+	}
+
+	/*
+	 * The directory containing the original file may no longer exist when
+	 * using a replication plugin.
+	 */
+	wp_mkdir_p( dirname( $dst_file ) );
+
+	$dst_file = dirname( $dst_file ) . '/' . wp_unique_filename( dirname( $dst_file ), wp_basename( $dst_file ) );
+
+	$result = $editor-&gt;save( $dst_file );
+	if ( is_wp_error( $result ) ) {
+		return $result;
+	}
+
+	if ( ! empty( $result['path'] ) ) {
+		return $result['path'];
+	}
+
+	return $dst_file;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/image.php:</span> <a href="_load_image_to_edit_path">_load_image_to_edit_path()</a> </td> <td class="related-desc"> <p>Retrieve the path or URL of an attachment’s attached file.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_basename">wp_basename()</a> </td> <td class="related-desc"> <p>i18n-friendly version of basename().</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_mkdir_p">wp_mkdir_p()</a> </td> <td class="related-desc"> <p>Recursive directory creation based on full path.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_unique_filename">wp_unique_filename()</a> </td> <td class="related-desc"> <p>Get a filename that is sanitized and unique for the given directory.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="wp_get_image_editor">wp_get_image_editor()</a> </td> <td class="related-desc"> <p>Returns a <a href="../classes/wp_image_editor">WP_Image_Editor</a> instance and loads file into it.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_attached_file">get_attached_file()</a> </td> <td class="related-desc"> <p>Retrieve attached file path based on attachment ID.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/ajax-actions.php:</span> <a href="wp_ajax_crop_image">wp_ajax_crop_image()</a> </td> <td class="related-desc"> <p>Ajax handler for cropping an image.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="../classes/custom_image_header/ajax_header_crop">Custom_Image_Header::ajax_header_crop()</a> </td> <td class="related-desc"> <p>Gets attachment uploaded by Media Manager, crops it, then saves it as a new object. Returns JSON-encoded object details.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="../classes/custom_image_header/step_2">Custom_Image_Header::step_2()</a> </td> <td class="related-desc"> <p>Display second step of custom header image page.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="../classes/custom_image_header/step_3">Custom_Image_Header::step_3()</a> </td> <td class="related-desc"> <p>Display third step of custom header image page.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.1.0/" alt="WordPress 2.1.0">2.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_crop_image" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_crop_image</a>
+  </p>
+</div>

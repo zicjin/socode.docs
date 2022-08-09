@@ -1,0 +1,62 @@
+<h1>wp_opcache_invalidate( string $filepath, bool $force = false )</h1>  <section> <p>Attempts to clear the opcode cache for an individual PHP file.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>This function can be called safely without having to check the file extension or availability of the OPcache extension.</p> <p>Whether or not invalidation is possible is cached to improve performance.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$filepath</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Path to the file, including extension, for which the opcode cache is to be cleared.</span> </p> </dd> <dt>$force</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description">Invalidate even if the modification time is not newer than the file in cache. </span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> True if opcache was invalidated for <code>$filepath</code>, or there was nothing to invalidate. False if opcache invalidation is not available, or is disabled via filter.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/file.php/">wp-admin/includes/file.php</a> </p> <pre data-language="php">function wp_opcache_invalidate( $filepath, $force = false ) {
+	static $can_invalidate = null;
+
+	/*
+	 * Check to see if WordPress is able to run `opcache_invalidate()` or not, and cache the value.
+	 *
+	 * First, check to see if the function is available to call, then if the host has restricted
+	 * the ability to run the function to avoid a PHP warning.
+	 *
+	 * `opcache.restrict_api` can specify the path for files allowed to call `opcache_invalidate()`.
+	 *
+	 * If the host has this set, check whether the path in `opcache.restrict_api` matches
+	 * the beginning of the path of the origin file.
+	 *
+	 * `$_SERVER['SCRIPT_FILENAME']` approximates the origin file's path, but `realpath()`
+	 * is necessary because `SCRIPT_FILENAME` can be a relative path when run from CLI.
+	 *
+	 * For more details, see:
+	 * - https://www.php.net/manual/en/opcache.configuration.php
+	 * - https://www.php.net/manual/en/reserved.variables.server.php
+	 * - https://core.trac.wordpress.org/ticket/36455
+	 */
+	if ( null === $can_invalidate
+		&amp;&amp; function_exists( 'opcache_invalidate' )
+		&amp;&amp; ( ! ini_get( 'opcache.restrict_api' )
+			|| stripos( realpath( $_SERVER['SCRIPT_FILENAME'] ), ini_get( 'opcache.restrict_api' ) ) === 0 )
+	) {
+		$can_invalidate = true;
+	}
+
+	// If invalidation is not available, return early.
+	if ( ! $can_invalidate ) {
+		return false;
+	}
+
+	// Verify that file to be invalidated has a PHP extension.
+	if ( '.php' !== strtolower( substr( $filepath, -4 ) ) ) {
+		return false;
+	}
+
+	/**
+	 * Filters whether to invalidate a file from the opcode cache.
+	 *
+	 * @since 5.5.0
+	 *
+	 * @param bool   $will_invalidate Whether WordPress will invalidate `$filepath`. Default true.
+	 * @param string $filepath        The path to the PHP file to invalidate.
+	 */
+	if ( apply_filters( 'wp_opcache_invalidate_file', true, $filepath ) ) {
+		return opcache_invalidate( $filepath, $force );
+	}
+
+	return false;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-pop3.php:</span> <a href="stripos">stripos()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-admin/includes/file.php:</span> <a href="../hooks/wp_opcache_invalidate_file">wp_opcache_invalidate_file</a> </td> <td class="related-desc"> <p>Filters whether to invalidate a file from the opcode cache.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/file.php:</span> <a href="wp_edit_theme_plugin_file">wp_edit_theme_plugin_file()</a> </td> <td class="related-desc"> <p>Attempts to edit a file for a theme or plugin.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-core-upgrader.php:</span> <a href="../classes/core_upgrader/upgrade">Core_Upgrader::upgrade()</a> </td> <td class="related-desc"> <p>Upgrade WordPress core.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/update-core.php:</span> <a href="update_core">update_core()</a> </td> <td class="related-desc"> <p>Upgrades the core of WordPress.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/file.php:</span> <a href="copy_dir">copy_dir()</a> </td> <td class="related-desc"> <p>Copies a directory from one location to another via the WordPress Filesystem Abstraction.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.0/" alt="WordPress 5.5.0">5.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_opcache_invalidate" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_opcache_invalidate</a>
+  </p>
+</div>

@@ -1,0 +1,125 @@
+<h1>wpmu_activate_signup( string $key )</h1>  <section> <p>Activates a signup.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Hook to <a href="../hooks/wpmu_activate_user">‘wpmu_activate_user’</a> or <a href="../hooks/wpmu_activate_blog">‘wpmu_activate_blog’</a> for events that should happen only when users or sites are self-created (since those actions are not called when users and sites are created by a Super Admin).</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$key</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The activation key provided to the user.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array|<a href="../classes/wp_error">WP_Error</a>)</span> An array containing information about the activated user and/or blog</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/ms-functions.php/">wp-includes/ms-functions.php</a> </p> <pre data-language="php">function wpmu_activate_signup( $key ) {
+	global $wpdb;
+
+	$signup = $wpdb-&gt;get_row( $wpdb-&gt;prepare( "SELECT * FROM $wpdb-&gt;signups WHERE activation_key = %s", $key ) );
+
+	if ( empty( $signup ) ) {
+		return new WP_Error( 'invalid_key', __( 'Invalid activation key.' ) );
+	}
+
+	if ( $signup-&gt;active ) {
+		if ( empty( $signup-&gt;domain ) ) {
+			return new WP_Error( 'already_active', __( 'The user is already active.' ), $signup );
+		} else {
+			return new WP_Error( 'already_active', __( 'The site is already active.' ), $signup );
+		}
+	}
+
+	$meta     = maybe_unserialize( $signup-&gt;meta );
+	$password = wp_generate_password( 12, false );
+
+	$user_id = username_exists( $signup-&gt;user_login );
+
+	if ( ! $user_id ) {
+		$user_id = wpmu_create_user( $signup-&gt;user_login, $password, $signup-&gt;user_email );
+	} else {
+		$user_already_exists = true;
+	}
+
+	if ( ! $user_id ) {
+		return new WP_Error( 'create_user', __( 'Could not create user' ), $signup );
+	}
+
+	$now = current_time( 'mysql', true );
+
+	if ( empty( $signup-&gt;domain ) ) {
+		$wpdb-&gt;update(
+			$wpdb-&gt;signups,
+			array(
+				'active'    =&gt; 1,
+				'activated' =&gt; $now,
+			),
+			array( 'activation_key' =&gt; $key )
+		);
+
+		if ( isset( $user_already_exists ) ) {
+			return new WP_Error( 'user_already_exists', __( 'That username is already activated.' ), $signup );
+		}
+
+		/**
+		 * Fires immediately after a new user is activated.
+		 *
+		 * @since MU (3.0.0)
+		 *
+		 * @param int    $user_id  User ID.
+		 * @param string $password User password.
+		 * @param array  $meta     Signup meta data.
+		 */
+		do_action( 'wpmu_activate_user', $user_id, $password, $meta );
+
+		return array(
+			'user_id'  =&gt; $user_id,
+			'password' =&gt; $password,
+			'meta'     =&gt; $meta,
+		);
+	}
+
+	$blog_id = wpmu_create_blog( $signup-&gt;domain, $signup-&gt;path, $signup-&gt;title, $user_id, $meta, get_current_network_id() );
+
+	// TODO: What to do if we create a user but cannot create a blog?
+	if ( is_wp_error( $blog_id ) ) {
+		/*
+		 * If blog is taken, that means a previous attempt to activate this blog
+		 * failed in between creating the blog and setting the activation flag.
+		 * Let's just set the active flag and instruct the user to reset their password.
+		 */
+		if ( 'blog_taken' === $blog_id-&gt;get_error_code() ) {
+			$blog_id-&gt;add_data( $signup );
+			$wpdb-&gt;update(
+				$wpdb-&gt;signups,
+				array(
+					'active'    =&gt; 1,
+					'activated' =&gt; $now,
+				),
+				array( 'activation_key' =&gt; $key )
+			);
+		}
+		return $blog_id;
+	}
+
+	$wpdb-&gt;update(
+		$wpdb-&gt;signups,
+		array(
+			'active'    =&gt; 1,
+			'activated' =&gt; $now,
+		),
+		array( 'activation_key' =&gt; $key )
+	);
+
+	/**
+	 * Fires immediately after a site is activated.
+	 *
+	 * @since MU (3.0.0)
+	 *
+	 * @param int    $blog_id       Blog ID.
+	 * @param int    $user_id       User ID.
+	 * @param string $password      User password.
+	 * @param string $signup_title  Site title.
+	 * @param array  $meta          Signup meta data. By default, contains the requested privacy setting and lang_id.
+	 */
+	do_action( 'wpmu_activate_blog', $blog_id, $user_id, $password, $signup-&gt;title, $meta );
+
+	return array(
+		'blog_id'  =&gt; $blog_id,
+		'user_id'  =&gt; $user_id,
+		'password' =&gt; $password,
+		'title'    =&gt; $signup-&gt;title,
+		'meta'     =&gt; $meta,
+	);
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/load.php:</span> <a href="get_current_network_id">get_current_network_id()</a> </td> <td class="related-desc"> <p>Retrieves the current network ID.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_generate_password">wp_generate_password()</a> </td> <td class="related-desc"> <p>Generates a random password drawn from the defined set of characters.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="maybe_unserialize">maybe_unserialize()</a> </td> <td class="related-desc"> <p>Unserialize data only if it was serialized.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="current_time">current_time()</a> </td> <td class="related-desc"> <p>Retrieves the current time based on specified type.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="username_exists">username_exists()</a> </td> <td class="related-desc"> <p>Determines whether the given username exists.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="wpmu_create_user">wpmu_create_user()</a> </td> <td class="related-desc"> <p>Creates a user.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="wpmu_create_blog">wpmu_create_blog()</a> </td> <td class="related-desc"> <p>Creates a site.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="../hooks/wpmu_activate_user">wpmu_activate_user</a> </td> <td class="related-desc"> <p>Fires immediately after a new user is activated.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="../hooks/wpmu_activate_blog">wpmu_activate_blog</a> </td> <td class="related-desc"> <p>Fires immediately after a site is activated.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/get_row">wpdb::get_row()</a> </td> <td class="related-desc"> <p>Retrieves one row from the database.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/update">wpdb::update()</a> </td> <td class="related-desc"> <p>Updates a row in the table.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/prepare">wpdb::prepare()</a> </td> <td class="related-desc"> <p>Prepares a SQL query for safe execution.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../classes/wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/mu.3.0.0/" alt="WordPress MU (3.0.0)">MU (3.0.0)</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wpmu_activate_signup" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wpmu_activate_signup</a>
+  </p>
+</div>

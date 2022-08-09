@@ -1,0 +1,215 @@
+<h1>WP_Block_List</h1>  <section> <p>Class representing a list of block instances.</p> </section> <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-block-list.php/">wp-includes/class-wp-block-list.php</a> </p> <pre data-language="php">class WP_Block_List implements Iterator, ArrayAccess, Countable {
+
+	/**
+	 * Original array of parsed block data, or block instances.
+	 *
+	 * @since 5.5.0
+	 * @var array[]|WP_Block[]
+	 * @access protected
+	 */
+	protected $blocks;
+
+	/**
+	 * All available context of the current hierarchy.
+	 *
+	 * @since 5.5.0
+	 * @var array
+	 * @access protected
+	 */
+	protected $available_context;
+
+	/**
+	 * Block type registry to use in constructing block instances.
+	 *
+	 * @since 5.5.0
+	 * @var WP_Block_Type_Registry
+	 * @access protected
+	 */
+	protected $registry;
+
+	/**
+	 * Constructor.
+	 *
+	 * Populates object properties from the provided block instance argument.
+	 *
+	 * @since 5.5.0
+	 *
+	 * @param array[]|WP_Block[]     $blocks            Array of parsed block data, or block instances.
+	 * @param array                  $available_context Optional array of ancestry context values.
+	 * @param WP_Block_Type_Registry $registry          Optional block type registry.
+	 */
+	public function __construct( $blocks, $available_context = array(), $registry = null ) {
+		if ( ! $registry instanceof WP_Block_Type_Registry ) {
+			$registry = WP_Block_Type_Registry::get_instance();
+		}
+
+		$this-&gt;blocks            = $blocks;
+		$this-&gt;available_context = $available_context;
+		$this-&gt;registry          = $registry;
+	}
+
+	/**
+	 * Returns true if a block exists by the specified block index, or false
+	 * otherwise.
+	 *
+	 * @since 5.5.0
+	 *
+	 * @link https://www.php.net/manual/en/arrayaccess.offsetexists.php
+	 *
+	 * @param string $index Index of block to check.
+	 * @return bool Whether block exists.
+	 */
+	#[ReturnTypeWillChange]
+	public function offsetExists( $index ) {
+		return isset( $this-&gt;blocks[ $index ] );
+	}
+
+	/**
+	 * Returns the value by the specified block index.
+	 *
+	 * @since 5.5.0
+	 *
+	 * @link https://www.php.net/manual/en/arrayaccess.offsetget.php
+	 *
+	 * @param string $index Index of block value to retrieve.
+	 * @return mixed|null Block value if exists, or null.
+	 */
+	#[ReturnTypeWillChange]
+	public function offsetGet( $index ) {
+		$block = $this-&gt;blocks[ $index ];
+
+		if ( isset( $block ) &amp;&amp; is_array( $block ) ) {
+			$block                  = new WP_Block( $block, $this-&gt;available_context, $this-&gt;registry );
+			$this-&gt;blocks[ $index ] = $block;
+		}
+
+		return $block;
+	}
+
+	/**
+	 * Assign a block value by the specified block index.
+	 *
+	 * @since 5.5.0
+	 *
+	 * @link https://www.php.net/manual/en/arrayaccess.offsetset.php
+	 *
+	 * @param string $index Index of block value to set.
+	 * @param mixed  $value Block value.
+	 */
+	#[ReturnTypeWillChange]
+	public function offsetSet( $index, $value ) {
+		if ( is_null( $index ) ) {
+			$this-&gt;blocks[] = $value;
+		} else {
+			$this-&gt;blocks[ $index ] = $value;
+		}
+	}
+
+	/**
+	 * Unset a block.
+	 *
+	 * @since 5.5.0
+	 *
+	 * @link https://www.php.net/manual/en/arrayaccess.offsetunset.php
+	 *
+	 * @param string $index Index of block value to unset.
+	 */
+	#[ReturnTypeWillChange]
+	public function offsetUnset( $index ) {
+		unset( $this-&gt;blocks[ $index ] );
+	}
+
+	/**
+	 * Rewinds back to the first element of the Iterator.
+	 *
+	 * @since 5.5.0
+	 *
+	 * @link https://www.php.net/manual/en/iterator.rewind.php
+	 */
+	#[ReturnTypeWillChange]
+	public function rewind() {
+		reset( $this-&gt;blocks );
+	}
+
+	/**
+	 * Returns the current element of the block list.
+	 *
+	 * @since 5.5.0
+	 *
+	 * @link https://www.php.net/manual/en/iterator.current.php
+	 *
+	 * @return mixed Current element.
+	 */
+	#[ReturnTypeWillChange]
+	public function current() {
+		return $this-&gt;offsetGet( $this-&gt;key() );
+	}
+
+	/**
+	 * Returns the key of the current element of the block list.
+	 *
+	 * @since 5.5.0
+	 *
+	 * @link https://www.php.net/manual/en/iterator.key.php
+	 *
+	 * @return mixed Key of the current element.
+	 */
+	#[ReturnTypeWillChange]
+	public function key() {
+		return key( $this-&gt;blocks );
+	}
+
+	/**
+	 * Moves the current position of the block list to the next element.
+	 *
+	 * @since 5.5.0
+	 *
+	 * @link https://www.php.net/manual/en/iterator.next.php
+	 */
+	#[ReturnTypeWillChange]
+	public function next() {
+		next( $this-&gt;blocks );
+	}
+
+	/**
+	 * Checks if current position is valid.
+	 *
+	 * @since 5.5.0
+	 *
+	 * @link https://www.php.net/manual/en/iterator.valid.php
+	 */
+	#[ReturnTypeWillChange]
+	public function valid() {
+		return null !== key( $this-&gt;blocks );
+	}
+
+	/**
+	 * Returns the count of blocks in the list.
+	 *
+	 * @since 5.5.0
+	 *
+	 * @link https://www.php.net/manual/en/countable.count.php
+	 *
+	 * @return int Block count.
+	 */
+	#[ReturnTypeWillChange]
+	public function count() {
+		return count( $this-&gt;blocks );
+	}
+
+}</pre>  </section>  <section> <h2 id="methods">Methods</h2> <ul> <li>
+<a href="wp_block_list/__construct"> __construct</a> — Constructor. </li> <li>
+<a href="wp_block_list/count"> count</a> </li> <li>
+<a href="wp_block_list/current"> current</a> </li> <li>
+<a href="wp_block_list/key"> key</a> </li> <li>
+<a href="wp_block_list/next"> next</a> </li> <li>
+<a href="wp_block_list/offsetexists"> offsetExists</a> </li> <li>
+<a href="wp_block_list/offsetget"> offsetGet</a> </li> <li>
+<a href="wp_block_list/offsetset"> offsetSet</a> </li> <li>
+<a href="wp_block_list/offsetunset"> offsetUnset</a> </li> <li>
+<a href="wp_block_list/rewind"> rewind</a> </li> <li>
+<a href="wp_block_list/valid"> valid</a> </li> </ul> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.0/" alt="WordPress 5.5.0">5.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_block_list" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_block_list</a>
+  </p>
+</div>

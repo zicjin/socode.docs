@@ -1,0 +1,99 @@
+<h1>WP_Theme_Install_List_Table::install_theme_info( stdClass $theme )</h1>  <section> <p>Prints the info for a theme (to be used in the theme installer modal).</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$theme</dt> <dd> <p class="desc"> <span class="type">(<span class="stdClass">stdClass</span>)</span> <span class="required">(Required)</span> <span class="description">A WordPress.org Theme API object.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-theme-install-list-table.php/">wp-admin/includes/class-wp-theme-install-list-table.php</a> </p> <pre data-language="php">public function install_theme_info( $theme ) {
+		global $themes_allowedtags;
+
+		if ( empty( $theme ) ) {
+			return;
+		}
+
+		$name   = wp_kses( $theme-&gt;name, $themes_allowedtags );
+		$author = wp_kses( $theme-&gt;author, $themes_allowedtags );
+
+		$install_url = add_query_arg(
+			array(
+				'action' =&gt; 'install-theme',
+				'theme'  =&gt; $theme-&gt;slug,
+			),
+			self_admin_url( 'update.php' )
+		);
+
+		$update_url = add_query_arg(
+			array(
+				'action' =&gt; 'upgrade-theme',
+				'theme'  =&gt; $theme-&gt;slug,
+			),
+			self_admin_url( 'update.php' )
+		);
+
+		$status = $this-&gt;_get_theme_status( $theme );
+
+		?&gt;
+		&lt;div class="install-theme-info"&gt;
+		&lt;?php
+		switch ( $status ) {
+			case 'update_available':
+				printf(
+					'&lt;a class="theme-install button button-primary" href="%s" title="%s"&gt;%s&lt;/a&gt;',
+					esc_url( wp_nonce_url( $update_url, 'upgrade-theme_' . $theme-&gt;slug ) ),
+					/* translators: %s: Theme version. */
+					esc_attr( sprintf( __( 'Update to version %s' ), $theme-&gt;version ) ),
+					__( 'Update' )
+				);
+				break;
+			case 'newer_installed':
+			case 'latest_installed':
+				printf(
+					'&lt;span class="theme-install" title="%s"&gt;%s&lt;/span&gt;',
+					esc_attr__( 'This theme is already installed and is up to date' ),
+					_x( 'Installed', 'theme' )
+				);
+				break;
+			case 'install':
+			default:
+				printf(
+					'&lt;a class="theme-install button button-primary" href="%s"&gt;%s&lt;/a&gt;',
+					esc_url( wp_nonce_url( $install_url, 'install-theme_' . $theme-&gt;slug ) ),
+					__( 'Install' )
+				);
+				break;
+		}
+		?&gt;
+			&lt;h3 class="theme-name"&gt;&lt;?php echo $name; ?&gt;&lt;/h3&gt;
+			&lt;span class="theme-by"&gt;
+			&lt;?php
+				/* translators: %s: Theme author. */
+				printf( __( 'By %s' ), $author );
+			?&gt;
+			&lt;/span&gt;
+			&lt;?php if ( isset( $theme-&gt;screenshot_url ) ) : ?&gt;
+				&lt;img class="theme-screenshot" src="&lt;?php echo esc_url( $theme-&gt;screenshot_url . '?ver=' . $theme-&gt;version ); ?&gt;" alt="" /&gt;
+			&lt;?php endif; ?&gt;
+			&lt;div class="theme-details"&gt;
+				&lt;?php
+				wp_star_rating(
+					array(
+						'rating' =&gt; $theme-&gt;rating,
+						'type'   =&gt; 'percent',
+						'number' =&gt; $theme-&gt;num_ratings,
+					)
+				);
+				?&gt;
+				&lt;div class="theme-version"&gt;
+					&lt;strong&gt;&lt;?php _e( 'Version:' ); ?&gt; &lt;/strong&gt;
+					&lt;?php echo wp_kses( $theme-&gt;version, $themes_allowedtags ); ?&gt;
+				&lt;/div&gt;
+				&lt;div class="theme-description"&gt;
+					&lt;?php echo wp_kses( $theme-&gt;description, $themes_allowedtags ); ?&gt;
+				&lt;/div&gt;
+			&lt;/div&gt;
+			&lt;input class="theme-preview-url" type="hidden" value="&lt;?php echo esc_url( $theme-&gt;preview_url ); ?&gt;" /&gt;
+		&lt;/div&gt;
+		&lt;?php
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-theme-install-list-table.php:</span> <a href="_get_theme_status">WP_Theme_Install_List_Table::_get_theme_status()</a> </td> <td class="related-desc"> <p>Check to see if the theme is already installed.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/template.php:</span> <a href="../../functions/wp_star_rating">wp_star_rating()</a> </td> <td class="related-desc"> <p>Outputs a HTML element with a star rating for a given rating.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/esc_attr__">esc_attr__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text and escapes it for safe use in an attribute.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/_x">_x()</a> </td> <td class="related-desc"> <p>Retrieve translated string with gettext context.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/_e">_e()</a> </td> <td class="related-desc"> <p>Display translated text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/kses.php:</span> <a href="../../functions/wp_kses">wp_kses()</a> </td> <td class="related-desc"> <p>Filters text content and strips out disallowed HTML.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_nonce_url">wp_nonce_url()</a> </td> <td class="related-desc"> <p>Retrieve URL with nonce added to URL query.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/add_query_arg">add_query_arg()</a> </td> <td class="related-desc"> <p>Retrieves a modified URL query string.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="../../functions/self_admin_url">self_admin_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the admin area for either the current site or the network depending on context.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-theme-install-list-table.php:</span> <a href="single_row">WP_Theme_Install_List_Table::single_row()</a> </td> <td class="related-desc"> <p>Prints a theme from the WordPress.org API.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-theme-install-list-table.php:</span> <a href="theme_installer_single">WP_Theme_Install_List_Table::theme_installer_single()</a> </td> <td class="related-desc"> <p>Prints the wrapper for the theme installer with a provided theme’s data.</p> </td> </tr> </tbody>
+
+</table> </article> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_theme_install_list_table/install_theme_info" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_theme_install_list_table/install_theme_info</a>
+  </p>
+</div>

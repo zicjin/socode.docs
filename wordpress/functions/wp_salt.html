@@ -1,0 +1,85 @@
+<h1>wp_salt( string $scheme = 'auth' )</h1>  <section> <p>Returns a salt to add to hashes.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Salts are created using secret keys. Secret keys are located in two places: in the database and in the wp-config.php file. The secret key in the database is randomly generated and will be appended to the secret keys in wp-config.php.</p> <p>The secret keys in wp-config.php should be updated to strong, random keys to maximize security. Below is an example of how the secret key constants are defined. Do not paste this example directly into wp-config.php. Instead, have a <a href="https://api.wordpress.org/secret-key/1.1/salt/"> secret key created</a> just for you.</p> <pre data-language="php"><code>define('AUTH_KEY',         ' Xakm&lt;o xQy rw4EMsLKM-?!T+,PFF})H4lzcW57AF0U@N@&lt; &gt;M%G4Yt&gt;f`z]MON');
+define('SECURE_AUTH_KEY',  'LzJ}op]mr|6+![P}Ak:uNdJCJZd&gt;(Hx.-Mh#Tz)pCIU#uGEnfFz|f ;;eU%/U^O~');
+define('LOGGED_IN_KEY',    '|i|Ux`9&lt;p-h$aFf(qnT:sDO:D1P^wZ$$/Ra@miTJi9G;ddp_&lt;q}6H1)o|a +&amp;JCM');
+define('NONCE_KEY',        '%:R{[P|,s.KuMltH5}cI;/k&lt;Gx~j!f0I)m_sIyu+&amp;NJZ)-iO&gt;z7X&gt;QYR0Z_XnZ@|');
+define('AUTH_SALT',        'eZyT)-Naw]F8CwA*VaW#q*|.)g@o}||wf~@C-YSt}(dh_r6EbI#A,y|nU2{B#JBW');
+define('SECURE_AUTH_SALT', '!=oLUTXh,QW=H `}`L|9/^4-3 STz},T(w}W&lt;I`.JjPi)&lt;Bmf1v,HpGe}T1:Xt7n');
+define('LOGGED_IN_SALT',   '+XSqHc;@Q*K_b|Z?NC[3H!!EONbh.n&lt;+=uKR:&gt;*c(u`g~EJBf#8u#R{mUEZrozmm');
+define('NONCE_SALT',       'h`GXHhD&gt;SLWVfg1(1(N{;.V!MoE(SfbA_ksP@&amp;`+AycHcAV$+?@3q+rxV{%^VyKT');</code></pre> <p>Salting passwords helps against tools which has stored hashed values of common dictionary strings. The added values makes it harder to crack.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$scheme</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description">Authentication scheme (auth, secure_auth, logged_in, nonce)</span> </p> <p class="default">Default value: 'auth'</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> Salt value</p> </section>  <section> <h2 id="more-information">More Information</h2> <h5>Usage:</h5> <pre class="brush: php; title: ; notranslate" title="" data-language="php">wp_salt( $scheme );</pre> <h5>Notes:</h5> <ul> <li>This function can be replaced via <a title="Glossary" href="https://codex.wordpress.org/Glossary#plugins">plugins</a>. If plugins do not redefine these functions, then this will be used instead.</li> <li>See Also: <a class="external text" href="https://api.wordpress.org/secret-key/1.0/" rel="nofollow">Create a Secret Key for wp-config.php</a>
+</li> </ul> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/pluggable.php/">wp-includes/pluggable.php</a> </p> <pre data-language="php">function wp_salt( $scheme = 'auth' ) {
+		static $cached_salts = array();
+		if ( isset( $cached_salts[ $scheme ] ) ) {
+			/**
+			 * Filters the WordPress salt.
+			 *
+			 * @since 2.5.0
+			 *
+			 * @param string $cached_salt Cached salt for the given scheme.
+			 * @param string $scheme      Authentication scheme. Values include 'auth',
+			 *                            'secure_auth', 'logged_in', and 'nonce'.
+			 */
+			return apply_filters( 'salt', $cached_salts[ $scheme ], $scheme );
+		}
+
+		static $duplicated_keys;
+		if ( null === $duplicated_keys ) {
+			$duplicated_keys = array( 'put your unique phrase here' =&gt; true );
+			foreach ( array( 'AUTH', 'SECURE_AUTH', 'LOGGED_IN', 'NONCE', 'SECRET' ) as $first ) {
+				foreach ( array( 'KEY', 'SALT' ) as $second ) {
+					if ( ! defined( "{$first}_{$second}" ) ) {
+						continue;
+					}
+					$value                     = constant( "{$first}_{$second}" );
+					$duplicated_keys[ $value ] = isset( $duplicated_keys[ $value ] );
+				}
+			}
+		}
+
+		$values = array(
+			'key'  =&gt; '',
+			'salt' =&gt; '',
+		);
+		if ( defined( 'SECRET_KEY' ) &amp;&amp; SECRET_KEY &amp;&amp; empty( $duplicated_keys[ SECRET_KEY ] ) ) {
+			$values['key'] = SECRET_KEY;
+		}
+		if ( 'auth' === $scheme &amp;&amp; defined( 'SECRET_SALT' ) &amp;&amp; SECRET_SALT &amp;&amp; empty( $duplicated_keys[ SECRET_SALT ] ) ) {
+			$values['salt'] = SECRET_SALT;
+		}
+
+		if ( in_array( $scheme, array( 'auth', 'secure_auth', 'logged_in', 'nonce' ), true ) ) {
+			foreach ( array( 'key', 'salt' ) as $type ) {
+				$const = strtoupper( "{$scheme}_{$type}" );
+				if ( defined( $const ) &amp;&amp; constant( $const ) &amp;&amp; empty( $duplicated_keys[ constant( $const ) ] ) ) {
+					$values[ $type ] = constant( $const );
+				} elseif ( ! $values[ $type ] ) {
+					$values[ $type ] = get_site_option( "{$scheme}_{$type}" );
+					if ( ! $values[ $type ] ) {
+						$values[ $type ] = wp_generate_password( 64, true, true );
+						update_site_option( "{$scheme}_{$type}", $values[ $type ] );
+					}
+				}
+			}
+		} else {
+			if ( ! $values['key'] ) {
+				$values['key'] = get_site_option( 'secret_key' );
+				if ( ! $values['key'] ) {
+					$values['key'] = wp_generate_password( 64, true, true );
+					update_site_option( 'secret_key', $values['key'] );
+				}
+			}
+			$values['salt'] = hash_hmac( 'md5', $scheme, $values['key'] );
+		}
+
+		$cached_salts[ $scheme ] = $values['key'] . $values['salt'];
+
+		/** This filter is documented in wp-includes/pluggable.php */
+		return apply_filters( 'salt', $cached_salts[ $scheme ], $scheme );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_generate_password">wp_generate_password()</a> </td> <td class="related-desc"> <p>Generates a random password drawn from the defined set of characters.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../hooks/salt">salt</a> </td> <td class="related-desc"> <p>Filters the WordPress salt.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="update_site_option">update_site_option()</a> </td> <td class="related-desc"> <p>Updates the value of an option that was already added for the current network.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_site_option">get_site_option()</a> </td> <td class="related-desc"> <p>Retrieve an option value for the current network based on name of option.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_hash">wp_hash()</a> </td> <td class="related-desc"> <p>Get hash of given string.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.5.0/" alt="WordPress 2.5.0">2.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_salt" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_salt</a>
+  </p>
+</div>

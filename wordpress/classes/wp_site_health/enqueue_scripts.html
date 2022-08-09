@@ -1,0 +1,77 @@
+<h1>WP_Site_Health::enqueue_scripts()</h1>  <section> <p>Enqueues the site health scripts.</p> </section> <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-site-health.php/">wp-admin/includes/class-wp-site-health.php</a> </p> <pre data-language="php">public function enqueue_scripts() {
+		$screen = get_current_screen();
+		if ( 'site-health' !== $screen-&gt;id &amp;&amp; 'dashboard' !== $screen-&gt;id ) {
+			return;
+		}
+
+		$health_check_js_variables = array(
+			'screen'      =&gt; $screen-&gt;id,
+			'nonce'       =&gt; array(
+				'site_status'        =&gt; wp_create_nonce( 'health-check-site-status' ),
+				'site_status_result' =&gt; wp_create_nonce( 'health-check-site-status-result' ),
+			),
+			'site_status' =&gt; array(
+				'direct' =&gt; array(),
+				'async'  =&gt; array(),
+				'issues' =&gt; array(
+					'good'        =&gt; 0,
+					'recommended' =&gt; 0,
+					'critical'    =&gt; 0,
+				),
+			),
+		);
+
+		$issue_counts = get_transient( 'health-check-site-status-result' );
+
+		if ( false !== $issue_counts ) {
+			$issue_counts = json_decode( $issue_counts );
+
+			$health_check_js_variables['site_status']['issues'] = $issue_counts;
+		}
+
+		if ( 'site-health' === $screen-&gt;id &amp;&amp; ( ! isset( $_GET['tab'] ) || empty( $_GET['tab'] ) ) ) {
+			$tests = WP_Site_Health::get_tests();
+
+			// Don't run https test on development environments.
+			if ( $this-&gt;is_development_environment() ) {
+				unset( $tests['async']['https_status'] );
+			}
+
+			foreach ( $tests['direct'] as $test ) {
+				if ( is_string( $test['test'] ) ) {
+					$test_function = sprintf(
+						'get_test_%s',
+						$test['test']
+					);
+
+					if ( method_exists( $this, $test_function ) &amp;&amp; is_callable( array( $this, $test_function ) ) ) {
+						$health_check_js_variables['site_status']['direct'][] = $this-&gt;perform_test( array( $this, $test_function ) );
+						continue;
+					}
+				}
+
+				if ( is_callable( $test['test'] ) ) {
+					$health_check_js_variables['site_status']['direct'][] = $this-&gt;perform_test( $test['test'] );
+				}
+			}
+
+			foreach ( $tests['async'] as $test ) {
+				if ( is_string( $test['test'] ) ) {
+					$health_check_js_variables['site_status']['async'][] = array(
+						'test'      =&gt; $test['test'],
+						'has_rest'  =&gt; ( isset( $test['has_rest'] ) ? $test['has_rest'] : false ),
+						'completed' =&gt; false,
+						'headers'   =&gt; isset( $test['headers'] ) ? $test['headers'] : array(),
+					);
+				}
+			}
+		}
+
+		wp_localize_script( 'site-health', 'SiteHealth', $health_check_js_variables );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-site-health.php:</span> <a href="is_development_environment">WP_Site_Health::is_development_environment()</a> </td> <td class="related-desc"> <p>Checks if the current environment type is set to ‘development’ or ‘local’.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-site-health.php:</span> <a href="perform_test">WP_Site_Health::perform_test()</a> </td> <td class="related-desc"> <p>Run a Site Health test directly.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-site-health.php:</span> <a href="get_tests">WP_Site_Health::get_tests()</a> </td> <td class="related-desc"> <p>Return a set of tests that belong to the site status page.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/screen.php:</span> <a href="../../functions/get_current_screen">get_current_screen()</a> </td> <td class="related-desc"> <p>Get the current screen object</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../../functions/wp_create_nonce">wp_create_nonce()</a> </td> <td class="related-desc"> <p>Creates a cryptographic token tied to a specific action, user, user session, and window of time.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.wp-scripts.php:</span> <a href="../../functions/wp_localize_script">wp_localize_script()</a> </td> <td class="related-desc"> <p>Localize a script.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../../functions/get_transient">get_transient()</a> </td> <td class="related-desc"> <p>Retrieves the value of a transient.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.2.0/" alt="WordPress 5.2.0">5.2.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_site_health/enqueue_scripts" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_site_health/enqueue_scripts</a>
+  </p>
+</div>

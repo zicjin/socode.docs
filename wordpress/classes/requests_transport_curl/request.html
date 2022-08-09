@@ -1,0 +1,62 @@
+<h1>Requests_Transport_cURL::request( string $url, array $headers = array(), string|array $data = array(), array $options = array() )</h1>  <section> <p>Perform a request</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$url</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">URL to request</span> </p> </dd> <dt>$headers</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description">Associative array of request headers</span> </p> <p class="default">Default value: array()</p> </dd> <dt>$data</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>|<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description">Data to send either as the POST body, or as parameters in the URL for a GET/HEAD</span> </p> <p class="default">Default value: array()</p> </dd> <dt>$options</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description">Request options, see <a href="../requests/response">Requests::response()</a> for documentation</span> </p> <p class="default">Default value: array()</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> Raw HTTP result</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/requests/transport/curl.php/">wp-includes/Requests/Transport/cURL.php</a> </p> <pre data-language="php">public function request($url, $headers = array(), $data = array(), $options = array()) {
+		$this-&gt;hooks = $options['hooks'];
+
+		$this-&gt;setup_handle($url, $headers, $data, $options);
+
+		$options['hooks']-&gt;dispatch('curl.before_send', array(&amp;$this-&gt;handle));
+
+		if ($options['filename'] !== false) {
+			$this-&gt;stream_handle = fopen($options['filename'], 'wb');
+		}
+
+		$this-&gt;response_data       = '';
+		$this-&gt;response_bytes      = 0;
+		$this-&gt;response_byte_limit = false;
+		if ($options['max_bytes'] !== false) {
+			$this-&gt;response_byte_limit = $options['max_bytes'];
+		}
+
+		if (isset($options['verify'])) {
+			if ($options['verify'] === false) {
+				curl_setopt($this-&gt;handle, CURLOPT_SSL_VERIFYHOST, 0);
+				curl_setopt($this-&gt;handle, CURLOPT_SSL_VERIFYPEER, 0);
+			}
+			elseif (is_string($options['verify'])) {
+				curl_setopt($this-&gt;handle, CURLOPT_CAINFO, $options['verify']);
+			}
+		}
+
+		if (isset($options['verifyname']) &amp;&amp; $options['verifyname'] === false) {
+			curl_setopt($this-&gt;handle, CURLOPT_SSL_VERIFYHOST, 0);
+		}
+
+		curl_exec($this-&gt;handle);
+		$response = $this-&gt;response_data;
+
+		$options['hooks']-&gt;dispatch('curl.after_send', array());
+
+		if (curl_errno($this-&gt;handle) === 23 || curl_errno($this-&gt;handle) === 61) {
+			// Reset encoding and try again
+			curl_setopt($this-&gt;handle, CURLOPT_ENCODING, 'none');
+
+			$this-&gt;response_data  = '';
+			$this-&gt;response_bytes = 0;
+			curl_exec($this-&gt;handle);
+			$response = $this-&gt;response_data;
+		}
+
+		$this-&gt;process_response($response, $options);
+
+		// Need to remove the $this reference from the curl handle.
+		// Otherwise Requests_Transport_cURL wont be garbage collected and the curl_close() will never be called.
+		curl_setopt($this-&gt;handle, CURLOPT_HEADERFUNCTION, null);
+		curl_setopt($this-&gt;handle, CURLOPT_WRITEFUNCTION, null);
+
+		return $this-&gt;headers;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/Requests/Transport/cURL.php:</span> <a href="process_response">Requests_Transport_cURL::process_response()</a> </td> <td class="related-desc"> <p>Process a response</p> </td> </tr> <tr> <td> <span>wp-includes/Requests/Transport/cURL.php:</span> <a href="setup_handle">Requests_Transport_cURL::setup_handle()</a> </td> <td class="related-desc"> <p>Setup the cURL handle for the given data</p> </td> </tr> </tbody>
+
+</table> </article> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/requests_transport_curl/request" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/requests_transport_curl/request</a>
+  </p>
+</div>

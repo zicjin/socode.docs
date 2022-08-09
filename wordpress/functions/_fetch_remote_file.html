@@ -1,0 +1,40 @@
+<h1>_fetch_remote_file( string $url, array $headers = "" )</h1>  <section> <p>Retrieve URL headers and content using WP HTTP Request API.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$url</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">URL to retrieve</span> </p> </dd> <dt>$headers</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description"> Headers to send to the URL.</span> </p> <p class="default">Default value: ""</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(Snoopy)</span> style response</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/rss.php/">wp-includes/rss.php</a> </p> <pre data-language="php">function _fetch_remote_file($url, $headers = "" ) {
+	$resp = wp_safe_remote_request( $url, array( 'headers' =&gt; $headers, 'timeout' =&gt; MAGPIE_FETCH_TIME_OUT ) );
+	if ( is_wp_error($resp) ) {
+		$error = array_shift($resp-&gt;errors);
+
+		$resp = new stdClass;
+		$resp-&gt;status = 500;
+		$resp-&gt;response_code = 500;
+		$resp-&gt;error = $error[0] . "\n"; //\n = Snoopy compatibility
+		return $resp;
+	}
+
+	// Snoopy returns headers unprocessed.
+	// Also note, WP_HTTP lowercases all keys, Snoopy did not.
+	$return_headers = array();
+	foreach ( wp_remote_retrieve_headers( $resp ) as $key =&gt; $value ) {
+		if ( !is_array($value) ) {
+			$return_headers[] = "$key: $value";
+		} else {
+			foreach ( $value as $v )
+				$return_headers[] = "$key: $v";
+		}
+	}
+
+	$response = new stdClass;
+	$response-&gt;status = wp_remote_retrieve_response_code( $resp );
+	$response-&gt;response_code = wp_remote_retrieve_response_code( $resp );
+	$response-&gt;headers = $return_headers;
+	$response-&gt;results = wp_remote_retrieve_body( $resp );
+
+	return $response;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_safe_remote_request">wp_safe_remote_request()</a> </td> <td class="related-desc"> <p>Retrieve the raw response from a safe HTTP request.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_remote_retrieve_headers">wp_remote_retrieve_headers()</a> </td> <td class="related-desc"> <p>Retrieve only the headers from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_remote_retrieve_response_code">wp_remote_retrieve_response_code()</a> </td> <td class="related-desc"> <p>Retrieve only the response code from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_remote_retrieve_body">wp_remote_retrieve_body()</a> </td> <td class="related-desc"> <p>Retrieve only the body from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rss.php:</span> <a href="fetch_rss">fetch_rss()</a> </td> <td class="related-desc"> <p>Build Magpie object based on RSS from URL.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/1.5.0/" alt="WordPress 1.5.0">1.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/_fetch_remote_file" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/_fetch_remote_file</a>
+  </p>
+</div>

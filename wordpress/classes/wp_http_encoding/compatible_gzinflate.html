@@ -1,0 +1,41 @@
+<h1>WP_Http_Encoding::compatible_gzinflate( string $gz_data )</h1>  <section> <p>Decompression of deflated string while staying compatible with the majority of servers.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Certain Servers will return deflated data with headers which PHP’s gzinflate() function cannot handle out of the box. The following function has been created from various snippets on the gzinflate() PHP documentation.</p> <p>Warning: Magic numbers within. Due to the potential different formats that the compressed data may be returned in, some "magic offsets" are needed to ensure proper decompression takes place. For a simple pragmatic way to determine the magic offset in use, see: <a href="https://core.trac.wordpress.org/ticket/18273">https://core.trac.wordpress.org/ticket/18273</a></p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$gz_data</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">String to decompress.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string|false)</span> Decompressed string on success, false on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-http-encoding.php/">wp-includes/class-wp-http-encoding.php</a> </p> <pre data-language="php">public static function compatible_gzinflate( $gz_data ) {
+
+		// Compressed data might contain a full header, if so strip it for gzinflate().
+		if ( "\x1f\x8b\x08" === substr( $gz_data, 0, 3 ) ) {
+			$i   = 10;
+			$flg = ord( substr( $gz_data, 3, 1 ) );
+			if ( $flg &gt; 0 ) {
+				if ( $flg &amp; 4 ) {
+					list($xlen) = unpack( 'v', substr( $gz_data, $i, 2 ) );
+					$i          = $i + 2 + $xlen;
+				}
+				if ( $flg &amp; 8 ) {
+					$i = strpos( $gz_data, "\0", $i ) + 1;
+				}
+				if ( $flg &amp; 16 ) {
+					$i = strpos( $gz_data, "\0", $i ) + 1;
+				}
+				if ( $flg &amp; 2 ) {
+					$i = $i + 2;
+				}
+			}
+			$decompressed = @gzinflate( substr( $gz_data, $i, -8 ) );
+			if ( false !== $decompressed ) {
+				return $decompressed;
+			}
+		}
+
+		// Compressed data from java.util.zip.Deflater amongst others.
+		$decompressed = @gzinflate( substr( $gz_data, 2 ) );
+		if ( false !== $decompressed ) {
+			return $decompressed;
+		}
+
+		return false;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-http-encoding.php:</span> <a href="decompress">WP_Http_Encoding::decompress()</a> </td> <td class="related-desc"> <p>Decompression of deflated string.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.8.1/" alt="WordPress 2.8.1">2.8.1</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_http_encoding/compatible_gzinflate" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_http_encoding/compatible_gzinflate</a>
+  </p>
+</div>

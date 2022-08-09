@@ -1,0 +1,57 @@
+<h1>get_block_file_template( string $id, string $template_type = 'wp_template' )</h1>  <section> <p>Retrieves a single unified template object using its id.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$id</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Template unique identifier (example: theme_slug//template_slug).</span> </p> </dd> <dt>$template_type</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> Template type: <code>'wp_template'</code> or '<code>wp_template_part'</code>. Default <code>'wp_template'</code>.</span> </p> <p class="default">Default value: 'wp_template'</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../classes/wp_block_template">WP_Block_Template</a>|null)</span> The found block template, or null if there isn't one.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/block-template-utils.php/">wp-includes/block-template-utils.php</a> </p> <pre data-language="php">function get_block_file_template( $id, $template_type = 'wp_template' ) {
+	/**
+	 * Filters the block templates array before the query takes place.
+	 *
+	 * Return a non-null value to bypass the WordPress queries.
+	 *
+	 * @since 5.9.0
+	 *
+	 * @param WP_Block_Template|null $block_template Return block template object to short-circuit the default query,
+	 *                                               or null to allow WP to run its normal queries.
+	 * @param string                 $id             Template unique identifier (example: theme_slug//template_slug).
+	 * @param string                 $template_type  Template type: `'wp_template'` or '`wp_template_part'`.
+	 */
+	$block_template = apply_filters( 'pre_get_block_file_template', null, $id, $template_type );
+	if ( ! is_null( $block_template ) ) {
+		return $block_template;
+	}
+
+	$parts = explode( '//', $id, 2 );
+	if ( count( $parts ) &lt; 2 ) {
+		/** This filter is documented in wp-includes/block-template-utils.php */
+		return apply_filters( 'get_block_file_template', null, $id, $template_type );
+	}
+	list( $theme, $slug ) = $parts;
+
+	if ( wp_get_theme()-&gt;get_stylesheet() !== $theme ) {
+		/** This filter is documented in wp-includes/block-template-utils.php */
+		return apply_filters( 'get_block_file_template', null, $id, $template_type );
+	}
+
+	$template_file = _get_block_template_file( $template_type, $slug );
+	if ( null === $template_file ) {
+		/** This filter is documented in wp-includes/block-template-utils.php */
+		return apply_filters( 'get_block_file_template', null, $id, $template_type );
+	}
+
+	$block_template = _build_block_template_result_from_file( $template_file, $template_type );
+
+	/**
+	 * Filters the array of queried block templates array after they've been fetched.
+	 *
+	 * @since 5.9.0
+	 *
+	 * @param WP_Block_Template|null $block_template The found block template, or null if there is none.
+	 * @param string                 $id             Template unique identifier (example: theme_slug//template_slug).
+	 * @param string                 $template_type  Template type: `'wp_template'` or '`wp_template_part'`.
+	 */
+	return apply_filters( 'get_block_file_template', $block_template, $id, $template_type );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/block-template-utils.php:</span> <a href="../hooks/pre_get_block_file_template">pre_get_block_file_template</a> </td> <td class="related-desc"> <p>Filters the block templates array before the query takes place.</p> </td> </tr> <tr> <td> <span>wp-includes/block-template-utils.php:</span> <a href="../hooks/get_block_file_template">get_block_file_template</a> </td> <td class="related-desc"> <p>Filters the array of queried block templates array after they’ve been fetched.</p> </td> </tr> <tr> <td> <span>wp-includes/block-template-utils.php:</span> <a href="_build_block_template_result_from_file">_build_block_template_result_from_file()</a> </td> <td class="related-desc"> <p>Build a unified template object based on a theme file.</p> </td> </tr> <tr> <td> <span>wp-includes/block-template-utils.php:</span> <a href="_get_block_template_file">_get_block_template_file()</a> </td> <td class="related-desc"> <p>Retrieves the template file from the theme for a given slug.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="wp_get_theme">wp_get_theme()</a> </td> <td class="related-desc"> <p>Gets a <a href="../classes/wp_theme">WP_Theme</a> object for a theme.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-theme.php:</span> <a href="../classes/wp_theme/get_stylesheet">WP_Theme::get_stylesheet()</a> </td> <td class="related-desc"> <p>Returns the directory name of the theme’s “stylesheet” files, inside the theme root.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-templates-controller.php:</span> <a href="../classes/wp_rest_templates_controller/get_item">WP_REST_Templates_Controller::get_item()</a> </td> <td class="related-desc"> <p>Returns the given template</p> </td> </tr> <tr> <td> <span>wp-includes/block-template-utils.php:</span> <a href="get_block_template">get_block_template()</a> </td> <td class="related-desc"> <p>Retrieves a single unified template object using its id.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.9.0/" alt="WordPress 5.9.0">5.9.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/get_block_file_template" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/get_block_file_template</a>
+  </p>
+</div>

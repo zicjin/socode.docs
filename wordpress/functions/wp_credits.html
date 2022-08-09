@@ -1,0 +1,48 @@
+<h1>wp_credits( string $version = '', string $locale = '' )</h1>  <section> <p>Retrieve the contributor credits.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$version</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description">WordPress version. Defaults to the current version.</span> </p> <p class="default">Default value: ''</p> </dd> <dt>$locale</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description">WordPress locale. Defaults to the current user's locale.</span> </p> <p class="default">Default value: ''</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array|false)</span> A list of all of the contributors, or false on error.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/credits.php/">wp-admin/includes/credits.php</a> </p> <pre data-language="php">function wp_credits( $version = '', $locale = '' ) {
+	if ( ! $version ) {
+		// Include an unmodified $wp_version.
+		require ABSPATH . WPINC . '/version.php';
+
+		$version = $wp_version;
+	}
+
+	if ( ! $locale ) {
+		$locale = get_user_locale();
+	}
+
+	$results = get_site_transient( 'wordpress_credits_' . $locale );
+
+	if ( ! is_array( $results )
+		|| false !== strpos( $version, '-' )
+		|| ( isset( $results['data']['version'] ) &amp;&amp; strpos( $version, $results['data']['version'] ) !== 0 )
+	) {
+		$url     = "http://api.wordpress.org/core/credits/1.1/?version={$version}&amp;locale={$locale}";
+		$options = array( 'user-agent' =&gt; 'WordPress/' . $version . '; ' . home_url( '/' ) );
+
+		if ( wp_http_supports( array( 'ssl' ) ) ) {
+			$url = set_url_scheme( $url, 'https' );
+		}
+
+		$response = wp_remote_get( $url, $options );
+
+		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
+			return false;
+		}
+
+		$results = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		if ( ! is_array( $results ) ) {
+			return false;
+		}
+
+		set_site_transient( 'wordpress_credits_' . $locale, $results, DAY_IN_SECONDS );
+	}
+
+	return $results;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="get_user_locale">get_user_locale()</a> </td> <td class="related-desc"> <p>Retrieves the locale of a user.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="set_url_scheme">set_url_scheme()</a> </td> <td class="related-desc"> <p>Sets the scheme for a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="home_url">home_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL for the current site where the front end is accessible.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_http_supports">wp_http_supports()</a> </td> <td class="related-desc"> <p>Determines if there is an HTTP Transport that can process this request.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_remote_get">wp_remote_get()</a> </td> <td class="related-desc"> <p>Performs an HTTP request using the GET method and returns its response.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_remote_retrieve_response_code">wp_remote_retrieve_response_code()</a> </td> <td class="related-desc"> <p>Retrieve only the response code from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_remote_retrieve_body">wp_remote_retrieve_body()</a> </td> <td class="related-desc"> <p>Retrieve only the body from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="set_site_transient">set_site_transient()</a> </td> <td class="related-desc"> <p>Sets/updates the value of a site transient.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_site_transient">get_site_transient()</a> </td> <td class="related-desc"> <p>Retrieves the value of a site transient.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.6.0/" alt="WordPress 5.6.0">5.6.0</a></td> <td><span class="since-description">Added the <code>$version</code> and <code>$locale</code> parameters.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.2.0/" alt="WordPress 3.2.0">3.2.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_credits" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_credits</a>
+  </p>
+</div>

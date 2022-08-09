@@ -1,0 +1,59 @@
+<h1>newblog_notify_siteadmin( WP_Site|int $blog_id, string $deprecated = '' )</h1>  <section> <p>Notifies the network admin that a new site has been activated.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Filter <a href="../hooks/newblog_notify_siteadmin">‘newblog_notify_siteadmin’</a> to change the content of the notification email.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$blog_id</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Site"><a href="../classes/wp_site">WP_Site</a></span>|<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">The new site's object or ID.</span> </p> </dd> <dt>$deprecated</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description">Not used.</span> </p> <p class="default">Default value: ''</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/ms-functions.php/">wp-includes/ms-functions.php</a> </p> <pre data-language="php">function newblog_notify_siteadmin( $blog_id, $deprecated = '' ) {
+	if ( is_object( $blog_id ) ) {
+		$blog_id = $blog_id-&gt;blog_id;
+	}
+
+	if ( 'yes' !== get_site_option( 'registrationnotification' ) ) {
+		return false;
+	}
+
+	$email = get_site_option( 'admin_email' );
+
+	if ( is_email( $email ) == false ) {
+		return false;
+	}
+
+	$options_site_url = esc_url( network_admin_url( 'settings.php' ) );
+
+	switch_to_blog( $blog_id );
+	$blogname = get_option( 'blogname' );
+	$siteurl  = site_url();
+	restore_current_blog();
+
+	$msg = sprintf(
+		/* translators: New site notification email. 1: Site URL, 2: User IP address, 3: URL to Network Settings screen. */
+		__(
+			'New Site: %1$s
+URL: %2$s
+Remote IP address: %3$s
+
+Disable these notifications: %4$s'
+		),
+		$blogname,
+		$siteurl,
+		wp_unslash( $_SERVER['REMOTE_ADDR'] ),
+		$options_site_url
+	);
+	/**
+	 * Filters the message body of the new site activation email sent
+	 * to the network administrator.
+	 *
+	 * @since MU (3.0.0)
+	 * @since 5.4.0 The `$blog_id` parameter was added.
+	 *
+	 * @param string     $msg     Email body.
+	 * @param int|string $blog_id The new site's ID as an integer or numeric string.
+	 */
+	$msg = apply_filters( 'newblog_notify_siteadmin', $msg, $blog_id );
+
+	/* translators: New site notification email subject. %s: New site URL. */
+	wp_mail( $email, sprintf( __( 'New Site Registration: %s' ), $siteurl ), $msg );
+
+	return true;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_unslash">wp_unslash()</a> </td> <td class="related-desc"> <p>Removes slashes from a string or recursively removes slashes from strings within an array.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="is_email">is_email()</a> </td> <td class="related-desc"> <p>Verifies that an email is valid.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_mail">wp_mail()</a> </td> <td class="related-desc"> <p>Sends an email, similar to PHP’s mail function.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="network_admin_url">network_admin_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the admin area for the network.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="site_url">site_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL for the current site where WordPress application files (e.g. wp-blog-header.php or the wp-admin/ folder) are accessible.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_site_option">get_site_option()</a> </td> <td class="related-desc"> <p>Retrieve an option value for the current network based on name of option.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="../hooks/newblog_notify_siteadmin">newblog_notify_siteadmin</a> </td> <td class="related-desc"> <p>Filters the message body of the new site activation email sent to the network administrator.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-blogs.php:</span> <a href="switch_to_blog">switch_to_blog()</a> </td> <td class="related-desc"> <p>Switch the current blog.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-blogs.php:</span> <a href="restore_current_blog">restore_current_blog()</a> </td> <td class="related-desc"> <p>Restore the current blog, after calling <a href="switch_to_blog">switch_to_blog()</a>.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/mu.3.0.0/" alt="WordPress MU (3.0.0)">MU (3.0.0)</a></td> <td><span class="since-description">MU (3.0.0)</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.1.0/" alt="WordPress 5.1.0">5.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/newblog_notify_siteadmin" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/newblog_notify_siteadmin</a>
+  </p>
+</div>

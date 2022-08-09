@@ -1,0 +1,153 @@
+<h1>WP_MS_Themes_List_Table::column_name( WP_Theme $theme )</h1>  <section> <p>Handles the name column output.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$theme</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Theme"><a href="../wp_theme">WP_Theme</a></span>)</span> <span class="required">(Required)</span> <span class="description">The current <a href="../wp_theme">WP_Theme</a> object.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-ms-themes-list-table.php/">wp-admin/includes/class-wp-ms-themes-list-table.php</a> </p> <pre data-language="php">public function column_name( $theme ) {
+		global $status, $page, $s;
+
+		$context = $status;
+
+		if ( $this-&gt;is_site_themes ) {
+			$url     = "site-themes.php?id={$this-&gt;site_id}&amp;amp;";
+			$allowed = $theme-&gt;is_allowed( 'site', $this-&gt;site_id );
+		} else {
+			$url     = 'themes.php?';
+			$allowed = $theme-&gt;is_allowed( 'network' );
+		}
+
+		// Pre-order.
+		$actions = array(
+			'enable'  =&gt; '',
+			'disable' =&gt; '',
+			'delete'  =&gt; '',
+		);
+
+		$stylesheet = $theme-&gt;get_stylesheet();
+		$theme_key  = urlencode( $stylesheet );
+
+		if ( ! $allowed ) {
+			if ( ! $theme-&gt;errors() ) {
+				$url = add_query_arg(
+					array(
+						'action' =&gt; 'enable',
+						'theme'  =&gt; $theme_key,
+						'paged'  =&gt; $page,
+						's'      =&gt; $s,
+					),
+					$url
+				);
+
+				if ( $this-&gt;is_site_themes ) {
+					/* translators: %s: Theme name. */
+					$aria_label = sprintf( __( 'Enable %s' ), $theme-&gt;display( 'Name' ) );
+				} else {
+					/* translators: %s: Theme name. */
+					$aria_label = sprintf( __( 'Network Enable %s' ), $theme-&gt;display( 'Name' ) );
+				}
+
+				$actions['enable'] = sprintf(
+					'&lt;a href="%s" class="edit" aria-label="%s"&gt;%s&lt;/a&gt;',
+					esc_url( wp_nonce_url( $url, 'enable-theme_' . $stylesheet ) ),
+					esc_attr( $aria_label ),
+					( $this-&gt;is_site_themes ? __( 'Enable' ) : __( 'Network Enable' ) )
+				);
+			}
+		} else {
+			$url = add_query_arg(
+				array(
+					'action' =&gt; 'disable',
+					'theme'  =&gt; $theme_key,
+					'paged'  =&gt; $page,
+					's'      =&gt; $s,
+				),
+				$url
+			);
+
+			if ( $this-&gt;is_site_themes ) {
+				/* translators: %s: Theme name. */
+				$aria_label = sprintf( __( 'Disable %s' ), $theme-&gt;display( 'Name' ) );
+			} else {
+				/* translators: %s: Theme name. */
+				$aria_label = sprintf( __( 'Network Disable %s' ), $theme-&gt;display( 'Name' ) );
+			}
+
+			$actions['disable'] = sprintf(
+				'&lt;a href="%s" aria-label="%s"&gt;%s&lt;/a&gt;',
+				esc_url( wp_nonce_url( $url, 'disable-theme_' . $stylesheet ) ),
+				esc_attr( $aria_label ),
+				( $this-&gt;is_site_themes ? __( 'Disable' ) : __( 'Network Disable' ) )
+			);
+		}
+
+		if ( ! $allowed &amp;&amp; ! $this-&gt;is_site_themes
+			&amp;&amp; current_user_can( 'delete_themes' )
+			&amp;&amp; get_option( 'stylesheet' ) !== $stylesheet
+			&amp;&amp; get_option( 'template' ) !== $stylesheet
+		) {
+			$url = add_query_arg(
+				array(
+					'action'       =&gt; 'delete-selected',
+					'checked[]'    =&gt; $theme_key,
+					'theme_status' =&gt; $context,
+					'paged'        =&gt; $page,
+					's'            =&gt; $s,
+				),
+				'themes.php'
+			);
+
+			/* translators: %s: Theme name. */
+			$aria_label = sprintf( _x( 'Delete %s', 'theme' ), $theme-&gt;display( 'Name' ) );
+
+			$actions['delete'] = sprintf(
+				'&lt;a href="%s" class="delete" aria-label="%s"&gt;%s&lt;/a&gt;',
+				esc_url( wp_nonce_url( $url, 'bulk-themes' ) ),
+				esc_attr( $aria_label ),
+				__( 'Delete' )
+			);
+		}
+		/**
+		 * Filters the action links displayed for each theme in the Multisite
+		 * themes list table.
+		 *
+		 * The action links displayed are determined by the theme's status, and
+		 * which Multisite themes list table is being displayed - the Network
+		 * themes list table (themes.php), which displays all installed themes,
+		 * or the Site themes list table (site-themes.php), which displays the
+		 * non-network enabled themes when editing a site in the Network admin.
+		 *
+		 * The default action links for the Network themes list table include
+		 * 'Network Enable', 'Network Disable', and 'Delete'.
+		 *
+		 * The default action links for the Site themes list table include
+		 * 'Enable', and 'Disable'.
+		 *
+		 * @since 2.8.0
+		 *
+		 * @param string[] $actions An array of action links.
+		 * @param WP_Theme $theme   The current WP_Theme object.
+		 * @param string   $context Status of the theme, one of 'all', 'enabled', or 'disabled'.
+		 */
+		$actions = apply_filters( 'theme_action_links', array_filter( $actions ), $theme, $context );
+
+		/**
+		 * Filters the action links of a specific theme in the Multisite themes
+		 * list table.
+		 *
+		 * The dynamic portion of the hook name, `$stylesheet`, refers to the
+		 * directory name of the theme, which in most cases is synonymous
+		 * with the template name.
+		 *
+		 * @since 3.1.0
+		 *
+		 * @param string[] $actions An array of action links.
+		 * @param WP_Theme $theme   The current WP_Theme object.
+		 * @param string   $context Status of the theme, one of 'all', 'enabled', or 'disabled'.
+		 */
+		$actions = apply_filters( "theme_action_links_{$stylesheet}", $actions, $theme, $context );
+
+		echo $this-&gt;row_actions( $actions, true );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-ms-themes-list-table.php:</span> <a href="../../hooks/theme_action_links_stylesheet">theme_action_links_{$stylesheet}</a> </td> <td class="related-desc"> <p>Filters the action links of a specific theme in the Multisite themes list table.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-ms-themes-list-table.php:</span> <a href="../../hooks/theme_action_links">theme_action_links</a> </td> <td class="related-desc"> <p>Filters the action links displayed for each theme in the Multisite themes list table.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="../../functions/current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/_x">_x()</a> </td> <td class="related-desc"> <p>Retrieve translated string with gettext context.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_nonce_url">wp_nonce_url()</a> </td> <td class="related-desc"> <p>Retrieve URL with nonce added to URL query.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/add_query_arg">add_query_arg()</a> </td> <td class="related-desc"> <p>Retrieves a modified URL query string.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../../functions/get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-ms-themes-list-table.php:</span> <a href="single_row_columns">WP_MS_Themes_List_Table::single_row_columns()</a> </td> <td class="related-desc"> <p>Handles the output for a single table row.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.3.0/" alt="WordPress 4.3.0">4.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_ms_themes_list_table/column_name" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_ms_themes_list_table/column_name</a>
+  </p>
+</div>

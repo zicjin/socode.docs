@@ -1,0 +1,44 @@
+<h1>Requests_SSL::verify_certificate( string $host, array $cert )</h1>  <section> <p>Verify the certificate against common name and subject alternative names</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Unfortunately, PHP doesn’t check the certificate against the alternative names, leading things like ‘<a href="https://www.github.com/">https://www.github.com/</a>‘ to be invalid.</p> <h3 id="see-also">See also</h3> <ul> <li>
+<a href="https://tools.ietf.org/html/rfc2818#section-3.1">https://tools.ietf.org/html/rfc2818#section-3.1</a>: RFC2818, Section 3.1</li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$host</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Host name to verify against</span> </p> </dd> <dt>$cert</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Certificate data from openssl_x509_parse()</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/requests/ssl.php/">wp-includes/Requests/SSL.php</a> </p> <pre data-language="php">public static function verify_certificate($host, $cert) {
+		$has_dns_alt = false;
+
+		// Check the subjectAltName
+		if (!empty($cert['extensions']) &amp;&amp; !empty($cert['extensions']['subjectAltName'])) {
+			$altnames = explode(',', $cert['extensions']['subjectAltName']);
+			foreach ($altnames as $altname) {
+				$altname = trim($altname);
+				if (strpos($altname, 'DNS:') !== 0) {
+					continue;
+				}
+
+				$has_dns_alt = true;
+
+				// Strip the 'DNS:' prefix and trim whitespace
+				$altname = trim(substr($altname, 4));
+
+				// Check for a match
+				if (self::match_domain($host, $altname) === true) {
+					return true;
+				}
+			}
+		}
+
+		// Fall back to checking the common name if we didn't get any dNSName
+		// alt names, as per RFC2818
+		if (!$has_dns_alt &amp;&amp; !empty($cert['subject']['CN'])) {
+			// Check for a match
+			if (self::match_domain($host, $cert['subject']['CN']) === true) {
+				return true;
+			}
+		}
+
+		return false;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/Requests/SSL.php:</span> <a href="match_domain">Requests_SSL::match_domain()</a> </td> <td class="related-desc"> <p>Match a hostname against a dNSName reference</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/Requests/Transport/fsockopen.php:</span> <a href="../requests_transport_fsockopen/verify_certificate_from_context">Requests_Transport_fsockopen::verify_certificate_from_context()</a> </td> <td class="related-desc"> <p>Verify the certificate against common name and subject alternative names</p> </td> </tr> </tbody>
+
+</table> </article> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/requests_ssl/verify_certificate" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/requests_ssl/verify_certificate</a>
+  </p>
+</div>

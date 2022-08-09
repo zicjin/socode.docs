@@ -1,0 +1,84 @@
+<h1>WP_oEmbed_Controller::get_proxy_item( WP_REST_Request $request )</h1>  <section> <p>Callback for the proxy API endpoint.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Returns the JSON object for the proxied item.</p> <h3 id="see-also">See also</h3> <ul> <li><a href="../wp_oembed/get_html">WP_oEmbed::get_html()</a></li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$request</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_REST_Request"><a href="../wp_rest_request">WP_REST_Request</a></span>)</span> <span class="required">(Required)</span> <span class="description">Full data about the request.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(object|<a href="../wp_error">WP_Error</a>)</span> oEmbed response data or <a href="../wp_error">WP_Error</a> on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-oembed-controller.php/">wp-includes/class-wp-oembed-controller.php</a> </p> <pre data-language="php">public function get_proxy_item( $request ) {
+		global $wp_embed;
+
+		$args = $request-&gt;get_params();
+
+		// Serve oEmbed data from cache if set.
+		unset( $args['_wpnonce'] );
+		$cache_key = 'oembed_' . md5( serialize( $args ) );
+		$data      = get_transient( $cache_key );
+		if ( ! empty( $data ) ) {
+			return $data;
+		}
+
+		$url = $request['url'];
+		unset( $args['url'] );
+
+		// Copy maxwidth/maxheight to width/height since WP_oEmbed::fetch() uses these arg names.
+		if ( isset( $args['maxwidth'] ) ) {
+			$args['width'] = $args['maxwidth'];
+		}
+		if ( isset( $args['maxheight'] ) ) {
+			$args['height'] = $args['maxheight'];
+		}
+
+		// Short-circuit process for URLs belonging to the current site.
+		$data = get_oembed_response_data_for_url( $url, $args );
+
+		if ( $data ) {
+			return $data;
+		}
+
+		$data = _wp_oembed_get_object()-&gt;get_data( $url, $args );
+
+		if ( false === $data ) {
+			// Try using a classic embed, instead.
+			/* @var WP_Embed $wp_embed */
+			$html = $wp_embed-&gt;get_embed_handler_html( $args, $url );
+
+			if ( $html ) {
+				global $wp_scripts;
+				// Check if any scripts were enqueued by the shortcode, and include them in the response.
+				$enqueued_scripts = array();
+
+				foreach ( $wp_scripts-&gt;queue as $script ) {
+					$enqueued_scripts[] = $wp_scripts-&gt;registered[ $script ]-&gt;src;
+				}
+
+				return (object) array(
+					'provider_name' =&gt; __( 'Embed Handler' ),
+					'html'          =&gt; $html,
+					'scripts'       =&gt; $enqueued_scripts,
+				);
+			}
+
+			return new WP_Error( 'oembed_invalid_url', get_status_header_desc( 404 ), array( 'status' =&gt; 404 ) );
+		}
+
+		/** This filter is documented in wp-includes/class-wp-oembed.php */
+		$data-&gt;html = apply_filters( 'oembed_result', _wp_oembed_get_object()-&gt;data2html( (object) $data, $url ), $url, $args );
+
+		/**
+		 * Filters the oEmbed TTL value (time to live).
+		 *
+		 * Similar to the {@see 'oembed_ttl'} filter, but for the REST API
+		 * oEmbed proxy endpoint.
+		 *
+		 * @since 4.8.0
+		 *
+		 * @param int    $time    Time to live (in seconds).
+		 * @param string $url     The attempted embed URL.
+		 * @param array  $args    An array of embed request arguments.
+		 */
+		$ttl = apply_filters( 'rest_oembed_ttl', DAY_IN_SECONDS, $url, $args );
+
+		set_transient( $cache_key, $data, $ttl );
+
+		return $data;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-embed.php:</span> <a href="../wp_embed/get_embed_handler_html">WP_Embed::get_embed_handler_html()</a> </td> <td class="related-desc"> <p>Returns embed HTML for a given URL from embed handlers.</p> </td> </tr> <tr> <td> <span>wp-includes/embed.php:</span> <a href="../../functions/get_oembed_response_data_for_url">get_oembed_response_data_for_url()</a> </td> <td class="related-desc"> <p>Retrieves the oEmbed response data for a given URL.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-oembed-controller.php:</span> <a href="../../hooks/rest_oembed_ttl">rest_oembed_ttl</a> </td> <td class="related-desc"> <p>Filters the oEmbed TTL value (time to live).</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/get_status_header_desc">get_status_header_desc()</a> </td> <td class="related-desc"> <p>Retrieve the description for the HTTP status.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-oembed.php:</span> <a href="../../hooks/oembed_result">oembed_result</a> </td> <td class="related-desc"> <p>Filters the HTML returned by the oEmbed provider.</p> </td> </tr> <tr> <td> <span>wp-includes/embed.php:</span> <a href="../../functions/_wp_oembed_get_object">_wp_oembed_get_object()</a> </td> <td class="related-desc"> <p>Returns the initialized <a href="../wp_oembed">WP_oEmbed</a> object.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../../functions/get_transient">get_transient()</a> </td> <td class="related-desc"> <p>Retrieves the value of a transient.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../../functions/set_transient">set_transient()</a> </td> <td class="related-desc"> <p>Sets/updates the value of a transient.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.8.0/" alt="WordPress 4.8.0">4.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_oembed_controller/get_proxy_item" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_oembed_controller/get_proxy_item</a>
+  </p>
+</div>

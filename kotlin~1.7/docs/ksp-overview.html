@@ -1,0 +1,205 @@
+<h1 data-toc="ksp-overview" id="ksp-overview.md">Kotlin Symbol Processing API</h1>
+<p id="1358bc9f">Kotlin Symbol Processing (<em id="e4377e4f" class="">KSP</em>) is an API that you can use to develop lightweight compiler plugins. KSP provides a simplified compiler plugin API that leverages the power of Kotlin while keeping the learning curve at a minimum. Compared to <a href="kapt" id="ea6ea05a">kapt</a>, annotation processors that use KSP can run up to 2 times faster.</p>
+<p id="2368dac5">To learn more about how KSP compares to kapt, check out <a href="ksp-why-ksp" id="81d276d8">why KSP</a>. To get started writing a KSP processor, take a look at the <a href="ksp-quickstart" id="a8bfae83">KSP quickstart</a>.</p>
+<section class="chapter"><h2 id="overview" data-toc="ksp-overview#overview">Overview</h2>
+<p id="bb42503">The KSP API processes Kotlin programs idiomatically. KSP understands Kotlin-specific features, such as extension functions, declaration-site variance, and local functions. It also models types explicitly and provides basic type checking, such as equivalence and assign-compatibility.</p>
+<p id="b529885e">The API models Kotlin program structures at the symbol level according to <a href="grammar" id="40b653a5" data-external="true" rel="noopener noreferrer">Kotlin grammar</a>. When KSP-based plugins process source programs, constructs like classes, class members, functions, and associated parameters are accessible for the processors, while things like <code class="code ">if</code> blocks and <code class="code ">for</code> loops are not.</p>
+<p id="78bdcd60">Conceptually, KSP is similar to <a href="../api/latest/jvm/stdlib/kotlin.reflect/-k-type/index" id="cadaa9d2" data-external="true" rel="noopener noreferrer">KType</a> in Kotlin reflection. The API allows processors to navigate from class declarations to corresponding types with specific type arguments and vice-versa. You can also substitute type arguments, specify variances, apply star projections, and mark nullabilities of types.</p>
+<p id="6962b975">Another way to think of KSP is as a preprocessor framework of Kotlin programs. By considering KSP-based plugins as <em id="697f6949" class="">symbol processors</em>, or simply <em id="29987384" class="">processors</em>, the data flow in a compilation can be described in the following steps:</p>
+<ol class="list _decimal" id="d2388b96">
+<li class="list__item" id="341bb5c4"><p>Processors read and analyze source programs and resources.</p></li>
+<li class="list__item" id="aa55d0a4"><p>Processors generate code or other forms of output.</p></li>
+<li class="list__item" id="451932c8"><p>The Kotlin compiler compiles the source programs together with the generated code.</p></li>
+</ol>
+<p id="9cd9adec">Unlike a full-fledged compiler plugin, processors cannot modify the code. A compiler plugin that changes language semantics can sometimes be very confusing. KSP avoids that by treating the source programs as read-only.</p>
+<p id="bd5c67a2">You can also get an overview of KSP in this video:</p>
+
+</section><section class="chapter"><h2 id="how-ksp-looks-at-source-files" data-toc="ksp-overview#how-ksp-looks-at-source-files">How KSP looks at source files</h2>
+<p id="b9673448">Most processors navigate through the various program structures of the input source code. Before diving into usage of the API, let's see at how a file might look from KSP's point of view:</p>
+<pre class="code" data-language="plaintext">KSFile
+  packageName: KSName
+  fileName: String
+  annotations: List&lt;KSAnnotation&gt;  (File annotations)
+  declarations: List&lt;KSDeclaration&gt;
+    KSClassDeclaration // class, interface, object
+      simpleName: KSName
+      qualifiedName: KSName
+      containingFile: String
+      typeParameters: KSTypeParameter
+      parentDeclaration: KSDeclaration
+      classKind: ClassKind
+      primaryConstructor: KSFunctionDeclaration
+      superTypes: List&lt;KSTypeReference&gt;
+      // contains inner classes, member functions, properties, etc.
+      declarations: List&lt;KSDeclaration&gt;
+    KSFunctionDeclaration // top level function
+      simpleName: KSName
+      qualifiedName: KSName
+      containingFile: String
+      typeParameters: KSTypeParameter
+      parentDeclaration: KSDeclaration
+      functionKind: FunctionKind
+      extensionReceiver: KSTypeReference?
+      returnType: KSTypeReference
+      parameters: List&lt;KSValueParameter&gt;
+      // contains local classes, local functions, local variables, etc.
+      declarations: List&lt;KSDeclaration&gt;
+    KSPropertyDeclaration // global variable
+      simpleName: KSName
+      qualifiedName: KSName
+      containingFile: String
+      typeParameters: KSTypeParameter
+      parentDeclaration: KSDeclaration
+      extensionReceiver: KSTypeReference?
+      type: KSTypeReference
+      getter: KSPropertyGetter
+        returnType: KSTypeReference
+      setter: KSPropertySetter
+        parameter: KSValueParameter
+</pre>
+<p id="d95a4b90">This view lists common things that are declared in the file: classes, functions, properties, and so on.</p></section><section class="chapter"><h2 id="symbolprocessorprovider-the-entry-point" data-toc="ksp-overview#symbolprocessorprovider-the-entry-point">SymbolProcessorProvider: the entry point</h2>
+<p id="aa6414f6">KSP expects an implementation of the <code class="code ">SymbolProcessorProvider</code> interface to instantiate <code class="code ">SymbolProcessor</code>:</p>
+<pre class="code" data-language="kotlin">interface SymbolProcessorProvider {
+    fun create(environment: SymbolProcessorEnvironment): SymbolProcessor
+}
+</pre>
+<p id="eff0b75e">While <code class="code ">SymbolProcessor</code> is defined as:</p>
+<pre class="code" data-language="kotlin">interface SymbolProcessor {
+    fun process(resolver: Resolver): List&lt;KSAnnotated&gt; // Let's focus on this
+    fun finish() {}
+    fun onError() {}
+}
+</pre>
+<p id="9dd1b14">A <code class="code ">Resolver</code> provides <code class="code ">SymbolProcessor</code> with access to compiler details such as symbols. A processor that finds all top-level functions and non-local functions in top-level classes might look something like the following:</p>
+<pre class="code" data-language="kotlin">class HelloFunctionFinderProcessor : SymbolProcessor() {
+    // ...
+    val functions = mutableListOf&lt;String&gt;()
+    val visitor = FindFunctionsVisitor()
+
+    override fun process(resolver: Resolver) {
+        resolver.getAllFiles().map { it.accept(visitor, Unit) }
+    }
+
+    inner class FindFunctionsVisitor : KSVisitorVoid() {
+        override fun visitClassDeclaration(classDeclaration: KSClassDeclaration, data: Unit) {
+            classDeclaration.getDeclaredFunctions().map { it.accept(this, Unit) }
+        }
+
+        override fun visitFunctionDeclaration(function: KSFunctionDeclaration, data: Unit) {
+            functions.add(function)
+        }
+
+        override fun visitFile(file: KSFile, data: Unit) {
+            file.declarations.map { it.accept(this, Unit) }
+        }
+    }
+    // ...
+    
+    class Provider : SymbolProcessorProvider {
+        override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor = TODO()
+    }
+}
+</pre></section><section class="chapter"><h2 id="resources" data-toc="ksp-overview#resources">Resources</h2>
+<ul class="list _ul" id="db469ed4">
+<li class="list__item" id="28adb140"><p><a href="ksp-quickstart" id="b8618678">Quickstart</a></p></li>
+<li class="list__item" id="64fda6d6"><p><a href="ksp-why-ksp" id="ad78b5cb">Why use KSP?</a></p></li>
+<li class="list__item" id="ce12d82c"><p><a href="ksp-examples" id="119594ea">Examples</a></p></li>
+<li class="list__item" id="c8f32243"><p><a href="ksp-additional-details" id="e29c18a6">How KSP models Kotlin code</a></p></li>
+<li class="list__item" id="1a668a1a"><p><a href="ksp-reference" id="e65174a0">Reference for Java annotation processor authors</a></p></li>
+<li class="list__item" id="b125088f"><p><a href="ksp-incremental" id="5016cdd">Incremental processing notes</a></p></li>
+<li class="list__item" id="5891daf3"><p><a href="ksp-multi-round" id="9ec82ca3">Multiple round processing notes</a></p></li>
+<li class="list__item" id="8b112a2b"><p><a href="ksp-multiplatform" id="826c728d">KSP on multiplatform projects</a></p></li>
+<li class="list__item" id="4f6d30a0"><p><a href="ksp-command-line" id="bda01abe">Running KSP from command line</a></p></li>
+<li class="list__item" id="76e9e74f"><p><a href="ksp-faq" id="8ccb0b94">FAQ</a></p></li>
+</ul></section><section class="chapter"><h2 id="supported-libraries" data-toc="ksp-overview#supported-libraries">Supported libraries</h2>
+<p id="536a575c">The table below includes a list of popular libraries on Android and their various stages of support for KSP.</p>
+<div class="table-wrapper"><table class=" wide" id="7a0db93">
+<thead><tr class="ijRowHead" id="d795bcac">
+<th id="d2511650"><p>Library</p></th>
+<th id="657c40"><p>Status</p></th>
+<th id="4fadcc87"><p>Tracking issue for KSP</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="2aee6c27">
+<td id="8c16c62"><p>Room</p></td>
+<td id="97f4dd5"><p><a href="https://developer.android.com/jetpack/androidx/releases/room#2.3.0-beta02" id="910428ea" data-external="true" rel="noopener noreferrer">Officially supported</a></p></td>
+<td id="3c6571ce"></td>
+</tr>
+<tr class="" id="93ae08fb">
+<td id="9f62fa36"><p>Moshi</p></td>
+<td id="f6f2ae9a"><p><a href="https://github.com/square/moshi/" id="5485ce68" data-external="true" rel="noopener noreferrer">Officially supported</a></p></td>
+<td id="8b5b61b3"></td>
+</tr>
+<tr class="" id="56f131e7">
+<td id="4f0d048d"><p>RxHttp</p></td>
+<td id="65ee7b72"><p><a href="https://github.com/liujingxing/rxhttp" id="7bd1f585" data-external="true" rel="noopener noreferrer">Officially supported</a></p></td>
+<td id="e6ca9d04"></td>
+</tr>
+<tr class="" id="41a4a0be">
+<td id="723f1bfe"><p>Kotshi</p></td>
+<td id="cec275e9"><p><a href="https://github.com/ansman/kotshi" id="70cd50ce" data-external="true" rel="noopener noreferrer">Officially supported</a></p></td>
+<td id="21786962"></td>
+</tr>
+<tr class="" id="76a457d7">
+<td id="da5aed22"><p>Lyricist</p></td>
+<td id="80b59965"><p><a href="https://github.com/adrielcafe/lyricist" id="c420b55f" data-external="true" rel="noopener noreferrer">Officially supported</a></p></td>
+<td id="9d2c44e9"></td>
+</tr>
+<tr class="" id="991775d4">
+<td id="695b1bd7"><p>Lich SavedState</p></td>
+<td id="f5565ffe"><p><a href="https://github.com/line/lich/tree/master/savedstate" id="6fad82df" data-external="true" rel="noopener noreferrer">Officially supported</a></p></td>
+<td id="ac2e57d9"></td>
+</tr>
+<tr class="" id="da0f9459">
+<td id="8deae3de"><p>gRPC Dekorator</p></td>
+<td id="f891ed0d"><p><a href="https://github.com/mottljan/grpc-dekorator" id="23e09e54" data-external="true" rel="noopener noreferrer">Officially supported</a></p></td>
+<td id="4234b4d3"></td>
+</tr>
+<tr class="" id="1a32b12b">
+<td id="b7800690"><p>EasyAdapter</p></td>
+<td id="cbf57b05"><p><a href="https://github.com/AmrDeveloper/EasyAdapter" id="a672e7a1" data-external="true" rel="noopener noreferrer">Officially supported</a></p></td>
+<td id="5a023310"></td>
+</tr>
+<tr class="" id="11ec84b4">
+<td id="28380ade"><p>Koin Annotations</p></td>
+<td id="b152fa97"><p><a href="https://github.com/InsertKoinIO/koin-annotations" id="8171386a" data-external="true" rel="noopener noreferrer">Officially supported</a></p></td>
+<td id="144f9b95"></td>
+</tr>
+<tr class="" id="7a344fd7">
+<td id="1498f646"><p>Auto Factory</p></td>
+<td id="b49fb3bd"><p>Not yet supported</p></td>
+<td id="764ff108"><p><a href="https://github.com/google/auto/issues/982" id="bfe973fe" data-external="true" rel="noopener noreferrer">Link</a></p></td>
+</tr>
+<tr class="" id="51dea57d">
+<td id="acf2066b"><p>Dagger</p></td>
+<td id="8cef59bb"><p>Not yet supported</p></td>
+<td id="97f4a9d1"><p><a href="https://github.com/google/dagger/issues/2349" id="bd09112" data-external="true" rel="noopener noreferrer">Link</a></p></td>
+</tr>
+<tr class="" id="2aea4b22">
+<td id="37e3c49a"><p>Hilt</p></td>
+<td id="ec193dcf"><p>Not yet supported</p></td>
+<td id="6e5873e2"><p><a href="https://issuetracker.google.com/179057202" id="e0275396" data-external="true" rel="noopener noreferrer">Link</a></p></td>
+</tr>
+<tr class="" id="9508f874">
+<td id="943fad4c"><p>Glide</p></td>
+<td id="a72c6b15"><p>Not yet supported</p></td>
+<td id="e0694d70"><p><a href="https://github.com/bumptech/glide/issues/4492" id="f47e07de" data-external="true" rel="noopener noreferrer">Link</a></p></td>
+</tr>
+<tr class="" id="4b4ed684">
+<td id="f1ea66a6"><p>DeeplinkDispatch</p></td>
+<td id="a2074285"><p><a href="https://github.com/airbnb/DeepLinkDispatch/pull/323" id="e3cb9f57" data-external="true" rel="noopener noreferrer">Supported via airbnb/DeepLinkDispatch#323</a></p></td>
+<td id="19df95f3"></td>
+</tr>
+<tr class="" id="475b9e22">
+<td id="d53fe84a"><p>Micronaut</p></td>
+<td id="4c9e91ac"><p>In Progress</p></td>
+<td id="29fc64e3"><p><a href="https://github.com/micronaut-projects/micronaut-core/issues/6781" id="36f40daf" data-external="true" rel="noopener noreferrer">Link</a></p></td>
+</tr>
+</tbody>
+</table></div></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="lombok">Lombok compiler plugin</a> <a class="navigation-links__next" href="ksp-quickstart">KSP quickstart</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/ksp-overview.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/ksp-overview.html</a>
+  </p>
+</div>

@@ -1,0 +1,77 @@
+<h1 id="class-RubyVM::YJIT::Block" class="class"> class RubyVM::YJIT::Block </h1>
+<dl class="meta">
+<dt>Parent:</dt>
+<dd class="meta-parent"><a href="../../object">Object</a></dd>
+</dl>  <section id="5Buntitled-5D" class="documentation-section"> <section id="public-instance-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Instance Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-i-address"> <span class="method-name">address</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description">
+<div class="method-source-code" id="address-source"> <pre class="c" data-language="c">static VALUE
+block_address(VALUE self)
+{
+    block_t * block;
+    TypedData_Get_Struct(self, block_t, &amp;yjit_block_type, block);
+    return LONG2NUM((intptr_t)block-&gt;start_addr);
+}</pre> </div> <p>Get the address of the code associated with a <a href="block"><code>YJIT::Block</code></a></p>  </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-code"> <span class="method-name">code</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description">
+<div class="method-source-code" id="code-source"> <pre class="c" data-language="c">static VALUE
+block_code(VALUE self)
+{
+    block_t * block;
+    TypedData_Get_Struct(self, block_t, &amp;yjit_block_type, block);
+
+    return (VALUE)rb_str_new(
+        (const char*)block-&gt;start_addr,
+        block-&gt;end_addr - block-&gt;start_addr
+    );
+}</pre> </div> <p>Get the machine code for <a href="block"><code>YJIT::Block</code></a> as a binary string</p>  </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-id"> <span class="method-callseq"> id → unique_id </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description">
+<div class="method-source-code" id="id-source"> <pre class="c" data-language="c">static VALUE
+block_id(VALUE self)
+{
+    block_t * block;
+    TypedData_Get_Struct(self, block_t, &amp;yjit_block_type, block);
+    return PTR2NUM(block);
+}</pre> </div> <p>Returns a unique integer ID for the block. For example:</p> <pre class="ruby" data-language="ruby">blocks = blocks_for(iseq)
+blocks.group_by(&amp;:id)
+</pre>  </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-iseq_end_index"> <span class="method-name">iseq_end_index</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description">
+<div class="method-source-code" id="iseq_end_index-source"> <pre class="c" data-language="c">static VALUE
+iseq_end_index(VALUE self)
+{
+    block_t * block;
+    TypedData_Get_Struct(self, block_t, &amp;yjit_block_type, block);
+
+    return INT2NUM(block-&gt;end_idx);
+}</pre> </div> <p>Get the end index in the Instruction Sequence that corresponds to this <a href="block"><code>YJIT::Block</code></a></p>  </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-iseq_start_index"> <span class="method-name">iseq_start_index</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description">
+<div class="method-source-code" id="iseq_start_index-source"> <pre class="c" data-language="c">static VALUE
+iseq_start_index(VALUE self)
+{
+    block_t * block;
+    TypedData_Get_Struct(self, block_t, &amp;yjit_block_type, block);
+
+    return INT2NUM(block-&gt;blockid.idx);
+}</pre> </div> <p>Get the start index in the Instruction Sequence that corresponds to this <a href="block"><code>YJIT::Block</code></a></p>  </div> </div> <div class="method-detail "> <div class="method-heading" id="method-i-outgoing_ids"> <span class="method-callseq"> outgoing_ids → list </span> <a class="method-click-advice">Show source</a> </div> <div class="method-description">
+<div class="method-source-code" id="outgoing_ids-source"> <pre class="c" data-language="c">static VALUE
+outgoing_ids(VALUE self)
+{
+    block_t * block;
+    TypedData_Get_Struct(self, block_t, &amp;yjit_block_type, block);
+
+    VALUE ids = rb_ary_new();
+
+    rb_darray_for(block-&gt;outgoing, branch_idx) {
+        branch_t *out_branch = rb_darray_get(block-&gt;outgoing, branch_idx);
+
+        for (size_t succ_idx = 0; succ_idx &lt; 2; succ_idx++) {
+            block_t *succ = out_branch-&gt;blocks[succ_idx];
+
+            if (succ == NULL)
+                continue;
+
+            rb_ary_push(ids, PTR2NUM(succ));
+        }
+
+    }
+
+    return ids;
+}</pre> </div> <p>Returns a list of outgoing ids for the current block. This list can be used in conjunction with <a href="block#method-i-id"><code>Block#id</code></a> to construct a graph of block objects.</p>  </div> </div> </section> </section><div class="_attribution">
+  <p class="_attribution-p">
+    Ruby Core &copy; 1993&ndash;2022 Yukihiro Matsumoto<br>Licensed under the Ruby License.<br>Ruby Standard Library &copy; contributors<br>Licensed under their own licenses.<br>
+    
+  </p>
+</div>

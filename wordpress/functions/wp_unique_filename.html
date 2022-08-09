@@ -1,0 +1,255 @@
+<h1>wp_unique_filename( string $dir, string $filename, callable $unique_filename_callback = null )</h1>  <section> <p>Get a filename that is sanitized and unique for the given directory.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>If the filename is not unique, then a number will be added to the filename before the extension, and will continue adding numbers until the filename is unique.</p> <p>The callback function allows the caller to use their own method to create unique file names. If defined, the callback should take three arguments:</p> <ul> <li>directory, base filename, and extension – and return a unique filename.</li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$dir</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Directory.</span> </p> </dd> <dt>$filename</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">File name.</span> </p> </dd> <dt>$unique_filename_callback</dt> <dd> <p class="desc"> <span class="type">(<span class="callable">callable</span>)</span> <span class="required">(Optional)</span> <span class="description">Callback. </span> </p> <p class="default">Default value: null</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> New filename, if given wasn't unique.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/functions.php/">wp-includes/functions.php</a> </p> <pre data-language="php">function wp_unique_filename( $dir, $filename, $unique_filename_callback = null ) {
+	// Sanitize the file name before we begin processing.
+	$filename = sanitize_file_name( $filename );
+	$ext2     = null;
+
+	// Initialize vars used in the wp_unique_filename filter.
+	$number        = '';
+	$alt_filenames = array();
+
+	// Separate the filename into a name and extension.
+	$ext  = pathinfo( $filename, PATHINFO_EXTENSION );
+	$name = pathinfo( $filename, PATHINFO_BASENAME );
+
+	if ( $ext ) {
+		$ext = '.' . $ext;
+	}
+
+	// Edge case: if file is named '.ext', treat as an empty name.
+	if ( $name === $ext ) {
+		$name = '';
+	}
+
+	/*
+	 * Increment the file number until we have a unique file to save in $dir.
+	 * Use callback if supplied.
+	 */
+	if ( $unique_filename_callback &amp;&amp; is_callable( $unique_filename_callback ) ) {
+		$filename = call_user_func( $unique_filename_callback, $dir, $name, $ext );
+	} else {
+		$fname = pathinfo( $filename, PATHINFO_FILENAME );
+
+		// Always append a number to file names that can potentially match image sub-size file names.
+		if ( $fname &amp;&amp; preg_match( '/-(?:\d+x\d+|scaled|rotated)$/', $fname ) ) {
+			$number = 1;
+
+			// At this point the file name may not be unique. This is tested below and the $number is incremented.
+			$filename = str_replace( "{$fname}{$ext}", "{$fname}-{$number}{$ext}", $filename );
+		}
+
+		/*
+		 * Get the mime type. Uploaded files were already checked with wp_check_filetype_and_ext()
+		 * in _wp_handle_upload(). Using wp_check_filetype() would be sufficient here.
+		 */
+		$file_type = wp_check_filetype( $filename );
+		$mime_type = $file_type['type'];
+
+		$is_image    = ( ! empty( $mime_type ) &amp;&amp; 0 === strpos( $mime_type, 'image/' ) );
+		$upload_dir  = wp_get_upload_dir();
+		$lc_filename = null;
+
+		$lc_ext = strtolower( $ext );
+		$_dir   = trailingslashit( $dir );
+
+		/*
+		 * If the extension is uppercase add an alternate file name with lowercase extension.
+		 * Both need to be tested for uniqueness as the extension will be changed to lowercase
+		 * for better compatibility with different filesystems. Fixes an inconsistency in WP &lt; 2.9
+		 * where uppercase extensions were allowed but image sub-sizes were created with
+		 * lowercase extensions.
+		 */
+		if ( $ext &amp;&amp; $lc_ext !== $ext ) {
+			$lc_filename = preg_replace( '|' . preg_quote( $ext ) . '$|', $lc_ext, $filename );
+		}
+
+		/*
+		 * Increment the number added to the file name if there are any files in $dir
+		 * whose names match one of the possible name variations.
+		 */
+		while ( file_exists( $_dir . $filename ) || ( $lc_filename &amp;&amp; file_exists( $_dir . $lc_filename ) ) ) {
+			$new_number = (int) $number + 1;
+
+			if ( $lc_filename ) {
+				$lc_filename = str_replace(
+					array( "-{$number}{$lc_ext}", "{$number}{$lc_ext}" ),
+					"-{$new_number}{$lc_ext}",
+					$lc_filename
+				);
+			}
+
+			if ( '' === "{$number}{$ext}" ) {
+				$filename = "{$filename}-{$new_number}";
+			} else {
+				$filename = str_replace(
+					array( "-{$number}{$ext}", "{$number}{$ext}" ),
+					"-{$new_number}{$ext}",
+					$filename
+				);
+			}
+
+			$number = $new_number;
+		}
+
+		// Change the extension to lowercase if needed.
+		if ( $lc_filename ) {
+			$filename = $lc_filename;
+		}
+
+		/*
+		 * Prevent collisions with existing file names that contain dimension-like strings
+		 * (whether they are subsizes or originals uploaded prior to #42437).
+		 */
+
+		$files = array();
+		$count = 10000;
+
+		// The (resized) image files would have name and extension, and will be in the uploads dir.
+		if ( $name &amp;&amp; $ext &amp;&amp; @is_dir( $dir ) &amp;&amp; false !== strpos( $dir, $upload_dir['basedir'] ) ) {
+			/**
+			 * Filters the file list used for calculating a unique filename for a newly added file.
+			 *
+			 * Returning an array from the filter will effectively short-circuit retrieval
+			 * from the filesystem and return the passed value instead.
+			 *
+			 * @since 5.5.0
+			 *
+			 * @param array|null $files    The list of files to use for filename comparisons.
+			 *                             Default null (to retrieve the list from the filesystem).
+			 * @param string     $dir      The directory for the new file.
+			 * @param string     $filename The proposed filename for the new file.
+			 */
+			$files = apply_filters( 'pre_wp_unique_filename_file_list', null, $dir, $filename );
+
+			if ( null === $files ) {
+				// List of all files and directories contained in $dir.
+				$files = @scandir( $dir );
+			}
+
+			if ( ! empty( $files ) ) {
+				// Remove "dot" dirs.
+				$files = array_diff( $files, array( '.', '..' ) );
+			}
+
+			if ( ! empty( $files ) ) {
+				$count = count( $files );
+
+				/*
+				 * Ensure this never goes into infinite loop as it uses pathinfo() and regex in the check,
+				 * but string replacement for the changes.
+				 */
+				$i = 0;
+
+				while ( $i &lt;= $count &amp;&amp; _wp_check_existing_file_names( $filename, $files ) ) {
+					$new_number = (int) $number + 1;
+
+					// If $ext is uppercase it was replaced with the lowercase version after the previous loop.
+					$filename = str_replace(
+						array( "-{$number}{$lc_ext}", "{$number}{$lc_ext}" ),
+						"-{$new_number}{$lc_ext}",
+						$filename
+					);
+
+					$number = $new_number;
+					$i++;
+				}
+			}
+		}
+
+		/*
+		 * Check if an image will be converted after uploading or some existing image sub-size file names may conflict
+		 * when regenerated. If yes, ensure the new file name will be unique and will produce unique sub-sizes.
+		 */
+		if ( $is_image ) {
+			/** This filter is documented in wp-includes/class-wp-image-editor.php */
+			$output_formats = apply_filters( 'image_editor_output_format', array(), $_dir . $filename, $mime_type );
+			$alt_types      = array();
+
+			if ( ! empty( $output_formats[ $mime_type ] ) ) {
+				// The image will be converted to this format/mime type.
+				$alt_mime_type = $output_formats[ $mime_type ];
+
+				// Other types of images whose names may conflict if their sub-sizes are regenerated.
+				$alt_types   = array_keys( array_intersect( $output_formats, array( $mime_type, $alt_mime_type ) ) );
+				$alt_types[] = $alt_mime_type;
+			} elseif ( ! empty( $output_formats ) ) {
+				$alt_types = array_keys( array_intersect( $output_formats, array( $mime_type ) ) );
+			}
+
+			// Remove duplicates and the original mime type. It will be added later if needed.
+			$alt_types = array_unique( array_diff( $alt_types, array( $mime_type ) ) );
+
+			foreach ( $alt_types as $alt_type ) {
+				$alt_ext = wp_get_default_extension_for_mime_type( $alt_type );
+
+				if ( ! $alt_ext ) {
+					continue;
+				}
+
+				$alt_ext      = ".{$alt_ext}";
+				$alt_filename = preg_replace( '|' . preg_quote( $lc_ext ) . '$|', $alt_ext, $filename );
+
+				$alt_filenames[ $alt_ext ] = $alt_filename;
+			}
+
+			if ( ! empty( $alt_filenames ) ) {
+				/*
+				 * Add the original filename. It needs to be checked again
+				 * together with the alternate filenames when $number is incremented.
+				 */
+				$alt_filenames[ $lc_ext ] = $filename;
+
+				// Ensure no infinite loop.
+				$i = 0;
+
+				while ( $i &lt;= $count &amp;&amp; _wp_check_alternate_file_names( $alt_filenames, $_dir, $files ) ) {
+					$new_number = (int) $number + 1;
+
+					foreach ( $alt_filenames as $alt_ext =&gt; $alt_filename ) {
+						$alt_filenames[ $alt_ext ] = str_replace(
+							array( "-{$number}{$alt_ext}", "{$number}{$alt_ext}" ),
+							"-{$new_number}{$alt_ext}",
+							$alt_filename
+						);
+					}
+
+					/*
+					 * Also update the $number in (the output) $filename.
+					 * If the extension was uppercase it was already replaced with the lowercase version.
+					 */
+					$filename = str_replace(
+						array( "-{$number}{$lc_ext}", "{$number}{$lc_ext}" ),
+						"-{$new_number}{$lc_ext}",
+						$filename
+					);
+
+					$number = $new_number;
+					$i++;
+				}
+			}
+		}
+	}
+
+	/**
+	 * Filters the result when generating a unique file name.
+	 *
+	 * @since 4.5.0
+	 * @since 5.8.1 The `$alt_filenames` and `$number` parameters were added.
+	 *
+	 * @param string        $filename                 Unique file name.
+	 * @param string        $ext                      File extension. Example: ".png".
+	 * @param string        $dir                      Directory path.
+	 * @param callable|null $unique_filename_callback Callback function that generates the unique file name.
+	 * @param string[]      $alt_filenames            Array of alternate file names that were checked for collisions.
+	 * @param int|string    $number                   The highest number that was used to make the file name unique
+	 *                                                or an empty string if unused.
+	 */
+	return apply_filters( 'wp_unique_filename', $filename, $ext, $dir, $unique_filename_callback, $alt_filenames, $number );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_get_default_extension_for_mime_type">wp_get_default_extension_for_mime_type()</a> </td> <td class="related-desc"> <p>Returns first matched extension for the mime-type, as mapped from <a href="wp_get_mime_types">wp_get_mime_types()</a>.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="_wp_check_alternate_file_names">_wp_check_alternate_file_names()</a> </td> <td class="related-desc"> <p>Helper function to test if each of an array of file names could conflict with existing files.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-image-editor.php:</span> <a href="../hooks/image_editor_output_format">image_editor_output_format</a> </td> <td class="related-desc"> <p>Filters the image editor output format mapping.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../hooks/pre_wp_unique_filename_file_list">pre_wp_unique_filename_file_list</a> </td> <td class="related-desc"> <p>Filters the file list used for calculating a unique filename for a newly added file.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="_wp_check_existing_file_names">_wp_check_existing_file_names()</a> </td> <td class="related-desc"> <p>Helper function to check if a file name could match an existing image sub-size file name.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../hooks/wp_unique_filename">wp_unique_filename</a> </td> <td class="related-desc"> <p>Filters the result when generating a unique file name.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_get_upload_dir">wp_get_upload_dir()</a> </td> <td class="related-desc"> <p>Retrieves uploads directory information.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="trailingslashit">trailingslashit()</a> </td> <td class="related-desc"> <p>Appends a trailing slash.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="sanitize_file_name">sanitize_file_name()</a> </td> <td class="related-desc"> <p>Sanitizes a filename, replacing whitespace with dashes.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_check_filetype">wp_check_filetype()</a> </td> <td class="related-desc"> <p>Retrieve the file type from the file name.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-attachments-controller.php:</span> <a href="../classes/wp_rest_attachments_controller/edit_media_item">WP_REST_Attachments_Controller::edit_media_item()</a> </td> <td class="related-desc"> <p>Applies edits to a media item and creates a new attachment record.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/privacy-tools.php:</span> <a href="wp_privacy_generate_personal_data_export_file">wp_privacy_generate_personal_data_export_file()</a> </td> <td class="related-desc"> <p>Generate the personal data export file.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/file.php:</span> <a href="_wp_handle_upload">_wp_handle_upload()</a> </td> <td class="related-desc"> <p>Handles PHP uploads in WordPress.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/image.php:</span> <a href="_copy_image_file">_copy_image_file()</a> </td> <td class="related-desc"> <p>Copy an existing image file.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/image.php:</span> <a href="wp_generate_attachment_metadata">wp_generate_attachment_metadata()</a> </td> <td class="related-desc"> <p>Generate attachment meta data and create image sub-sizes for images.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/image.php:</span> <a href="wp_crop_image">wp_crop_image()</a> </td> <td class="related-desc"> <p>Crops an image to a given size.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/file.php:</span> <a href="wp_tempnam">wp_tempnam()</a> </td> <td class="related-desc"> <p>Returns a filename of a temporary unique file.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_upload_bits">wp_upload_bits()</a> </td> <td class="related-desc"> <p>Create a file in the upload folder with given content.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.5.0/" alt="WordPress 2.5.0">2.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_unique_filename" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_unique_filename</a>
+  </p>
+</div>

@@ -1,0 +1,104 @@
+<h1>get_comment_link( WP_Comment|int|null $comment = null, array $args = array() )</h1>  <section> <p>Retrieves the link to a given comment.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <h3 id="see-also">See also</h3> <ul> <li><a href="get_page_of_comment">get_page_of_comment()</a></li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$comment</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Comment"><a href="../classes/wp_comment">WP_Comment</a></span>|<span class="int">int</span>|<span class="null">null</span>)</span> <span class="required">(Optional)</span> <span class="description">Comment to retrieve. Default current comment.</span> </p> <p class="default">Default value: null</p> </dd> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description">An array of optional arguments to override the defaults. <ul class="param-hash">
+<li>
+<b>'type'</b><br><i><span class="type">(string)</span></i> Passed to <a href="get_page_of_comment">get_page_of_comment()</a>.</li> <li>
+<b>'page'</b><br><i><span class="type">(int)</span></i> Current page of comments, for calculating comment pagination.</li> <li>
+<b>'per_page'</b><br><i><span class="type">(int)</span></i> Per-page value for comment pagination.</li> <li>
+<b>'max_depth'</b><br><i><span class="type">(int)</span></i> Passed to <a href="get_page_of_comment">get_page_of_comment()</a>.</li> <li>
+<b>'cpage'</b><br><i><span class="type">(int|string)</span></i> Value to use for the comment's "comment-page" or "cpage" value. If provided, this value overrides any value calculated from <code>$page</code> and <code>$per_page</code>.</li> </ul> </span> </p> <p class="default">Default value: array()</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> The permalink to the given comment.</p> </section>  <section> <h2 id="more-information">More Information</h2>  <div id="pagebody"> <div class="wrapper"> <div id="bodyContent" class="col-10"> <div id="mw-content-text" class="mw-content-ltr" dir="ltr" lang="en"> <h3 id="default-arguments">Default Arguments</h3> <p>The following default arguments are used unless found in the optional <tt>$args</tt> argument:</p> <dl> <dt>page</dt> <dd>The zero-based index for the page where the comment should appear. Defaults to <tt>0</tt>. <b>Note</b>: for backward compatibility the entire <tt>$args</tt> argument is treated as an integer and used for this argument if it is not found to be an array.</dd> </dl> <dl> <dt>type</dt> <dd>The type of comment (not used directly). Defaults to <tt>'all'</tt>.</dd> </dl> <dl> <dt>per_page</dt> <dd>Number of comments per page. Defaults to <tt>0</tt>.</dd> </dl> <dl> <dt>max_depth</dt> <dd>Maximum depth to be considered for comments, when threaded (not used directly). Defaults to <tt>''</tt>
+</dd> </dl> </div> </div> </div> </div> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/comment-template.php/">wp-includes/comment-template.php</a> </p> <pre data-language="php">function get_comment_link( $comment = null, $args = array() ) {
+	global $wp_rewrite, $in_comment_loop;
+
+	$comment = get_comment( $comment );
+
+	// Back-compat.
+	if ( ! is_array( $args ) ) {
+		$args = array( 'page' =&gt; $args );
+	}
+
+	$defaults = array(
+		'type'      =&gt; 'all',
+		'page'      =&gt; '',
+		'per_page'  =&gt; '',
+		'max_depth' =&gt; '',
+		'cpage'     =&gt; null,
+	);
+	$args     = wp_parse_args( $args, $defaults );
+
+	$link = get_permalink( $comment-&gt;comment_post_ID );
+
+	// The 'cpage' param takes precedence.
+	if ( ! is_null( $args['cpage'] ) ) {
+		$cpage = $args['cpage'];
+
+		// No 'cpage' is provided, so we calculate one.
+	} else {
+		if ( '' === $args['per_page'] &amp;&amp; get_option( 'page_comments' ) ) {
+			$args['per_page'] = get_option( 'comments_per_page' );
+		}
+
+		if ( empty( $args['per_page'] ) ) {
+			$args['per_page'] = 0;
+			$args['page']     = 0;
+		}
+
+		$cpage = $args['page'];
+
+		if ( '' == $cpage ) {
+			if ( ! empty( $in_comment_loop ) ) {
+				$cpage = get_query_var( 'cpage' );
+			} else {
+				// Requires a database hit, so we only do it when we can't figure out from context.
+				$cpage = get_page_of_comment( $comment-&gt;comment_ID, $args );
+			}
+		}
+
+		/*
+		 * If the default page displays the oldest comments, the permalinks for comments on the default page
+		 * do not need a 'cpage' query var.
+		 */
+		if ( 'oldest' === get_option( 'default_comments_page' ) &amp;&amp; 1 === $cpage ) {
+			$cpage = '';
+		}
+	}
+
+	if ( $cpage &amp;&amp; get_option( 'page_comments' ) ) {
+		if ( $wp_rewrite-&gt;using_permalinks() ) {
+			if ( $cpage ) {
+				$link = trailingslashit( $link ) . $wp_rewrite-&gt;comments_pagination_base . '-' . $cpage;
+			}
+
+			$link = user_trailingslashit( $link, 'comment' );
+		} elseif ( $cpage ) {
+			$link = add_query_arg( 'cpage', $cpage, $link );
+		}
+	}
+
+	if ( $wp_rewrite-&gt;using_permalinks() ) {
+		$link = user_trailingslashit( $link, 'comment' );
+	}
+
+	$link = $link . '#comment-' . $comment-&gt;comment_ID;
+
+	/**
+	 * Filters the returned single comment permalink.
+	 *
+	 * @since 2.8.0
+	 * @since 4.4.0 Added the `$cpage` parameter.
+	 *
+	 * @see get_page_of_comment()
+	 *
+	 * @param string     $link    The comment permalink with '#comment-$id' appended.
+	 * @param WP_Comment $comment The current comment object.
+	 * @param array      $args    An array of arguments to override the defaults.
+	 * @param int        $cpage   The calculated 'cpage' value.
+	 */
+	return apply_filters( 'get_comment_link', $link, $comment, $args, $cpage );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="trailingslashit">trailingslashit()</a> </td> <td class="related-desc"> <p>Appends a trailing slash.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="get_query_var">get_query_var()</a> </td> <td class="related-desc"> <p>Retrieves the value of a query variable in the <a href="../classes/wp_query">WP_Query</a> class.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_parse_args">wp_parse_args()</a> </td> <td class="related-desc"> <p>Merges user defined arguments into defaults array.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="add_query_arg">add_query_arg()</a> </td> <td class="related-desc"> <p>Retrieves a modified URL query string.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="get_permalink">get_permalink()</a> </td> <td class="related-desc"> <p>Retrieves the full permalink for the current post or post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="user_trailingslashit">user_trailingslashit()</a> </td> <td class="related-desc"> <p>Retrieves a trailing-slashed string if the site is set for adding trailing slashes.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-rewrite.php:</span> <a href="../classes/wp_rewrite/using_permalinks">WP_Rewrite::using_permalinks()</a> </td> <td class="related-desc"> <p>Determines whether permalinks are being used.</p> </td> </tr> <tr> <td> <span>wp-includes/comment-template.php:</span> <a href="../hooks/get_comment_link">get_comment_link</a> </td> <td class="related-desc"> <p>Filters the returned single comment permalink.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="get_page_of_comment">get_page_of_comment()</a> </td> <td class="related-desc"> <p>Calculates what page number a comment will appear on for comment paging.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="get_comment">get_comment()</a> </td> <td class="related-desc"> <p>Retrieves comment data given a comment ID or comment object.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/comment.php:</span> <a href="wp_comments_personal_data_exporter">wp_comments_personal_data_exporter()</a> </td> <td class="related-desc"> <p>Finds and exports personal data associated with an email address from the comments table.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-comments-controller.php:</span> <a href="../classes/wp_rest_comments_controller/prepare_item_for_response">WP_REST_Comments_Controller::prepare_item_for_response()</a> </td> <td class="related-desc"> <p>Prepares a single comment output for response.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/dashboard.php:</span> <a href="_wp_dashboard_recent_comments_row">_wp_dashboard_recent_comments_row()</a> </td> <td class="related-desc"> <p>Outputs a row for the Recent Comments widget.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/ajax-actions.php:</span> <a href="_wp_ajax_delete_comment_response">_wp_ajax_delete_comment_response()</a> </td> <td class="related-desc"> <p>Sends back current comment total and new page links if they need to be updated.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-comments-list-table.php:</span> <a href="../classes/wp_comments_list_table/column_date">WP_Comments_List_Table::column_date()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-comments-list-table.php:</span> <a href="../classes/wp_comments_list_table/column_comment">WP_Comments_List_Table::column_comment()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_notify_postauthor">wp_notify_postauthor()</a> </td> <td class="related-desc"> <p>Notify an author (and/or others) of a comment/trackback/pingback on a post.</p> </td> </tr> <tr> <td> <span>wp-includes/widgets/class-wp-widget-recent-comments.php:</span> <a href="../classes/wp_widget_recent_comments/widget">WP_Widget_Recent_Comments::widget()</a> </td> <td class="related-desc"> <p>Outputs the content for the current Recent Comments widget instance.</p> </td> </tr> <tr> <td> <span>wp-includes/feed.php:</span> <a href="comment_link">comment_link()</a> </td> <td class="related-desc"> <p>Display the link to the comments.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="../classes/wp_xmlrpc_server/_prepare_comment">wp_xmlrpc_server::_prepare_comment()</a> </td> <td class="related-desc"> <p>Prepares comment data for return in an XML-RPC object.</p> </td> </tr> <tr> <td> <span>wp-includes/class-walker-comment.php:</span> <a href="../classes/walker_comment/comment">Walker_Comment::comment()</a> </td> <td class="related-desc"> <p>Outputs a single comment.</p> </td> </tr> <tr> <td> <span>wp-includes/class-walker-comment.php:</span> <a href="../classes/walker_comment/html5_comment">Walker_Comment::html5_comment()</a> </td> <td class="related-desc"> <p>Outputs a comment in the HTML5 format.</p> </td> </tr> <tr> <td> <span>wp-includes/comment-template.php:</span> <a href="get_comment_reply_link">get_comment_reply_link()</a> </td> <td class="related-desc"> <p>Retrieves HTML content for reply to comment link.</p> </td> </tr> <tr> <td> <span>wp-includes/comment-template.php:</span> <a href="get_comment_text">get_comment_text()</a> </td> <td class="related-desc"> <p>Retrieves the text of the current comment.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.4.0/" alt="WordPress 4.4.0">4.4.0</a></td> <td><span class="since-description">Added the ability for <code>$comment</code> to also accept a <a href="../classes/wp_comment">WP_Comment</a> object. Added <code>$cpage</code> argument.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/1.5.0/" alt="WordPress 1.5.0">1.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/get_comment_link" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/get_comment_link</a>
+  </p>
+</div>

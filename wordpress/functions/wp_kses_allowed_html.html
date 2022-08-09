@@ -1,0 +1,77 @@
+<h1>wp_kses_allowed_html( string|array $context = '' )</h1>  <section> <p>Returns an array of allowed HTML tags and attributes for a given context.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$context</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>|<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description">The context for which to retrieve tags. Allowed values are 'post', 'strip', 'data', 'entities', or the name of a field filter such as 'pre_user_description', or an array of allowed HTML elements and attributes.</span> </p> <p class="default">Default value: ''</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> Array of allowed HTML tags and their allowed attributes.</p> </section>  <section> <h2 id="more-information">More Information</h2> <p>The Return value is a multidimensional array with the tag name as the key and an array of attributes as the value.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/kses.php/">wp-includes/kses.php</a> </p> <pre data-language="php">function wp_kses_allowed_html( $context = '' ) {
+	global $allowedposttags, $allowedtags, $allowedentitynames;
+
+	if ( is_array( $context ) ) {
+		// When `$context` is an array it's actually an array of allowed HTML elements and attributes.
+		$html    = $context;
+		$context = 'explicit';
+
+		/**
+		 * Filters the HTML tags that are allowed for a given context.
+		 *
+		 * HTML tags and attribute names are case-insensitive in HTML but must be
+		 * added to the KSES allow list in lowercase. An item added to the allow list
+		 * in upper or mixed case will not recognized as permitted by KSES.
+		 *
+		 * @since 3.5.0
+		 *
+		 * @param array[] $html    Allowed HTML tags.
+		 * @param string  $context Context name.
+		 */
+		return apply_filters( 'wp_kses_allowed_html', $html, $context );
+	}
+
+	switch ( $context ) {
+		case 'post':
+			/** This filter is documented in wp-includes/kses.php */
+			$tags = apply_filters( 'wp_kses_allowed_html', $allowedposttags, $context );
+
+			// 5.0.1 removed the `&lt;form&gt;` tag, allow it if a filter is allowing it's sub-elements `&lt;input&gt;` or `&lt;select&gt;`.
+			if ( ! CUSTOM_TAGS &amp;&amp; ! isset( $tags['form'] ) &amp;&amp; ( isset( $tags['input'] ) || isset( $tags['select'] ) ) ) {
+				$tags = $allowedposttags;
+
+				$tags['form'] = array(
+					'action'         =&gt; true,
+					'accept'         =&gt; true,
+					'accept-charset' =&gt; true,
+					'enctype'        =&gt; true,
+					'method'         =&gt; true,
+					'name'           =&gt; true,
+					'target'         =&gt; true,
+				);
+
+				/** This filter is documented in wp-includes/kses.php */
+				$tags = apply_filters( 'wp_kses_allowed_html', $tags, $context );
+			}
+
+			return $tags;
+
+		case 'user_description':
+		case 'pre_user_description':
+			$tags             = $allowedtags;
+			$tags['a']['rel'] = true;
+			/** This filter is documented in wp-includes/kses.php */
+			return apply_filters( 'wp_kses_allowed_html', $tags, $context );
+
+		case 'strip':
+			/** This filter is documented in wp-includes/kses.php */
+			return apply_filters( 'wp_kses_allowed_html', array(), $context );
+
+		case 'entities':
+			/** This filter is documented in wp-includes/kses.php */
+			return apply_filters( 'wp_kses_allowed_html', $allowedentitynames, $context );
+
+		case 'data':
+		default:
+			/** This filter is documented in wp-includes/kses.php */
+			return apply_filters( 'wp_kses_allowed_html', $allowedtags, $context );
+	}
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/kses.php:</span> <a href="../hooks/wp_kses_allowed_html">wp_kses_allowed_html</a> </td> <td class="related-desc"> <p>Filters the HTML tags that are allowed for a given context.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="wp_get_code_editor_settings">wp_get_code_editor_settings()</a> </td> <td class="related-desc"> <p>Generate and return code editor settings.</p> </td> </tr> <tr> <td> <span>wp-includes/widgets/class-wp-widget-custom-html.php:</span> <a href="../classes/wp_widget_custom_html/render_control_template_scripts">WP_Widget_Custom_HTML::render_control_template_scripts()</a> </td> <td class="related-desc"> <p>Render form template scripts.</p> </td> </tr> <tr> <td> <span>wp-includes/kses.php:</span> <a href="wp_kses_one_attr">wp_kses_one_attr()</a> </td> <td class="related-desc"> <p>Filters one HTML attribute and ensures its value is allowed.</p> </td> </tr> <tr> <td> <span>wp-includes/kses.php:</span> <a href="wp_kses_attr">wp_kses_attr()</a> </td> <td class="related-desc"> <p>Removes all attributes, if none are allowed for this element.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="gallery_shortcode">gallery_shortcode()</a> </td> <td class="related-desc"> <p>Builds the Gallery shortcode output.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.0.1/" alt="WordPress 5.0.1">5.0.1</a></td> <td><span class="since-description"><code>form</code> removed as allowable HTML tag.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.5.0/" alt="WordPress 3.5.0">3.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_kses_allowed_html" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_kses_allowed_html</a>
+  </p>
+</div>

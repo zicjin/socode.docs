@@ -1,0 +1,64 @@
+<h1>install_blog( int $blog_id, string $blog_title = '' )</h1> <div class="callout callout-warning">
+<p> This function has been deprecated.</p> </div>  <section> <p>Install an empty blog.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Creates the new blog tables and options. If calling this function directly, be sure to use <a href="switch_to_blog">switch_to_blog()</a> first, so that $<a href="../classes/wpdb">wpdb</a> points to the new blog.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$blog_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">The value returned by <a href="wp_insert_site">wp_insert_site()</a>.</span> </p> </dd> <dt>$blog_title</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description">The title of the new site.</span> </p> <p class="default">Default value: ''</p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/ms-deprecated.php/">wp-includes/ms-deprecated.php</a> </p> <pre data-language="php">function install_blog( $blog_id, $blog_title = '' ) {
+	global $wpdb, $wp_roles;
+
+	_deprecated_function( __FUNCTION__, '5.1.0' );
+
+	// Cast for security.
+	$blog_id = (int) $blog_id;
+
+	require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+
+	$suppress = $wpdb-&gt;suppress_errors();
+	if ( $wpdb-&gt;get_results( "DESCRIBE {$wpdb-&gt;posts}" ) ) {
+		die( '&lt;h1&gt;' . __( 'Already Installed' ) . '&lt;/h1&gt;&lt;p&gt;' . __( 'You appear to have already installed WordPress. To reinstall please clear your old database tables first.' ) . '&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;' );
+	}
+	$wpdb-&gt;suppress_errors( $suppress );
+
+	$url = get_blogaddress_by_id( $blog_id );
+
+	// Set everything up.
+	make_db_current_silent( 'blog' );
+	populate_options();
+	populate_roles();
+
+	// populate_roles() clears previous role definitions so we start over.
+	$wp_roles = new WP_Roles();
+
+	$siteurl = $home = untrailingslashit( $url );
+
+	if ( ! is_subdomain_install() ) {
+
+		if ( 'https' === parse_url( get_site_option( 'siteurl' ), PHP_URL_SCHEME ) ) {
+			$siteurl = set_url_scheme( $siteurl, 'https' );
+		}
+		if ( 'https' === parse_url( get_home_url( get_network()-&gt;site_id ), PHP_URL_SCHEME ) ) {
+			$home = set_url_scheme( $home, 'https' );
+		}
+	}
+
+	update_option( 'siteurl', $siteurl );
+	update_option( 'home', $home );
+
+	if ( get_site_option( 'ms_files_rewriting' ) ) {
+		update_option( 'upload_path', UPLOADBLOGSDIR . "/$blog_id/files" );
+	} else {
+		update_option( 'upload_path', get_blog_option( get_network()-&gt;site_id, 'upload_path' ) );
+	}
+
+	update_option( 'blogname', wp_unslash( $blog_title ) );
+	update_option( 'admin_email', '' );
+
+	// Remove all permissions.
+	$table_prefix = $wpdb-&gt;get_blog_prefix();
+	delete_metadata( 'user', 0, $table_prefix . 'user_level', null, true );   // Delete all.
+	delete_metadata( 'user', 0, $table_prefix . 'capabilities', null, true ); // Delete all.
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/ms-network.php:</span> <a href="get_network">get_network()</a> </td> <td class="related-desc"> <p>Retrieves network data given a network ID or network object.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/schema.php:</span> <a href="populate_roles">populate_roles()</a> </td> <td class="related-desc"> <p>Execute WordPress role creation for the various WordPress versions.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/schema.php:</span> <a href="populate_options">populate_options()</a> </td> <td class="related-desc"> <p>Create WordPress options and set the default values.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/upgrade.php:</span> <a href="make_db_current_silent">make_db_current_silent()</a> </td> <td class="related-desc"> <p>Updates the database tables to a new schema, but without displaying results.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-roles.php:</span> <a href="../classes/wp_roles/__construct">WP_Roles::__construct()</a> </td> <td class="related-desc"> <p>Constructor</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_unslash">wp_unslash()</a> </td> <td class="related-desc"> <p>Removes slashes from a string or recursively removes slashes from strings within an array.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="untrailingslashit">untrailingslashit()</a> </td> <td class="related-desc"> <p>Removes trailing forward slashes and backslashes if they exist.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="_deprecated_function">_deprecated_function()</a> </td> <td class="related-desc"> <p>Mark a function as deprecated and inform when it has been used.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="set_url_scheme">set_url_scheme()</a> </td> <td class="related-desc"> <p>Sets the scheme for a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="get_home_url">get_home_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL for a given site where the front end is accessible.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_site_option">get_site_option()</a> </td> <td class="related-desc"> <p>Retrieve an option value for the current network based on name of option.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="update_option">update_option()</a> </td> <td class="related-desc"> <p>Updates the value of an option that was already added.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-load.php:</span> <a href="is_subdomain_install">is_subdomain_install()</a> </td> <td class="related-desc"> <p>Whether a subdomain configuration is enabled.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-blogs.php:</span> <a href="get_blog_option">get_blog_option()</a> </td> <td class="related-desc"> <p>Retrieve option value for a given blog id based on name of option.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-blogs.php:</span> <a href="get_blogaddress_by_id">get_blogaddress_by_id()</a> </td> <td class="related-desc"> <p>Get a full blog URL, given a blog ID.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/get_results">wpdb::get_results()</a> </td> <td class="related-desc"> <p>Retrieves an entire SQL result set from the database (i.e., many rows).</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/suppress_errors">wpdb::suppress_errors()</a> </td> <td class="related-desc"> <p>Enables or disables suppressing of database errors.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/get_blog_prefix">wpdb::get_blog_prefix()</a> </td> <td class="related-desc"> <p>Gets blog prefix.</p> </td> </tr> <tr> <td> <span>wp-includes/meta.php:</span> <a href="delete_metadata">delete_metadata()</a> </td> <td class="related-desc"> <p>Deletes metadata for the specified object.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/ms-deprecated.php:</span> <a href="create_empty_blog">create_empty_blog()</a> </td> <td class="related-desc"> <p>Create an empty blog.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.1.0/" alt="WordPress 5.1.0">5.1.0</a></td> <td>This function has been deprecated.</td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/mu.3.0.0/" alt="WordPress MU (3.0.0)">MU (3.0.0)</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/install_blog" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/install_blog</a>
+  </p>
+</div>

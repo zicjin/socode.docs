@@ -1,0 +1,62 @@
+<h1>is_user_member_of_blog( int $user_id, int $blog_id )</h1>  <section> <p>Finds out whether a user is a member of a given blog.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$user_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description"> The unique ID of the user. Defaults to the current user.</span> </p> </dd> <dt>$blog_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description"> ID of the blog to check. Defaults to the current site.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/user.php/">wp-includes/user.php</a> </p> <pre data-language="php">function is_user_member_of_blog( $user_id = 0, $blog_id = 0 ) {
+	global $wpdb;
+
+	$user_id = (int) $user_id;
+	$blog_id = (int) $blog_id;
+
+	if ( empty( $user_id ) ) {
+		$user_id = get_current_user_id();
+	}
+
+	// Technically not needed, but does save calls to get_site() and get_user_meta()
+	// in the event that the function is called when a user isn't logged in.
+	if ( empty( $user_id ) ) {
+		return false;
+	} else {
+		$user = get_userdata( $user_id );
+		if ( ! $user instanceof WP_User ) {
+			return false;
+		}
+	}
+
+	if ( ! is_multisite() ) {
+		return true;
+	}
+
+	if ( empty( $blog_id ) ) {
+		$blog_id = get_current_blog_id();
+	}
+
+	$blog = get_site( $blog_id );
+
+	if ( ! $blog || ! isset( $blog-&gt;domain ) || $blog-&gt;archived || $blog-&gt;spam || $blog-&gt;deleted ) {
+		return false;
+	}
+
+	$keys = get_user_meta( $user_id );
+	if ( empty( $keys ) ) {
+		return false;
+	}
+
+	// No underscore before capabilities in $base_capabilities_key.
+	$base_capabilities_key = $wpdb-&gt;base_prefix . 'capabilities';
+	$site_capabilities_key = $wpdb-&gt;base_prefix . $blog_id . '_capabilities';
+
+	if ( isset( $keys[ $base_capabilities_key ] ) &amp;&amp; 1 == $blog_id ) {
+		return true;
+	}
+
+	if ( isset( $keys[ $site_capabilities_key ] ) ) {
+		return true;
+	}
+
+	return false;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/ms-site.php:</span> <a href="get_site">get_site()</a> </td> <td class="related-desc"> <p>Retrieves site data given a site ID or site object.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="get_userdata">get_userdata()</a> </td> <td class="related-desc"> <p>Retrieve user info by user ID.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_multisite">is_multisite()</a> </td> <td class="related-desc"> <p>If Multisite is enabled.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="get_current_blog_id">get_current_blog_id()</a> </td> <td class="related-desc"> <p>Retrieve the current site ID.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="get_user_meta">get_user_meta()</a> </td> <td class="related-desc"> <p>Retrieves user meta field for a user.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="get_current_user_id">get_current_user_id()</a> </td> <td class="related-desc"> <p>Gets the current user’s ID.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-application-passwords-controller.php:</span> <a href="../classes/wp_rest_application_passwords_controller/get_user">WP_REST_Application_Passwords_Controller::get_user()</a> </td> <td class="related-desc"> <p>Gets the requested user.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-users-controller.php:</span> <a href="../classes/wp_rest_users_controller/get_user">WP_REST_Users_Controller::get_user()</a> </td> <td class="related-desc"> <p>Get the user, if the ID is valid.</p> </td> </tr> <tr> <td> <span>wp-includes/deprecated.php:</span> <a href="is_blog_user">is_blog_user()</a> </td> <td class="related-desc"> <p>Checks if the current user belong to a given site.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp.php:</span> <a href="../classes/wp/handle_404">WP::handle_404()</a> </td> <td class="related-desc"> <p>Set the Headers for 404, if nothing is found for requested URL.</p> </td> </tr> <tr> <td> <span>wp-includes/admin-bar.php:</span> <a href="wp_admin_bar_site_menu">wp_admin_bar_site_menu()</a> </td> <td class="related-desc"> <p>Adds the “Site Name” menu.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="wp_user_settings">wp_user_settings()</a> </td> <td class="related-desc"> <p>Saves and restores user interface settings stored in a cookie.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="wp_set_all_user_settings">wp_set_all_user_settings()</a> </td> <td class="related-desc"> <p>Private. Sets all user interface settings.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/mu.3.0.0/" alt="WordPress MU (3.0.0)">MU (3.0.0)</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/is_user_member_of_blog" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/is_user_member_of_blog</a>
+  </p>
+</div>

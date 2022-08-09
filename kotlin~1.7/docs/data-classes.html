@@ -1,0 +1,67 @@
+<h1 data-toc="data-classes" id="data-classes.md">Data classes</h1>
+<p id="a75cbfc5">It is not unusual to create classes whose main purpose is to hold data. In such classes, some standard functionality and some utility functions are often mechanically derivable from the data. In Kotlin, these are called <em id="96b58bcd" class="">data classes</em> and are marked with <code class="code ">data</code>:</p>
+<pre class="code" data-language="kotlin">data class User(val name: String, val age: Int)
+</pre>
+<p id="68adb27c">The compiler automatically derives the following members from all properties declared in the primary constructor:</p>
+<ul class="list _ul" id="8b45a31b">
+<li class="list__item" id="15f13d10"><p><code class="code ">equals()</code>/<code class="code ">hashCode()</code> pair</p></li>
+<li class="list__item" id="3f99d2ea"><p><code class="code ">toString()</code> of the form <code class="code ">"User(name=John, age=42)"</code></p></li>
+<li class="list__item" id="581db43e"><p><a href="destructuring-declarations" id="647bfd1c"><code class="code ">componentN()</code> functions</a> corresponding to the properties in their order of declaration.</p></li>
+<li class="list__item" id="6ac19d1f"><p><code class="code ">copy()</code> function (see below).</p></li>
+</ul>
+<p id="79b007e9">To ensure consistency and meaningful behavior of the generated code, data classes have to fulfill the following requirements:</p>
+<ul class="list _ul" id="d239fb31">
+<li class="list__item" id="ed81dd6c"><p>The primary constructor needs to have at least one parameter.</p></li>
+<li class="list__item" id="b25fa4bd"><p>All primary constructor parameters need to be marked as <code class="code ">val</code> or <code class="code ">var</code>.</p></li>
+<li class="list__item" id="6877896e"><p>Data classes cannot be abstract, open, sealed, or inner.</p></li>
+</ul>
+<p id="10e129ed">Additionally, the generation of data class members follows these rules with regard to the members’ inheritance:</p>
+<ul class="list _ul" id="fd19c187">
+<li class="list__item" id="5a6017eb"><p>If there are explicit implementations of <code class="code ">equals()</code>, <code class="code ">hashCode()</code>, or <code class="code ">toString()</code> in the data class body or <code class="code ">final</code> implementations in a superclass, then these functions are not generated, and the existing implementations are used.</p></li>
+<li class="list__item" id="186bdc9c"><p>If a supertype has <code class="code ">componentN()</code> functions that are <code class="code ">open</code> and return compatible types, the corresponding functions are generated for the data class and override those of the supertype. If the functions of the supertype cannot be overridden due to incompatible signatures or due to their being final, an error is reported.</p></li>
+<li class="list__item" id="4fa1180b"><p>Providing explicit implementations for the <code class="code ">componentN()</code> and <code class="code ">copy()</code> functions is not allowed.</p></li>
+</ul>
+<p id="d78bd71a">Data classes may extend other classes (see <a href="sealed-classes" id="b80c9bcc">Sealed classes</a> for examples).</p>
+<aside data-type="note" class="prompt" data-title="" id="521a7881"><p id="18994ae5">On the JVM, if the generated class needs to have a parameterless constructor, default values for the properties have to be specified (see <a href="classes#constructors" id="46ba4d0">Constructors</a>).</p></aside><pre class="code" data-language="kotlin">data class User(val name: String = "", val age: Int = 0)
+</pre>
+<section class="chapter"><h2 id="properties-declared-in-the-class-body" data-toc="data-classes#properties-declared-in-the-class-body">Properties declared in the class body</h2>
+<p id="e78bddfc">The compiler only uses the properties defined inside the primary constructor for the automatically generated functions. To exclude a property from the generated implementations, declare it inside the class body:</p>
+<pre class="code" data-language="kotlin">data class Person(val name: String) {
+    var age: Int = 0
+}
+</pre>
+<p id="68dea7b3">Only the property <code class="code ">name</code> will be used inside the <code class="code ">toString()</code>, <code class="code ">equals()</code>, <code class="code ">hashCode()</code>, and <code class="code ">copy()</code> implementations, and there will only be one component function <code class="code ">component1()</code>. While two <code class="code ">Person</code> objects can have different ages, they will be treated as equal.</p>
+<pre class="code" data-language="kotlin">data class Person(val name: String) {
+    var age: Int = 0
+}
+fun main() {
+//sampleStart
+    val person1 = Person("John")
+    val person2 = Person("John")
+    person1.age = 10
+    person2.age = 20
+//sampleEnd
+    println("person1 == person2: ${person1 == person2}")
+    println("person1 with age ${person1.age}: ${person1}")
+    println("person2 with age ${person2.age}: ${person2}")
+}
+</pre></section><section class="chapter"><h2 id="copying" data-toc="data-classes#copying">Copying</h2>
+<p id="ae1f972d">Use the <code class="code ">copy()</code> function to copy an object, allowing you to alter <em id="e0bd41fd" class="">some</em> of its properties while keeping the rest unchanged. The implementation of this function for the <code class="code ">User</code> class above would be as follows:</p>
+<pre class="code" data-language="kotlin">fun copy(name: String = this.name, age: Int = this.age) = User(name, age)
+</pre>
+<p id="ef844a41">You can then write the following:</p>
+<pre class="code" data-language="kotlin">val jack = User(name = "Jack", age = 1)
+val olderJack = jack.copy(age = 2)
+</pre></section><section class="chapter"><h2 id="data-classes-and-destructuring-declarations" data-toc="data-classes#data-classes-and-destructuring-declarations">Data classes and destructuring declarations</h2>
+<p id="c0a7a2f2"><em id="d382495d" class="">Component functions</em> generated for data classes make it possible to use them in <a href="destructuring-declarations" id="4124a613">destructuring declarations</a>:</p>
+<pre class="code" data-language="kotlin">val jane = User("Jane", 35)
+val (name, age) = jane
+println("$name, $age years of age") // prints "Jane, 35 years of age"
+</pre></section><section class="chapter"><h2 id="standard-data-classes" data-toc="data-classes#standard-data-classes">Standard data classes</h2>
+<p id="17ce92e2">The standard library provides the <code class="code ">Pair</code> and <code class="code ">Triple</code> classes. In most cases, though, named data classes are a better design choice because they make the code more readable by providing meaningful names for the properties.</p></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="extensions">Extensions</a> <a class="navigation-links__next" href="sealed-classes">Sealed classes</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/data-classes.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/data-classes.html</a>
+  </p>
+</div>

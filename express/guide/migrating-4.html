@@ -41,19 +41,19 @@
 </tr> <tr>
 <td><code>express.static</code></td> <td><a href="https://github.com/expressjs/serve-static">serve-static</a></td>
 </tr> </table> <p>Here is the <a href="https://github.com/senchalabs/connect#middleware">complete list</a> of Express 4 middleware.</p> <p>In most cases, you can simply replace the old version 3 middleware with its Express 4 counterpart. For details, see the module documentation in GitHub.</p> <h4 id="app-use">
-<code>app.use</code> accepts parameters</h4> <p>In version 4 you can use a variable parameter to define the path where middleware functions are loaded, then read the value of the parameter from the route handler. For example:</p> <pre data-language="js">app.use('/book/:id', function (req, res, next) {
+<code>app.use</code> accepts parameters</h4> <p>In version 4 you can use a variable parameter to define the path where middleware functions are loaded, then read the value of the parameter from the route handler. For example:</p> <pre data-language="js">app.use('/book/:id', (req, res, next) =&gt; {
   console.log('ID:', req.params.id)
   next()
 })
 </pre> <h3 id="routing"> The routing system </h3> <p>Apps now implicitly load routing middleware, so you no longer have to worry about the order in which middleware is loaded with respect to the <code>router</code> middleware.</p> <p>The way you define routes is unchanged, but the routing system has two new features to help organize your routes:</p> <ul class="doclist"> <li>A new method, <code>app.route()</code>, to create chainable route handlers for a route path.</li> <li>A new class, <code>express.Router</code>, to create modular mountable route handlers.</li> </ul> <h4 id="app-route">
 <code>app.route()</code> method</h4> <p>The new <code>app.route()</code> method enables you to create chainable route handlers for a route path. Because the path is specified in a single location, creating modular routes is helpful, as is reducing redundancy and typos. For more information about routes, see <a href="../index#router"><code>Router()</code> documentation</a>.</p> <p>Here is an example of chained route handlers that are defined by using the <code>app.route()</code> function.</p> <pre data-language="js">app.route('/book')
-  .get(function (req, res) {
+  .get((req, res) =&gt; {
     res.send('Get a random book')
   })
-  .post(function (req, res) {
+  .post((req, res) =&gt; {
     res.send('Add a book')
   })
-  .put(function (req, res) {
+  .put((req, res) =&gt; {
     res.send('Update the book')
   })
 </pre> <h4 id="express-router">
@@ -61,16 +61,16 @@
 var router = express.Router()
 
 // middleware specific to this router
-router.use(function timeLog (req, res, next) {
+router.use((req, res, next) =&gt; {
   console.log('Time: ', Date.now())
   next()
 })
 // define the home page route
-router.get('/', function (req, res) {
+router.get('/', (req, res) =&gt; {
   res.send('Birds home page')
 })
 // define the about route
-router.get('/about', function (req, res) {
+router.get('/about', (req, res) =&gt; {
   res.send('About birds')
 })
 
@@ -108,7 +108,7 @@ if (app.get('env') === 'development') {
 app.get('/', routes.index)
 app.get('/users', user.list)
 
-http.createServer(app).listen(app.get('port'), function () {
+http.createServer(app).listen(app.get('port'), () =&gt; {
   console.log('Express server listening on port ' + app.get('port'))
 })
 </pre> <h4><code>package.json</code></h4> <p>The accompanying version 3 <code>package.json</code> file might look something like this:</p> <pre data-language="json">{
@@ -185,10 +185,10 @@ if (app.get('env') === 'development') {
 }
 
 var server = http.createServer(app)
-server.listen(app.get('port'), function () {
+server.listen(app.get('port'), () =&gt; {
   console.log('Express server listening on port ' + app.get('port'))
 })
-</pre> <div class="doc-box doc-info"> <p>Unless you need to work directly with the <code>http</code> module (socket.io/SPDY/HTTPS), loading it is not required, and the app can be simply started this way:</p> <pre data-language="js">app.listen(app.get('port'), function () {
+</pre> <div class="doc-box doc-info"> <p>Unless you need to work directly with the <code>http</code> module (socket.io/SPDY/HTTPS), loading it is not required, and the app can be simply started this way:</p> <pre data-language="js">app.listen(app.get('port'), () =&gt; {
   console.log('Express server listening on port ' + app.get('port'))
 })
 </pre> </div> <h3>Run the app</h3> <p>The migration process is complete, and the app is now an Express 4 app. To confirm, start the app by using the following command:</p> <pre data-language="console">$ node .
@@ -198,7 +198,7 @@ server.listen(app.get('port'), function () {
 </pre> <p>If you look at the contents of the <code>app4/app.js</code> file, you will notice that all the middleware functions (except <code>express.static</code>) that are required for the app are loaded as independent modules, and the <code>router</code> middleware is no longer explicitly loaded in the app.</p> <p>You will also notice that the <code>app.js</code> file is now a Node.js module, in contrast to the standalone app that was generated by the old generator.</p> <p>After installing the dependencies, start the app by using the following command:</p> <pre data-language="console">$ npm start
 </pre> <p>If you look at the npm start script in the <code>package.json</code> file, you will notice that the actual command that starts the app is <code>node ./bin/www</code>, which used to be <code>node app.js</code> in Express 3.</p> <p>Because the <code>app.js</code> file that was generated by the Express 4 generator is now a Node.js module, it can no longer be started independently as an app (unless you modify the code). The module must be loaded in a Node.js file and started via the Node.js file. The Node.js file is <code>./bin/www</code> in this case.</p> <p>Neither the <code>bin</code> directory nor the extensionless <code>www</code> file is mandatory for creating an Express app or starting the app. They are just suggestions made by the generator, so feel free to modify them to suit your needs.</p> <p>To get rid of the <code>www</code> directory and keep things the “Express 3 way”, delete the line that says <code>module.exports = app;</code> at the end of the <code>app.js</code> file, then paste the following code in its place:</p> <pre data-language="js">app.set('port', process.env.PORT || 3000)
 
-var server = app.listen(app.get('port'), function () {
+var server = app.listen(app.get('port'), () =&gt; {
   debug('Express server listening on port ' + server.address().port)
 })
 </pre> <p>Ensure that you load the <code>debug</code> module at the top of the <code>app.js</code> file by using the following code:</p> <pre data-language="js">var debug = require('debug')('app4')

@@ -1,0 +1,72 @@
+<h1>rest_find_one_matching_schema( mixed $value, array $args, string $param, bool $stop_after_first_match = false )</h1>  <section> <p>Finds the matching schema among the “oneOf” schemas.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$value</dt> <dd> <p class="desc"> <span class="type">(<span class="mixed">mixed</span>)</span> <span class="required">(Required)</span> <span class="description">The value to validate.</span> </p> </dd> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">The schema array to use.</span> </p> </dd> <dt>$param</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The parameter name, used in error messages.</span> </p> </dd> <dt>$stop_after_first_match</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> Whether the process should stop after the first successful match.</span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array|<a href="../classes/wp_error">WP_Error</a>)</span> The matching schema or <a href="../classes/wp_error">WP_Error</a> instance if the number of matching schemas is not equal to one.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/rest-api.php/">wp-includes/rest-api.php</a> </p> <pre data-language="php">function rest_find_one_matching_schema( $value, $args, $param, $stop_after_first_match = false ) {
+	$matching_schemas = array();
+	$errors           = array();
+
+	foreach ( $args['oneOf'] as $index =&gt; $schema ) {
+		if ( ! isset( $schema['type'] ) &amp;&amp; isset( $args['type'] ) ) {
+			$schema['type'] = $args['type'];
+		}
+
+		$is_valid = rest_validate_value_from_schema( $value, $schema, $param );
+		if ( ! is_wp_error( $is_valid ) ) {
+			if ( $stop_after_first_match ) {
+				return $schema;
+			}
+
+			$matching_schemas[] = array(
+				'schema_object' =&gt; $schema,
+				'index'         =&gt; $index,
+			);
+		} else {
+			$errors[] = array(
+				'error_object' =&gt; $is_valid,
+				'schema'       =&gt; $schema,
+				'index'        =&gt; $index,
+			);
+		}
+	}
+
+	if ( ! $matching_schemas ) {
+		return rest_get_combining_operation_error( $value, $param, $errors );
+	}
+
+	if ( count( $matching_schemas ) &gt; 1 ) {
+		$schema_positions = array();
+		$schema_titles    = array();
+
+		foreach ( $matching_schemas as $schema ) {
+			$schema_positions[] = $schema['index'];
+
+			if ( isset( $schema['schema_object']['title'] ) ) {
+				$schema_titles[] = $schema['schema_object']['title'];
+			}
+		}
+
+		// If each schema has a title, include those titles in the error message.
+		if ( count( $schema_titles ) === count( $matching_schemas ) ) {
+			return new WP_Error(
+				'rest_one_of_multiple_matches',
+				/* translators: 1: Parameter, 2: Schema titles. */
+				wp_sprintf( __( '%1$s matches %2$l, but should match only one.' ), $param, $schema_titles ),
+				array( 'positions' =&gt; $schema_positions )
+			);
+		}
+
+		return new WP_Error(
+			'rest_one_of_multiple_matches',
+			/* translators: %s: Parameter. */
+			sprintf( __( '%s matches more than one of the expected formats.' ), $param ),
+			array( 'positions' =&gt; $schema_positions )
+		);
+	}
+
+	return $matching_schemas[0]['schema_object'];
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="rest_get_combining_operation_error">rest_get_combining_operation_error()</a> </td> <td class="related-desc"> <p>Gets the error of combining operation.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="rest_validate_value_from_schema">rest_validate_value_from_schema()</a> </td> <td class="related-desc"> <p>Validate a value based on a schema.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_sprintf">wp_sprintf()</a> </td> <td class="related-desc"> <p>WordPress implementation of PHP sprintf() with filters.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../classes/wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="rest_filter_response_by_context">rest_filter_response_by_context()</a> </td> <td class="related-desc"> <p>Filters the response to remove any fields not available in the given context.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="rest_sanitize_value_from_schema">rest_sanitize_value_from_schema()</a> </td> <td class="related-desc"> <p>Sanitize a value based on a schema.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="rest_validate_value_from_schema">rest_validate_value_from_schema()</a> </td> <td class="related-desc"> <p>Validate a value based on a schema.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.6.0/" alt="WordPress 5.6.0">5.6.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/rest_find_one_matching_schema" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/rest_find_one_matching_schema</a>
+  </p>
+</div>

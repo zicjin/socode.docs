@@ -1,0 +1,106 @@
+<h1>update_meta_cache( string $meta_type, string|int[] $object_ids )</h1>  <section> <p>Updates the metadata cache for the specified objects.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$meta_type</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Type of object metadata is for. Accepts 'post', 'comment', 'term', 'user', or any other object type with an associated meta table.</span> </p> </dd> <dt>$object_ids</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>|<span class="int[]">int[]</span>)</span> <span class="required">(Required)</span> <span class="description">Array or comma delimited list of object IDs to update cache for.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array|false)</span> Metadata cache for the specified objects, or false on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/meta.php/">wp-includes/meta.php</a> </p> <pre data-language="php">function update_meta_cache( $meta_type, $object_ids ) {
+	global $wpdb;
+
+	if ( ! $meta_type || ! $object_ids ) {
+		return false;
+	}
+
+	$table = _get_meta_table( $meta_type );
+	if ( ! $table ) {
+		return false;
+	}
+
+	$column = sanitize_key( $meta_type . '_id' );
+
+	if ( ! is_array( $object_ids ) ) {
+		$object_ids = preg_replace( '|[^0-9,]|', '', $object_ids );
+		$object_ids = explode( ',', $object_ids );
+	}
+
+	$object_ids = array_map( 'intval', $object_ids );
+
+	/**
+	 * Short-circuits updating the metadata cache of a specific type.
+	 *
+	 * The dynamic portion of the hook name, `$meta_type`, refers to the meta object type
+	 * (post, comment, term, user, or any other type with an associated meta table).
+	 * Returning a non-null value will effectively short-circuit the function.
+	 *
+	 * Possible hook names include:
+	 *
+	 *  - `update_post_metadata_cache`
+	 *  - `update_comment_metadata_cache`
+	 *  - `update_term_metadata_cache`
+	 *  - `update_user_metadata_cache`
+	 *
+	 * @since 5.0.0
+	 *
+	 * @param mixed $check      Whether to allow updating the meta cache of the given type.
+	 * @param int[] $object_ids Array of object IDs to update the meta cache for.
+	 */
+	$check = apply_filters( "update_{$meta_type}_metadata_cache", null, $object_ids );
+	if ( null !== $check ) {
+		return (bool) $check;
+	}
+
+	$cache_key      = $meta_type . '_meta';
+	$non_cached_ids = array();
+	$cache          = array();
+	$cache_values   = wp_cache_get_multiple( $object_ids, $cache_key );
+
+	foreach ( $cache_values as $id =&gt; $cached_object ) {
+		if ( false === $cached_object ) {
+			$non_cached_ids[] = $id;
+		} else {
+			$cache[ $id ] = $cached_object;
+		}
+	}
+
+	if ( empty( $non_cached_ids ) ) {
+		return $cache;
+	}
+
+	// Get meta info.
+	$id_list   = implode( ',', $non_cached_ids );
+	$id_column = ( 'user' === $meta_type ) ? 'umeta_id' : 'meta_id';
+
+	$meta_list = $wpdb-&gt;get_results( "SELECT $column, meta_key, meta_value FROM $table WHERE $column IN ($id_list) ORDER BY $id_column ASC", ARRAY_A );
+
+	if ( ! empty( $meta_list ) ) {
+		foreach ( $meta_list as $metarow ) {
+			$mpid = (int) $metarow[ $column ];
+			$mkey = $metarow['meta_key'];
+			$mval = $metarow['meta_value'];
+
+			// Force subkeys to be array type.
+			if ( ! isset( $cache[ $mpid ] ) || ! is_array( $cache[ $mpid ] ) ) {
+				$cache[ $mpid ] = array();
+			}
+			if ( ! isset( $cache[ $mpid ][ $mkey ] ) || ! is_array( $cache[ $mpid ][ $mkey ] ) ) {
+				$cache[ $mpid ][ $mkey ] = array();
+			}
+
+			// Add a value to the current pid/key.
+			$cache[ $mpid ][ $mkey ][] = $mval;
+		}
+	}
+
+	$data = array();
+	foreach ( $non_cached_ids as $id ) {
+		if ( ! isset( $cache[ $id ] ) ) {
+			$cache[ $id ] = array();
+		}
+		$data[ $id ] = $cache[ $id ];
+	}
+	wp_cache_add_multiple( $data, $cache_key );
+
+	return $cache;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/cache.php:</span> <a href="wp_cache_add_multiple">wp_cache_add_multiple()</a> </td> <td class="related-desc"> <p>Adds multiple values to the cache in one call.</p> </td> </tr> <tr> <td> <span>wp-includes/cache.php:</span> <a href="wp_cache_get_multiple">wp_cache_get_multiple()</a> </td> <td class="related-desc"> <p>Retrieves multiple values from the cache in one call.</p> </td> </tr> <tr> <td> <span>wp-includes/meta.php:</span> <a href="../hooks/update_meta_type_metadata_cache">update_{$meta_type}_metadata_cache</a> </td> <td class="related-desc"> <p>Short-circuits updating the metadata cache of a specific type.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="sanitize_key">sanitize_key()</a> </td> <td class="related-desc"> <p>Sanitizes a string key.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/get_results">wpdb::get_results()</a> </td> <td class="related-desc"> <p>Retrieves an entire SQL result set from the database (i.e., many rows).</p> </td> </tr> <tr> <td> <span>wp-includes/meta.php:</span> <a href="_get_meta_table">_get_meta_table()</a> </td> <td class="related-desc"> <p>Retrieves the name of the metadata table for the specified object type.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/meta.php:</span> <a href="get_metadata_raw">get_metadata_raw()</a> </td> <td class="related-desc"> <p>Retrieves raw metadata value for the specified object.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-site.php:</span> <a href="update_sitemeta_cache">update_sitemeta_cache()</a> </td> <td class="related-desc"> <p>Updates metadata cache for list of site IDs.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-metadata-lazyloader.php:</span> <a href="../classes/wp_metadata_lazyloader/lazyload_comment_meta">WP_Metadata_Lazyloader::lazyload_comment_meta()</a> </td> <td class="related-desc"> <p>Lazy-loads comment meta for queued comments.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="update_termmeta_cache">update_termmeta_cache()</a> </td> <td class="related-desc"> <p>Updates metadata cache for list of term IDs.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="cache_users">cache_users()</a> </td> <td class="related-desc"> <p>Retrieve info for user lists to prevent multiple queries by <a href="get_userdata">get_userdata()</a></p> </td> </tr> <tr> <td> <span>wp-includes/deprecated.php:</span> <a href="get_user_metavalues">get_user_metavalues()</a> </td> <td class="related-desc"> <p>Perform the query to get the $metavalues array(s) needed by _fill_user and _fill_many_users</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="update_postmeta_cache">update_postmeta_cache()</a> </td> <td class="related-desc"> <p>Updates metadata cache for list of post IDs.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="update_comment_cache">update_comment_cache()</a> </td> <td class="related-desc"> <p>Updates the comment cache of given comments.</p> </td> </tr> <tr> <td> <span>wp-includes/meta.php:</span> <a href="metadata_exists">metadata_exists()</a> </td> <td class="related-desc"> <p>Determines if a meta field with the given key exists for the given object ID.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.9.0/" alt="WordPress 2.9.0">2.9.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/update_meta_cache" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/update_meta_cache</a>
+  </p>
+</div>

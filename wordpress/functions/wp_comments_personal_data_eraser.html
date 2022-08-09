@@ -1,0 +1,98 @@
+<h1>wp_comments_personal_data_eraser( string $email_address, int $page = 1 )</h1>  <section> <p>Erases personal data associated with an email address from the comments table.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$email_address</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The comment author email address.</span> </p> </dd> <dt>$page</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description">Comment page.</span> </p> <p class="default">Default value: 1</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/comment.php/">wp-includes/comment.php</a> </p> <pre data-language="php">function wp_comments_personal_data_eraser( $email_address, $page = 1 ) {
+	global $wpdb;
+
+	if ( empty( $email_address ) ) {
+		return array(
+			'items_removed'  =&gt; false,
+			'items_retained' =&gt; false,
+			'messages'       =&gt; array(),
+			'done'           =&gt; true,
+		);
+	}
+
+	// Limit us to 500 comments at a time to avoid timing out.
+	$number         = 500;
+	$page           = (int) $page;
+	$items_removed  = false;
+	$items_retained = false;
+
+	$comments = get_comments(
+		array(
+			'author_email'       =&gt; $email_address,
+			'number'             =&gt; $number,
+			'paged'              =&gt; $page,
+			'order_by'           =&gt; 'comment_ID',
+			'order'              =&gt; 'ASC',
+			'include_unapproved' =&gt; true,
+		)
+	);
+
+	/* translators: Name of a comment's author after being anonymized. */
+	$anon_author = __( 'Anonymous' );
+	$messages    = array();
+
+	foreach ( (array) $comments as $comment ) {
+		$anonymized_comment                         = array();
+		$anonymized_comment['comment_agent']        = '';
+		$anonymized_comment['comment_author']       = $anon_author;
+		$anonymized_comment['comment_author_email'] = '';
+		$anonymized_comment['comment_author_IP']    = wp_privacy_anonymize_data( 'ip', $comment-&gt;comment_author_IP );
+		$anonymized_comment['comment_author_url']   = '';
+		$anonymized_comment['user_id']              = 0;
+
+		$comment_id = (int) $comment-&gt;comment_ID;
+
+		/**
+		 * Filters whether to anonymize the comment.
+		 *
+		 * @since 4.9.6
+		 *
+		 * @param bool|string $anon_message       Whether to apply the comment anonymization (bool) or a custom
+		 *                                        message (string). Default true.
+		 * @param WP_Comment  $comment            WP_Comment object.
+		 * @param array       $anonymized_comment Anonymized comment data.
+		 */
+		$anon_message = apply_filters( 'wp_anonymize_comment', true, $comment, $anonymized_comment );
+
+		if ( true !== $anon_message ) {
+			if ( $anon_message &amp;&amp; is_string( $anon_message ) ) {
+				$messages[] = esc_html( $anon_message );
+			} else {
+				/* translators: %d: Comment ID. */
+				$messages[] = sprintf( __( 'Comment %d contains personal data but could not be anonymized.' ), $comment_id );
+			}
+
+			$items_retained = true;
+
+			continue;
+		}
+
+		$args = array(
+			'comment_ID' =&gt; $comment_id,
+		);
+
+		$updated = $wpdb-&gt;update( $wpdb-&gt;comments, $anonymized_comment, $args );
+
+		if ( $updated ) {
+			$items_removed = true;
+			clean_comment_cache( $comment_id );
+		} else {
+			$items_retained = true;
+		}
+	}
+
+	$done = count( $comments ) &lt; $number;
+
+	return array(
+		'items_removed'  =&gt; $items_removed,
+		'items_retained' =&gt; $items_retained,
+		'messages'       =&gt; $messages,
+		'done'           =&gt; $done,
+	);
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/wp_anonymize_comment">wp_anonymize_comment</a> </td> <td class="related-desc"> <p>Filters whether to anonymize the comment.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_privacy_anonymize_data">wp_privacy_anonymize_data()</a> </td> <td class="related-desc"> <p>Return uniform “anonymous” data by type.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_html">esc_html()</a> </td> <td class="related-desc"> <p>Escaping for HTML blocks.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/update">wpdb::update()</a> </td> <td class="related-desc"> <p>Updates a row in the table.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="clean_comment_cache">clean_comment_cache()</a> </td> <td class="related-desc"> <p>Removes a comment from the object cache.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="get_comments">get_comments()</a> </td> <td class="related-desc"> <p>Retrieves a list of comments.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.9.6/" alt="WordPress 4.9.6">4.9.6</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_comments_personal_data_eraser" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_comments_personal_data_eraser</a>
+  </p>
+</div>

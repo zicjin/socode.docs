@@ -1,0 +1,153 @@
+<h1>sanitize_post_field( string $field, mixed $value, int $post_id, string $context = 'display' )</h1>  <section> <p>Sanitizes a post field based on context.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Possible context values are: ‘raw’, ‘edit’, ‘db’, ‘display’, ‘attribute’ and ‘js’. The ‘display’ context is used by default. ‘attribute’ and ‘js’ contexts are treated like ‘display’ when calling filters.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$field</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The Post Object field name.</span> </p> </dd> <dt>$value</dt> <dd> <p class="desc"> <span class="type">(<span class="mixed">mixed</span>)</span> <span class="required">(Required)</span> <span class="description">The Post Object value.</span> </p> </dd> <dt>$post_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">Post ID.</span> </p> </dd> <dt>$context</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> How to sanitize the field. Possible values are 'raw', 'edit', 'db', 'display', 'attribute' and 'js'. </span> </p> <p class="default">Default value: 'display'</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(mixed)</span> Sanitized value.</p> </section>  <section> <h2 id="more-information">More Information</h2> <p>Uses <tt><a href="apply_filters">apply_filters()</a></tt>:</p> <ul> <li>Calls <tt>'edit_{$field}'</tt> and <tt>'{$field_no_prefix}_edit_pre'</tt> passing <tt>$value</tt> and <tt>$post_id</tt> if <tt>$context</tt> is <tt>'edit'</tt> and field name prefix is <tt>'post_'</tt>.</li> <li>Calls <tt>'edit_post_{$field}'</tt> passing <tt>$value</tt> and <tt>$post_id</tt> if <tt>$context</tt> is <tt>'db'</tt>.</li> <li>Calls <tt>'pre_{$field}'</tt> passing <tt>$value</tt> if <tt>$context</tt> is <tt>'db'</tt> and field name prefix is <tt>'post_'</tt>.</li> <li>Calls <tt>'{$field}_pre'</tt> passing <tt>$value</tt> if <tt>$context</tt> is <tt>'db'</tt> and field name prefix is not <tt>'post_'</tt>.</li> <li>Calls <tt>'{$field}'</tt> passing <tt>$value</tt>, <tt>$post_id</tt> and <tt>$context</tt> if <tt>$context</tt> is anything other than <tt>'raw'</tt>, <tt>'edit'</tt> and <tt>'db'</tt> and field name prefix is <tt>'post_'</tt>.</li> <li>Calls <tt>'post_$field'</tt> passing <tt>$value</tt> if <tt>$context</tt> is anything other than <tt>'raw'</tt>, <tt>'edit'</tt> and <tt>'db'</tt> and field name prefix is not <tt>'post_'</tt>.</li> </ul> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/post.php/">wp-includes/post.php</a> </p> <pre data-language="php">function sanitize_post_field( $field, $value, $post_id, $context = 'display' ) {
+	$int_fields = array( 'ID', 'post_parent', 'menu_order' );
+	if ( in_array( $field, $int_fields, true ) ) {
+		$value = (int) $value;
+	}
+
+	// Fields which contain arrays of integers.
+	$array_int_fields = array( 'ancestors' );
+	if ( in_array( $field, $array_int_fields, true ) ) {
+		$value = array_map( 'absint', $value );
+		return $value;
+	}
+
+	if ( 'raw' === $context ) {
+		return $value;
+	}
+
+	$prefixed = false;
+	if ( false !== strpos( $field, 'post_' ) ) {
+		$prefixed        = true;
+		$field_no_prefix = str_replace( 'post_', '', $field );
+	}
+
+	if ( 'edit' === $context ) {
+		$format_to_edit = array( 'post_content', 'post_excerpt', 'post_title', 'post_password' );
+
+		if ( $prefixed ) {
+
+			/**
+			 * Filters the value of a specific post field to edit.
+			 *
+			 * The dynamic portion of the hook name, `$field`, refers to the post
+			 * field name.
+			 *
+			 * @since 2.3.0
+			 *
+			 * @param mixed $value   Value of the post field.
+			 * @param int   $post_id Post ID.
+			 */
+			$value = apply_filters( "edit_{$field}", $value, $post_id );
+
+			/**
+			 * Filters the value of a specific post field to edit.
+			 *
+			 * The dynamic portion of the hook name, `$field_no_prefix`, refers to
+			 * the post field name.
+			 *
+			 * @since 2.3.0
+			 *
+			 * @param mixed $value   Value of the post field.
+			 * @param int   $post_id Post ID.
+			 */
+			$value = apply_filters( "{$field_no_prefix}_edit_pre", $value, $post_id );
+		} else {
+			$value = apply_filters( "edit_post_{$field}", $value, $post_id );
+		}
+
+		if ( in_array( $field, $format_to_edit, true ) ) {
+			if ( 'post_content' === $field ) {
+				$value = format_to_edit( $value, user_can_richedit() );
+			} else {
+				$value = format_to_edit( $value );
+			}
+		} else {
+			$value = esc_attr( $value );
+		}
+	} elseif ( 'db' === $context ) {
+		if ( $prefixed ) {
+
+			/**
+			 * Filters the value of a specific post field before saving.
+			 *
+			 * The dynamic portion of the hook name, `$field`, refers to the post
+			 * field name.
+			 *
+			 * @since 2.3.0
+			 *
+			 * @param mixed $value Value of the post field.
+			 */
+			$value = apply_filters( "pre_{$field}", $value );
+
+			/**
+			 * Filters the value of a specific field before saving.
+			 *
+			 * The dynamic portion of the hook name, `$field_no_prefix`, refers
+			 * to the post field name.
+			 *
+			 * @since 2.3.0
+			 *
+			 * @param mixed $value Value of the post field.
+			 */
+			$value = apply_filters( "{$field_no_prefix}_save_pre", $value );
+		} else {
+			$value = apply_filters( "pre_post_{$field}", $value );
+
+			/**
+			 * Filters the value of a specific post field before saving.
+			 *
+			 * The dynamic portion of the hook name, `$field`, refers to the post
+			 * field name.
+			 *
+			 * @since 2.3.0
+			 *
+			 * @param mixed $value Value of the post field.
+			 */
+			$value = apply_filters( "{$field}_pre", $value );
+		}
+	} else {
+
+		// Use display filters by default.
+		if ( $prefixed ) {
+
+			/**
+			 * Filters the value of a specific post field for display.
+			 *
+			 * The dynamic portion of the hook name, `$field`, refers to the post
+			 * field name.
+			 *
+			 * @since 2.3.0
+			 *
+			 * @param mixed  $value   Value of the prefixed post field.
+			 * @param int    $post_id Post ID.
+			 * @param string $context Context for how to sanitize the field.
+			 *                        Accepts 'raw', 'edit', 'db', 'display',
+			 *                        'attribute', or 'js'. Default 'display'.
+			 */
+			$value = apply_filters( "{$field}", $value, $post_id, $context );
+		} else {
+			$value = apply_filters( "post_{$field}", $value, $post_id, $context );
+		}
+
+		if ( 'attribute' === $context ) {
+			$value = esc_attr( $value );
+		} elseif ( 'js' === $context ) {
+			$value = esc_js( $value );
+		}
+	}
+
+	// Restore the type for integer fields after esc_attr().
+	if ( in_array( $field, $int_fields, true ) ) {
+		$value = (int) $value;
+	}
+
+	return $value;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_js">esc_js()</a> </td> <td class="related-desc"> <p>Escapes single quotes, <code>"</code>, , <code>&amp;amp;</code>, and fixes line endings.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="format_to_edit">format_to_edit()</a> </td> <td class="related-desc"> <p>Acts on text which is about to be edited.</p> </td> </tr> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="user_can_richedit">user_can_richedit()</a> </td> <td class="related-desc"> <p>Whether the user can access the visual editor.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../hooks/edit_field">edit_{$field}</a> </td> <td class="related-desc"> <p>Filters the value of a specific post field to edit.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../hooks/field_no_prefix_edit_pre">{$field_no_prefix}_edit_pre</a> </td> <td class="related-desc"> <p>Filters the value of a specific post field to edit.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../hooks/pre_field">pre_{$field}</a> </td> <td class="related-desc"> <p>Filters the value of a specific post field before saving.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../hooks/field_no_prefix_save_pre">{$field_no_prefix}_save_pre</a> </td> <td class="related-desc"> <p>Filters the value of a specific field before saving.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../hooks/field_pre">{$field}_pre</a> </td> <td class="related-desc"> <p>Filters the value of a specific post field before saving.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../hooks/field">{$field}</a> </td> <td class="related-desc"> <p>Filters the value of a specific post field for display.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/post.php:</span> <a href="post_exists">post_exists()</a> </td> <td class="related-desc"> <p>Determines if a post exists based on title, content, date and type.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-post.php:</span> <a href="../classes/wp_post/__get">WP_Post::__get()</a> </td> <td class="related-desc"> <p>Getter.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="sanitize_post">sanitize_post()</a> </td> <td class="related-desc"> <p>Sanitizes every post field.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="set_post_type">set_post_type()</a> </td> <td class="related-desc"> <p>Update the post type for the post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post_field">get_post_field()</a> </td> <td class="related-desc"> <p>Retrieve data from a post field based on Post ID.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.4.0/" alt="WordPress 4.4.0">4.4.0</a></td> <td><span class="since-description">Like <code>sanitize_post()</code>, <code>$context</code> defaults to 'display'.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.3.0/" alt="WordPress 2.3.0">2.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/sanitize_post_field" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/sanitize_post_field</a>
+  </p>
+</div>

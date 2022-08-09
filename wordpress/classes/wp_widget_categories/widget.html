@@ -1,0 +1,113 @@
+<h1>WP_Widget_Categories::widget( array $args, array $instance )</h1>  <section> <p>Outputs the content for the current Categories widget instance.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Display arguments including 'before_title', 'after_title', 'before_widget', and 'after_widget'.</span> </p> </dd> <dt>$instance</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Settings for the current Categories widget instance.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/widgets/class-wp-widget-categories.php/">wp-includes/widgets/class-wp-widget-categories.php</a> </p> <pre data-language="php">public function widget( $args, $instance ) {
+		static $first_dropdown = true;
+
+		$default_title = __( 'Categories' );
+		$title         = ! empty( $instance['title'] ) ? $instance['title'] : $default_title;
+
+		/** This filter is documented in wp-includes/widgets/class-wp-widget-pages.php */
+		$title = apply_filters( 'widget_title', $title, $instance, $this-&gt;id_base );
+
+		$count        = ! empty( $instance['count'] ) ? '1' : '0';
+		$hierarchical = ! empty( $instance['hierarchical'] ) ? '1' : '0';
+		$dropdown     = ! empty( $instance['dropdown'] ) ? '1' : '0';
+
+		echo $args['before_widget'];
+
+		if ( $title ) {
+			echo $args['before_title'] . $title . $args['after_title'];
+		}
+
+		$cat_args = array(
+			'orderby'      =&gt; 'name',
+			'show_count'   =&gt; $count,
+			'hierarchical' =&gt; $hierarchical,
+		);
+
+		if ( $dropdown ) {
+			printf( '&lt;form action="%s" method="get"&gt;', esc_url( home_url() ) );
+			$dropdown_id    = ( $first_dropdown ) ? 'cat' : "{$this-&gt;id_base}-dropdown-{$this-&gt;number}";
+			$first_dropdown = false;
+
+			echo '&lt;label class="screen-reader-text" for="' . esc_attr( $dropdown_id ) . '"&gt;' . $title . '&lt;/label&gt;';
+
+			$cat_args['show_option_none'] = __( 'Select Category' );
+			$cat_args['id']               = $dropdown_id;
+
+			/**
+			 * Filters the arguments for the Categories widget drop-down.
+			 *
+			 * @since 2.8.0
+			 * @since 4.9.0 Added the `$instance` parameter.
+			 *
+			 * @see wp_dropdown_categories()
+			 *
+			 * @param array $cat_args An array of Categories widget drop-down arguments.
+			 * @param array $instance Array of settings for the current widget.
+			 */
+			wp_dropdown_categories( apply_filters( 'widget_categories_dropdown_args', $cat_args, $instance ) );
+
+			echo '&lt;/form&gt;';
+
+			$type_attr = current_theme_supports( 'html5', 'script' ) ? '' : ' type="text/javascript"';
+			?&gt;
+
+&lt;script&lt;?php echo $type_attr; ?&gt;&gt;
+/* &lt;![CDATA[ */
+(function() {
+	var dropdown = document.getElementById( "&lt;?php echo esc_js( $dropdown_id ); ?&gt;" );
+	function onCatChange() {
+		if ( dropdown.options[ dropdown.selectedIndex ].value &gt; 0 ) {
+			dropdown.parentNode.submit();
+		}
+	}
+	dropdown.onchange = onCatChange;
+})();
+/* ]]&gt; */
+&lt;/script&gt;
+
+			&lt;?php
+		} else {
+			$format = current_theme_supports( 'html5', 'navigation-widgets' ) ? 'html5' : 'xhtml';
+
+			/** This filter is documented in wp-includes/widgets/class-wp-nav-menu-widget.php */
+			$format = apply_filters( 'navigation_widgets_format', $format );
+
+			if ( 'html5' === $format ) {
+				// The title may be filtered: Strip out HTML and make sure the aria-label is never empty.
+				$title      = trim( strip_tags( $title ) );
+				$aria_label = $title ? $title : $default_title;
+				echo '&lt;nav aria-label="' . esc_attr( $aria_label ) . '"&gt;';
+			}
+			?&gt;
+
+			&lt;ul&gt;
+				&lt;?php
+				$cat_args['title_li'] = '';
+
+				/**
+				 * Filters the arguments for the Categories widget.
+				 *
+				 * @since 2.8.0
+				 * @since 4.9.0 Added the `$instance` parameter.
+				 *
+				 * @param array $cat_args An array of Categories widget options.
+				 * @param array $instance Array of settings for the current widget.
+				 */
+				wp_list_categories( apply_filters( 'widget_categories_args', $cat_args, $instance ) );
+				?&gt;
+			&lt;/ul&gt;
+
+			&lt;?php
+			if ( 'html5' === $format ) {
+				echo '&lt;/nav&gt;';
+			}
+		}
+
+		echo $args['after_widget'];
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/widgets/class-wp-nav-menu-widget.php:</span> <a href="../../hooks/navigation_widgets_format">navigation_widgets_format</a> </td> <td class="related-desc"> <p>Filters the HTML format of widgets with navigation links.</p> </td> </tr> <tr> <td> <span>wp-includes/category-template.php:</span> <a href="../../functions/wp_dropdown_categories">wp_dropdown_categories()</a> </td> <td class="related-desc"> <p>Displays or retrieves the HTML dropdown list of categories.</p> </td> </tr> <tr> <td> <span>wp-includes/category-template.php:</span> <a href="../../functions/wp_list_categories">wp_list_categories()</a> </td> <td class="related-desc"> <p>Displays or retrieves the HTML list of categories.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="../../functions/current_theme_supports">current_theme_supports()</a> </td> <td class="related-desc"> <p>Checks a theme’s support for a given feature.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_js">esc_js()</a> </td> <td class="related-desc"> <p>Escapes single quotes, <code>"</code>, , <code>&amp;amp;</code>, and fixes line endings.</p> </td> </tr> <tr> <td> <span>wp-includes/widgets/class-wp-widget-categories.php:</span> <a href="../../hooks/widget_categories_dropdown_args">widget_categories_dropdown_args</a> </td> <td class="related-desc"> <p>Filters the arguments for the Categories widget drop-down.</p> </td> </tr> <tr> <td> <span>wp-includes/widgets/class-wp-widget-categories.php:</span> <a href="../../hooks/widget_categories_args">widget_categories_args</a> </td> <td class="related-desc"> <p>Filters the arguments for the Categories widget.</p> </td> </tr> <tr> <td> <span>wp-includes/widgets/class-wp-widget-pages.php:</span> <a href="../../hooks/widget_title">widget_title</a> </td> <td class="related-desc"> <p>Filters the widget title.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="../../functions/home_url">home_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL for the current site where the front end is accessible.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.2.0/" alt="WordPress 4.2.0">4.2.0</a></td> <td><span class="since-description">Creates a unique HTML ID for the <code>&lt;select&gt;</code> element if more than one instance is displayed on the page.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.8.0/" alt="WordPress 2.8.0">2.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_widget_categories/widget" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_widget_categories/widget</a>
+  </p>
+</div>

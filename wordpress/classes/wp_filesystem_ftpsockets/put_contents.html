@@ -1,0 +1,44 @@
+<h1>WP_Filesystem_ftpsockets::put_contents( string $file, string $contents, int|false $mode = false )</h1>  <section> <p>Writes a string to a file.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$file</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Remote path to the file where to write the data.</span> </p> </dd> <dt>$contents</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The data to write.</span> </p> </dd> <dt>$mode</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>|<span class="false">false</span>)</span> <span class="required">(Optional)</span> <span class="description"> The file permissions as octal number, usually 0644. </span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> True on success, false on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-filesystem-ftpsockets.php/">wp-admin/includes/class-wp-filesystem-ftpsockets.php</a> </p> <pre data-language="php">public function put_contents( $file, $contents, $mode = false ) {
+		$tempfile   = wp_tempnam( $file );
+		$temphandle = @fopen( $tempfile, 'w+' );
+
+		if ( ! $temphandle ) {
+			unlink( $tempfile );
+			return false;
+		}
+
+		// The FTP class uses string functions internally during file download/upload.
+		mbstring_binary_safe_encoding();
+
+		$bytes_written = fwrite( $temphandle, $contents );
+
+		if ( false === $bytes_written || strlen( $contents ) !== $bytes_written ) {
+			fclose( $temphandle );
+			unlink( $tempfile );
+
+			reset_mbstring_encoding();
+
+			return false;
+		}
+
+		fseek( $temphandle, 0 ); // Skip back to the start of the file being written to.
+
+		$ret = $this-&gt;ftp-&gt;fput( $file, $temphandle );
+
+		reset_mbstring_encoding();
+
+		fclose( $temphandle );
+		unlink( $tempfile );
+
+		$this-&gt;chmod( $file, $mode );
+
+		return $ret;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-filesystem-ftpsockets.php:</span> <a href="chmod">WP_Filesystem_ftpsockets::chmod()</a> </td> <td class="related-desc"> <p>Changes filesystem permissions.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/file.php:</span> <a href="../../functions/wp_tempnam">wp_tempnam()</a> </td> <td class="related-desc"> <p>Returns a filename of a temporary unique file.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/mbstring_binary_safe_encoding">mbstring_binary_safe_encoding()</a> </td> <td class="related-desc"> <p>Set the mbstring internal encoding to a binary safe encoding when func_overload is enabled.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/reset_mbstring_encoding">reset_mbstring_encoding()</a> </td> <td class="related-desc"> <p>Reset the mbstring internal encoding to a users previously set encoding.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-filesystem-ftpsockets.php:</span> <a href="copy">WP_Filesystem_ftpsockets::copy()</a> </td> <td class="related-desc"> <p>Copies a file.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.5.0/" alt="WordPress 2.5.0">2.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_filesystem_ftpsockets/put_contents" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_filesystem_ftpsockets/put_contents</a>
+  </p>
+</div>

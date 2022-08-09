@@ -1,0 +1,85 @@
+<h1>WP_Customize_Manager::handle_changeset_trash_request()</h1>  <section> <p>Handles request to trash a changeset.</p> </section> <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-customize-manager.php/">wp-includes/class-wp-customize-manager.php</a> </p> <pre data-language="php">public function handle_changeset_trash_request() {
+		if ( ! is_user_logged_in() ) {
+			wp_send_json_error( 'unauthenticated' );
+		}
+
+		if ( ! $this-&gt;is_preview() ) {
+			wp_send_json_error( 'not_preview' );
+		}
+
+		if ( ! check_ajax_referer( 'trash_customize_changeset', 'nonce', false ) ) {
+			wp_send_json_error(
+				array(
+					'code'    =&gt; 'invalid_nonce',
+					'message' =&gt; __( 'There was an authentication problem. Please reload and try again.' ),
+				)
+			);
+		}
+
+		$changeset_post_id = $this-&gt;changeset_post_id();
+
+		if ( ! $changeset_post_id ) {
+			wp_send_json_error(
+				array(
+					'message' =&gt; __( 'No changes saved yet, so there is nothing to trash.' ),
+					'code'    =&gt; 'non_existent_changeset',
+				)
+			);
+			return;
+		}
+
+		if ( $changeset_post_id ) {
+			if ( ! current_user_can( get_post_type_object( 'customize_changeset' )-&gt;cap-&gt;delete_post, $changeset_post_id ) ) {
+				wp_send_json_error(
+					array(
+						'code'    =&gt; 'changeset_trash_unauthorized',
+						'message' =&gt; __( 'Unable to trash changes.' ),
+					)
+				);
+			}
+
+			$lock_user = (int) wp_check_post_lock( $changeset_post_id );
+
+			if ( $lock_user &amp;&amp; get_current_user_id() !== $lock_user ) {
+				wp_send_json_error(
+					array(
+						'code'     =&gt; 'changeset_locked',
+						'message'  =&gt; __( 'Changeset is being edited by other user.' ),
+						'lockUser' =&gt; $this-&gt;get_lock_user_data( $lock_user ),
+					)
+				);
+			}
+		}
+
+		if ( 'trash' === get_post_status( $changeset_post_id ) ) {
+			wp_send_json_error(
+				array(
+					'message' =&gt; __( 'Changes have already been trashed.' ),
+					'code'    =&gt; 'changeset_already_trashed',
+				)
+			);
+			return;
+		}
+
+		$r = $this-&gt;trash_changeset_post( $changeset_post_id );
+		if ( ! ( $r instanceof WP_Post ) ) {
+			wp_send_json_error(
+				array(
+					'code'    =&gt; 'changeset_trash_failure',
+					'message' =&gt; __( 'Unable to trash changes.' ),
+				)
+			);
+		}
+
+		wp_send_json_success(
+			array(
+				'message' =&gt; __( 'Changes trashed successfully.' ),
+			)
+		);
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="get_lock_user_data">WP_Customize_Manager::get_lock_user_data()</a> </td> <td class="related-desc"> <p>Gets lock user data.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="trash_changeset_post">WP_Customize_Manager::trash_changeset_post()</a> </td> <td class="related-desc"> <p>Trashes or deletes a changeset post.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="changeset_post_id">WP_Customize_Manager::changeset_post_id()</a> </td> <td class="related-desc"> <p>Gets the changeset post ID for the loaded changeset.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/post.php:</span> <a href="../../functions/wp_check_post_lock">wp_check_post_lock()</a> </td> <td class="related-desc"> <p>Determines whether the post is currently being edited by another user.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="../../functions/current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="is_preview">WP_Customize_Manager::is_preview()</a> </td> <td class="related-desc"> <p>Determines whether it is a theme preview or not.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../../functions/is_user_logged_in">is_user_logged_in()</a> </td> <td class="related-desc"> <p>Determines whether the current visitor is a logged in user.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../../functions/check_ajax_referer">check_ajax_referer()</a> </td> <td class="related-desc"> <p>Verifies the Ajax request to prevent processing requests external of the blog.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_send_json_error">wp_send_json_error()</a> </td> <td class="related-desc"> <p>Send a JSON response back to an Ajax request, indicating failure.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_send_json_success">wp_send_json_success()</a> </td> <td class="related-desc"> <p>Send a JSON response back to an Ajax request, indicating success.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="../../functions/get_current_user_id">get_current_user_id()</a> </td> <td class="related-desc"> <p>Gets the current user’s ID.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/get_post_type_object">get_post_type_object()</a> </td> <td class="related-desc"> <p>Retrieves a post type object by name.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/get_post_status">get_post_status()</a> </td> <td class="related-desc"> <p>Retrieve the post status based on the post ID.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.9.0/" alt="WordPress 4.9.0">4.9.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_customize_manager/handle_changeset_trash_request" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_customize_manager/handle_changeset_trash_request</a>
+  </p>
+</div>

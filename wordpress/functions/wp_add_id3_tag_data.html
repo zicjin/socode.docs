@@ -1,0 +1,44 @@
+<h1>wp_add_id3_tag_data( array $metadata, array $data )</h1>  <section> <p>Parses ID3v2, ID3v1, and getID3 comments to extract usable data.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$metadata</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">An existing array with data.</span> </p> </dd> <dt>$data</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Data supplied by ID3 tags.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/media.php/">wp-admin/includes/media.php</a> </p> <pre data-language="php">function wp_add_id3_tag_data( &amp;$metadata, $data ) {
+	foreach ( array( 'id3v2', 'id3v1' ) as $version ) {
+		if ( ! empty( $data[ $version ]['comments'] ) ) {
+			foreach ( $data[ $version ]['comments'] as $key =&gt; $list ) {
+				if ( 'length' !== $key &amp;&amp; ! empty( $list ) ) {
+					$metadata[ $key ] = wp_kses_post( reset( $list ) );
+					// Fix bug in byte stream analysis.
+					if ( 'terms_of_use' === $key &amp;&amp; 0 === strpos( $metadata[ $key ], 'yright notice.' ) ) {
+						$metadata[ $key ] = 'Cop' . $metadata[ $key ];
+					}
+				}
+			}
+			break;
+		}
+	}
+
+	if ( ! empty( $data['id3v2']['APIC'] ) ) {
+		$image = reset( $data['id3v2']['APIC'] );
+		if ( ! empty( $image['data'] ) ) {
+			$metadata['image'] = array(
+				'data'   =&gt; $image['data'],
+				'mime'   =&gt; $image['image_mime'],
+				'width'  =&gt; $image['image_width'],
+				'height' =&gt; $image['image_height'],
+			);
+		}
+	} elseif ( ! empty( $data['comments']['picture'] ) ) {
+		$image = reset( $data['comments']['picture'] );
+		if ( ! empty( $image['data'] ) ) {
+			$metadata['image'] = array(
+				'data' =&gt; $image['data'],
+				'mime' =&gt; $image['image_mime'],
+			);
+		}
+	}
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/kses.php:</span> <a href="wp_kses_post">wp_kses_post()</a> </td> <td class="related-desc"> <p>Sanitizes content for allowed HTML tags for post content.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="wp_read_video_metadata">wp_read_video_metadata()</a> </td> <td class="related-desc"> <p>Retrieves metadata from a video file’s ID3 tags.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="wp_read_audio_metadata">wp_read_audio_metadata()</a> </td> <td class="related-desc"> <p>Retrieves metadata from an audio file’s ID3 tags.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.6.0/" alt="WordPress 3.6.0">3.6.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_add_id3_tag_data" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_add_id3_tag_data</a>
+  </p>
+</div>

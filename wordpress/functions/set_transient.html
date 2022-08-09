@@ -1,0 +1,107 @@
+<h1>set_transient( string $transient, mixed $value, int $expiration )</h1>  <section> <p>Sets/updates the value of a transient.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>You do not need to serialize values. If the value needs to be serialized, then it will be serialized before it is set.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$transient</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Transient name. Expected to not be SQL-escaped. Must be 172 characters or fewer in length.</span> </p> </dd> <dt>$value</dt> <dd> <p class="desc"> <span class="type">(<span class="mixed">mixed</span>)</span> <span class="required">(Required)</span> <span class="description">Transient value. Must be serializable if non-scalar. Expected to not be SQL-escaped.</span> </p> </dd> <dt>$expiration</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description"> Time until expiration in seconds. Default 0 (no expiration).</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> True if the value was set, false otherwise.</p> </section>  <section> <h2 id="more-information">More Information</h2> <p>For parameter <code>$transient</code>, if memcached is not enabled the name should be 172 characters or less in length as WordPress will prefix your name with “_transient_” or “_transient_timeout_” in the options table (depending on whether it expires or not). Longer key names will silently fail. See <a class="external text" href="https://core.trac.wordpress.org/ticket/15058" rel="nofollow">Trac #15058</a>.</p> <p>If a transient exists, this function will update the transient’s expiration time.</p> <p>NB: transients that never expire are autoloaded, whereas transients with an expiration time are not autoloaded. Consider this when adding transients that may not be needed on every page, and thus do not need to be autoloaded, impacting page performance.</p> <p>WordPress provides some constants for specifying time in seconds. Instead of multiplying out integers, see <a title="Transients API" href="https://codex.wordpress.org/Transients_API#Using_Time_Constants">Transients_API#Using_Time_Constants</a>.</p> <p>Transient key names are limited to 191 characters due to the database schema in the wp_options table ( option_name: varchar(191) ).</p> <p>In WordPress versions previous to 4.4, the length limitation was 45 in set_transient (now 172) and 64 in the database (now 191).</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/option.php/">wp-includes/option.php</a> </p> <pre data-language="php">function set_transient( $transient, $value, $expiration = 0 ) {
+
+	$expiration = (int) $expiration;
+
+	/**
+	 * Filters a specific transient before its value is set.
+	 *
+	 * The dynamic portion of the hook name, `$transient`, refers to the transient name.
+	 *
+	 * @since 3.0.0
+	 * @since 4.2.0 The `$expiration` parameter was added.
+	 * @since 4.4.0 The `$transient` parameter was added.
+	 *
+	 * @param mixed  $value      New value of transient.
+	 * @param int    $expiration Time until expiration in seconds.
+	 * @param string $transient  Transient name.
+	 */
+	$value = apply_filters( "pre_set_transient_{$transient}", $value, $expiration, $transient );
+
+	/**
+	 * Filters the expiration for a transient before its value is set.
+	 *
+	 * The dynamic portion of the hook name, `$transient`, refers to the transient name.
+	 *
+	 * @since 4.4.0
+	 *
+	 * @param int    $expiration Time until expiration in seconds. Use 0 for no expiration.
+	 * @param mixed  $value      New value of transient.
+	 * @param string $transient  Transient name.
+	 */
+	$expiration = apply_filters( "expiration_of_transient_{$transient}", $expiration, $value, $transient );
+
+	if ( wp_using_ext_object_cache() || wp_installing() ) {
+		$result = wp_cache_set( $transient, $value, 'transient', $expiration );
+	} else {
+		$transient_timeout = '_transient_timeout_' . $transient;
+		$transient_option  = '_transient_' . $transient;
+
+		if ( false === get_option( $transient_option ) ) {
+			$autoload = 'yes';
+			if ( $expiration ) {
+				$autoload = 'no';
+				add_option( $transient_timeout, time() + $expiration, '', 'no' );
+			}
+			$result = add_option( $transient_option, $value, '', $autoload );
+		} else {
+			// If expiration is requested, but the transient has no timeout option,
+			// delete, then re-create transient rather than update.
+			$update = true;
+
+			if ( $expiration ) {
+				if ( false === get_option( $transient_timeout ) ) {
+					delete_option( $transient_option );
+					add_option( $transient_timeout, time() + $expiration, '', 'no' );
+					$result = add_option( $transient_option, $value, '', 'no' );
+					$update = false;
+				} else {
+					update_option( $transient_timeout, time() + $expiration );
+				}
+			}
+
+			if ( $update ) {
+				$result = update_option( $transient_option, $value );
+			}
+		}
+	}
+
+	if ( $result ) {
+
+		/**
+		 * Fires after the value for a specific transient has been set.
+		 *
+		 * The dynamic portion of the hook name, `$transient`, refers to the transient name.
+		 *
+		 * @since 3.0.0
+		 * @since 3.6.0 The `$value` and `$expiration` parameters were added.
+		 * @since 4.4.0 The `$transient` parameter was added.
+		 *
+		 * @param mixed  $value      Transient value.
+		 * @param int    $expiration Time until expiration in seconds.
+		 * @param string $transient  The name of the transient.
+		 */
+		do_action( "set_transient_{$transient}", $value, $expiration, $transient );
+
+		/**
+		 * Fires after the value for a transient has been set.
+		 *
+		 * @since 3.0.0
+		 * @since 3.6.0 The `$value` and `$expiration` parameters were added.
+		 *
+		 * @param string $transient  The name of the transient.
+		 * @param mixed  $value      Transient value.
+		 * @param int    $expiration Time until expiration in seconds.
+		 */
+		do_action( 'setted_transient', $transient, $value, $expiration );
+	}
+
+	return $result;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_installing">wp_installing()</a> </td> <td class="related-desc"> <p>Check or set whether WordPress is in “installation” mode.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../hooks/expiration_of_transient_transient">expiration_of_transient_{$transient}</a> </td> <td class="related-desc"> <p>Filters the expiration for a transient before its value is set.</p> </td> </tr> <tr> <td> <span>wp-includes/cache.php:</span> <a href="wp_cache_set">wp_cache_set()</a> </td> <td class="related-desc"> <p>Saves the data to the cache.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_using_ext_object_cache">wp_using_ext_object_cache()</a> </td> <td class="related-desc"> <p>Toggle <code>$_wp_using_ext_object_cache</code> on and off without directly touching global.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../hooks/pre_set_transient_transient">pre_set_transient_{$transient}</a> </td> <td class="related-desc"> <p>Filters a specific transient before its value is set.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../hooks/set_transient_transient">set_transient_{$transient}</a> </td> <td class="related-desc"> <p>Fires after the value for a specific transient has been set.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../hooks/setted_transient">setted_transient</a> </td> <td class="related-desc"> <p>Fires after the value for a transient has been set.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="add_option">add_option()</a> </td> <td class="related-desc"> <p>Adds a new option.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="delete_option">delete_option()</a> </td> <td class="related-desc"> <p>Removes option by name. Prevents removal of protected WordPress options.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="update_option">update_option()</a> </td> <td class="related-desc"> <p>Updates the value of an option that was already added.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/global-styles-and-settings.php:</span> <a href="wp_get_global_styles_svg_filters">wp_get_global_styles_svg_filters()</a> </td> <td class="related-desc"> <p>Returns a string containing the SVGs to be referenced as filters (duotone).</p> </td> </tr> <tr> <td> <span>wp-includes/global-styles-and-settings.php:</span> <a href="wp_get_global_stylesheet">wp_get_global_stylesheet()</a> </td> <td class="related-desc"> <p>Returns the stylesheet resulting of merging core, theme, and user data.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="clean_dirsize_cache">clean_dirsize_cache()</a> </td> <td class="related-desc"> <p>Cleans directory size cache used by <a href="recurse_dirsize">recurse_dirsize()</a>.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-site-health.php:</span> <a href="../classes/wp_site_health/wp_cron_scheduled_check">WP_Site_Health::wp_cron_scheduled_check()</a> </td> <td class="related-desc"> <p>Run our scheduled event to check and update the latest site health status for the website.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/ajax-actions.php:</span> <a href="wp_ajax_health_check_site_status_result">wp_ajax_health_check_site_status_result()</a> </td> <td class="related-desc"> <p>Ajax handler for site health check to update the result status.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/file.php:</span> <a href="wp_edit_theme_plugin_file">wp_edit_theme_plugin_file()</a> </td> <td class="related-desc"> <p>Attempts to edit a file for a theme or plugin.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-oembed-controller.php:</span> <a href="../classes/wp_oembed_controller/get_proxy_item">WP_oEmbed_Controller::get_proxy_item()</a> </td> <td class="related-desc"> <p>Callback for the proxy API endpoint.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/theme-install.php:</span> <a href="install_themes_feature_list">install_themes_feature_list()</a> </td> <td class="related-desc"> <p>Retrieves the list of WordPress theme features (aka theme tags).</p> </td> </tr> <tr> <td> <span>wp-admin/includes/dashboard.php:</span> <a href="wp_dashboard_cached_rss_widget">wp_dashboard_cached_rss_widget()</a> </td> <td class="related-desc"> <p>Checks to see if all of the feed url in $check_urls are cached.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/deprecated.php:</span> <a href="wp_dashboard_plugins_output">wp_dashboard_plugins_output()</a> </td> <td class="related-desc"> <p>Display plugins text for the WordPress news widget.</p> </td> </tr> <tr> <td> <span>wp-includes/cron.php:</span> <a href="spawn_cron">spawn_cron()</a> </td> <td class="related-desc"> <p>Sends a request to run cron through HTTP request that doesn’t halt page loading.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_rand">wp_rand()</a> </td> <td class="related-desc"> <p>Generates a random number.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-feed-cache-transient.php:</span> <a href="../classes/wp_feed_cache_transient/save">WP_Feed_Cache_Transient::save()</a> </td> <td class="related-desc"> <p>Sets the transient.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-feed-cache-transient.php:</span> <a href="../classes/wp_feed_cache_transient/touch">WP_Feed_Cache_Transient::touch()</a> </td> <td class="related-desc"> <p>Sets mod transient.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="wp_maybe_generate_attachment_metadata">wp_maybe_generate_attachment_metadata()</a> </td> <td class="related-desc"> <p>Maybe attempts to generate attachment metadata, if missing.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="recurse_dirsize">recurse_dirsize()</a> </td> <td class="related-desc"> <p>Get the size of a directory recursively.</p> </td> </tr> <tr> <td> <span>wp-includes/author-template.php:</span> <a href="is_multi_author">is_multi_author()</a> </td> <td class="related-desc"> <p>Determines whether this site has more than one author.</p> </td> </tr> <tr> <td> <span>wp-includes/rss.php:</span> <a href="../classes/rsscache/set">RSSCache::set()</a> </td> <td class="related-desc"> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.8.0/" alt="WordPress 2.8.0">2.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/set_transient" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/set_transient</a>
+  </p>
+</div>

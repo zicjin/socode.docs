@@ -1,0 +1,77 @@
+<h1>WP_REST_Menus_Controller::update_item( WP_REST_Request $request )</h1>  <section> <p>Updates a single term from a taxonomy.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$request</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_REST_Request"><a href="../wp_rest_request">WP_REST_Request</a></span>)</span> <span class="required">(Required)</span> <span class="description">Full details about the request.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../wp_rest_response">WP_REST_Response</a>|<a href="../wp_error">WP_Error</a>)</span> Response object on success, or <a href="../wp_error">WP_Error</a> object on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/rest-api/endpoints/class-wp-rest-menus-controller.php/">wp-includes/rest-api/endpoints/class-wp-rest-menus-controller.php</a> </p> <pre data-language="php">public function update_item( $request ) {
+		$term = $this-&gt;get_term( $request['id'] );
+		if ( is_wp_error( $term ) ) {
+			return $term;
+		}
+
+		if ( isset( $request['parent'] ) ) {
+			if ( ! is_taxonomy_hierarchical( $this-&gt;taxonomy ) ) {
+				return new WP_Error( 'rest_taxonomy_not_hierarchical', __( 'Cannot set parent term, taxonomy is not hierarchical.' ), array( 'status' =&gt; 400 ) );
+			}
+
+			$parent = get_term( (int) $request['parent'], $this-&gt;taxonomy );
+
+			if ( ! $parent ) {
+				return new WP_Error( 'rest_term_invalid', __( 'Parent term does not exist.' ), array( 'status' =&gt; 400 ) );
+			}
+		}
+
+		$prepared_term = $this-&gt;prepare_item_for_database( $request );
+
+		// Only update the term if we have something to update.
+		if ( ! empty( $prepared_term ) ) {
+			if ( ! isset( $prepared_term-&gt;{'menu-name'} ) ) {
+				// wp_update_nav_menu_object() requires that the menu-name is always passed.
+				$prepared_term-&gt;{'menu-name'} = $term-&gt;name;
+			}
+
+			$update = wp_update_nav_menu_object( $term-&gt;term_id, wp_slash( (array) $prepared_term ) );
+
+			if ( is_wp_error( $update ) ) {
+				return $update;
+			}
+		}
+
+		$term = get_term( $term-&gt;term_id, $this-&gt;taxonomy );
+
+		/** This action is documented in wp-includes/rest-api/endpoints/class-wp-rest-terms-controller.php */
+		do_action( "rest_insert_{$this-&gt;taxonomy}", $term, $request, false );
+
+		$schema = $this-&gt;get_item_schema();
+		if ( ! empty( $schema['properties']['meta'] ) &amp;&amp; isset( $request['meta'] ) ) {
+			$meta_update = $this-&gt;meta-&gt;update_value( $request['meta'], $term-&gt;term_id );
+
+			if ( is_wp_error( $meta_update ) ) {
+				return $meta_update;
+			}
+		}
+
+		$locations_update = $this-&gt;handle_locations( $term-&gt;term_id, $request );
+
+		if ( is_wp_error( $locations_update ) ) {
+			return $locations_update;
+		}
+
+		$this-&gt;handle_auto_add( $term-&gt;term_id, $request );
+
+		$fields_update = $this-&gt;update_additional_fields_for_object( $term, $request );
+
+		if ( is_wp_error( $fields_update ) ) {
+			return $fields_update;
+		}
+
+		$request-&gt;set_param( 'context', 'view' );
+
+		/** This action is documented in wp-includes/rest-api/endpoints/class-wp-rest-terms-controller.php */
+		do_action( "rest_after_insert_{$this-&gt;taxonomy}", $term, $request, false );
+
+		$response = $this-&gt;prepare_item_for_response( $term, $request );
+
+		return rest_ensure_response( $response );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-menus-controller.php:</span> <a href="get_term">WP_REST_Menus_Controller::get_term()</a> </td> <td class="related-desc"> <p>Gets the term, if the ID is valid.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-menus-controller.php:</span> <a href="prepare_item_for_database">WP_REST_Menus_Controller::prepare_item_for_database()</a> </td> <td class="related-desc"> <p>Prepares a single term for create or update.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-menus-controller.php:</span> <a href="get_item_schema">WP_REST_Menus_Controller::get_item_schema()</a> </td> <td class="related-desc"> <p>Retrieves the term’s schema, conforming to JSON Schema.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-menus-controller.php:</span> <a href="handle_locations">WP_REST_Menus_Controller::handle_locations()</a> </td> <td class="related-desc"> <p>Updates the menu’s locations from a REST request.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-menus-controller.php:</span> <a href="handle_auto_add">WP_REST_Menus_Controller::handle_auto_add()</a> </td> <td class="related-desc"> <p>Updates the menu’s auto add from a REST request.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-menus-controller.php:</span> <a href="prepare_item_for_response">WP_REST_Menus_Controller::prepare_item_for_response()</a> </td> <td class="related-desc"> <p>Prepares a single term output for response.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-terms-controller.php:</span> <a href="../../hooks/rest_after_insert_this-taxonomy">rest_after_insert_{$this-&gt;taxonomy}</a> </td> <td class="related-desc"> <p>Fires after a single term is completely created or updated via the REST API.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-terms-controller.php:</span> <a href="../../hooks/rest_insert_this-taxonomy">rest_insert_{$this-&gt;taxonomy}</a> </td> <td class="related-desc"> <p>Fires after a single term is created or updated via the REST API.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="../../functions/rest_ensure_response">rest_ensure_response()</a> </td> <td class="related-desc"> <p>Ensures a REST response is a response object (for consistency).</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/wp_slash">wp_slash()</a> </td> <td class="related-desc"> <p>Adds slashes to a string or recursively adds slashes to strings within an array.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="../../functions/is_taxonomy_hierarchical">is_taxonomy_hierarchical()</a> </td> <td class="related-desc"> <p>Determines whether the taxonomy object is hierarchical.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="../../functions/get_term">get_term()</a> </td> <td class="related-desc"> <p>Gets all term data from database by term ID.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/nav-menu.php:</span> <a href="../../functions/wp_update_nav_menu_object">wp_update_nav_menu_object()</a> </td> <td class="related-desc"> <p>Saves the properties of a menu or create a new menu with those properties.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.9.0/" alt="WordPress 5.9.0">5.9.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_rest_menus_controller/update_item" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_rest_menus_controller/update_item</a>
+  </p>
+</div>

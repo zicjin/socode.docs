@@ -1,0 +1,52 @@
+<h1>Requests::request( string $url, array $headers = array(), array|null $data = array(), string $type = self::GET, array $options = array() )</h1>  <section> <p>Main interface for HTTP requests</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>This method initiates a request and sends it via a transport before parsing.</p> <p>The <code>$options</code> parameter takes an associative array with the following options:</p> <ul> <li>
+<code>timeout</code>: How long should we wait for a response? Note: for cURL, a minimum of 1 second applies, as DNS resolution operates at second-resolution only. (float, seconds with a millisecond precision, default: 10, example: 0.01)</li> <li>
+<code>connect_timeout</code>: How long should we wait while trying to connect? (float, seconds with a millisecond precision, default: 10, example: 0.01)</li> <li>
+<code>useragent</code>: Useragent to send to the server (string, default: php-requests/$version)</li> <li>
+<code>follow_redirects</code>: Should we follow 3xx redirects? (boolean, default: true)</li> <li>
+<code>redirects</code>: How many times should we redirect before erroring? (integer, default: 10)</li> <li>
+<code>blocking</code>: Should we block processing on this request? (boolean, default: true)</li> <li>
+<code>filename</code>: File to stream the body to instead. (string|boolean, default: false)</li> <li>
+<code>auth</code>: Authentication handler or array of user/password details to use for Basic authentication (Requests_Auth|array|boolean, default: false)</li> <li>
+<code>proxy</code>: Proxy details to use for proxy by-passing and authentication (Requests_Proxy|array|string|boolean, default: false)</li> <li>
+<code>max_bytes</code>: Limit for the response body size. (integer|boolean, default: false)</li> <li>
+<code>idn</code>: Enable IDN parsing (boolean, default: true)</li> <li>
+<code>transport</code>: Custom transport. Either a class name, or a transport object. Defaults to the first working transport from <a href="../../functions/gettransport">getTransport()</a> (string|Requests_Transport, default: <a href="../../functions/gettransport">getTransport()</a>)</li> <li>
+<code>hooks</code>: Hooks handler. (Requests_Hooker, default: new <a href="../requests_hooks">Requests_Hooks</a>())</li> <li>
+<code>verify</code>: Should we verify SSL certificates? Allows passing in a custom certificate file as a string. (Using true uses the system-wide root certificate store instead, but this may have different behaviour across transports.) (string|boolean, default: library/Requests/Transport/cacert.pem)</li> <li>
+<code>verifyname</code>: Should we verify the common name in the SSL certificate? (boolean, default: true)</li> <li>
+<code>data_format</code>: How should we send the <code>$data</code> parameter? (string, one of ‘query’ or ‘body’, default: ‘query’ for HEAD/GET/DELETE, ‘body’ for POST/PUT/OPTIONS/PATCH)</li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$url</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">URL to request</span> </p> </dd> <dt>$headers</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description">Extra headers to send with the request</span> </p> <p class="default">Default value: array()</p> </dd> <dt>$data</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>|<span class="null">null</span>)</span> <span class="required">(Optional)</span> <span class="description">Data to send either as a query string for GET/HEAD requests, or in the body for POST requests</span> </p> <p class="default">Default value: array()</p> </dd> <dt>$type</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description">HTTP request type (use Requests constants)</span> </p> <p class="default">Default value: self::GET</p> </dd> <dt>$options</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description">Options for the request (see description for more information)</span> </p> <p class="default">Default value: array()</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../requests_response">Requests_Response</a>)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-requests.php/">wp-includes/class-requests.php</a> </p> <pre data-language="php">public static function request($url, $headers = array(), $data = array(), $type = self::GET, $options = array()) {
+		if (empty($options['type'])) {
+			$options['type'] = $type;
+		}
+		$options = array_merge(self::get_default_options(), $options);
+
+		self::set_defaults($url, $headers, $data, $type, $options);
+
+		$options['hooks']-&gt;dispatch('requests.before_request', array(&amp;$url, &amp;$headers, &amp;$data, &amp;$type, &amp;$options));
+
+		if (!empty($options['transport'])) {
+			$transport = $options['transport'];
+
+			if (is_string($options['transport'])) {
+				$transport = new $transport();
+			}
+		}
+		else {
+			$need_ssl     = (stripos($url, 'https://') === 0);
+			$capabilities = array('ssl' =&gt; $need_ssl);
+			$transport    = self::get_transport($capabilities);
+		}
+		$response = $transport-&gt;request($url, $headers, $data, $options);
+
+		$options['hooks']-&gt;dispatch('requests.before_parse', array(&amp;$response, $url, $headers, $data, $type, $options));
+
+		return self::parse_response($response, $url, $headers, $data, $options);
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-pop3.php:</span> <a href="../../functions/stripos">stripos()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-includes/class-requests.php:</span> <a href="set_defaults">Requests::set_defaults()</a> </td> <td class="related-desc"> <p>Set the default values</p> </td> </tr> <tr> <td> <span>wp-includes/class-requests.php:</span> <a href="parse_response">Requests::parse_response()</a> </td> <td class="related-desc"> <p>HTTP response parser</p> </td> </tr> <tr> <td> <span>wp-includes/class-requests.php:</span> <a href="get_default_options">Requests::get_default_options()</a> </td> <td class="related-desc"> <p>Get the default options</p> </td> </tr> <tr> <td> <span>wp-includes/class-requests.php:</span> <a href="get_transport">Requests::get_transport()</a> </td> <td class="related-desc"> <p>Get a working transport</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-requests.php:</span> <a href="parse_response">Requests::parse_response()</a> </td> <td class="related-desc"> <p>HTTP response parser</p> </td> </tr> <tr> <td> <span>wp-includes/class-requests.php:</span> <a href="options">Requests::options()</a> </td> <td class="related-desc"> <p>Send an OPTIONS request</p> </td> </tr> <tr> <td> <span>wp-includes/class-requests.php:</span> <a href="patch">Requests::patch()</a> </td> <td class="related-desc"> <p>Send a PATCH request</p> </td> </tr> <tr> <td> <span>wp-includes/class-requests.php:</span> <a href="get">Requests::get()</a> </td> <td class="related-desc"> <p>Send a GET request</p> </td> </tr> <tr> <td> <span>wp-includes/class-requests.php:</span> <a href="head">Requests::head()</a> </td> <td class="related-desc"> <p>Send a HEAD request</p> </td> </tr> <tr> <td> <span>wp-includes/class-requests.php:</span> <a href="delete">Requests::delete()</a> </td> <td class="related-desc"> <p>Send a DELETE request</p> </td> </tr> <tr> <td> <span>wp-includes/class-requests.php:</span> <a href="trace">Requests::trace()</a> </td> <td class="related-desc"> <p>Send a TRACE request</p> </td> </tr> <tr> <td> <span>wp-includes/class-requests.php:</span> <a href="post">Requests::post()</a> </td> <td class="related-desc"> <p>Send a POST request</p> </td> </tr> <tr> <td> <span>wp-includes/class-requests.php:</span> <a href="put">Requests::put()</a> </td> <td class="related-desc"> <p>Send a PUT request</p> </td> </tr> <tr> <td> <span>wp-includes/Requests/Session.php:</span> <a href="../requests_session/request">Requests_Session::request()</a> </td> <td class="related-desc"> <p>Main interface for HTTP requests</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-http.php:</span> <a href="../wp_http/request">WP_Http::request()</a> </td> <td class="related-desc"> <p>Send an HTTP request to a URI.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/requests/request" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/requests/request</a>
+  </p>
+</div>

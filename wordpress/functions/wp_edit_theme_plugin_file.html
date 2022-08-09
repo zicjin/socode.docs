@@ -1,0 +1,286 @@
+<h1>wp_edit_theme_plugin_file( string[] $args )</h1>  <section> <p>Attempts to edit a file for a theme or plugin.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>When editing a PHP file, loopback requests will be made to the admin and the homepage to attempt to see if there is a fatal error introduced. If so, the PHP change will be reverted.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="string[]">string[]</span>)</span> <span class="required">(Required)</span> <span class="description">Args. Note that all of the arg values are already unslashed. They are, however, coming straight from <code>$_POST</code> and are not validated or sanitized in any way. <ul class="param-hash">
+<li>
+<b>'file'</b><br><i><span class="type">(string)</span></i> Relative path to file.</li> <li>
+<b>'plugin'</b><br><i><span class="type">(string)</span></i> Path to the plugin file relative to the plugins directory.</li> <li>
+<b>'theme'</b><br><i><span class="type">(string)</span></i> Theme being edited.</li> <li>
+<b>'newcontent'</b><br><i><span class="type">(string)</span></i> New content for the file.</li> <li>
+<b>'nonce'</b><br><i><span class="type">(string)</span></i> Nonce.</li> </ul> </span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(true|<a href="../classes/wp_error">WP_Error</a>)</span> True on success or <code>WP_Error</code> on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/file.php/">wp-admin/includes/file.php</a> </p> <pre data-language="php">function wp_edit_theme_plugin_file( $args ) {
+	if ( empty( $args['file'] ) ) {
+		return new WP_Error( 'missing_file' );
+	}
+
+	if ( 0 !== validate_file( $args['file'] ) ) {
+		return new WP_Error( 'bad_file' );
+	}
+
+	if ( ! isset( $args['newcontent'] ) ) {
+		return new WP_Error( 'missing_content' );
+	}
+
+	if ( ! isset( $args['nonce'] ) ) {
+		return new WP_Error( 'missing_nonce' );
+	}
+
+	$file    = $args['file'];
+	$content = $args['newcontent'];
+
+	$plugin    = null;
+	$theme     = null;
+	$real_file = null;
+
+	if ( ! empty( $args['plugin'] ) ) {
+		$plugin = $args['plugin'];
+
+		if ( ! current_user_can( 'edit_plugins' ) ) {
+			return new WP_Error( 'unauthorized', __( 'Sorry, you are not allowed to edit plugins for this site.' ) );
+		}
+
+		if ( ! wp_verify_nonce( $args['nonce'], 'edit-plugin_' . $file ) ) {
+			return new WP_Error( 'nonce_failure' );
+		}
+
+		if ( ! array_key_exists( $plugin, get_plugins() ) ) {
+			return new WP_Error( 'invalid_plugin' );
+		}
+
+		if ( 0 !== validate_file( $file, get_plugin_files( $plugin ) ) ) {
+			return new WP_Error( 'bad_plugin_file_path', __( 'Sorry, that file cannot be edited.' ) );
+		}
+
+		$editable_extensions = wp_get_plugin_file_editable_extensions( $plugin );
+
+		$real_file = WP_PLUGIN_DIR . '/' . $file;
+
+		$is_active = in_array(
+			$plugin,
+			(array) get_option( 'active_plugins', array() ),
+			true
+		);
+
+	} elseif ( ! empty( $args['theme'] ) ) {
+		$stylesheet = $args['theme'];
+
+		if ( 0 !== validate_file( $stylesheet ) ) {
+			return new WP_Error( 'bad_theme_path' );
+		}
+
+		if ( ! current_user_can( 'edit_themes' ) ) {
+			return new WP_Error( 'unauthorized', __( 'Sorry, you are not allowed to edit templates for this site.' ) );
+		}
+
+		$theme = wp_get_theme( $stylesheet );
+		if ( ! $theme-&gt;exists() ) {
+			return new WP_Error( 'non_existent_theme', __( 'The requested theme does not exist.' ) );
+		}
+
+		if ( ! wp_verify_nonce( $args['nonce'], 'edit-theme_' . $stylesheet . '_' . $file ) ) {
+			return new WP_Error( 'nonce_failure' );
+		}
+
+		if ( $theme-&gt;errors() &amp;&amp; 'theme_no_stylesheet' === $theme-&gt;errors()-&gt;get_error_code() ) {
+			return new WP_Error(
+				'theme_no_stylesheet',
+				__( 'The requested theme does not exist.' ) . ' ' . $theme-&gt;errors()-&gt;get_error_message()
+			);
+		}
+
+		$editable_extensions = wp_get_theme_file_editable_extensions( $theme );
+
+		$allowed_files = array();
+		foreach ( $editable_extensions as $type ) {
+			switch ( $type ) {
+				case 'php':
+					$allowed_files = array_merge( $allowed_files, $theme-&gt;get_files( 'php', -1 ) );
+					break;
+				case 'css':
+					$style_files                = $theme-&gt;get_files( 'css', -1 );
+					$allowed_files['style.css'] = $style_files['style.css'];
+					$allowed_files              = array_merge( $allowed_files, $style_files );
+					break;
+				default:
+					$allowed_files = array_merge( $allowed_files, $theme-&gt;get_files( $type, -1 ) );
+					break;
+			}
+		}
+
+		// Compare based on relative paths.
+		if ( 0 !== validate_file( $file, array_keys( $allowed_files ) ) ) {
+			return new WP_Error( 'disallowed_theme_file', __( 'Sorry, that file cannot be edited.' ) );
+		}
+
+		$real_file = $theme-&gt;get_stylesheet_directory() . '/' . $file;
+
+		$is_active = ( get_stylesheet() === $stylesheet || get_template() === $stylesheet );
+
+	} else {
+		return new WP_Error( 'missing_theme_or_plugin' );
+	}
+
+	// Ensure file is real.
+	if ( ! is_file( $real_file ) ) {
+		return new WP_Error( 'file_does_not_exist', __( 'File does not exist! Please double check the name and try again.' ) );
+	}
+
+	// Ensure file extension is allowed.
+	$extension = null;
+	if ( preg_match( '/\.([^.]+)$/', $real_file, $matches ) ) {
+		$extension = strtolower( $matches[1] );
+		if ( ! in_array( $extension, $editable_extensions, true ) ) {
+			return new WP_Error( 'illegal_file_type', __( 'Files of this type are not editable.' ) );
+		}
+	}
+
+	$previous_content = file_get_contents( $real_file );
+
+	if ( ! is_writable( $real_file ) ) {
+		return new WP_Error( 'file_not_writable' );
+	}
+
+	$f = fopen( $real_file, 'w+' );
+
+	if ( false === $f ) {
+		return new WP_Error( 'file_not_writable' );
+	}
+
+	$written = fwrite( $f, $content );
+	fclose( $f );
+
+	if ( false === $written ) {
+		return new WP_Error( 'unable_to_write', __( 'Unable to write to file.' ) );
+	}
+
+	wp_opcache_invalidate( $real_file, true );
+
+	if ( $is_active &amp;&amp; 'php' === $extension ) {
+
+		$scrape_key   = md5( rand() );
+		$transient    = 'scrape_key_' . $scrape_key;
+		$scrape_nonce = (string) rand();
+		// It shouldn't take more than 60 seconds to make the two loopback requests.
+		set_transient( $transient, $scrape_nonce, 60 );
+
+		$cookies       = wp_unslash( $_COOKIE );
+		$scrape_params = array(
+			'wp_scrape_key'   =&gt; $scrape_key,
+			'wp_scrape_nonce' =&gt; $scrape_nonce,
+		);
+		$headers       = array(
+			'Cache-Control' =&gt; 'no-cache',
+		);
+
+		/** This filter is documented in wp-includes/class-wp-http-streams.php */
+		$sslverify = apply_filters( 'https_local_ssl_verify', false );
+
+		// Include Basic auth in loopback requests.
+		if ( isset( $_SERVER['PHP_AUTH_USER'] ) &amp;&amp; isset( $_SERVER['PHP_AUTH_PW'] ) ) {
+			$headers['Authorization'] = 'Basic ' . base64_encode( wp_unslash( $_SERVER['PHP_AUTH_USER'] ) . ':' . wp_unslash( $_SERVER['PHP_AUTH_PW'] ) );
+		}
+
+		// Make sure PHP process doesn't die before loopback requests complete.
+		set_time_limit( 300 );
+
+		// Time to wait for loopback requests to finish.
+		$timeout = 100;
+
+		$needle_start = "###### wp_scraping_result_start:$scrape_key ######";
+		$needle_end   = "###### wp_scraping_result_end:$scrape_key ######";
+
+		// Attempt loopback request to editor to see if user just whitescreened themselves.
+		if ( $plugin ) {
+			$url = add_query_arg( compact( 'plugin', 'file' ), admin_url( 'plugin-editor.php' ) );
+		} elseif ( isset( $stylesheet ) ) {
+			$url = add_query_arg(
+				array(
+					'theme' =&gt; $stylesheet,
+					'file'  =&gt; $file,
+				),
+				admin_url( 'theme-editor.php' )
+			);
+		} else {
+			$url = admin_url();
+		}
+
+		if ( function_exists( 'session_status' ) &amp;&amp; PHP_SESSION_ACTIVE === session_status() ) {
+			// Close any active session to prevent HTTP requests from timing out
+			// when attempting to connect back to the site.
+			session_write_close();
+		}
+
+		$url                    = add_query_arg( $scrape_params, $url );
+		$r                      = wp_remote_get( $url, compact( 'cookies', 'headers', 'timeout', 'sslverify' ) );
+		$body                   = wp_remote_retrieve_body( $r );
+		$scrape_result_position = strpos( $body, $needle_start );
+
+		$loopback_request_failure = array(
+			'code'    =&gt; 'loopback_request_failed',
+			'message' =&gt; __( 'Unable to communicate back with site to check for fatal errors, so the PHP change was reverted. You will need to upload your PHP file change by some other means, such as by using SFTP.' ),
+		);
+		$json_parse_failure       = array(
+			'code' =&gt; 'json_parse_error',
+		);
+
+		$result = null;
+
+		if ( false === $scrape_result_position ) {
+			$result = $loopback_request_failure;
+		} else {
+			$error_output = substr( $body, $scrape_result_position + strlen( $needle_start ) );
+			$error_output = substr( $error_output, 0, strpos( $error_output, $needle_end ) );
+			$result       = json_decode( trim( $error_output ), true );
+			if ( empty( $result ) ) {
+				$result = $json_parse_failure;
+			}
+		}
+
+		// Try making request to homepage as well to see if visitors have been whitescreened.
+		if ( true === $result ) {
+			$url                    = home_url( '/' );
+			$url                    = add_query_arg( $scrape_params, $url );
+			$r                      = wp_remote_get( $url, compact( 'cookies', 'headers', 'timeout', 'sslverify' ) );
+			$body                   = wp_remote_retrieve_body( $r );
+			$scrape_result_position = strpos( $body, $needle_start );
+
+			if ( false === $scrape_result_position ) {
+				$result = $loopback_request_failure;
+			} else {
+				$error_output = substr( $body, $scrape_result_position + strlen( $needle_start ) );
+				$error_output = substr( $error_output, 0, strpos( $error_output, $needle_end ) );
+				$result       = json_decode( trim( $error_output ), true );
+				if ( empty( $result ) ) {
+					$result = $json_parse_failure;
+				}
+			}
+		}
+
+		delete_transient( $transient );
+
+		if ( true !== $result ) {
+			// Roll-back file change.
+			file_put_contents( $real_file, $previous_content );
+			wp_opcache_invalidate( $real_file, true );
+
+			if ( ! isset( $result['message'] ) ) {
+				$message = __( 'Something went wrong.' );
+			} else {
+				$message = $result['message'];
+				unset( $result['message'] );
+			}
+
+			return new WP_Error( 'php_error', $message, $result );
+		}
+	}
+
+	if ( $theme instanceof WP_Theme ) {
+		$theme-&gt;cache_delete();
+	}
+
+	return true;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/file.php:</span> <a href="wp_opcache_invalidate">wp_opcache_invalidate()</a> </td> <td class="related-desc"> <p>Attempts to clear the opcode cache for an individual PHP file.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/file.php:</span> <a href="wp_get_plugin_file_editable_extensions">wp_get_plugin_file_editable_extensions()</a> </td> <td class="related-desc"> <p>Gets the list of file extensions that are editable in plugins.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/file.php:</span> <a href="wp_get_theme_file_editable_extensions">wp_get_theme_file_editable_extensions()</a> </td> <td class="related-desc"> <p>Gets the list of file extensions that are editable for a given theme.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/plugin.php:</span> <a href="get_plugins">get_plugins()</a> </td> <td class="related-desc"> <p>Checks the plugins directory and retrieve all plugin files with plugin data.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/plugin.php:</span> <a href="get_plugin_files">get_plugin_files()</a> </td> <td class="related-desc"> <p>Gets a list of a plugin’s files.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="get_template">get_template()</a> </td> <td class="related-desc"> <p>Retrieves name of the active theme.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="wp_get_theme">wp_get_theme()</a> </td> <td class="related-desc"> <p>Gets a <a href="../classes/wp_theme">WP_Theme</a> object for a theme.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="get_stylesheet">get_stylesheet()</a> </td> <td class="related-desc"> <p>Retrieves name of the current stylesheet.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_unslash">wp_unslash()</a> </td> <td class="related-desc"> <p>Removes slashes from a string or recursively removes slashes from strings within an array.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_verify_nonce">wp_verify_nonce()</a> </td> <td class="related-desc"> <p>Verifies that a correct security nonce was used with time limit.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-http-streams.php:</span> <a href="../hooks/https_local_ssl_verify">https_local_ssl_verify</a> </td> <td class="related-desc"> <p>Filters whether SSL should be verified for local HTTP API requests.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="validate_file">validate_file()</a> </td> <td class="related-desc"> <p>Validates a file name and path against an allowed set of rules.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="add_query_arg">add_query_arg()</a> </td> <td class="related-desc"> <p>Retrieves a modified URL query string.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="admin_url">admin_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the admin area for the current site.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="home_url">home_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL for the current site where the front end is accessible.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_remote_get">wp_remote_get()</a> </td> <td class="related-desc"> <p>Performs an HTTP request using the GET method and returns its response.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_remote_retrieve_body">wp_remote_retrieve_body()</a> </td> <td class="related-desc"> <p>Retrieve only the body from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="set_transient">set_transient()</a> </td> <td class="related-desc"> <p>Sets/updates the value of a transient.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="delete_transient">delete_transient()</a> </td> <td class="related-desc"> <p>Deletes a transient.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../classes/wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/ajax-actions.php:</span> <a href="wp_ajax_edit_theme_plugin_file">wp_ajax_edit_theme_plugin_file()</a> </td> <td class="related-desc"> <p>Ajax handler for editing a theme or plugin file.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.9.0/" alt="WordPress 4.9.0">4.9.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_edit_theme_plugin_file" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_edit_theme_plugin_file</a>
+  </p>
+</div>

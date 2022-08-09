@@ -1,0 +1,87 @@
+<h1>WP_Http::processHeaders( string|array $headers, string $url = '' )</h1>  <section> <p>Transforms header string into an array.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$headers</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>|<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">The original headers. If a string is passed, it will be converted to an array. If an array is passed, then it is assumed to be raw header data with numeric keys with the headers as the values. No headers must be passed that were already processed.</span> </p> </dd> <dt>$url</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> The URL that was requested. </span> </p> <p class="default">Default value: ''</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> Processed string headers. If duplicate headers are encountered, then a numbered array is returned as the value of that header-key. </p>
+<ul class="param-hash">
+<li>
+<b>'response'</b><br><i><span class="type">(array)</span></i> <ul class="param-hash"> <li>
+<b>'code'</b><br><i><span class="type">(int)</span></i> The response status code. Default 0.</li> <li>
+<b>'message'</b><br><i><span class="type">(string)</span></i> The response message. Default empty. </li>
+</ul> </li> <li>
+<b>'newheaders'</b><br><i><span class="type">(array)</span></i> The processed header data as a multidimensional array.</li> <li>
+<b>'cookies'</b><br><i><span class="type">(<a href="../wp_http_cookie">WP_Http_Cookie</a>[])</span></i> If the original headers contain the 'Set-Cookie' key, an array containing <code>WP_Http_Cookie</code> objects is returned.</li> </ul> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-http.php/">wp-includes/class-wp-http.php</a> </p> <pre data-language="php">public static function processHeaders( $headers, $url = '' ) { // phpcs:ignore WordPress.NamingConventions.ValidFunctionName.MethodNameInvalid
+		// Split headers, one per array element.
+		if ( is_string( $headers ) ) {
+			// Tolerate line terminator: CRLF = LF (RFC 2616 19.3).
+			$headers = str_replace( "\r\n", "\n", $headers );
+			/*
+			 * Unfold folded header fields. LWS = [CRLF] 1*( SP | HT ) &lt;US-ASCII SP, space (32)&gt;,
+			 * &lt;US-ASCII HT, horizontal-tab (9)&gt; (RFC 2616 2.2).
+			 */
+			$headers = preg_replace( '/\n[ \t]/', ' ', $headers );
+			// Create the headers array.
+			$headers = explode( "\n", $headers );
+		}
+
+		$response = array(
+			'code'    =&gt; 0,
+			'message' =&gt; '',
+		);
+
+		/*
+		 * If a redirection has taken place, The headers for each page request may have been passed.
+		 * In this case, determine the final HTTP header and parse from there.
+		 */
+		for ( $i = count( $headers ) - 1; $i &gt;= 0; $i-- ) {
+			if ( ! empty( $headers[ $i ] ) &amp;&amp; false === strpos( $headers[ $i ], ':' ) ) {
+				$headers = array_splice( $headers, $i );
+				break;
+			}
+		}
+
+		$cookies    = array();
+		$newheaders = array();
+		foreach ( (array) $headers as $tempheader ) {
+			if ( empty( $tempheader ) ) {
+				continue;
+			}
+
+			if ( false === strpos( $tempheader, ':' ) ) {
+				$stack   = explode( ' ', $tempheader, 3 );
+				$stack[] = '';
+				list( , $response['code'], $response['message']) = $stack;
+				continue;
+			}
+
+			list($key, $value) = explode( ':', $tempheader, 2 );
+
+			$key   = strtolower( $key );
+			$value = trim( $value );
+
+			if ( isset( $newheaders[ $key ] ) ) {
+				if ( ! is_array( $newheaders[ $key ] ) ) {
+					$newheaders[ $key ] = array( $newheaders[ $key ] );
+				}
+				$newheaders[ $key ][] = $value;
+			} else {
+				$newheaders[ $key ] = $value;
+			}
+			if ( 'set-cookie' === $key ) {
+				$cookies[] = new WP_Http_Cookie( $value, $url );
+			}
+		}
+
+		// Cast the Response Code to an int.
+		$response['code'] = (int) $response['code'];
+
+		return array(
+			'response' =&gt; $response,
+			'headers'  =&gt; $newheaders,
+			'cookies'  =&gt; $cookies,
+		);
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-http-cookie.php:</span> <a href="../wp_http_cookie/__construct">WP_Http_Cookie::__construct()</a> </td> <td class="related-desc"> <p>Sets up this cookie object.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-http-streams.php:</span> <a href="../wp_http_streams/request">WP_Http_Streams::request()</a> </td> <td class="related-desc"> <p>Send a HTTP request to a URI using PHP Streams.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-http-curl.php:</span> <a href="../wp_http_curl/request">WP_Http_Curl::request()</a> </td> <td class="related-desc"> <p>Send a HTTP request to a URI using cURL extension.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-http.php:</span> <a href="request">WP_Http::request()</a> </td> <td class="related-desc"> <p>Send an HTTP request to a URI.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.7.0/" alt="WordPress 2.7.0">2.7.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_http/processheaders" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_http/processheaders</a>
+  </p>
+</div>

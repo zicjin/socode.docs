@@ -1,0 +1,127 @@
+<h1>WP_Site_Health::get_test_plugin_version()</h1>  <section> <p>Test if plugins are outdated, or unnecessary.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>The tests checks if your plugins are up to date, and encourages you to remove any that are not in use.</p> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> The test result.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-site-health.php/">wp-admin/includes/class-wp-site-health.php</a> </p> <pre data-language="php">public function get_test_plugin_version() {
+		$result = array(
+			'label'       =&gt; __( 'Your plugins are all up to date' ),
+			'status'      =&gt; 'good',
+			'badge'       =&gt; array(
+				'label' =&gt; __( 'Security' ),
+				'color' =&gt; 'blue',
+			),
+			'description' =&gt; sprintf(
+				'&lt;p&gt;%s&lt;/p&gt;',
+				__( 'Plugins extend your site&amp;#8217;s functionality with things like contact forms, ecommerce and much more. That means they have deep access to your site, so it&amp;#8217;s vital to keep them up to date.' )
+			),
+			'actions'     =&gt; sprintf(
+				'&lt;p&gt;&lt;a href="%s"&gt;%s&lt;/a&gt;&lt;/p&gt;',
+				esc_url( admin_url( 'plugins.php' ) ),
+				__( 'Manage your plugins' )
+			),
+			'test'        =&gt; 'plugin_version',
+		);
+
+		$plugins        = get_plugins();
+		$plugin_updates = get_plugin_updates();
+
+		$plugins_have_updates = false;
+		$plugins_active       = 0;
+		$plugins_total        = 0;
+		$plugins_need_update  = 0;
+
+		// Loop over the available plugins and check their versions and active state.
+		foreach ( $plugins as $plugin_path =&gt; $plugin ) {
+			$plugins_total++;
+
+			if ( is_plugin_active( $plugin_path ) ) {
+				$plugins_active++;
+			}
+
+			$plugin_version = $plugin['Version'];
+
+			if ( array_key_exists( $plugin_path, $plugin_updates ) ) {
+				$plugins_need_update++;
+				$plugins_have_updates = true;
+			}
+		}
+
+		// Add a notice if there are outdated plugins.
+		if ( $plugins_need_update &gt; 0 ) {
+			$result['status'] = 'critical';
+
+			$result['label'] = __( 'You have plugins waiting to be updated' );
+
+			$result['description'] .= sprintf(
+				'&lt;p&gt;%s&lt;/p&gt;',
+				sprintf(
+					/* translators: %d: The number of outdated plugins. */
+					_n(
+						'Your site has %d plugin waiting to be updated.',
+						'Your site has %d plugins waiting to be updated.',
+						$plugins_need_update
+					),
+					$plugins_need_update
+				)
+			);
+
+			$result['actions'] .= sprintf(
+				'&lt;p&gt;&lt;a href="%s"&gt;%s&lt;/a&gt;&lt;/p&gt;',
+				esc_url( network_admin_url( 'plugins.php?plugin_status=upgrade' ) ),
+				__( 'Update your plugins' )
+			);
+		} else {
+			if ( 1 === $plugins_active ) {
+				$result['description'] .= sprintf(
+					'&lt;p&gt;%s&lt;/p&gt;',
+					__( 'Your site has 1 active plugin, and it is up to date.' )
+				);
+			} else {
+				$result['description'] .= sprintf(
+					'&lt;p&gt;%s&lt;/p&gt;',
+					sprintf(
+						/* translators: %d: The number of active plugins. */
+						_n(
+							'Your site has %d active plugin, and it is up to date.',
+							'Your site has %d active plugins, and they are all up to date.',
+							$plugins_active
+						),
+						$plugins_active
+					)
+				);
+			}
+		}
+
+		// Check if there are inactive plugins.
+		if ( $plugins_total &gt; $plugins_active &amp;&amp; ! is_multisite() ) {
+			$unused_plugins = $plugins_total - $plugins_active;
+
+			$result['status'] = 'recommended';
+
+			$result['label'] = __( 'You should remove inactive plugins' );
+
+			$result['description'] .= sprintf(
+				'&lt;p&gt;%s %s&lt;/p&gt;',
+				sprintf(
+					/* translators: %d: The number of inactive plugins. */
+					_n(
+						'Your site has %d inactive plugin.',
+						'Your site has %d inactive plugins.',
+						$unused_plugins
+					),
+					$unused_plugins
+				),
+				__( 'Inactive plugins are tempting targets for attackers. If you are not going to use a plugin, you should consider removing it.' )
+			);
+
+			$result['actions'] .= sprintf(
+				'&lt;p&gt;&lt;a href="%s"&gt;%s&lt;/a&gt;&lt;/p&gt;',
+				esc_url( admin_url( 'plugins.php?plugin_status=inactive' ) ),
+				__( 'Manage inactive plugins' )
+			);
+		}
+
+		return $result;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/update.php:</span> <a href="../../functions/get_plugin_updates">get_plugin_updates()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-admin/includes/plugin.php:</span> <a href="../../functions/is_plugin_active">is_plugin_active()</a> </td> <td class="related-desc"> <p>Determines whether a plugin is active.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/plugin.php:</span> <a href="../../functions/get_plugins">get_plugins()</a> </td> <td class="related-desc"> <p>Checks the plugins directory and retrieve all plugin files with plugin data.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/_n">_n()</a> </td> <td class="related-desc"> <p>Translates and retrieves the singular or plural form based on the supplied number.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_multisite">is_multisite()</a> </td> <td class="related-desc"> <p>If Multisite is enabled.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="../../functions/admin_url">admin_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the admin area for the current site.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="../../functions/network_admin_url">network_admin_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the admin area for the network.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.2.0/" alt="WordPress 5.2.0">5.2.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_site_health/get_test_plugin_version" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_site_health/get_test_plugin_version</a>
+  </p>
+</div>

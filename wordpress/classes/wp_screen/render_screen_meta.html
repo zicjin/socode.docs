@@ -1,0 +1,201 @@
+<h1>WP_Screen::render_screen_meta()</h1>  <section> <p>Render the screen’s help section.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>This will trigger the deprecated filters for backward compatibility.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-screen.php/">wp-admin/includes/class-wp-screen.php</a> </p> <pre data-language="php">public function render_screen_meta() {
+
+		/**
+		 * Filters the legacy contextual help list.
+		 *
+		 * @since 2.7.0
+		 * @deprecated 3.3.0 Use {@see get_current_screen()-&gt;add_help_tab()} or
+		 *                   {@see get_current_screen()-&gt;remove_help_tab()} instead.
+		 *
+		 * @param array     $old_compat_help Old contextual help.
+		 * @param WP_Screen $screen          Current WP_Screen instance.
+		 */
+		self::$_old_compat_help = apply_filters_deprecated(
+			'contextual_help_list',
+			array( self::$_old_compat_help, $this ),
+			'3.3.0',
+			'get_current_screen()-&gt;add_help_tab(), get_current_screen()-&gt;remove_help_tab()'
+		);
+
+		$old_help = isset( self::$_old_compat_help[ $this-&gt;id ] ) ? self::$_old_compat_help[ $this-&gt;id ] : '';
+
+		/**
+		 * Filters the legacy contextual help text.
+		 *
+		 * @since 2.7.0
+		 * @deprecated 3.3.0 Use {@see get_current_screen()-&gt;add_help_tab()} or
+		 *                   {@see get_current_screen()-&gt;remove_help_tab()} instead.
+		 *
+		 * @param string    $old_help  Help text that appears on the screen.
+		 * @param string    $screen_id Screen ID.
+		 * @param WP_Screen $screen    Current WP_Screen instance.
+		 */
+		$old_help = apply_filters_deprecated(
+			'contextual_help',
+			array( $old_help, $this-&gt;id, $this ),
+			'3.3.0',
+			'get_current_screen()-&gt;add_help_tab(), get_current_screen()-&gt;remove_help_tab()'
+		);
+
+		// Default help only if there is no old-style block of text and no new-style help tabs.
+		if ( empty( $old_help ) &amp;&amp; ! $this-&gt;get_help_tabs() ) {
+
+			/**
+			 * Filters the default legacy contextual help text.
+			 *
+			 * @since 2.8.0
+			 * @deprecated 3.3.0 Use {@see get_current_screen()-&gt;add_help_tab()} or
+			 *                   {@see get_current_screen()-&gt;remove_help_tab()} instead.
+			 *
+			 * @param string $old_help_default Default contextual help text.
+			 */
+			$default_help = apply_filters_deprecated(
+				'default_contextual_help',
+				array( '' ),
+				'3.3.0',
+				'get_current_screen()-&gt;add_help_tab(), get_current_screen()-&gt;remove_help_tab()'
+			);
+			if ( $default_help ) {
+				$old_help = '&lt;p&gt;' . $default_help . '&lt;/p&gt;';
+			}
+		}
+
+		if ( $old_help ) {
+			$this-&gt;add_help_tab(
+				array(
+					'id'      =&gt; 'old-contextual-help',
+					'title'   =&gt; __( 'Overview' ),
+					'content' =&gt; $old_help,
+				)
+			);
+		}
+
+		$help_sidebar = $this-&gt;get_help_sidebar();
+
+		$help_class = 'hidden';
+		if ( ! $help_sidebar ) {
+			$help_class .= ' no-sidebar';
+		}
+
+		// Time to render!
+		?&gt;
+		&lt;div id="screen-meta" class="metabox-prefs"&gt;
+
+			&lt;div id="contextual-help-wrap" class="&lt;?php echo esc_attr( $help_class ); ?&gt;" tabindex="-1" aria-label="&lt;?php esc_attr_e( 'Contextual Help Tab' ); ?&gt;"&gt;
+				&lt;div id="contextual-help-back"&gt;&lt;/div&gt;
+				&lt;div id="contextual-help-columns"&gt;
+					&lt;div class="contextual-help-tabs"&gt;
+						&lt;ul&gt;
+						&lt;?php
+						$class = ' class="active"';
+						foreach ( $this-&gt;get_help_tabs() as $tab ) :
+							$link_id  = "tab-link-{$tab['id']}";
+							$panel_id = "tab-panel-{$tab['id']}";
+							?&gt;
+
+							&lt;li id="&lt;?php echo esc_attr( $link_id ); ?&gt;"&lt;?php echo $class; ?&gt;&gt;
+								&lt;a href="&lt;?php echo esc_url( "#$panel_id" ); ?&gt;" aria-controls="&lt;?php echo esc_attr( $panel_id ); ?&gt;"&gt;
+									&lt;?php echo esc_html( $tab['title'] ); ?&gt;
+								&lt;/a&gt;
+							&lt;/li&gt;
+							&lt;?php
+							$class = '';
+						endforeach;
+						?&gt;
+						&lt;/ul&gt;
+					&lt;/div&gt;
+
+					&lt;?php if ( $help_sidebar ) : ?&gt;
+					&lt;div class="contextual-help-sidebar"&gt;
+						&lt;?php echo $help_sidebar; ?&gt;
+					&lt;/div&gt;
+					&lt;?php endif; ?&gt;
+
+					&lt;div class="contextual-help-tabs-wrap"&gt;
+						&lt;?php
+						$classes = 'help-tab-content active';
+						foreach ( $this-&gt;get_help_tabs() as $tab ) :
+							$panel_id = "tab-panel-{$tab['id']}";
+							?&gt;
+
+							&lt;div id="&lt;?php echo esc_attr( $panel_id ); ?&gt;" class="&lt;?php echo $classes; ?&gt;"&gt;
+								&lt;?php
+								// Print tab content.
+								echo $tab['content'];
+
+								// If it exists, fire tab callback.
+								if ( ! empty( $tab['callback'] ) ) {
+									call_user_func_array( $tab['callback'], array( $this, $tab ) );
+								}
+								?&gt;
+							&lt;/div&gt;
+							&lt;?php
+							$classes = 'help-tab-content';
+						endforeach;
+						?&gt;
+					&lt;/div&gt;
+				&lt;/div&gt;
+			&lt;/div&gt;
+		&lt;?php
+		// Setup layout columns.
+
+		/**
+		 * Filters the array of screen layout columns.
+		 *
+		 * This hook provides back-compat for plugins using the back-compat
+		 * Filters instead of add_screen_option().
+		 *
+		 * @since 2.8.0
+		 *
+		 * @param array     $empty_columns Empty array.
+		 * @param string    $screen_id     Screen ID.
+		 * @param WP_Screen $screen        Current WP_Screen instance.
+		 */
+		$columns = apply_filters( 'screen_layout_columns', array(), $this-&gt;id, $this );
+
+		if ( ! empty( $columns ) &amp;&amp; isset( $columns[ $this-&gt;id ] ) ) {
+			$this-&gt;add_option( 'layout_columns', array( 'max' =&gt; $columns[ $this-&gt;id ] ) );
+		}
+
+		if ( $this-&gt;get_option( 'layout_columns' ) ) {
+			$this-&gt;columns = (int) get_user_option( "screen_layout_$this-&gt;id" );
+
+			if ( ! $this-&gt;columns &amp;&amp; $this-&gt;get_option( 'layout_columns', 'default' ) ) {
+				$this-&gt;columns = $this-&gt;get_option( 'layout_columns', 'default' );
+			}
+		}
+		$GLOBALS['screen_layout_columns'] = $this-&gt;columns; // Set the global for back-compat.
+
+		// Add screen options.
+		if ( $this-&gt;show_screen_options() ) {
+			$this-&gt;render_screen_options();
+		}
+		?&gt;
+		&lt;/div&gt;
+		&lt;?php
+		if ( ! $this-&gt;get_help_tabs() &amp;&amp; ! $this-&gt;show_screen_options() ) {
+			return;
+		}
+		?&gt;
+		&lt;div id="screen-meta-links"&gt;
+		&lt;?php if ( $this-&gt;show_screen_options() ) : ?&gt;
+			&lt;div id="screen-options-link-wrap" class="hide-if-no-js screen-meta-toggle"&gt;
+			&lt;button type="button" id="show-settings-link" class="button show-settings" aria-controls="screen-options-wrap" aria-expanded="false"&gt;&lt;?php _e( 'Screen Options' ); ?&gt;&lt;/button&gt;
+			&lt;/div&gt;
+			&lt;?php
+		endif;
+		if ( $this-&gt;get_help_tabs() ) :
+			?&gt;
+			&lt;div id="contextual-help-link-wrap" class="hide-if-no-js screen-meta-toggle"&gt;
+			&lt;button type="button" id="contextual-help-link" class="button show-settings" aria-controls="contextual-help-wrap" aria-expanded="false"&gt;&lt;?php _e( 'Help' ); ?&gt;&lt;/button&gt;
+			&lt;/div&gt;
+		&lt;?php endif; ?&gt;
+		&lt;/div&gt;
+		&lt;?php
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters_deprecated">apply_filters_deprecated()</a> </td> <td class="related-desc"> <p>Fires functions attached to a deprecated filter hook.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-screen.php:</span> <a href="show_screen_options">WP_Screen::show_screen_options()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-screen.php:</span> <a href="render_screen_options">WP_Screen::render_screen_options()</a> </td> <td class="related-desc"> <p>Render the screen options tab.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-screen.php:</span> <a href="../../hooks/screen_layout_columns">screen_layout_columns</a> </td> <td class="related-desc"> <p>Filters the array of screen layout columns.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-screen.php:</span> <a href="get_help_tabs">WP_Screen::get_help_tabs()</a> </td> <td class="related-desc"> <p>Gets the help tabs registered for the screen.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-screen.php:</span> <a href="add_help_tab">WP_Screen::add_help_tab()</a> </td> <td class="related-desc"> <p>Add a help tab to the contextual help for the screen.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-screen.php:</span> <a href="get_help_sidebar">WP_Screen::get_help_sidebar()</a> </td> <td class="related-desc"> <p>Gets the content from a contextual help sidebar.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-screen.php:</span> <a href="get_option">WP_Screen::get_option()</a> </td> <td class="related-desc"> <p>Gets the arguments for an option for the screen.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-screen.php:</span> <a href="../../hooks/contextual_help_list">contextual_help_list</a> </td> <td class="related-desc"> <p>Filters the legacy contextual help list.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-screen.php:</span> <a href="../../hooks/contextual_help">contextual_help</a> </td> <td class="related-desc"> <p>Filters the legacy contextual help text.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-screen.php:</span> <a href="../../hooks/default_contextual_help">default_contextual_help</a> </td> <td class="related-desc"> <p>Filters the default legacy contextual help text.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-screen.php:</span> <a href="add_option">WP_Screen::add_option()</a> </td> <td class="related-desc"> <p>Adds an option for the screen.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/esc_attr_e">esc_attr_e()</a> </td> <td class="related-desc"> <p>Display translated text that has been escaped for safe use in an attribute.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/_e">_e()</a> </td> <td class="related-desc"> <p>Display translated text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_html">esc_html()</a> </td> <td class="related-desc"> <p>Escaping for HTML blocks.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="../../functions/get_user_option">get_user_option()</a> </td> <td class="related-desc"> <p>Retrieves user option that can be either per Site or per Network.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.3.0/" alt="WordPress 3.3.0">3.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_screen/render_screen_meta" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_screen/render_screen_meta</a>
+  </p>
+</div>

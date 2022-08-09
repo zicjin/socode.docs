@@ -1,0 +1,83 @@
+<h1>wp_xmlrpc_server::wp_getRevisions( array $args )</h1>  <section> <p>Retrieve revisions for a specific post.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <h3 id="see-also">See also</h3> <ul> <li>
+<a href="../../functions/wp_getpost">wp_getPost()</a>: for more on $fields</li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Method arguments. Note: arguments must be ordered as documented. <ul class="param-hash">
+<li>
+<b>'blog_id'</b><br><i><span class="type">(int)</span></i> (unused)</li> <li>
+<b>'username'</b><br><i><span class="type">(string)</span></i> </li> <li>
+<b>'password'</b><br><i><span class="type">(string)</span></i> </li> <li>
+<b>'post_id'</b><br><i><span class="type">(int)</span></i> </li> <li>
+<b>'fields'</b><br><i><span class="type">(array)</span></i> (optional)</li> </ul> </span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array|<a href="../ixr_error">IXR_Error</a>)</span> contains a collection of posts.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-xmlrpc-server.php/">wp-includes/class-wp-xmlrpc-server.php</a> </p> <pre data-language="php">public function wp_getRevisions( $args ) {
+		if ( ! $this-&gt;minimum_args( $args, 4 ) ) {
+			return $this-&gt;error;
+		}
+
+		$this-&gt;escape( $args );
+
+		$username = $args[1];
+		$password = $args[2];
+		$post_id  = (int) $args[3];
+
+		if ( isset( $args[4] ) ) {
+			$fields = $args[4];
+		} else {
+			/**
+			 * Filters the default revision query fields used by the given XML-RPC method.
+			 *
+			 * @since 3.5.0
+			 *
+			 * @param array  $field  An array of revision query fields.
+			 * @param string $method The method name.
+			 */
+			$fields = apply_filters( 'xmlrpc_default_revision_fields', array( 'post_date', 'post_date_gmt' ), 'wp.getRevisions' );
+		}
+
+		$user = $this-&gt;login( $username, $password );
+		if ( ! $user ) {
+			return $this-&gt;error;
+		}
+
+		/** This action is documented in wp-includes/class-wp-xmlrpc-server.php */
+		do_action( 'xmlrpc_call', 'wp.getRevisions', $args, $this );
+
+		$post = get_post( $post_id );
+		if ( ! $post ) {
+			return new IXR_Error( 404, __( 'Invalid post ID.' ) );
+		}
+
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return new IXR_Error( 401, __( 'Sorry, you are not allowed to edit posts.' ) );
+		}
+
+		// Check if revisions are enabled.
+		if ( ! wp_revisions_enabled( $post ) ) {
+			return new IXR_Error( 401, __( 'Sorry, revisions are disabled.' ) );
+		}
+
+		$revisions = wp_get_post_revisions( $post_id );
+
+		if ( ! $revisions ) {
+			return array();
+		}
+
+		$struct = array();
+
+		foreach ( $revisions as $revision ) {
+			if ( ! current_user_can( 'read_post', $revision-&gt;ID ) ) {
+				continue;
+			}
+
+			// Skip autosaves.
+			if ( wp_is_post_autosave( $revision ) ) {
+				continue;
+			}
+
+			$struct[] = $this-&gt;_prepare_post( get_object_vars( $revision ), $fields );
+		}
+
+		return $struct;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/IXR/class-IXR-error.php:</span> <a href="../ixr_error/__construct">IXR_Error::__construct()</a> </td> <td class="related-desc"> <p>PHP5 constructor.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="../../functions/current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> <tr> <td> <span>wp-includes/revision.php:</span> <a href="../../functions/wp_revisions_enabled">wp_revisions_enabled()</a> </td> <td class="related-desc"> <p>Determine if revisions are enabled for a given post.</p> </td> </tr> <tr> <td> <span>wp-includes/revision.php:</span> <a href="../../functions/wp_get_post_revisions">wp_get_post_revisions()</a> </td> <td class="related-desc"> <p>Returns all revisions of specified post.</p> </td> </tr> <tr> <td> <span>wp-includes/revision.php:</span> <a href="../../functions/wp_is_post_autosave">wp_is_post_autosave()</a> </td> <td class="related-desc"> <p>Determines if the specified post is an autosave.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="../../hooks/xmlrpc_default_revision_fields">xmlrpc_default_revision_fields</a> </td> <td class="related-desc"> <p>Filters the default revision query fields used by the given XML-RPC method.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="minimum_args">wp_xmlrpc_server::minimum_args()</a> </td> <td class="related-desc"> <p>Checks if the method received at least the minimum number of arguments.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="_prepare_post">wp_xmlrpc_server::_prepare_post()</a> </td> <td class="related-desc"> <p>Prepares post data for return in an XML-RPC object.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="../../hooks/xmlrpc_call">xmlrpc_call</a> </td> <td class="related-desc"> <p>Fires after the XML-RPC user has been authenticated but before the rest of the method logic begins.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="escape">wp_xmlrpc_server::escape()</a> </td> <td class="related-desc"> <p>Escape string or array of strings for database.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="login">wp_xmlrpc_server::login()</a> </td> <td class="related-desc"> <p>Log user in.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.5.0/" alt="WordPress 3.5.0">3.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_xmlrpc_server/wp_getrevisions" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_xmlrpc_server/wp_getrevisions</a>
+  </p>
+</div>

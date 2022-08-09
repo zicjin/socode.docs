@@ -1,0 +1,42 @@
+<h1>_oembed_rest_pre_serve_request( bool $served, WP_HTTP_Response $result, WP_REST_Request $request, WP_REST_Server $server )</h1> <div class="callout callout-alert">
+<p> This function’s access is marked private. This means it is not intended for use by plugin or theme developers, only in other core functions. It is listed here for completeness.</p> </div>  <section> <p>Hooks into the REST API output to print XML instead of JSON.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>This is only done for the oEmbed API endpoint, which supports both formats.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$served</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Required)</span> <span class="description">Whether the request has already been served.</span> </p> </dd> <dt>$result</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_HTTP_Response"><a href="../classes/wp_http_response">WP_HTTP_Response</a></span>)</span> <span class="required">(Required)</span> <span class="description">Result to send to the client. Usually a <code>WP_REST_Response</code>.</span> </p> </dd> <dt>$request</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_REST_Request"><a href="../classes/wp_rest_request">WP_REST_Request</a></span>)</span> <span class="required">(Required)</span> <span class="description">Request used to generate the response.</span> </p> </dd> <dt>$server</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_REST_Server"><a href="../classes/wp_rest_server">WP_REST_Server</a></span>)</span> <span class="required">(Required)</span> <span class="description">Server instance.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(true)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/embed.php/">wp-includes/embed.php</a> </p> <pre data-language="php">function _oembed_rest_pre_serve_request( $served, $result, $request, $server ) {
+	$params = $request-&gt;get_params();
+
+	if ( '/oembed/1.0/embed' !== $request-&gt;get_route() || 'GET' !== $request-&gt;get_method() ) {
+		return $served;
+	}
+
+	if ( ! isset( $params['format'] ) || 'xml' !== $params['format'] ) {
+		return $served;
+	}
+
+	// Embed links inside the request.
+	$data = $server-&gt;response_to_data( $result, false );
+
+	if ( ! class_exists( 'SimpleXMLElement' ) ) {
+		status_header( 501 );
+		die( get_status_header_desc( 501 ) );
+	}
+
+	$result = _oembed_create_xml( $data );
+
+	// Bail if there's no XML.
+	if ( ! $result ) {
+		status_header( 501 );
+		return get_status_header_desc( 501 );
+	}
+
+	if ( ! headers_sent() ) {
+		$server-&gt;send_header( 'Content-Type', 'text/xml; charset=' . get_option( 'blog_charset' ) );
+	}
+
+	echo $result;
+
+	return true;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/embed.php:</span> <a href="_oembed_create_xml">_oembed_create_xml()</a> </td> <td class="related-desc"> <p>Creates an XML string from a given array.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="status_header">status_header()</a> </td> <td class="related-desc"> <p>Set HTTP status header.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="get_status_header_desc">get_status_header_desc()</a> </td> <td class="related-desc"> <p>Retrieve the description for the HTTP status.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.4.0/" alt="WordPress 4.4.0">4.4.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/_oembed_rest_pre_serve_request" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/_oembed_rest_pre_serve_request</a>
+  </p>
+</div>

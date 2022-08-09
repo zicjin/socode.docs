@@ -1,0 +1,97 @@
+<h1>get_default_block_editor_settings()</h1>  <section> <p>Returns the default block editor settings.</p> </section> <div class="content-toc">  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> The default block editor settings.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/block-editor.php/">wp-includes/block-editor.php</a> </p> <pre data-language="php">function get_default_block_editor_settings() {
+	// Media settings.
+	$max_upload_size = wp_max_upload_size();
+	if ( ! $max_upload_size ) {
+		$max_upload_size = 0;
+	}
+
+	/** This filter is documented in wp-admin/includes/media.php */
+	$image_size_names = apply_filters(
+		'image_size_names_choose',
+		array(
+			'thumbnail' =&gt; __( 'Thumbnail' ),
+			'medium'    =&gt; __( 'Medium' ),
+			'large'     =&gt; __( 'Large' ),
+			'full'      =&gt; __( 'Full Size' ),
+		)
+	);
+
+	$available_image_sizes = array();
+	foreach ( $image_size_names as $image_size_slug =&gt; $image_size_name ) {
+		$available_image_sizes[] = array(
+			'slug' =&gt; $image_size_slug,
+			'name' =&gt; $image_size_name,
+		);
+	}
+
+	$default_size       = get_option( 'image_default_size', 'large' );
+	$image_default_size = in_array( $default_size, array_keys( $image_size_names ), true ) ? $default_size : 'large';
+
+	$image_dimensions = array();
+	$all_sizes        = wp_get_registered_image_subsizes();
+	foreach ( $available_image_sizes as $size ) {
+		$key = $size['slug'];
+		if ( isset( $all_sizes[ $key ] ) ) {
+			$image_dimensions[ $key ] = $all_sizes[ $key ];
+		}
+	}
+
+	// These styles are used if the "no theme styles" options is triggered or on
+	// themes without their own editor styles.
+	$default_editor_styles_file = ABSPATH . WPINC . '/css/dist/block-editor/default-editor-styles.css';
+	if ( file_exists( $default_editor_styles_file ) ) {
+		$default_editor_styles = array(
+			array( 'css' =&gt; file_get_contents( $default_editor_styles_file ) ),
+		);
+	} else {
+		$default_editor_styles = array();
+	}
+
+	$editor_settings = array(
+		'alignWide'                        =&gt; get_theme_support( 'align-wide' ),
+		'allowedBlockTypes'                =&gt; true,
+		'allowedMimeTypes'                 =&gt; get_allowed_mime_types(),
+		'defaultEditorStyles'              =&gt; $default_editor_styles,
+		'blockCategories'                  =&gt; get_default_block_categories(),
+		'disableCustomColors'              =&gt; get_theme_support( 'disable-custom-colors' ),
+		'disableCustomFontSizes'           =&gt; get_theme_support( 'disable-custom-font-sizes' ),
+		'disableCustomGradients'           =&gt; get_theme_support( 'disable-custom-gradients' ),
+		'enableCustomLineHeight'           =&gt; get_theme_support( 'custom-line-height' ),
+		'enableCustomSpacing'              =&gt; get_theme_support( 'custom-spacing' ),
+		'enableCustomUnits'                =&gt; get_theme_support( 'custom-units' ),
+		'isRTL'                            =&gt; is_rtl(),
+		'imageDefaultSize'                 =&gt; $image_default_size,
+		'imageDimensions'                  =&gt; $image_dimensions,
+		'imageEditing'                     =&gt; true,
+		'imageSizes'                       =&gt; $available_image_sizes,
+		'maxUploadFileSize'                =&gt; $max_upload_size,
+		// The following flag is required to enable the new Gallery block format on the mobile apps in 5.9.
+		'__unstableGalleryWithImageBlocks' =&gt; true,
+	);
+
+	// Theme settings.
+	$color_palette = current( (array) get_theme_support( 'editor-color-palette' ) );
+	if ( false !== $color_palette ) {
+		$editor_settings['colors'] = $color_palette;
+	}
+
+	$font_sizes = current( (array) get_theme_support( 'editor-font-sizes' ) );
+	if ( false !== $font_sizes ) {
+		$editor_settings['fontSizes'] = $font_sizes;
+	}
+
+	$gradient_presets = current( (array) get_theme_support( 'editor-gradient-presets' ) );
+	if ( false !== $gradient_presets ) {
+		$editor_settings['gradients'] = $gradient_presets;
+	}
+
+	return $editor_settings;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/block-editor.php:</span> <a href="get_default_block_categories">get_default_block_categories()</a> </td> <td class="related-desc"> <p>Returns the list of default categories for block types.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="wp_get_registered_image_subsizes">wp_get_registered_image_subsizes()</a> </td> <td class="related-desc"> <p>Returns a normalized list of all currently registered image sub-sizes.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="../hooks/image_size_names_choose">image_size_names_choose</a> </td> <td class="related-desc"> <p>Filters the names and labels of the default image sizes.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="get_theme_support">get_theme_support()</a> </td> <td class="related-desc"> <p>Gets the theme support arguments passed when registering that support.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="get_allowed_mime_types">get_allowed_mime_types()</a> </td> <td class="related-desc"> <p>Retrieve list of allowed mime types and file extensions.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="is_rtl">is_rtl()</a> </td> <td class="related-desc"> <p>Determines whether the current locale is right-to-left (RTL).</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="wp_max_upload_size">wp_max_upload_size()</a> </td> <td class="related-desc"> <p>Determines the maximum upload size allowed in php.ini.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-theme-json-resolver.php:</span> <a href="../classes/wp_theme_json_resolver/get_theme_data">WP_Theme_JSON_Resolver::get_theme_data()</a> </td> <td class="related-desc"> <p>Returns the theme’s data.</p> </td> </tr> <tr> <td> <span>wp-includes/block-editor.php:</span> <a href="get_block_editor_settings">get_block_editor_settings()</a> </td> <td class="related-desc"> <p>Returns the contextualized block editor settings for a selected editor context.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.8.0/" alt="WordPress 5.8.0">5.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/get_default_block_editor_settings" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/get_default_block_editor_settings</a>
+  </p>
+</div>

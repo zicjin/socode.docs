@@ -1,0 +1,118 @@
+<h1>WP_REST_Posts_Controller::delete_item( WP_REST_Request $request )</h1>  <section> <p>Deletes a single post.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$request</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_REST_Request"><a href="../wp_rest_request">WP_REST_Request</a></span>)</span> <span class="required">(Required)</span> <span class="description">Full details about the request.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../wp_rest_response">WP_REST_Response</a>|<a href="../wp_error">WP_Error</a>)</span> Response object on success, or <a href="../wp_error">WP_Error</a> object on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/rest-api/endpoints/class-wp-rest-posts-controller.php/">wp-includes/rest-api/endpoints/class-wp-rest-posts-controller.php</a> </p> <pre data-language="php">public function delete_item( $request ) {
+		$post = $this-&gt;get_post( $request['id'] );
+		if ( is_wp_error( $post ) ) {
+			return $post;
+		}
+
+		$id    = $post-&gt;ID;
+		$force = (bool) $request['force'];
+
+		$supports_trash = ( EMPTY_TRASH_DAYS &gt; 0 );
+
+		if ( 'attachment' === $post-&gt;post_type ) {
+			$supports_trash = $supports_trash &amp;&amp; MEDIA_TRASH;
+		}
+
+		/**
+		 * Filters whether a post is trashable.
+		 *
+		 * The dynamic portion of the hook name, `$this-&gt;post_type`, refers to the post type slug.
+		 *
+		 * Possible hook names include:
+		 *
+		 *  - `rest_post_trashable`
+		 *  - `rest_page_trashable`
+		 *  - `rest_attachment_trashable`
+		 *
+		 * Pass false to disable Trash support for the post.
+		 *
+		 * @since 4.7.0
+		 *
+		 * @param bool    $supports_trash Whether the post type support trashing.
+		 * @param WP_Post $post           The Post object being considered for trashing support.
+		 */
+		$supports_trash = apply_filters( "rest_{$this-&gt;post_type}_trashable", $supports_trash, $post );
+
+		if ( ! $this-&gt;check_delete_permission( $post ) ) {
+			return new WP_Error(
+				'rest_user_cannot_delete_post',
+				__( 'Sorry, you are not allowed to delete this post.' ),
+				array( 'status' =&gt; rest_authorization_required_code() )
+			);
+		}
+
+		$request-&gt;set_param( 'context', 'edit' );
+
+		// If we're forcing, then delete permanently.
+		if ( $force ) {
+			$previous = $this-&gt;prepare_item_for_response( $post, $request );
+			$result   = wp_delete_post( $id, true );
+			$response = new WP_REST_Response();
+			$response-&gt;set_data(
+				array(
+					'deleted'  =&gt; true,
+					'previous' =&gt; $previous-&gt;get_data(),
+				)
+			);
+		} else {
+			// If we don't support trashing for this type, error out.
+			if ( ! $supports_trash ) {
+				return new WP_Error(
+					'rest_trash_not_supported',
+					/* translators: %s: force=true */
+					sprintf( __( "The post does not support trashing. Set '%s' to delete." ), 'force=true' ),
+					array( 'status' =&gt; 501 )
+				);
+			}
+
+			// Otherwise, only trash if we haven't already.
+			if ( 'trash' === $post-&gt;post_status ) {
+				return new WP_Error(
+					'rest_already_trashed',
+					__( 'The post has already been deleted.' ),
+					array( 'status' =&gt; 410 )
+				);
+			}
+
+			// (Note that internally this falls through to `wp_delete_post()`
+			// if the Trash is disabled.)
+			$result   = wp_trash_post( $id );
+			$post     = get_post( $id );
+			$response = $this-&gt;prepare_item_for_response( $post, $request );
+		}
+
+		if ( ! $result ) {
+			return new WP_Error(
+				'rest_cannot_delete',
+				__( 'The post cannot be deleted.' ),
+				array( 'status' =&gt; 500 )
+			);
+		}
+
+		/**
+		 * Fires immediately after a single post is deleted or trashed via the REST API.
+		 *
+		 * They dynamic portion of the hook name, `$this-&gt;post_type`, refers to the post type slug.
+		 *
+		 * Possible hook names include:
+		 *
+		 *  - `rest_delete_post`
+		 *  - `rest_delete_page`
+		 *  - `rest_delete_attachment`
+		 *
+		 * @since 4.7.0
+		 *
+		 * @param WP_Post          $post     The deleted or trashed post.
+		 * @param WP_REST_Response $response The response data.
+		 * @param WP_REST_Request  $request  The request sent to the API.
+		 */
+		do_action( "rest_delete_{$this-&gt;post_type}", $post, $response, $request );
+
+		return $response;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-posts-controller.php:</span> <a href="get_post">WP_REST_Posts_Controller::get_post()</a> </td> <td class="related-desc"> <p>Get the post, if the ID is valid.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="../../functions/rest_authorization_required_code">rest_authorization_required_code()</a> </td> <td class="related-desc"> <p>Returns a contextual HTTP error code for authorization failure.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-posts-controller.php:</span> <a href="check_delete_permission">WP_REST_Posts_Controller::check_delete_permission()</a> </td> <td class="related-desc"> <p>Checks if a post can be deleted.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-posts-controller.php:</span> <a href="prepare_item_for_response">WP_REST_Posts_Controller::prepare_item_for_response()</a> </td> <td class="related-desc"> <p>Prepares a single post output for response.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-posts-controller.php:</span> <a href="../../hooks/rest_this-post_type_trashable">rest_{$this-&gt;post_type}_trashable</a> </td> <td class="related-desc"> <p>Filters whether a post is trashable.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-posts-controller.php:</span> <a href="../../hooks/rest_delete_this-post_type">rest_delete_{$this-&gt;post_type}</a> </td> <td class="related-desc"> <p>Fires immediately after a single post is deleted or trashed via the REST API.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/wp_delete_post">wp_delete_post()</a> </td> <td class="related-desc"> <p>Trash or delete a post or page.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/wp_trash_post">wp_trash_post()</a> </td> <td class="related-desc"> <p>Move a post or page to the Trash</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.7.0/" alt="WordPress 4.7.0">4.7.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_rest_posts_controller/delete_item" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_rest_posts_controller/delete_item</a>
+  </p>
+</div>

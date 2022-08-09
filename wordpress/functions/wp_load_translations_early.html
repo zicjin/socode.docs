@@ -1,0 +1,92 @@
+<h1>wp_load_translations_early()</h1> <div class="callout callout-alert">
+<p> This function’s access is marked private. This means it is not intended for use by plugin or theme developers, only in other core functions. It is listed here for completeness.</p> </div>  <section> <p>Attempt an early load of translations.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Used for errors encountered during the initial loading process, before the locale has been properly detected and loaded.</p> <p>Designed for unusual load sequences (like setup-config.php) or for when the script will then terminate with an error, otherwise there is a risk that a file can be double-included.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/load.php/">wp-includes/load.php</a> </p> <pre data-language="php">function wp_load_translations_early() {
+	global $wp_locale;
+
+	static $loaded = false;
+	if ( $loaded ) {
+		return;
+	}
+	$loaded = true;
+
+	if ( function_exists( 'did_action' ) &amp;&amp; did_action( 'init' ) ) {
+		return;
+	}
+
+	// We need $wp_local_package.
+	require ABSPATH . WPINC . '/version.php';
+
+	// Translation and localization.
+	require_once ABSPATH . WPINC . '/pomo/mo.php';
+	require_once ABSPATH . WPINC . '/l10n.php';
+	require_once ABSPATH . WPINC . '/class-wp-locale.php';
+	require_once ABSPATH . WPINC . '/class-wp-locale-switcher.php';
+
+	// General libraries.
+	require_once ABSPATH . WPINC . '/plugin.php';
+
+	$locales   = array();
+	$locations = array();
+
+	while ( true ) {
+		if ( defined( 'WPLANG' ) ) {
+			if ( '' === WPLANG ) {
+				break;
+			}
+			$locales[] = WPLANG;
+		}
+
+		if ( isset( $wp_local_package ) ) {
+			$locales[] = $wp_local_package;
+		}
+
+		if ( ! $locales ) {
+			break;
+		}
+
+		if ( defined( 'WP_LANG_DIR' ) &amp;&amp; @is_dir( WP_LANG_DIR ) ) {
+			$locations[] = WP_LANG_DIR;
+		}
+
+		if ( defined( 'WP_CONTENT_DIR' ) &amp;&amp; @is_dir( WP_CONTENT_DIR . '/languages' ) ) {
+			$locations[] = WP_CONTENT_DIR . '/languages';
+		}
+
+		if ( @is_dir( ABSPATH . 'wp-content/languages' ) ) {
+			$locations[] = ABSPATH . 'wp-content/languages';
+		}
+
+		if ( @is_dir( ABSPATH . WPINC . '/languages' ) ) {
+			$locations[] = ABSPATH . WPINC . '/languages';
+		}
+
+		if ( ! $locations ) {
+			break;
+		}
+
+		$locations = array_unique( $locations );
+
+		foreach ( $locales as $locale ) {
+			foreach ( $locations as $location ) {
+				if ( file_exists( $location . '/' . $locale . '.mo' ) ) {
+					load_textdomain( 'default', $location . '/' . $locale . '.mo' );
+					if ( defined( 'WP_SETUP_CONFIG' ) &amp;&amp; file_exists( $location . '/admin-' . $locale . '.mo' ) ) {
+						load_textdomain( 'default', $location . '/admin-' . $locale . '.mo' );
+					}
+					break 2;
+				}
+			}
+		}
+
+		break;
+	}
+
+	$wp_locale = new WP_Locale();
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="load_textdomain">load_textdomain()</a> </td> <td class="related-desc"> <p>Load a .mo file into the text domain $domain.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-locale.php:</span> <a href="../classes/wp_locale/__construct">WP_Locale::__construct()</a> </td> <td class="related-desc"> <p>Constructor which calls helper methods to set up object variables.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="did_action">did_action()</a> </td> <td class="related-desc"> <p>Retrieves the number of times an action has been fired during the current request.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-fatal-error-handler.php:</span> <a href="../classes/wp_fatal_error_handler/display_default_error_template">WP_Fatal_Error_Handler::display_default_error_template()</a> </td> <td class="related-desc"> <p>Displays the default PHP error template.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/process_fields">wpdb::process_fields()</a> </td> <td class="related-desc"> <p>Processes arrays of field/value pairs and field formats.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_check_php_mysql_versions">wp_check_php_mysql_versions()</a> </td> <td class="related-desc"> <p>Check for the required PHP version, and the MySQL extension or a database drop-in.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_maintenance">wp_maintenance()</a> </td> <td class="related-desc"> <p>Die with a maintenance message when conditions are met.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_set_wpdb_vars">wp_set_wpdb_vars()</a> </td> <td class="related-desc"> <p>Set the database table prefix and the format specifiers for database table columns.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="dead_db">dead_db()</a> </td> <td class="related-desc"> <p>Load custom DB error or display WordPress DB error.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="is_blog_installed">is_blog_installed()</a> </td> <td class="related-desc"> <p>Determines whether WordPress is already installed.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-load.php:</span> <a href="ms_not_installed">ms_not_installed()</a> </td> <td class="related-desc"> <p>Displays a failure message.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/check_connection">wpdb::check_connection()</a> </td> <td class="related-desc"> <p>Checks that the connection to the database is still up. If not, try to reconnect.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/query">wpdb::query()</a> </td> <td class="related-desc"> <p>Performs a database query, using current database connection.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/select">wpdb::select()</a> </td> <td class="related-desc"> <p>Selects a database using the current or provided database connection.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/_real_escape">wpdb::_real_escape()</a> </td> <td class="related-desc"> <p>Real escape, using mysqli_real_escape_string() or mysql_real_escape_string().</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/prepare">wpdb::prepare()</a> </td> <td class="related-desc"> <p>Prepares a SQL query for safe execution.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/print_error">wpdb::print_error()</a> </td> <td class="related-desc"> <p>Prints SQL/DB error.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/db_connect">wpdb::db_connect()</a> </td> <td class="related-desc"> <p>Connects to and selects database.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.4.0/" alt="WordPress 3.4.0">3.4.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_load_translations_early" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_load_translations_early</a>
+  </p>
+</div>

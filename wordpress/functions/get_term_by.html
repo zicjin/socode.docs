@@ -1,0 +1,71 @@
+<h1>get_term_by( string $field, string|int $value, string $taxonomy = '', string $output = OBJECT, string $filter = 'raw' )</h1>  <section> <p>Gets all term data from database by term field and data.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Warning: $value is not escaped for ‘name’ $field. You must do it yourself, if required.</p> <p>The default $field is ‘id’, therefore it is possible to also use null for field, but not recommended that you do so.</p> <p>If $value does not exist, the return value will be false. If $taxonomy exists and $field and $value combinations exist, the term will be returned.</p> <p>This function will always return the first term that matches the <code>$field</code>– <code>$value</code>–<code>$taxonomy</code> combination specified in the parameters. If your query is likely to match more than one term (as is likely to be the case when <code>$field</code> is ‘name’, for example), consider using <a href="get_terms">get_terms()</a> instead; that way, you will get all matching terms, and can provide your own logic for deciding which one was intended.</p> <h3 id="see-also">See also</h3> <ul> <li>
+<a href="sanitize_term_field">sanitize_term_field()</a>: The $context param lists the available values for <a href="get_term_by">get_term_by()</a> $filter param.</li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$field</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Either 'slug', 'name', 'term_id' (or 'id', 'ID'), or 'term_taxonomy_id'.</span> </p> </dd> <dt>$value</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>|<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">Search for this term value.</span> </p> </dd> <dt>$taxonomy</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description">Taxonomy name. Optional, if <code>$field</code> is 'term_taxonomy_id'.</span> </p> <p class="default">Default value: ''</p> </dd> <dt>$output</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> The required return type. One of OBJECT, ARRAY_A, or ARRAY_N, which correspond to a <a href="../classes/wp_term">WP_Term</a> object, an associative array, or a numeric array, respectively. </span> </p> <p class="default">Default value: OBJECT</p> </dd> <dt>$filter</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> How to sanitize term fields. </span> </p> <p class="default">Default value: 'raw'</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../classes/wp_term">WP_Term</a>|array|false)</span> <a href="../classes/wp_term">WP_Term</a> instance (or array) on success, depending on the <code>$output</code> value. False if <code>$taxonomy</code> does not exist or <code>$term</code> was not found.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/taxonomy.php/">wp-includes/taxonomy.php</a> </p> <pre data-language="php">function get_term_by( $field, $value, $taxonomy = '', $output = OBJECT, $filter = 'raw' ) {
+
+	// 'term_taxonomy_id' lookups don't require taxonomy checks.
+	if ( 'term_taxonomy_id' !== $field &amp;&amp; ! taxonomy_exists( $taxonomy ) ) {
+		return false;
+	}
+
+	// No need to perform a query for empty 'slug' or 'name'.
+	if ( 'slug' === $field || 'name' === $field ) {
+		$value = (string) $value;
+
+		if ( 0 === strlen( $value ) ) {
+			return false;
+		}
+	}
+
+	if ( 'id' === $field || 'ID' === $field || 'term_id' === $field ) {
+		$term = get_term( (int) $value, $taxonomy, $output, $filter );
+		if ( is_wp_error( $term ) || null === $term ) {
+			$term = false;
+		}
+		return $term;
+	}
+
+	$args = array(
+		'get'                    =&gt; 'all',
+		'number'                 =&gt; 1,
+		'taxonomy'               =&gt; $taxonomy,
+		'update_term_meta_cache' =&gt; false,
+		'orderby'                =&gt; 'none',
+		'suppress_filter'        =&gt; true,
+	);
+
+	switch ( $field ) {
+		case 'slug':
+			$args['slug'] = $value;
+			break;
+		case 'name':
+			$args['name'] = $value;
+			break;
+		case 'term_taxonomy_id':
+			$args['term_taxonomy_id'] = $value;
+			unset( $args['taxonomy'] );
+			break;
+		default:
+			return false;
+	}
+
+	$terms = get_terms( $args );
+	if ( is_wp_error( $terms ) || empty( $terms ) ) {
+		return false;
+	}
+
+	$term = array_shift( $terms );
+
+	// In the case of 'term_taxonomy_id', override the provided `$taxonomy` with whatever we find in the DB.
+	if ( 'term_taxonomy_id' === $field ) {
+		$taxonomy = $term-&gt;taxonomy;
+	}
+
+	return get_term( $term, $taxonomy, $output, $filter );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="get_terms">get_terms()</a> </td> <td class="related-desc"> <p>Retrieves the terms in a given taxonomy or list of taxonomies.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="taxonomy_exists">taxonomy_exists()</a> </td> <td class="related-desc"> <p>Determines whether the taxonomy name exists.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="get_term">get_term()</a> </td> <td class="related-desc"> <p>Gets all term data from database by term ID.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-menus-controller.php:</span> <a href="../classes/wp_rest_menus_controller/create_item">WP_REST_Menus_Controller::create_item()</a> </td> <td class="related-desc"> <p>Creates a single term in a taxonomy.</p> </td> </tr> <tr> <td> <span>wp-includes/deprecated.php:</span> <a href="get_linksbyname">get_linksbyname()</a> </td> <td class="related-desc"> <p>Gets the links associated with category $cat_name.</p> </td> </tr> <tr> <td> <span>wp-includes/deprecated.php:</span> <a href="get_linkobjectsbyname">get_linkobjectsbyname()</a> </td> <td class="related-desc"> <p>Gets an array of link objects associated with category $cat_name.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-query.php:</span> <a href="../classes/wp_query/get_queried_object">WP_Query::get_queried_object()</a> </td> <td class="related-desc"> <p>Retrieves the currently queried object.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-query.php:</span> <a href="../classes/wp_query/get_posts">WP_Query::get_posts()</a> </td> <td class="related-desc"> <p>Retrieves an array of posts based on query variables.</p> </td> </tr> <tr> <td> <span>wp-includes/category.php:</span> <a href="get_category_by_slug">get_category_by_slug()</a> </td> <td class="related-desc"> <p>Retrieves a category object by category slug.</p> </td> </tr> <tr> <td> <span>wp-includes/category.php:</span> <a href="get_cat_id">get_cat_ID()</a> </td> <td class="related-desc"> <p>Retrieves the ID of a category from its name.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="get_term_link">get_term_link()</a> </td> <td class="related-desc"> <p>Generates a permalink for a taxonomy term archive.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="wp_unique_term_slug">wp_unique_term_slug()</a> </td> <td class="related-desc"> <p>Makes term slug unique, if it isn’t already.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="wp_update_term">wp_update_term()</a> </td> <td class="related-desc"> <p>Updates term based on arguments provided.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="wp_insert_term">wp_insert_term()</a> </td> <td class="related-desc"> <p>Adds a new term to the database.</p> </td> </tr> <tr> <td> <span>wp-includes/revision.php:</span> <a href="_wp_preview_terms_filter">_wp_preview_terms_filter()</a> </td> <td class="related-desc"> <p>Filters terms lookup to set the post format.</p> </td> </tr> <tr> <td> <span>wp-includes/bookmark.php:</span> <a href="get_bookmarks">get_bookmarks()</a> </td> <td class="related-desc"> <p>Retrieves the list of bookmarks</p> </td> </tr> <tr> <td> <span>wp-includes/post-formats.php:</span> <a href="get_post_format_link">get_post_format_link()</a> </td> <td class="related-desc"> <p>Returns a link to a post format index.</p> </td> </tr> <tr> <td> <span>wp-includes/nav-menu.php:</span> <a href="wp_update_nav_menu_object">wp_update_nav_menu_object()</a> </td> <td class="related-desc"> <p>Saves the properties of a menu or create a new menu with those properties.</p> </td> </tr> <tr> <td> <span>wp-includes/nav-menu.php:</span> <a href="wp_get_nav_menu_object">wp_get_nav_menu_object()</a> </td> <td class="related-desc"> <p>Returns a navigation menu object.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="../classes/wp_xmlrpc_server/_insert_post">wp_xmlrpc_server::_insert_post()</a> </td> <td class="related-desc"> <p>Helper method for wp_newPost() and wp_editPost(), containing shared logic.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.0/" alt="WordPress 5.5.0">5.5.0</a></td> <td><span class="since-description">Added 'ID' as an alias of 'id' for the <code>$field</code> parameter.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.4.0/" alt="WordPress 4.4.0">4.4.0</a></td> <td><span class="since-description"><code>$taxonomy</code> is optional if <code>$field</code> is 'term_taxonomy_id'. Converted to return a <a href="../classes/wp_term">WP_Term</a> object if <code>$output</code> is <code>OBJECT</code>.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.3.0/" alt="WordPress 2.3.0">2.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/get_term_by" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/get_term_by</a>
+  </p>
+</div>

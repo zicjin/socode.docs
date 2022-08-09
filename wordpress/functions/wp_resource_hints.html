@@ -1,0 +1,119 @@
+<h1>wp_resource_hints()</h1>  <section> <p>Prints resource hints to browsers for pre-fetching, pre-rendering and pre-connecting to web sites.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Gives hints to browsers to prefetch specific pages or render them in the background, to perform DNS lookups or to begin the connection handshake (DNS, TCP, TLS) in the background.</p> <p>These performance improving indicators work by using <code>&lt;link rel"…"&gt;</code>.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/general-template.php/">wp-includes/general-template.php</a> </p> <pre data-language="php">function wp_resource_hints() {
+	$hints = array(
+		'dns-prefetch' =&gt; wp_dependencies_unique_hosts(),
+		'preconnect'   =&gt; array(),
+		'prefetch'     =&gt; array(),
+		'prerender'    =&gt; array(),
+	);
+
+	/*
+	 * Add DNS prefetch for the Emoji CDN.
+	 * The path is removed in the foreach loop below.
+	 */
+	/** This filter is documented in wp-includes/formatting.php */
+	$hints['dns-prefetch'][] = apply_filters( 'emoji_svg_url', 'https://s.w.org/images/core/emoji/13.0.0/svg/' );
+
+	foreach ( $hints as $relation_type =&gt; $urls ) {
+		$unique_urls = array();
+
+		/**
+		 * Filters domains and URLs for resource hints of relation type.
+		 *
+		 * @since 4.6.0
+		 * @since 4.7.0 The `$urls` parameter accepts arrays of specific HTML attributes
+		 *              as its child elements.
+		 *
+		 * @param array  $urls {
+		 *     Array of resources and their attributes, or URLs to print for resource hints.
+		 *
+		 *     @type array|string ...$0 {
+		 *         Array of resource attributes, or a URL string.
+		 *
+		 *         @type string $href        URL to include in resource hints. Required.
+		 *         @type string $as          How the browser should treat the resource
+		 *                                   (`script`, `style`, `image`, `document`, etc).
+		 *         @type string $crossorigin Indicates the CORS policy of the specified resource.
+		 *         @type float  $pr          Expected probability that the resource hint will be used.
+		 *         @type string $type        Type of the resource (`text/html`, `text/css`, etc).
+		 *     }
+		 * }
+		 * @param string $relation_type The relation type the URLs are printed for,
+		 *                              e.g. 'preconnect' or 'prerender'.
+		 */
+		$urls = apply_filters( 'wp_resource_hints', $urls, $relation_type );
+
+		foreach ( $urls as $key =&gt; $url ) {
+			$atts = array();
+
+			if ( is_array( $url ) ) {
+				if ( isset( $url['href'] ) ) {
+					$atts = $url;
+					$url  = $url['href'];
+				} else {
+					continue;
+				}
+			}
+
+			$url = esc_url( $url, array( 'http', 'https' ) );
+
+			if ( ! $url ) {
+				continue;
+			}
+
+			if ( isset( $unique_urls[ $url ] ) ) {
+				continue;
+			}
+
+			if ( in_array( $relation_type, array( 'preconnect', 'dns-prefetch' ), true ) ) {
+				$parsed = wp_parse_url( $url );
+
+				if ( empty( $parsed['host'] ) ) {
+					continue;
+				}
+
+				if ( 'preconnect' === $relation_type &amp;&amp; ! empty( $parsed['scheme'] ) ) {
+					$url = $parsed['scheme'] . '://' . $parsed['host'];
+				} else {
+					// Use protocol-relative URLs for dns-prefetch or if scheme is missing.
+					$url = '//' . $parsed['host'];
+				}
+			}
+
+			$atts['rel']  = $relation_type;
+			$atts['href'] = $url;
+
+			$unique_urls[ $url ] = $atts;
+		}
+
+		foreach ( $unique_urls as $atts ) {
+			$html = '';
+
+			foreach ( $atts as $attr =&gt; $value ) {
+				if ( ! is_scalar( $value )
+					|| ( ! in_array( $attr, array( 'as', 'crossorigin', 'href', 'pr', 'rel', 'type' ), true ) &amp;&amp; ! is_numeric( $attr ) )
+				) {
+
+					continue;
+				}
+
+				$value = ( 'href' === $attr ) ? esc_url( $value ) : esc_attr( $value );
+
+				if ( ! is_string( $attr ) ) {
+					$html .= " $value";
+				} else {
+					$html .= " $attr='$value'";
+				}
+			}
+
+			$html = trim( $html );
+
+			echo "&lt;link $html /&gt;\n";
+		}
+	}
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="wp_dependencies_unique_hosts">wp_dependencies_unique_hosts()</a> </td> <td class="related-desc"> <p>Retrieves a list of unique hosts of all enqueued scripts and styles.</p> </td> </tr> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="../hooks/wp_resource_hints">wp_resource_hints</a> </td> <td class="related-desc"> <p>Filters domains and URLs for resource hints of relation type.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../hooks/emoji_svg_url">emoji_svg_url</a> </td> <td class="related-desc"> <p>Filters the URL where emoji SVG images are hosted.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_parse_url">wp_parse_url()</a> </td> <td class="related-desc"> <p>A wrapper for PHP’s parse_url() function that handles consistency in the return values across PHP versions.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.6.0/" alt="WordPress 4.6.0">4.6.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_resource_hints" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_resource_hints</a>
+  </p>
+</div>

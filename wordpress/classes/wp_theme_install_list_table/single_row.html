@@ -1,0 +1,135 @@
+<h1>WP_Theme_Install_List_Table::single_row( stdClass $theme )</h1>  <section> <p>Prints a theme from the WordPress.org API.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$theme</dt> <dd> <p class="desc"> <span class="type">(<span class="stdClass">stdClass</span>)</span> <span class="required">(Required)</span> <span class="description">An object that contains theme data returned by the WordPress.org API. <ul class="param-hash">
+<li>
+<b>'name'</b><br><i><span class="type">(string)</span></i> Theme name, e.g. 'Twenty Twenty-One'.</li> <li>
+<b>'slug'</b><br><i><span class="type">(string)</span></i> Theme slug, e.g. 'twentytwentyone'.</li> <li>
+<b>'version'</b><br><i><span class="type">(string)</span></i> Theme version, e.g. '1.1'.</li> <li>
+<b>'author'</b><br><i><span class="type">(string)</span></i> Theme author username, e.g. 'melchoyce'.</li> <li>
+<b>'preview_url'</b><br><i><span class="type">(string)</span></i> Preview URL, e.g. <code>&lt;a href="https://2021.wordpress.net/"&gt;https://2021.wordpress.net/&lt;/a&gt;</code>.</li> <li>
+<b>'screenshot_url'</b><br><i><span class="type">(string)</span></i> Screenshot URL, e.g. <code>&lt;a href="https://wordpress.org/themes/twentytwentyone/"&gt;https://wordpress.org/themes/twentytwentyone/&lt;/a&gt;</code>.</li> <li>
+<b>'rating'</b><br><i><span class="type">(float)</span></i> Rating score.</li> <li>
+<b>'num_ratings'</b><br><i><span class="type">(int)</span></i> The number of ratings.</li> <li>
+<b>'homepage'</b><br><i><span class="type">(string)</span></i> Theme homepage, e.g. <code>&lt;a href="https://wordpress.org/themes/twentytwentyone/"&gt;https://wordpress.org/themes/twentytwentyone/&lt;/a&gt;</code>.</li> <li>
+<b>'description'</b><br><i><span class="type">(string)</span></i> Theme description.</li> <li>
+<b>'download_link'</b><br><i><span class="type">(string)</span></i> Theme ZIP download URL.</li> </ul> </span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-theme-install-list-table.php/">wp-admin/includes/class-wp-theme-install-list-table.php</a> </p> <pre data-language="php">public function single_row( $theme ) {
+		global $themes_allowedtags;
+
+		if ( empty( $theme ) ) {
+			return;
+		}
+
+		$name   = wp_kses( $theme-&gt;name, $themes_allowedtags );
+		$author = wp_kses( $theme-&gt;author, $themes_allowedtags );
+
+		/* translators: %s: Theme name. */
+		$preview_title = sprintf( __( 'Preview &amp;#8220;%s&amp;#8221;' ), $name );
+		$preview_url   = add_query_arg(
+			array(
+				'tab'   =&gt; 'theme-information',
+				'theme' =&gt; $theme-&gt;slug,
+			),
+			self_admin_url( 'theme-install.php' )
+		);
+
+		$actions = array();
+
+		$install_url = add_query_arg(
+			array(
+				'action' =&gt; 'install-theme',
+				'theme'  =&gt; $theme-&gt;slug,
+			),
+			self_admin_url( 'update.php' )
+		);
+
+		$update_url = add_query_arg(
+			array(
+				'action' =&gt; 'upgrade-theme',
+				'theme'  =&gt; $theme-&gt;slug,
+			),
+			self_admin_url( 'update.php' )
+		);
+
+		$status = $this-&gt;_get_theme_status( $theme );
+
+		switch ( $status ) {
+			case 'update_available':
+				$actions[] = sprintf(
+					'&lt;a class="install-now" href="%s" title="%s"&gt;%s&lt;/a&gt;',
+					esc_url( wp_nonce_url( $update_url, 'upgrade-theme_' . $theme-&gt;slug ) ),
+					/* translators: %s: Theme version. */
+					esc_attr( sprintf( __( 'Update to version %s' ), $theme-&gt;version ) ),
+					__( 'Update' )
+				);
+				break;
+			case 'newer_installed':
+			case 'latest_installed':
+				$actions[] = sprintf(
+					'&lt;span class="install-now" title="%s"&gt;%s&lt;/span&gt;',
+					esc_attr__( 'This theme is already installed and is up to date' ),
+					_x( 'Installed', 'theme' )
+				);
+				break;
+			case 'install':
+			default:
+				$actions[] = sprintf(
+					'&lt;a class="install-now" href="%s" title="%s"&gt;%s&lt;/a&gt;',
+					esc_url( wp_nonce_url( $install_url, 'install-theme_' . $theme-&gt;slug ) ),
+					/* translators: %s: Theme name. */
+					esc_attr( sprintf( _x( 'Install %s', 'theme' ), $name ) ),
+					__( 'Install Now' )
+				);
+				break;
+		}
+
+		$actions[] = sprintf(
+			'&lt;a class="install-theme-preview" href="%s" title="%s"&gt;%s&lt;/a&gt;',
+			esc_url( $preview_url ),
+			/* translators: %s: Theme name. */
+			esc_attr( sprintf( __( 'Preview %s' ), $name ) ),
+			__( 'Preview' )
+		);
+
+		/**
+		 * Filters the install action links for a theme in the Install Themes list table.
+		 *
+		 * @since 3.4.0
+		 *
+		 * @param string[] $actions An array of theme action links. Defaults are
+		 *                          links to Install Now, Preview, and Details.
+		 * @param stdClass $theme   An object that contains theme data returned by the
+		 *                          WordPress.org API.
+		 */
+		$actions = apply_filters( 'theme_install_actions', $actions, $theme );
+
+		?&gt;
+		&lt;a class="screenshot install-theme-preview" href="&lt;?php echo esc_url( $preview_url ); ?&gt;" title="&lt;?php echo esc_attr( $preview_title ); ?&gt;"&gt;
+			&lt;img src="&lt;?php echo esc_url( $theme-&gt;screenshot_url . '?ver=' . $theme-&gt;version ); ?&gt;" width="150" alt="" /&gt;
+		&lt;/a&gt;
+
+		&lt;h3&gt;&lt;?php echo $name; ?&gt;&lt;/h3&gt;
+		&lt;div class="theme-author"&gt;
+		&lt;?php
+			/* translators: %s: Theme author. */
+			printf( __( 'By %s' ), $author );
+		?&gt;
+		&lt;/div&gt;
+
+		&lt;div class="action-links"&gt;
+			&lt;ul&gt;
+				&lt;?php foreach ( $actions as $action ) : ?&gt;
+					&lt;li&gt;&lt;?php echo $action; ?&gt;&lt;/li&gt;
+				&lt;?php endforeach; ?&gt;
+				&lt;li class="hide-if-no-js"&gt;&lt;a href="#" class="theme-detail"&gt;&lt;?php _e( 'Details' ); ?&gt;&lt;/a&gt;&lt;/li&gt;
+			&lt;/ul&gt;
+		&lt;/div&gt;
+
+		&lt;?php
+		$this-&gt;install_theme_info( $theme );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-theme-install-list-table.php:</span> <a href="_get_theme_status">WP_Theme_Install_List_Table::_get_theme_status()</a> </td> <td class="related-desc"> <p>Check to see if the theme is already installed.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-theme-install-list-table.php:</span> <a href="install_theme_info">WP_Theme_Install_List_Table::install_theme_info()</a> </td> <td class="related-desc"> <p>Prints the info for a theme (to be used in the theme installer modal).</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-theme-install-list-table.php:</span> <a href="../../hooks/theme_install_actions">theme_install_actions</a> </td> <td class="related-desc"> <p>Filters the install action links for a theme in the Install Themes list table.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/esc_attr__">esc_attr__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text and escapes it for safe use in an attribute.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/_x">_x()</a> </td> <td class="related-desc"> <p>Retrieve translated string with gettext context.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/_e">_e()</a> </td> <td class="related-desc"> <p>Display translated text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/kses.php:</span> <a href="../../functions/wp_kses">wp_kses()</a> </td> <td class="related-desc"> <p>Filters text content and strips out disallowed HTML.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_nonce_url">wp_nonce_url()</a> </td> <td class="related-desc"> <p>Retrieve URL with nonce added to URL query.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/add_query_arg">add_query_arg()</a> </td> <td class="related-desc"> <p>Retrieves a modified URL query string.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="../../functions/self_admin_url">self_admin_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the admin area for either the current site or the network depending on context.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-theme-install-list-table.php:</span> <a href="display_rows">WP_Theme_Install_List_Table::display_rows()</a> </td> <td class="related-desc"> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.1.0/" alt="WordPress 3.1.0">3.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_theme_install_list_table/single_row" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_theme_install_list_table/single_row</a>
+  </p>
+</div>

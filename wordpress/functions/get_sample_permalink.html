@@ -1,0 +1,87 @@
+<h1>get_sample_permalink( int|WP_Post $id, string|null $title = null, string|null $name = null )</h1>  <section> <p>Returns a sample permalink based on the post name.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>|<span class="WP_Post"><a href="../classes/wp_post">WP_Post</a></span>)</span> <span class="required">(Required)</span> <span class="description">Post ID or post object.</span> </p> </dd> <dt>$title</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>|<span class="null">null</span>)</span> <span class="required">(Optional)</span> <span class="description"> Title to override the post's current title when generating the post name. </span> </p> <p class="default">Default value: null</p> </dd> <dt>$name</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>|<span class="null">null</span>)</span> <span class="required">(Optional)</span> <span class="description"> Name to override the post name. </span> </p> <p class="default">Default value: null</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> Array containing the sample permalink with placeholder for the post name, and the post name. </p>
+<ul class="param-hash">
+<li>
+<i><span class="type">(string)</span></i> The permalink with placeholder for the post name.</li> <li>
+<b>'1'</b><br><i><span class="type">(string)</span></i> The post name.</li> </ul> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/post.php/">wp-admin/includes/post.php</a> </p> <pre data-language="php">function get_sample_permalink( $id, $title = null, $name = null ) {
+	$post = get_post( $id );
+	if ( ! $post ) {
+		return array( '', '' );
+	}
+
+	$ptype = get_post_type_object( $post-&gt;post_type );
+
+	$original_status = $post-&gt;post_status;
+	$original_date   = $post-&gt;post_date;
+	$original_name   = $post-&gt;post_name;
+
+	// Hack: get_permalink() would return plain permalink for drafts, so we will fake that our post is published.
+	if ( in_array( $post-&gt;post_status, array( 'draft', 'pending', 'future' ), true ) ) {
+		$post-&gt;post_status = 'publish';
+		$post-&gt;post_name   = sanitize_title( $post-&gt;post_name ? $post-&gt;post_name : $post-&gt;post_title, $post-&gt;ID );
+	}
+
+	// If the user wants to set a new name -- override the current one.
+	// Note: if empty name is supplied -- use the title instead, see #6072.
+	if ( ! is_null( $name ) ) {
+		$post-&gt;post_name = sanitize_title( $name ? $name : $title, $post-&gt;ID );
+	}
+
+	$post-&gt;post_name = wp_unique_post_slug( $post-&gt;post_name, $post-&gt;ID, $post-&gt;post_status, $post-&gt;post_type, $post-&gt;post_parent );
+
+	$post-&gt;filter = 'sample';
+
+	$permalink = get_permalink( $post, true );
+
+	// Replace custom post_type token with generic pagename token for ease of use.
+	$permalink = str_replace( "%$post-&gt;post_type%", '%pagename%', $permalink );
+
+	// Handle page hierarchy.
+	if ( $ptype-&gt;hierarchical ) {
+		$uri = get_page_uri( $post );
+		if ( $uri ) {
+			$uri = untrailingslashit( $uri );
+			$uri = strrev( stristr( strrev( $uri ), '/' ) );
+			$uri = untrailingslashit( $uri );
+		}
+
+		/** This filter is documented in wp-admin/edit-tag-form.php */
+		$uri = apply_filters( 'editable_slug', $uri, $post );
+		if ( ! empty( $uri ) ) {
+			$uri .= '/';
+		}
+		$permalink = str_replace( '%pagename%', "{$uri}%pagename%", $permalink );
+	}
+
+	/** This filter is documented in wp-admin/edit-tag-form.php */
+	$permalink         = array( $permalink, apply_filters( 'editable_slug', $post-&gt;post_name, $post ) );
+	$post-&gt;post_status = $original_status;
+	$post-&gt;post_date   = $original_date;
+	$post-&gt;post_name   = $original_name;
+	unset( $post-&gt;filter );
+
+	/**
+	 * Filters the sample permalink.
+	 *
+	 * @since 4.4.0
+	 *
+	 * @param array   $permalink {
+	 *     Array containing the sample permalink with placeholder for the post name, and the post name.
+	 *
+	 *     @type string $0 The permalink with placeholder for the post name.
+	 *     @type string $1 The post name.
+	 * }
+	 * @param int     $post_id Post ID.
+	 * @param string  $title   Post title.
+	 * @param string  $name    Post name (slug).
+	 * @param WP_Post $post    Post object.
+	 */
+	return apply_filters( 'get_sample_permalink', $permalink, $post-&gt;ID, $title, $name, $post );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/post.php:</span> <a href="../hooks/get_sample_permalink">get_sample_permalink</a> </td> <td class="related-desc"> <p>Filters the sample permalink.</p> </td> </tr> <tr> <td> <span>wp-admin/edit-tag-form.php:</span> <a href="../hooks/editable_slug">editable_slug</a> </td> <td class="related-desc"> <p>Filters the editable slug for a post or term.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="untrailingslashit">untrailingslashit()</a> </td> <td class="related-desc"> <p>Removes trailing forward slashes and backslashes if they exist.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="sanitize_title">sanitize_title()</a> </td> <td class="related-desc"> <p>Sanitizes a string into a slug, which can be used in URLs or HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="get_permalink">get_permalink()</a> </td> <td class="related-desc"> <p>Retrieves the full permalink for the current post or post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_page_uri">get_page_uri()</a> </td> <td class="related-desc"> <p>Build the URI path for a page.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_unique_post_slug">wp_unique_post_slug()</a> </td> <td class="related-desc"> <p>Computes a unique slug for the post, when given the desired slug and some post details.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post_type_object">get_post_type_object()</a> </td> <td class="related-desc"> <p>Retrieves a post type object by name.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-posts-controller.php:</span> <a href="../classes/wp_rest_posts_controller/prepare_item_for_response">WP_REST_Posts_Controller::prepare_item_for_response()</a> </td> <td class="related-desc"> <p>Prepares a single post output for response.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/post.php:</span> <a href="get_sample_permalink_html">get_sample_permalink_html()</a> </td> <td class="related-desc"> <p>Returns the HTML of the sample permalink slug editor.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.5.0/" alt="WordPress 2.5.0">2.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/get_sample_permalink" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/get_sample_permalink</a>
+  </p>
+</div>

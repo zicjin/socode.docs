@@ -1,0 +1,51 @@
+<h1>resume_theme( string $theme, string $redirect = '' )</h1>  <section> <p>Tries to resume a single theme.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>If a redirect was provided and a functions.php file was found, we first ensure that functions.php file does not throw fatal errors anymore.</p> <p>The way it works is by setting the redirection to the error before trying to include the file. If the theme fails, then the redirection will not be overwritten with the success message and the theme will not be resumed.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$theme</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Single theme to resume.</span> </p> </dd> <dt>$redirect</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> URL to redirect to. </span> </p> <p class="default">Default value: ''</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool|<a href="../classes/wp_error">WP_Error</a>)</span> True on success, false if <code>$theme</code> was not paused, <code>WP_Error</code> on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/theme.php/">wp-admin/includes/theme.php</a> </p> <pre data-language="php">function resume_theme( $theme, $redirect = '' ) {
+	list( $extension ) = explode( '/', $theme );
+
+	/*
+	 * We'll override this later if the theme could be resumed without
+	 * creating a fatal error.
+	 */
+	if ( ! empty( $redirect ) ) {
+		$functions_path = '';
+		if ( strpos( STYLESHEETPATH, $extension ) ) {
+			$functions_path = STYLESHEETPATH . '/functions.php';
+		} elseif ( strpos( TEMPLATEPATH, $extension ) ) {
+			$functions_path = TEMPLATEPATH . '/functions.php';
+		}
+
+		if ( ! empty( $functions_path ) ) {
+			wp_redirect(
+				add_query_arg(
+					'_error_nonce',
+					wp_create_nonce( 'theme-resume-error_' . $theme ),
+					$redirect
+				)
+			);
+
+			// Load the theme's functions.php to test whether it throws a fatal error.
+			ob_start();
+			if ( ! defined( 'WP_SANDBOX_SCRAPING' ) ) {
+				define( 'WP_SANDBOX_SCRAPING', true );
+			}
+			include $functions_path;
+			ob_clean();
+		}
+	}
+
+	$result = wp_paused_themes()-&gt;delete( $extension );
+
+	if ( ! $result ) {
+		return new WP_Error(
+			'could_not_resume_theme',
+			__( 'Could not resume the theme.' )
+		);
+	}
+
+	return true;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/error-protection.php:</span> <a href="wp_paused_themes">wp_paused_themes()</a> </td> <td class="related-desc"> <p>Get the instance for storing paused extensions.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_create_nonce">wp_create_nonce()</a> </td> <td class="related-desc"> <p>Creates a cryptographic token tied to a specific action, user, user session, and window of time.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_redirect">wp_redirect()</a> </td> <td class="related-desc"> <p>Redirects to another page.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="add_query_arg">add_query_arg()</a> </td> <td class="related-desc"> <p>Retrieves a modified URL query string.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../classes/wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.2.0/" alt="WordPress 5.2.0">5.2.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/resume_theme" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/resume_theme</a>
+  </p>
+</div>

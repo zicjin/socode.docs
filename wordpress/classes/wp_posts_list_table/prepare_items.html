@@ -1,0 +1,62 @@
+<h1>WP_Posts_List_Table::prepare_items()</h1>   <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-posts-list-table.php/">wp-admin/includes/class-wp-posts-list-table.php</a> </p> <pre data-language="php">public function prepare_items() {
+		global $mode, $avail_post_stati, $wp_query, $per_page;
+
+		if ( ! empty( $_REQUEST['mode'] ) ) {
+			$mode = 'excerpt' === $_REQUEST['mode'] ? 'excerpt' : 'list';
+			set_user_setting( 'posts_list_mode', $mode );
+		} else {
+			$mode = get_user_setting( 'posts_list_mode', 'list' );
+		}
+
+		// Is going to call wp().
+		$avail_post_stati = wp_edit_posts_query();
+
+		$this-&gt;set_hierarchical_display(
+			is_post_type_hierarchical( $this-&gt;screen-&gt;post_type )
+			&amp;&amp; 'menu_order title' === $wp_query-&gt;query['orderby']
+		);
+
+		$post_type = $this-&gt;screen-&gt;post_type;
+		$per_page  = $this-&gt;get_items_per_page( 'edit_' . $post_type . '_per_page' );
+
+		/** This filter is documented in wp-admin/includes/post.php */
+		$per_page = apply_filters( 'edit_posts_per_page', $per_page, $post_type );
+
+		if ( $this-&gt;hierarchical_display ) {
+			$total_items = $wp_query-&gt;post_count;
+		} elseif ( $wp_query-&gt;found_posts || $this-&gt;get_pagenum() === 1 ) {
+			$total_items = $wp_query-&gt;found_posts;
+		} else {
+			$post_counts = (array) wp_count_posts( $post_type, 'readable' );
+
+			if ( isset( $_REQUEST['post_status'] ) &amp;&amp; in_array( $_REQUEST['post_status'], $avail_post_stati, true ) ) {
+				$total_items = $post_counts[ $_REQUEST['post_status'] ];
+			} elseif ( isset( $_REQUEST['show_sticky'] ) &amp;&amp; $_REQUEST['show_sticky'] ) {
+				$total_items = $this-&gt;sticky_posts_count;
+			} elseif ( isset( $_GET['author'] ) &amp;&amp; get_current_user_id() === (int) $_GET['author'] ) {
+				$total_items = $this-&gt;user_posts_count;
+			} else {
+				$total_items = array_sum( $post_counts );
+
+				// Subtract post types that are not included in the admin all list.
+				foreach ( get_post_stati( array( 'show_in_admin_all_list' =&gt; false ) ) as $state ) {
+					$total_items -= $post_counts[ $state ];
+				}
+			}
+		}
+
+		$this-&gt;is_trash = isset( $_REQUEST['post_status'] ) &amp;&amp; 'trash' === $_REQUEST['post_status'];
+
+		$this-&gt;set_pagination_args(
+			array(
+				'total_items' =&gt; $total_items,
+				'per_page'    =&gt; $per_page,
+			)
+		);
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-posts-list-table.php:</span> <a href="set_hierarchical_display">WP_Posts_List_Table::set_hierarchical_display()</a> </td> <td class="related-desc"> <p>Sets whether the table layout should be hierarchical or not.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/post.php:</span> <a href="../../functions/wp_edit_posts_query">wp_edit_posts_query()</a> </td> <td class="related-desc"> <p>Runs the query to fetch the posts for listing on the edit posts page.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/post.php:</span> <a href="../../hooks/edit_posts_per_page">edit_posts_per_page</a> </td> <td class="related-desc"> <p>Filters the number of posts displayed per page when specifically listing “posts”.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../../functions/set_user_setting">set_user_setting()</a> </td> <td class="related-desc"> <p>Adds or updates user interface setting.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../../functions/get_user_setting">get_user_setting()</a> </td> <td class="related-desc"> <p>Retrieves user interface setting value based on setting name.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="../../functions/get_current_user_id">get_current_user_id()</a> </td> <td class="related-desc"> <p>Gets the current user’s ID.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/wp_count_posts">wp_count_posts()</a> </td> <td class="related-desc"> <p>Count number of posts of a post type and if user has permissions to view.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/is_post_type_hierarchical">is_post_type_hierarchical()</a> </td> <td class="related-desc"> <p>Whether the post type is hierarchical.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/get_post_stati">get_post_stati()</a> </td> <td class="related-desc"> <p>Get a list of post statuses.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_posts_list_table/prepare_items" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_posts_list_table/prepare_items</a>
+  </p>
+</div>

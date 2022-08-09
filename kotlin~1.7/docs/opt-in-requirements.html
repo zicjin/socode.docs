@@ -1,0 +1,182 @@
+<h1 data-toc="opt-in-requirements" id="opt-in-requirements.md">Opt-in requirements</h1>
+<p id="201c4d6d">The Kotlin standard library provides a mechanism for requiring and giving explicit consent for using certain elements of APIs. This mechanism lets library developers inform users of their APIs about specific conditions that require opt-in, for example, if an API is in the experimental state and is likely to change in the future.</p>
+<p id="abbfd9f6">To prevent potential issues, the compiler warns users of such APIs about these conditions and requires them to opt in before using the API.</p>
+<section class="chapter"><h2 id="opt-in-to-using-api" data-toc="opt-in-requirements#opt-in-to-using-api">Opt in to using API</h2>
+<p id="3efc73f3">If a library author marks a declaration from a library's API as <em id="82d40897" class=""><a href="#require-opt-in-for-api" id="90b483bf">requiring opt-in</a></em>, you should give an explicit consent for using it in your code. There are several ways to opt in to such APIs, all applicable without technical limitations. You are free to choose the way that you find best for your situation.</p>
+<section class="chapter"><h3 id="propagating-opt-in" data-toc="opt-in-requirements#propagating-opt-in">Propagating opt-in</h3>
+<p id="1aae35ca">When you use an API in the code intended for third-party use (a library), you can propagate its opt-in requirement to your API as well. To do this, annotate your declaration with the <em id="c7cc4e10" class=""><a href="#create-opt-in-requirement-annotations" id="e4a09227">opt-in requirement annotation</a></em> of the API used in its body. This enables you to use API elements that require opt-in.</p>
+<pre class="code" data-language="kotlin">// Library code
+@RequiresOptIn(message = "This API is experimental. It may be changed in the future without notice.")
+@Retention(AnnotationRetention.BINARY)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
+annotation class MyDateTime // Opt-in requirement annotation
+
+@MyDateTime                            
+class DateProvider // A class requiring opt-in
+</pre>
+<pre class="code" data-language="kotlin">// Client code
+fun getYear(): Int {  
+    val dateProvider: DateProvider // Error: DateProvider requires opt-in
+    // ...
+}
+
+@MyDateTime
+fun getDate(): Date {  
+    val dateProvider: DateProvider // OK: the function requires opt-in as well
+    // ...
+}
+
+fun displayDate() {
+    println(getDate()) // Error: getDate() requires opt-in
+}
+</pre>
+<p id="385c61de">As you can see in this example, the annotated function appears to be a part of the <code class="code ">@MyDateTime</code> API. So, such an opt-in propagates the opt-in requirement to the client code; its clients will see the same warning message and be required to consent as well.</p>
+<p id="66e4f86d">Implicit usages of APIs that require opt-in also require opt-in. If an API element doesn't have an opt-in requirement annotation but its signature includes a type declared as requiring opt-in, its usage will still raise a warning. See the example below.</p>
+<pre class="code" data-language="kotlin">// Client code
+fun getDate(dateProvider: DateProvider): Date { // Error: DateProvider requires opt-in
+    // ...
+}
+
+fun displayDate() {
+    println(getDate()) // Warning: the signature of getDate() contains DateProvider, which requires opt-in
+}
+</pre>
+<p id="a3a69a89">To use multiple APIs that require opt-in, mark the declaration with all their opt-in requirement annotations.</p></section><section class="chapter"><h3 id="non-propagating-opt-in" data-toc="opt-in-requirements#non-propagating-opt-in">Non-propagating opt-in</h3>
+<p id="c65c1b70">In modules that don't expose their own API, such as applications, you can opt in to using APIs without propagating the opt-in requirement to your code. In this case, mark your declaration with <a href="../api/latest/jvm/stdlib/kotlin/-opt-in/index" id="d8050212" data-external="true" rel="noopener noreferrer"><code class="code ">@OptIn</code></a> passing the opt-in requirement annotation as its argument:</p>
+<pre class="code" data-language="kotlin">// Library code
+@RequiresOptIn(message = "This API is experimental. It may be changed in the future without notice.")
+@Retention(AnnotationRetention.BINARY)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
+annotation class MyDateTime // Opt-in requirement annotation
+
+@MyDateTime                            
+class DateProvider // A class requiring opt-in
+</pre>
+<pre class="code" data-language="kotlin">// Client code
+@OptIn(MyDateTime::class)
+fun getDate(): Date { // Uses DateProvider; doesn't propagate the opt-in requirement
+    val dateProvider: DateProvider
+    // ...
+}
+
+fun displayDate() {
+    println(getDate()) // OK: opt-in is not required
+}
+</pre>
+<p id="5b0ad3ec">When somebody calls the function <code class="code ">getDate()</code>, they won't be informed about the opt-in requirements for APIs used in its body.</p>
+<p id="c5a24be">Note that if <code class="code ">@OptIn</code> applies to the declaration whose signature contains a type declared as requiring opt-in, the opt-in will still propagate:</p>
+<pre class="code" data-language="kotlin">// Client code
+@OptIn(MyDateTime::class)
+fun getDate(dateProvider: DateProvider): Date { // Has DateProvider as a part of a signature; propagates the opt-in requirement
+    // ...
+}
+
+fun displayDate() {
+    println(getDate()) // Warning: getDate() requires opt-in
+}
+</pre>
+<p id="47bda89c">To use an API that requires opt-in in all functions and classes in a file, add the file-level annotation <code class="code ">@file:OptIn</code> to the top of the file before the package specification and imports.</p>
+<pre class="code" data-language="kotlin">// Client code
+@file:OptIn(MyDateTime::class)
+</pre></section><section class="chapter"><h3 id="module-wide-opt-in" data-toc="opt-in-requirements#module-wide-opt-in">Module-wide opt-in</h3>
+<aside data-type="note" class="prompt" data-title="" id="245bb2d1"><p id="743dcd63">The <code class="code ">-opt-in</code> compiler option is available since Kotlin 1.6.0. For earlier Kotlin versions, use <code class="code ">-Xopt-in</code>.</p></aside><p id="bf13749c">If you don't want to annotate every usage of APIs that require opt-in, you can opt in to them for your whole module. To opt in to using an API in a module, compile it with the argument <code class="code ">-opt-in</code>, specifying the fully qualified name of the opt-in requirement annotation of the API you use: <code class="code ">-opt-in=org.mylibrary.OptInAnnotation</code>. Compiling with this argument has the same effect as if every declaration in the module had the annotation<code class="code ">@OptIn(OptInAnnotation::class)</code>.</p>
+<p id="feb69483">If you build your module with Gradle, you can add arguments like this:</p>
+<div class="tabs" id="8230626b" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="aefeb681" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">tasks.withType&lt;org.jetbrains.kotlin.gradle.tasks.KotlinCompile&gt;().configureEach {
+    kotlinOptions.freeCompilerArgs += "-opt-in=org.mylibrary.OptInAnnotation"
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="311de975" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    kotlinOptions {
+        freeCompilerArgs += "-opt-in=org.mylibrary.OptInAnnotation"
+    }
+}
+</pre></div>
+</div>
+<p id="56169680">If your Gradle module is a multiplatform module, use the <code class="code ">optIn</code> method:</p>
+<div class="tabs" id="68d5e1be" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="196fa0de" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">sourceSets {
+    all {
+        languageSettings.optIn("org.mylibrary.OptInAnnotation")
+    }
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="32908cb2" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">sourceSets {
+    all {
+        languageSettings {
+            optIn('org.mylibrary.OptInAnnotation')
+        }
+    }
+}
+</pre></div>
+</div>
+<p id="b7161bf1">For Maven, it would be:</p>
+<pre class="code" data-language="markup">&lt;build&gt;
+    &lt;plugins&gt;
+        &lt;plugin&gt;
+            &lt;groupId&gt;org.jetbrains.kotlin&lt;/groupId&gt;
+            &lt;artifactId&gt;kotlin-maven-plugin&lt;/artifactId&gt;
+            &lt;version&gt;${kotlin.version}&lt;/version&gt;
+            &lt;executions&gt;...&lt;/executions&gt;
+            &lt;configuration&gt;
+                &lt;args&gt;
+                    &lt;arg&gt;-opt-in=org.mylibrary.OptInAnnotation&lt;/arg&gt;                    
+                &lt;/args&gt;
+            &lt;/configuration&gt;
+        &lt;/plugin&gt;
+    &lt;/plugins&gt;
+&lt;/build&gt;
+</pre>
+<p id="a3b7f2cd">To opt in to multiple APIs on the module level, add one of the described arguments for each opt-in requirement marker used in your module.</p></section></section><section class="chapter"><h2 id="require-opt-in-for-api" data-toc="opt-in-requirements#require-opt-in-for-api">Require opt-in for API</h2>
+<section class="chapter"><h3 id="create-opt-in-requirement-annotations" data-toc="opt-in-requirements#create-opt-in-requirement-annotations">Create opt-in requirement annotations</h3>
+<p id="2b4bc311">If you want to require explicit consent to using your module's API, create an annotation class to use as an <em id="1cf57a6" class="">opt-in requirement annotation</em>. This class must be annotated with <a href="../api/latest/jvm/stdlib/kotlin/-requires-opt-in/index" id="b434842f" data-external="true" rel="noopener noreferrer">@RequiresOptIn</a>:</p>
+<pre class="code" data-language="kotlin">@RequiresOptIn
+@Retention(AnnotationRetention.BINARY)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
+annotation class MyDateTime
+</pre>
+<p id="f56af0fa">Opt-in requirement annotations must meet several requirements:</p>
+<ul class="list _ul" id="ee8f5ba9">
+<li class="list__item" id="8c82e952"><p><code class="code ">BINARY</code> or <code class="code ">RUNTIME</code> <a href="../api/latest/jvm/stdlib/kotlin.annotation/-retention/index" id="ff665f6b" data-external="true" rel="noopener noreferrer">retention</a></p></li>
+<li class="list__item" id="c113439c"><p>No <code class="code ">EXPRESSION</code>, <code class="code ">FILE</code>, <code class="code ">TYPE</code>, or <code class="code ">TYPE_PARAMETER</code> among <a href="../api/latest/jvm/stdlib/kotlin.annotation/-target/index" id="aba38169" data-external="true" rel="noopener noreferrer">targets</a></p></li>
+<li class="list__item" id="613cda62"><p>No parameters.</p></li>
+</ul>
+<p id="23548f1f">An opt-in requirement can have one of two severity <a href="../api/latest/jvm/stdlib/kotlin/-requires-opt-in/-level/index" id="749beddd" data-external="true" rel="noopener noreferrer">levels</a>:</p>
+<ul class="list _ul" id="4fe3d9c3">
+<li class="list__item" id="3b9c7167"><p><code class="code ">RequiresOptIn.Level.ERROR</code>. Opt-in is mandatory. Otherwise, the code that uses marked API won't compile. Default level.</p></li>
+<li class="list__item" id="82bd6bea"><p><code class="code ">RequiresOptIn.Level.WARNING</code>. Opt-in is not mandatory, but advisable. Without it, the compiler raises a warning.</p></li>
+</ul>
+<p id="914a8b23">To set the desired level, specify the <code class="code ">level</code> parameter of the <code class="code ">@RequiresOptIn</code> annotation.</p>
+<p id="b8d67992">Additionally, you can provide a <code class="code ">message</code> to inform API users about special condition of using the API. The compiler will show it to users that use the API without opt-in.</p>
+<pre class="code" data-language="kotlin">@RequiresOptIn(level = RequiresOptIn.Level.WARNING, message = "This API is experimental. It can be incompatibly changed in the future.")
+@Retention(AnnotationRetention.BINARY)
+@Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
+annotation class ExperimentalDateTime
+</pre>
+<p id="24f584f4">If you publish multiple independent features that require opt-in, declare an annotation for each. This makes the use of API safer for your clients: they can use only the features that they explicitly accept. This also lets you remove the opt-in requirements from the features independently.</p></section><section class="chapter"><h3 id="mark-api-elements" data-toc="opt-in-requirements#mark-api-elements">Mark API elements</h3>
+<p id="3893a94b">To require an opt-in to using an API element, annotate its declaration with an opt-in requirement annotation:</p>
+<pre class="code" data-language="kotlin">@MyDateTime
+class DateProvider
+
+@MyDateTime
+fun getTime(): Time {}
+</pre>
+<p id="7a6ee45f">Note that for some language elements, an opt-in requirement annotation is not applicable:</p>
+<ul class="list _ul" id="1b3182e0">
+<li class="list__item" id="c413e876"><p>Overriding methods can only have opt-in annotations that are present on their basic declarations.</p></li>
+<li class="list__item" id="6c2869b"><p>You cannot annotate a backing field or a getter of a property, just the property itself.</p></li>
+<li class="list__item" id="52cbdd5f"><p>You cannot annotate a local variable or a value parameter.</p></li>
+</ul></section></section><section class="chapter"><h2 id="opt-in-requirements-for-pre-stable-apis" data-toc="opt-in-requirements#opt-in-requirements-for-pre-stable-apis">Opt-in requirements for pre-stable APIs</h2>
+<p id="df03ca38">If you use opt-in requirements for features that are not stable yet, carefully handle the API graduation to avoid breaking the client code.</p>
+<p id="982c7759">Once your pre-stable API graduates and is released in a stable state, remove its opt-in requirement annotations from declarations. The clients will be able to use them without restriction. However, you should leave the annotation classes in modules so that the existing client code remains compatible.</p>
+<p id="2c1057ef">To let the API users update their modules accordingly (remove the annotations from their code and recompile), mark the annotations as <a href="../api/latest/jvm/stdlib/kotlin/-deprecated/index" id="f2582def" data-external="true" rel="noopener noreferrer"><code class="code ">@Deprecated</code></a> and provide the explanation in the deprecation message.</p>
+<pre class="code" data-language="kotlin">@Deprecated("This opt-in requirement is not used anymore. Remove its usages from your code.")
+@RequiresOptIn
+annotation class ExperimentalDateTime
+</pre></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="scope-functions">Scope functions</a> <a class="navigation-links__next" href="coroutines-guide">Coroutines guide</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/opt-in-requirements.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/opt-in-requirements.html</a>
+  </p>
+</div>

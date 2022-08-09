@@ -1,0 +1,80 @@
+<h1>resolve_block_template( string $template_type, string[] $template_hierarchy, string $fallback_template )</h1> <div class="callout callout-alert">
+<p> This function’s access is marked private. This means it is not intended for use by plugin or theme developers, only in other core functions. It is listed here for completeness.</p> </div>  <section> <p>Return the correct ‘wp_template’ to render for the request template type.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$template_type</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The current template type.</span> </p> </dd> <dt>$template_hierarchy</dt> <dd> <p class="desc"> <span class="type">(<span class="string[]">string[]</span>)</span> <span class="required">(Required)</span> <span class="description">The current template hierarchy, ordered by priority.</span> </p> </dd> <dt>$fallback_template</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">A PHP fallback template to use if no matching block template is found.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../classes/wp_block_template">WP_Block_Template</a>|null)</span> template A template object, or null if none could be found.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/block-template.php/">wp-includes/block-template.php</a> </p> <pre data-language="php">function resolve_block_template( $template_type, $template_hierarchy, $fallback_template ) {
+	if ( ! $template_type ) {
+		return null;
+	}
+
+	if ( empty( $template_hierarchy ) ) {
+		$template_hierarchy = array( $template_type );
+	}
+
+	$slugs = array_map(
+		'_strip_template_file_suffix',
+		$template_hierarchy
+	);
+
+	// Find all potential templates 'wp_template' post matching the hierarchy.
+	$query     = array(
+		'theme'    =&gt; wp_get_theme()-&gt;get_stylesheet(),
+		'slug__in' =&gt; $slugs,
+	);
+	$templates = get_block_templates( $query );
+
+	// Order these templates per slug priority.
+	// Build map of template slugs to their priority in the current hierarchy.
+	$slug_priorities = array_flip( $slugs );
+
+	usort(
+		$templates,
+		static function ( $template_a, $template_b ) use ( $slug_priorities ) {
+			return $slug_priorities[ $template_a-&gt;slug ] - $slug_priorities[ $template_b-&gt;slug ];
+		}
+	);
+
+	$theme_base_path        = get_stylesheet_directory() . DIRECTORY_SEPARATOR;
+	$parent_theme_base_path = get_template_directory() . DIRECTORY_SEPARATOR;
+
+	// Is the active theme a child theme, and is the PHP fallback template part of it?
+	if (
+		strpos( $fallback_template, $theme_base_path ) === 0 &amp;&amp;
+		strpos( $fallback_template, $parent_theme_base_path ) === false
+	) {
+		$fallback_template_slug = substr(
+			$fallback_template,
+			// Starting position of slug.
+			strpos( $fallback_template, $theme_base_path ) + strlen( $theme_base_path ),
+			// Remove '.php' suffix.
+			-4
+		);
+
+		// Is our candidate block template's slug identical to our PHP fallback template's?
+		if (
+			count( $templates ) &amp;&amp;
+			$fallback_template_slug === $templates[0]-&gt;slug &amp;&amp;
+			'theme' === $templates[0]-&gt;source
+		) {
+			// Unfortunately, we cannot trust $templates[0]-&gt;theme, since it will always
+			// be set to the active theme's slug by _build_block_template_result_from_file(),
+			// even if the block template is really coming from the active theme's parent.
+			// (The reason for this is that we want it to be associated with the active theme
+			// -- not its parent -- once we edit it and store it to the DB as a wp_template CPT.)
+			// Instead, we use _get_block_template_file() to locate the block template file.
+			$template_file = _get_block_template_file( 'wp_template', $fallback_template_slug );
+			if ( $template_file &amp;&amp; get_template() === $template_file['theme'] ) {
+				// The block template is part of the parent theme, so we
+				// have to give precedence to the child theme's PHP template.
+				array_shift( $templates );
+			}
+		}
+	}
+
+	return count( $templates ) ? $templates[0] : null;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/block-template-utils.php:</span> <a href="_get_block_template_file">_get_block_template_file()</a> </td> <td class="related-desc"> <p>Retrieves the template file from the theme for a given slug.</p> </td> </tr> <tr> <td> <span>wp-includes/block-template-utils.php:</span> <a href="get_block_templates">get_block_templates()</a> </td> <td class="related-desc"> <p>Retrieves a list of unified template objects based on a query.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="get_stylesheet_directory">get_stylesheet_directory()</a> </td> <td class="related-desc"> <p>Retrieves stylesheet directory path for the active theme.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="get_template_directory">get_template_directory()</a> </td> <td class="related-desc"> <p>Retrieves template directory path for the active theme.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="get_template">get_template()</a> </td> <td class="related-desc"> <p>Retrieves name of the active theme.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="wp_get_theme">wp_get_theme()</a> </td> <td class="related-desc"> <p>Gets a <a href="../classes/wp_theme">WP_Theme</a> object for a theme.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-theme.php:</span> <a href="../classes/wp_theme/get_stylesheet">WP_Theme::get_stylesheet()</a> </td> <td class="related-desc"> <p>Returns the directory name of the theme’s “stylesheet” files, inside the theme root.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/block-template.php:</span> <a href="_resolve_home_block_template">_resolve_home_block_template()</a> </td> <td class="related-desc"> <p>Returns the correct template for the site’s home page.</p> </td> </tr> <tr> <td> <span>wp-includes/block-template.php:</span> <a href="locate_block_template">locate_block_template()</a> </td> <td class="related-desc"> <p>Find a block template with equal or higher specificity than a given PHP template file.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.9.0/" alt="WordPress 5.9.0">5.9.0</a></td> <td><span class="since-description">Added the <code>$fallback_template</code> parameter.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.8.0/" alt="WordPress 5.8.0">5.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/resolve_block_template" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/resolve_block_template</a>
+  </p>
+</div>

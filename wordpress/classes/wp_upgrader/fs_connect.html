@@ -1,0 +1,65 @@
+<h1>WP_Upgrader::fs_connect( string[] $directories = array(), bool $allow_relaxed_file_ownership = false )</h1>  <section> <p>Connect to the filesystem.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$directories</dt> <dd> <p class="desc"> <span class="type">(<span class="string[]">string[]</span>)</span> <span class="required">(Optional)</span> <span class="description"> Array of directories. If any of these do not exist, a <a href="../wp_error">WP_Error</a> object will be returned. </span> </p> <p class="default">Default value: array()</p> </dd> <dt>$allow_relaxed_file_ownership</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description">Whether to allow relaxed file ownership. </span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool|<a href="../wp_error">WP_Error</a>)</span> True if able to connect, false or a <a href="../wp_error">WP_Error</a> otherwise.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-upgrader.php/">wp-admin/includes/class-wp-upgrader.php</a> </p> <pre data-language="php">public function fs_connect( $directories = array(), $allow_relaxed_file_ownership = false ) {
+		global $wp_filesystem;
+
+		$credentials = $this-&gt;skin-&gt;request_filesystem_credentials( false, $directories[0], $allow_relaxed_file_ownership );
+		if ( false === $credentials ) {
+			return false;
+		}
+
+		if ( ! WP_Filesystem( $credentials, $directories[0], $allow_relaxed_file_ownership ) ) {
+			$error = true;
+			if ( is_object( $wp_filesystem ) &amp;&amp; $wp_filesystem-&gt;errors-&gt;has_errors() ) {
+				$error = $wp_filesystem-&gt;errors;
+			}
+			// Failed to connect. Error and request again.
+			$this-&gt;skin-&gt;request_filesystem_credentials( $error, $directories[0], $allow_relaxed_file_ownership );
+			return false;
+		}
+
+		if ( ! is_object( $wp_filesystem ) ) {
+			return new WP_Error( 'fs_unavailable', $this-&gt;strings['fs_unavailable'] );
+		}
+
+		if ( is_wp_error( $wp_filesystem-&gt;errors ) &amp;&amp; $wp_filesystem-&gt;errors-&gt;has_errors() ) {
+			return new WP_Error( 'fs_error', $this-&gt;strings['fs_error'], $wp_filesystem-&gt;errors );
+		}
+
+		foreach ( (array) $directories as $dir ) {
+			switch ( $dir ) {
+				case ABSPATH:
+					if ( ! $wp_filesystem-&gt;abspath() ) {
+						return new WP_Error( 'fs_no_root_dir', $this-&gt;strings['fs_no_root_dir'] );
+					}
+					break;
+				case WP_CONTENT_DIR:
+					if ( ! $wp_filesystem-&gt;wp_content_dir() ) {
+						return new WP_Error( 'fs_no_content_dir', $this-&gt;strings['fs_no_content_dir'] );
+					}
+					break;
+				case WP_PLUGIN_DIR:
+					if ( ! $wp_filesystem-&gt;wp_plugins_dir() ) {
+						return new WP_Error( 'fs_no_plugins_dir', $this-&gt;strings['fs_no_plugins_dir'] );
+					}
+					break;
+				case get_theme_root():
+					if ( ! $wp_filesystem-&gt;wp_themes_dir() ) {
+						return new WP_Error( 'fs_no_themes_dir', $this-&gt;strings['fs_no_themes_dir'] );
+					}
+					break;
+				default:
+					if ( ! $wp_filesystem-&gt;find_folder( $dir ) ) {
+						return new WP_Error( 'fs_no_folder', sprintf( $this-&gt;strings['fs_no_folder'], esc_html( basename( $dir ) ) ) );
+					}
+					break;
+			}
+		}
+		return true;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/file.php:</span> <a href="../../functions/wp_filesystem">WP_Filesystem()</a> </td> <td class="related-desc"> <p>Initializes and connects the WordPress Filesystem Abstraction classes.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="../../functions/get_theme_root">get_theme_root()</a> </td> <td class="related-desc"> <p>Retrieves path to themes directory.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_html">esc_html()</a> </td> <td class="related-desc"> <p>Escaping for HTML blocks.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-upgrader.php:</span> <a href="run">WP_Upgrader::run()</a> </td> <td class="related-desc"> <p>Run an upgrade/installation.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.8.0/" alt="WordPress 2.8.0">2.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_upgrader/fs_connect" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_upgrader/fs_connect</a>
+  </p>
+</div>

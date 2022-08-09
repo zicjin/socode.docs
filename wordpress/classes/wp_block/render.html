@@ -1,0 +1,106 @@
+<h1>WP_Block::render( array $options = array() )</h1>  <section> <p>Generates the render output for the block.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$options</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description">Optional options object. <ul class="param-hash">
+<li>
+<b>'dynamic'</b><br><i><span class="type">(bool)</span></i> Defaults to 'true'. Optionally set to false to avoid using the block's render_callback.</li> </ul> </span> </p> <p class="default">Default value: array()</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> Rendered block output.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-block.php/">wp-includes/class-wp-block.php</a> </p> <pre data-language="php">public function render( $options = array() ) {
+		global $post;
+		$options = wp_parse_args(
+			$options,
+			array(
+				'dynamic' =&gt; true,
+			)
+		);
+
+		$is_dynamic    = $options['dynamic'] &amp;&amp; $this-&gt;name &amp;&amp; null !== $this-&gt;block_type &amp;&amp; $this-&gt;block_type-&gt;is_dynamic();
+		$block_content = '';
+
+		if ( ! $options['dynamic'] || empty( $this-&gt;block_type-&gt;skip_inner_blocks ) ) {
+			$index = 0;
+
+			foreach ( $this-&gt;inner_content as $chunk ) {
+				if ( is_string( $chunk ) ) {
+					$block_content .= $chunk;
+				} else {
+					$inner_block  = $this-&gt;inner_blocks[ $index ];
+					$parent_block = $this;
+
+					/** This filter is documented in wp-includes/blocks.php */
+					$pre_render = apply_filters( 'pre_render_block', null, $inner_block-&gt;parsed_block, $parent_block );
+
+					if ( ! is_null( $pre_render ) ) {
+						$block_content .= $pre_render;
+					} else {
+						$source_block = $inner_block-&gt;parsed_block;
+
+						/** This filter is documented in wp-includes/blocks.php */
+						$inner_block-&gt;parsed_block = apply_filters( 'render_block_data', $inner_block-&gt;parsed_block, $source_block, $parent_block );
+
+						/** This filter is documented in wp-includes/blocks.php */
+						$inner_block-&gt;context = apply_filters( 'render_block_context', $inner_block-&gt;context, $inner_block-&gt;parsed_block, $parent_block );
+
+						$block_content .= $inner_block-&gt;render();
+					}
+
+					$index++;
+				}
+			}
+		}
+
+		if ( $is_dynamic ) {
+			$global_post = $post;
+			$parent      = WP_Block_Supports::$block_to_render;
+
+			WP_Block_Supports::$block_to_render = $this-&gt;parsed_block;
+
+			$block_content = (string) call_user_func( $this-&gt;block_type-&gt;render_callback, $this-&gt;attributes, $block_content, $this );
+
+			WP_Block_Supports::$block_to_render = $parent;
+
+			$post = $global_post;
+		}
+
+		if ( ! empty( $this-&gt;block_type-&gt;script ) ) {
+			wp_enqueue_script( $this-&gt;block_type-&gt;script );
+		}
+
+		if ( ! empty( $this-&gt;block_type-&gt;view_script ) &amp;&amp; empty( $this-&gt;block_type-&gt;render_callback ) ) {
+			wp_enqueue_script( $this-&gt;block_type-&gt;view_script );
+		}
+
+		if ( ! empty( $this-&gt;block_type-&gt;style ) ) {
+			wp_enqueue_style( $this-&gt;block_type-&gt;style );
+		}
+
+		/**
+		 * Filters the content of a single block.
+		 *
+		 * @since 5.0.0
+		 * @since 5.9.0 The `$instance` parameter was added.
+		 *
+		 * @param string   $block_content The block content about to be appended.
+		 * @param array    $block         The full block, including name and attributes.
+		 * @param WP_Block $instance      The block instance.
+		 */
+		$block_content = apply_filters( 'render_block', $block_content, $this-&gt;parsed_block, $this );
+
+		/**
+		 * Filters the content of a single block.
+		 *
+		 * The dynamic portion of the hook name, `$name`, refers to
+		 * the block name, e.g. "core/paragraph".
+		 *
+		 * @since 5.7.0
+		 * @since 5.9.0 The `$instance` parameter was added.
+		 *
+		 * @param string   $block_content The block content about to be appended.
+		 * @param array    $block         The full block, including name and attributes.
+		 * @param WP_Block $instance      The block instance.
+		 */
+		$block_content = apply_filters( "render_block_{$this-&gt;name}", $block_content, $this-&gt;parsed_block, $this );
+
+		return $block_content;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-block.php:</span> <a href="../../hooks/render_block_this-name">render_block_{$this-&gt;name}</a> </td> <td class="related-desc"> <p>Filters the content of a single block.</p> </td> </tr> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="../../hooks/render_block_context">render_block_context</a> </td> <td class="related-desc"> <p>Filters the default context provided to a rendered block.</p> </td> </tr> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="../../hooks/pre_render_block">pre_render_block</a> </td> <td class="related-desc"> <p>Allows <a href="../../functions/render_block">render_block()</a> to be short-circuited, by returning a non-null value.</p> </td> </tr> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="../../hooks/render_block_data">render_block_data</a> </td> <td class="related-desc"> <p>Filters the block being rendered in <a href="../../functions/render_block">render_block()</a>, before it’s processed.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-block.php:</span> <a href="../../hooks/render_block">render_block</a> </td> <td class="related-desc"> <p>Filters the content of a single block.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.wp-scripts.php:</span> <a href="../../functions/wp_enqueue_script">wp_enqueue_script()</a> </td> <td class="related-desc"> <p>Enqueue a script.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_parse_args">wp_parse_args()</a> </td> <td class="related-desc"> <p>Merges user defined arguments into defaults array.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.wp-styles.php:</span> <a href="../../functions/wp_enqueue_style">wp_enqueue_style()</a> </td> <td class="related-desc"> <p>Enqueue a CSS stylesheet.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.0/" alt="WordPress 5.5.0">5.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_block/render" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_block/render</a>
+  </p>
+</div>

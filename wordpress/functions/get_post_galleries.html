@@ -1,0 +1,159 @@
+<h1>get_post_galleries( int|WP_Post $post, bool $html = true )</h1>  <section> <p>Retrieves galleries from the passed post’s content.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$post</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>|<span class="WP_Post"><a href="../classes/wp_post">WP_Post</a></span>)</span> <span class="required">(Required)</span> <span class="description">Post ID or object.</span> </p> </dd> <dt>$html</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> Whether to return HTML or data in the array. </span> </p> <p class="default">Default value: true</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> A list of arrays, each containing gallery data and srcs parsed from the expanded shortcode.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/media.php/">wp-includes/media.php</a> </p> <pre data-language="php">function get_post_galleries( $post, $html = true ) {
+	$post = get_post( $post );
+
+	if ( ! $post ) {
+		return array();
+	}
+
+	if ( ! has_shortcode( $post-&gt;post_content, 'gallery' ) &amp;&amp; ! has_block( 'gallery', $post-&gt;post_content ) ) {
+		return array();
+	}
+
+	$galleries = array();
+	if ( preg_match_all( '/' . get_shortcode_regex() . '/s', $post-&gt;post_content, $matches, PREG_SET_ORDER ) ) {
+		foreach ( $matches as $shortcode ) {
+			if ( 'gallery' === $shortcode[2] ) {
+				$srcs = array();
+
+				$shortcode_attrs = shortcode_parse_atts( $shortcode[3] );
+				if ( ! is_array( $shortcode_attrs ) ) {
+					$shortcode_attrs = array();
+				}
+
+				// Specify the post ID of the gallery we're viewing if the shortcode doesn't reference another post already.
+				if ( ! isset( $shortcode_attrs['id'] ) ) {
+					$shortcode[3] .= ' id="' . (int) $post-&gt;ID . '"';
+				}
+
+				$gallery = do_shortcode_tag( $shortcode );
+				if ( $html ) {
+					$galleries[] = $gallery;
+				} else {
+					preg_match_all( '#src=([\'"])(.+?)\1#is', $gallery, $src, PREG_SET_ORDER );
+					if ( ! empty( $src ) ) {
+						foreach ( $src as $s ) {
+							$srcs[] = $s[2];
+						}
+					}
+
+					$galleries[] = array_merge(
+						$shortcode_attrs,
+						array(
+							'src' =&gt; array_values( array_unique( $srcs ) ),
+						)
+					);
+				}
+			}
+		}
+	}
+
+	if ( has_block( 'gallery', $post-&gt;post_content ) ) {
+		$post_blocks = parse_blocks( $post-&gt;post_content );
+
+		while ( $block = array_shift( $post_blocks ) ) {
+			$has_inner_blocks = ! empty( $block['innerBlocks'] );
+
+			// Skip blocks with no blockName and no innerHTML.
+			if ( ! $block['blockName'] ) {
+				continue;
+			}
+
+			// Skip non-Gallery blocks.
+			if ( 'core/gallery' !== $block['blockName'] ) {
+				// Move inner blocks into the root array before skipping.
+				if ( $has_inner_blocks ) {
+					array_push( $post_blocks, ...$block['innerBlocks'] );
+				}
+				continue;
+			}
+
+			// New Gallery block format as HTML.
+			if ( $has_inner_blocks &amp;&amp; $html ) {
+				$block_html  = wp_list_pluck( $block['innerBlocks'], 'innerHTML' );
+				$galleries[] = '&lt;figure&gt;' . implode( ' ', $block_html ) . '&lt;/figure&gt;';
+				continue;
+			}
+
+			$srcs = array();
+
+			// New Gallery block format as an array.
+			if ( $has_inner_blocks ) {
+				$attrs = wp_list_pluck( $block['innerBlocks'], 'attrs' );
+				$ids   = wp_list_pluck( $attrs, 'id' );
+
+				foreach ( $ids as $id ) {
+					$url = wp_get_attachment_url( $id );
+
+					if ( is_string( $url ) &amp;&amp; ! in_array( $url, $srcs, true ) ) {
+						$srcs[] = $url;
+					}
+				}
+
+				$galleries[] = array(
+					'ids' =&gt; implode( ',', $ids ),
+					'src' =&gt; $srcs,
+				);
+
+				continue;
+			}
+
+			// Old Gallery block format as HTML.
+			if ( $html ) {
+				$galleries[] = $block['innerHTML'];
+				continue;
+			}
+
+			// Old Gallery block format as an array.
+			$ids = ! empty( $block['attrs']['ids'] ) ? $block['attrs']['ids'] : array();
+
+			// If present, use the image IDs from the JSON blob as canonical.
+			if ( ! empty( $ids ) ) {
+				foreach ( $ids as $id ) {
+					$url = wp_get_attachment_url( $id );
+
+					if ( is_string( $url ) &amp;&amp; ! in_array( $url, $srcs, true ) ) {
+						$srcs[] = $url;
+					}
+				}
+
+				$galleries[] = array(
+					'ids' =&gt; implode( ',', $ids ),
+					'src' =&gt; $srcs,
+				);
+
+				continue;
+			}
+
+			// Otherwise, extract srcs from the innerHTML.
+			preg_match_all( '#src=([\'"])(.+?)\1#is', $block['innerHTML'], $found_srcs, PREG_SET_ORDER );
+
+			if ( ! empty( $found_srcs[0] ) ) {
+				foreach ( $found_srcs as $src ) {
+					if ( isset( $src[2] ) &amp;&amp; ! in_array( $src[2], $srcs, true ) ) {
+						$srcs[] = $src[2];
+					}
+				}
+			}
+
+			$galleries[] = array( 'src' =&gt; $srcs );
+		}
+	}
+
+	/**
+	 * Filters the list of all found galleries in the given post.
+	 *
+	 * @since 3.6.0
+	 *
+	 * @param array   $galleries Associative array of all found post galleries.
+	 * @param WP_Post $post      Post object.
+	 */
+	return apply_filters( 'get_post_galleries', $galleries, $post );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="parse_blocks">parse_blocks()</a> </td> <td class="related-desc"> <p>Parses blocks out of a content string.</p> </td> </tr> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="has_block">has_block()</a> </td> <td class="related-desc"> <p>Determines whether a $post or a string contains a specific block type.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_list_pluck">wp_list_pluck()</a> </td> <td class="related-desc"> <p>Plucks a certain field out of each object or array in an array.</p> </td> </tr> <tr> <td> <span>wp-includes/shortcodes.php:</span> <a href="has_shortcode">has_shortcode()</a> </td> <td class="related-desc"> <p>Whether the passed content contains the specified shortcode</p> </td> </tr> <tr> <td> <span>wp-includes/shortcodes.php:</span> <a href="get_shortcode_regex">get_shortcode_regex()</a> </td> <td class="related-desc"> <p>Retrieve the shortcode regular expression for searching.</p> </td> </tr> <tr> <td> <span>wp-includes/shortcodes.php:</span> <a href="shortcode_parse_atts">shortcode_parse_atts()</a> </td> <td class="related-desc"> <p>Retrieve all attributes from the shortcodes tag.</p> </td> </tr> <tr> <td> <span>wp-includes/shortcodes.php:</span> <a href="do_shortcode_tag">do_shortcode_tag()</a> </td> <td class="related-desc"> <p>Regular Expression callable for <a href="do_shortcode">do_shortcode()</a> for calling shortcode hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="../hooks/get_post_galleries">get_post_galleries</a> </td> <td class="related-desc"> <p>Filters the list of all found galleries in the given post.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_get_attachment_url">wp_get_attachment_url()</a> </td> <td class="related-desc"> <p>Retrieve the URL for an attachment.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/media.php:</span> <a href="get_post_gallery">get_post_gallery()</a> </td> <td class="related-desc"> <p>Check a specified post’s content for gallery and, if present, return the first</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="get_post_galleries_images">get_post_galleries_images()</a> </td> <td class="related-desc"> <p>Retrieve the image srcs from galleries from a post’s content, if present</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.6.0/" alt="WordPress 3.6.0">3.6.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/get_post_galleries" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/get_post_galleries</a>
+  </p>
+</div>

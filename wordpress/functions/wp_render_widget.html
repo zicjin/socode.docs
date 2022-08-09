@@ -1,0 +1,64 @@
+<h1>wp_render_widget( string $widget_id, string $sidebar_id )</h1>  <section> <p>Calls the render callback of a widget and returns the output.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$widget_id</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Widget ID.</span> </p> </dd> <dt>$sidebar_id</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Sidebar ID.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/widgets.php/">wp-includes/widgets.php</a> </p> <pre data-language="php">function wp_render_widget( $widget_id, $sidebar_id ) {
+	global $wp_registered_widgets, $wp_registered_sidebars;
+
+	if ( ! isset( $wp_registered_widgets[ $widget_id ] ) ) {
+		return '';
+	}
+
+	if ( isset( $wp_registered_sidebars[ $sidebar_id ] ) ) {
+		$sidebar = $wp_registered_sidebars[ $sidebar_id ];
+	} elseif ( 'wp_inactive_widgets' === $sidebar_id ) {
+		$sidebar = array();
+	} else {
+		return '';
+	}
+
+	$params = array_merge(
+		array(
+			array_merge(
+				$sidebar,
+				array(
+					'widget_id'   =&gt; $widget_id,
+					'widget_name' =&gt; $wp_registered_widgets[ $widget_id ]['name'],
+				)
+			),
+		),
+		(array) $wp_registered_widgets[ $widget_id ]['params']
+	);
+
+	// Substitute HTML `id` and `class` attributes into `before_widget`.
+	$classname_ = '';
+	foreach ( (array) $wp_registered_widgets[ $widget_id ]['classname'] as $cn ) {
+		if ( is_string( $cn ) ) {
+			$classname_ .= '_' . $cn;
+		} elseif ( is_object( $cn ) ) {
+			$classname_ .= '_' . get_class( $cn );
+		}
+	}
+	$classname_                 = ltrim( $classname_, '_' );
+	$params[0]['before_widget'] = sprintf( $params[0]['before_widget'], $widget_id, $classname_ );
+
+	/** This filter is documented in wp-includes/widgets.php */
+	$params = apply_filters( 'dynamic_sidebar_params', $params );
+
+	$callback = $wp_registered_widgets[ $widget_id ]['callback'];
+
+	ob_start();
+
+	/** This filter is documented in wp-includes/widgets.php */
+	do_action( 'dynamic_sidebar', $wp_registered_widgets[ $widget_id ] );
+
+	if ( is_callable( $callback ) ) {
+		call_user_func_array( $callback, $params );
+	}
+
+	return ob_get_clean();
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/widgets.php:</span> <a href="../hooks/dynamic_sidebar_params">dynamic_sidebar_params</a> </td> <td class="related-desc"> <p>Filters the parameters passed to a widget’s display callback.</p> </td> </tr> <tr> <td> <span>wp-includes/widgets.php:</span> <a href="../hooks/dynamic_sidebar">dynamic_sidebar</a> </td> <td class="related-desc"> <p>Fires before a widget’s display callback is called.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-widgets-controller.php:</span> <a href="../classes/wp_rest_widgets_controller/prepare_item_for_response">WP_REST_Widgets_Controller::prepare_item_for_response()</a> </td> <td class="related-desc"> <p>Prepares the widget for the REST response.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.8.0/" alt="WordPress 5.8.0">5.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_render_widget" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_render_widget</a>
+  </p>
+</div>

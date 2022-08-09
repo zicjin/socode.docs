@@ -1,0 +1,83 @@
+<h1>get_the_generator( string $type = '' )</h1>  <section> <p>Creates the generator XML or Comment for RSS, ATOM, etc.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Returns the correct generator type for the requested output format. Allows for a plugin to filter generators on an individual basis using the <a href="../hooks/get_the_generator_type">‘get_the_generator_$type’</a> filter.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$type</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description">The type of generator to return <ul><li>(html|xhtml|atom|rss2|rdf|comment|export).</li></ul></span> </p> <p class="default">Default value: ''</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string|void)</span> The HTML content for the generator.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/general-template.php/">wp-includes/general-template.php</a> </p> <pre data-language="php">function get_the_generator( $type = '' ) {
+	if ( empty( $type ) ) {
+
+		$current_filter = current_filter();
+		if ( empty( $current_filter ) ) {
+			return;
+		}
+
+		switch ( $current_filter ) {
+			case 'rss2_head':
+			case 'commentsrss2_head':
+				$type = 'rss2';
+				break;
+			case 'rss_head':
+			case 'opml_head':
+				$type = 'comment';
+				break;
+			case 'rdf_header':
+				$type = 'rdf';
+				break;
+			case 'atom_head':
+			case 'comments_atom_head':
+			case 'app_head':
+				$type = 'atom';
+				break;
+		}
+	}
+
+	switch ( $type ) {
+		case 'html':
+			$gen = '&lt;meta name="generator" content="WordPress ' . esc_attr( get_bloginfo( 'version' ) ) . '"&gt;';
+			break;
+		case 'xhtml':
+			$gen = '&lt;meta name="generator" content="WordPress ' . esc_attr( get_bloginfo( 'version' ) ) . '" /&gt;';
+			break;
+		case 'atom':
+			$gen = '&lt;generator uri="https://wordpress.org/" version="' . esc_attr( get_bloginfo_rss( 'version' ) ) . '"&gt;WordPress&lt;/generator&gt;';
+			break;
+		case 'rss2':
+			$gen = '&lt;generator&gt;' . esc_url_raw( 'https://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) ) . '&lt;/generator&gt;';
+			break;
+		case 'rdf':
+			$gen = '&lt;admin:generatorAgent rdf:resource="' . esc_url_raw( 'https://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) ) . '" /&gt;';
+			break;
+		case 'comment':
+			$gen = '&lt;!-- generator="WordPress/' . esc_attr( get_bloginfo( 'version' ) ) . '" --&gt;';
+			break;
+		case 'export':
+			$gen = '&lt;!-- generator="WordPress/' . esc_attr( get_bloginfo_rss( 'version' ) ) . '" created="' . gmdate( 'Y-m-d H:i' ) . '" --&gt;';
+			break;
+	}
+
+	/**
+	 * Filters the HTML for the retrieved generator type.
+	 *
+	 * The dynamic portion of the hook name, `$type`, refers to the generator type.
+	 *
+	 * Possible hook names include:
+	 *
+	 *  - `get_the_generator_atom`
+	 *  - `get_the_generator_comment`
+	 *  - `get_the_generator_export`
+	 *  - `get_the_generator_html`
+	 *  - `get_the_generator_rdf`
+	 *  - `get_the_generator_rss2`
+	 *  - `get_the_generator_xhtml`
+	 *
+	 * @since 2.5.0
+	 *
+	 * @param string $gen  The HTML markup output to wp_head().
+	 * @param string $type The type of generator. Accepts 'html', 'xhtml', 'atom',
+	 *                     'rss2', 'rdf', 'comment', 'export'.
+	 */
+	return apply_filters( "get_the_generator_{$type}", $gen, $type );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_url_raw">esc_url_raw()</a> </td> <td class="related-desc"> <p>Performs <a href="esc_url">esc_url()</a> for database or redirect usage.</p> </td> </tr> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="../hooks/get_the_generator_type">get_the_generator_{$type}</a> </td> <td class="related-desc"> <p>Filters the HTML for the retrieved generator type.</p> </td> </tr> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="get_bloginfo">get_bloginfo()</a> </td> <td class="related-desc"> <p>Retrieves information about the current site.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="current_filter">current_filter()</a> </td> <td class="related-desc"> <p>Retrieves the name of the current filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/feed.php:</span> <a href="get_bloginfo_rss">get_bloginfo_rss()</a> </td> <td class="related-desc"> <p>RSS container for the bloginfo function.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="the_generator">the_generator()</a> </td> <td class="related-desc"> <p>Display the generator XML or Comment for RSS, ATOM, etc.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.5.0/" alt="WordPress 2.5.0">2.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/get_the_generator" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/get_the_generator</a>
+  </p>
+</div>

@@ -1,0 +1,51 @@
+<h1>WP_Http::handle_redirects( string $url, array $args, array $response )</h1>  <section> <p>Handles an HTTP redirect and follows it if appropriate.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$url</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The URL which was requested.</span> </p> </dd> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">The arguments which were used to make the request.</span> </p> </dd> <dt>$response</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">The response of the HTTP request.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array|false|<a href="../wp_error">WP_Error</a>)</span> An HTTP API response array if the redirect is successfully followed, false if no redirect is present, or a <a href="../wp_error">WP_Error</a> object if there's an error.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-http.php/">wp-includes/class-wp-http.php</a> </p> <pre data-language="php">public static function handle_redirects( $url, $args, $response ) {
+		// If no redirects are present, or, redirects were not requested, perform no action.
+		if ( ! isset( $response['headers']['location'] ) || 0 === $args['_redirection'] ) {
+			return false;
+		}
+
+		// Only perform redirections on redirection http codes.
+		if ( $response['response']['code'] &gt; 399 || $response['response']['code'] &lt; 300 ) {
+			return false;
+		}
+
+		// Don't redirect if we've run out of redirects.
+		if ( $args['redirection']-- &lt;= 0 ) {
+			return new WP_Error( 'http_request_failed', __( 'Too many redirects.' ) );
+		}
+
+		$redirect_location = $response['headers']['location'];
+
+		// If there were multiple Location headers, use the last header specified.
+		if ( is_array( $redirect_location ) ) {
+			$redirect_location = array_pop( $redirect_location );
+		}
+
+		$redirect_location = WP_Http::make_absolute_url( $redirect_location, $url );
+
+		// POST requests should not POST to a redirected location.
+		if ( 'POST' === $args['method'] ) {
+			if ( in_array( $response['response']['code'], array( 302, 303 ), true ) ) {
+				$args['method'] = 'GET';
+			}
+		}
+
+		// Include valid cookies in the redirect process.
+		if ( ! empty( $response['cookies'] ) ) {
+			foreach ( $response['cookies'] as $cookie ) {
+				if ( $cookie-&gt;test( $redirect_location ) ) {
+					$args['cookies'][] = $cookie;
+				}
+			}
+		}
+
+		return wp_remote_request( $redirect_location, $args );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-http.php:</span> <a href="make_absolute_url">WP_Http::make_absolute_url()</a> </td> <td class="related-desc"> <p>Converts a relative URL to an absolute URL relative to a given URL.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="../../functions/wp_remote_request">wp_remote_request()</a> </td> <td class="related-desc"> <p>Performs an HTTP request and returns its response.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-http-streams.php:</span> <a href="../wp_http_streams/request">WP_Http_Streams::request()</a> </td> <td class="related-desc"> <p>Send a HTTP request to a URI using PHP Streams.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-http-curl.php:</span> <a href="../wp_http_curl/request">WP_Http_Curl::request()</a> </td> <td class="related-desc"> <p>Send a HTTP request to a URI using cURL extension.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.7.0/" alt="WordPress 3.7.0">3.7.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_http/handle_redirects" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_http/handle_redirects</a>
+  </p>
+</div>

@@ -1,0 +1,56 @@
+<h1>_build_block_template_result_from_post( WP_Post $post )</h1> <div class="callout callout-alert">
+<p> This function’s access is marked private. This means it is not intended for use by plugin or theme developers, only in other core functions. It is listed here for completeness.</p> </div>  <section> <p>Build a unified template object based a post Object.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$post</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Post"><a href="../classes/wp_post">WP_Post</a></span>)</span> <span class="required">(Required)</span> <span class="description">Template post.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../classes/wp_block_template">WP_Block_Template</a>|<a href="../classes/wp_error">WP_Error</a>)</span> Template.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/block-template-utils.php/">wp-includes/block-template-utils.php</a> </p> <pre data-language="php">function _build_block_template_result_from_post( $post ) {
+	$default_template_types = get_default_block_template_types();
+	$terms                  = get_the_terms( $post, 'wp_theme' );
+
+	if ( is_wp_error( $terms ) ) {
+		return $terms;
+	}
+
+	if ( ! $terms ) {
+		return new WP_Error( 'template_missing_theme', __( 'No theme is defined for this template.' ) );
+	}
+
+	$theme          = $terms[0]-&gt;name;
+	$has_theme_file = wp_get_theme()-&gt;get_stylesheet() === $theme &amp;&amp;
+		null !== _get_block_template_file( $post-&gt;post_type, $post-&gt;post_name );
+
+	$origin = get_post_meta( $post-&gt;ID, 'origin', true );
+
+	$template                 = new WP_Block_Template();
+	$template-&gt;wp_id          = $post-&gt;ID;
+	$template-&gt;id             = $theme . '//' . $post-&gt;post_name;
+	$template-&gt;theme          = $theme;
+	$template-&gt;content        = $post-&gt;post_content;
+	$template-&gt;slug           = $post-&gt;post_name;
+	$template-&gt;source         = 'custom';
+	$template-&gt;origin         = ! empty( $origin ) ? $origin : null;
+	$template-&gt;type           = $post-&gt;post_type;
+	$template-&gt;description    = $post-&gt;post_excerpt;
+	$template-&gt;title          = $post-&gt;post_title;
+	$template-&gt;status         = $post-&gt;post_status;
+	$template-&gt;has_theme_file = $has_theme_file;
+	$template-&gt;is_custom      = true;
+	$template-&gt;author         = $post-&gt;post_author;
+
+	if ( 'wp_template' === $post-&gt;post_type &amp;&amp; isset( $default_template_types[ $template-&gt;slug ] ) ) {
+		$template-&gt;is_custom = false;
+	}
+
+	if ( 'wp_template_part' === $post-&gt;post_type ) {
+		$type_terms = get_the_terms( $post, 'wp_template_part_area' );
+		if ( ! is_wp_error( $type_terms ) &amp;&amp; false !== $type_terms ) {
+			$template-&gt;area = $type_terms[0]-&gt;name;
+		}
+	}
+
+	return $template;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/block-template-utils.php:</span> <a href="get_default_block_template_types">get_default_block_template_types()</a> </td> <td class="related-desc"> <p>Returns a filtered list of default template types, containing their localized titles and descriptions.</p> </td> </tr> <tr> <td> <span>wp-includes/block-template-utils.php:</span> <a href="_get_block_template_file">_get_block_template_file()</a> </td> <td class="related-desc"> <p>Retrieves the template file from the theme for a given slug.</p> </td> </tr> <tr> <td> <span>wp-includes/category-template.php:</span> <a href="get_the_terms">get_the_terms()</a> </td> <td class="related-desc"> <p>Retrieves the terms of the taxonomy that are attached to the post.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="wp_get_theme">wp_get_theme()</a> </td> <td class="related-desc"> <p>Gets a <a href="../classes/wp_theme">WP_Theme</a> object for a theme.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-theme.php:</span> <a href="../classes/wp_theme/get_stylesheet">WP_Theme::get_stylesheet()</a> </td> <td class="related-desc"> <p>Returns the directory name of the theme’s “stylesheet” files, inside the theme root.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post_meta">get_post_meta()</a> </td> <td class="related-desc"> <p>Retrieves a post meta field for the given post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../classes/wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/block-template-utils.php:</span> <a href="get_block_templates">get_block_templates()</a> </td> <td class="related-desc"> <p>Retrieves a list of unified template objects based on a query.</p> </td> </tr> <tr> <td> <span>wp-includes/block-template-utils.php:</span> <a href="get_block_template">get_block_template()</a> </td> <td class="related-desc"> <p>Retrieves a single unified template object using its id.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.9.0/" alt="WordPress 5.9.0">5.9.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/_build_block_template_result_from_post" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/_build_block_template_result_from_post</a>
+  </p>
+</div>

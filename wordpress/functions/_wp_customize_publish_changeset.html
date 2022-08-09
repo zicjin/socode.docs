@@ -1,0 +1,67 @@
+<h1>_wp_customize_publish_changeset( string $new_status, string $old_status, WP_Post $changeset_post )</h1> <div class="callout callout-alert">
+<p> This function’s access is marked private. This means it is not intended for use by plugin or theme developers, only in other core functions. It is listed here for completeness.</p> </div>  <section> <p>Publishes a snapshot’s changes.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$new_status</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">New post status.</span> </p> </dd> <dt>$old_status</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Old post status.</span> </p> </dd> <dt>$changeset_post</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Post"><a href="../classes/wp_post">WP_Post</a></span>)</span> <span class="required">(Required)</span> <span class="description">Changeset post object.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/theme.php/">wp-includes/theme.php</a> </p> <pre data-language="php">function _wp_customize_publish_changeset( $new_status, $old_status, $changeset_post ) {
+	global $wp_customize, $wpdb;
+
+	$is_publishing_changeset = (
+		'customize_changeset' === $changeset_post-&gt;post_type
+		&amp;&amp;
+		'publish' === $new_status
+		&amp;&amp;
+		'publish' !== $old_status
+	);
+	if ( ! $is_publishing_changeset ) {
+		return;
+	}
+
+	if ( empty( $wp_customize ) ) {
+		require_once ABSPATH . WPINC . '/class-wp-customize-manager.php';
+		$wp_customize = new WP_Customize_Manager(
+			array(
+				'changeset_uuid'     =&gt; $changeset_post-&gt;post_name,
+				'settings_previewed' =&gt; false,
+			)
+		);
+	}
+
+	if ( ! did_action( 'customize_register' ) ) {
+		/*
+		 * When running from CLI or Cron, the customize_register action will need
+		 * to be triggered in order for core, themes, and plugins to register their
+		 * settings. Normally core will add_action( 'customize_register' ) at
+		 * priority 10 to register the core settings, and if any themes/plugins
+		 * also add_action( 'customize_register' ) at the same priority, they
+		 * will have a $wp_customize with those settings registered since they
+		 * call add_action() afterward, normally. However, when manually doing
+		 * the customize_register action after the setup_theme, then the order
+		 * will be reversed for two actions added at priority 10, resulting in
+		 * the core settings no longer being available as expected to themes/plugins.
+		 * So the following manually calls the method that registers the core
+		 * settings up front before doing the action.
+		 */
+		remove_action( 'customize_register', array( $wp_customize, 'register_controls' ) );
+		$wp_customize-&gt;register_controls();
+
+		/** This filter is documented in /wp-includes/class-wp-customize-manager.php */
+		do_action( 'customize_register', $wp_customize );
+	}
+	$wp_customize-&gt;_publish_changeset_values( $changeset_post-&gt;ID );
+
+	/*
+	 * Trash the changeset post if revisions are not enabled. Unpublished
+	 * changesets by default get garbage collected due to the auto-draft status.
+	 * When a changeset post is published, however, it would no longer get cleaned
+	 * out. This is a problem when the changeset posts are never displayed anywhere,
+	 * since they would just be endlessly piling up. So here we use the revisions
+	 * feature to indicate whether or not a published changeset should get trashed
+	 * and thus garbage collected.
+	 */
+	if ( ! wp_revisions_enabled( $changeset_post ) ) {
+		$wp_customize-&gt;trash_changeset_post( $changeset_post-&gt;ID );
+	}
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="../hooks/customize_register">customize_register</a> </td> <td class="related-desc"> <p>Fires once WordPress has loaded, allowing scripts and styles to be initialized.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="../classes/wp_customize_manager/__construct">WP_Customize_Manager::__construct()</a> </td> <td class="related-desc"> <p>Constructor.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="remove_action">remove_action()</a> </td> <td class="related-desc"> <p>Removes a callback function from an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="did_action">did_action()</a> </td> <td class="related-desc"> <p>Retrieves the number of times an action has been fired during the current request.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/revision.php:</span> <a href="wp_revisions_enabled">wp_revisions_enabled()</a> </td> <td class="related-desc"> <p>Determine if revisions are enabled for a given post.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.7.0/" alt="WordPress 4.7.0">4.7.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/_wp_customize_publish_changeset" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/_wp_customize_publish_changeset</a>
+  </p>
+</div>

@@ -1,0 +1,96 @@
+<h1>image_downsize( int $id, string|int[] $size = 'medium' )</h1>  <section> <p>Scale an image to fit a particular size (such as ‘thumb’ or ‘medium’).</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>The URL might be the original image, or it might be a resized version. This function won’t create a new resized copy, it will just return an already resized one if it exists.</p> <p>A plugin may use the <a href="../hooks/image_downsize">‘image_downsize’</a> filter to hook into and offer image resizing services for images. The hook must return an array with the same elements that are normally returned from the function.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">Attachment ID for image.</span> </p> </dd> <dt>$size</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>|<span class="int[]">int[]</span>)</span> <span class="required">(Optional)</span> <span class="description"> Image size. Accepts any registered image size name, or an array of width and height values in pixels (in that order). </span> </p> <p class="default">Default value: 'medium'</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array|false)</span> Array of image data, or boolean false if no image is available. </p>
+<ul class="param-hash">
+<li>
+<i><span class="type">(string)</span></i> Image source URL.</li> <li>
+<b>'1'</b><br><i><span class="type">(int)</span></i> Image width in pixels.</li> <li>
+<b>'2'</b><br><i><span class="type">(int)</span></i> Image height in pixels.</li> <li>
+<b>'3'</b><br><i><span class="type">(bool)</span></i> Whether the image is a resized image.</li> </ul> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/media.php/">wp-includes/media.php</a> </p> <pre data-language="php">function image_downsize( $id, $size = 'medium' ) {
+	$is_image = wp_attachment_is_image( $id );
+
+	/**
+	 * Filters whether to preempt the output of image_downsize().
+	 *
+	 * Returning a truthy value from the filter will effectively short-circuit
+	 * down-sizing the image, returning that value instead.
+	 *
+	 * @since 2.5.0
+	 *
+	 * @param bool|array   $downsize Whether to short-circuit the image downsize.
+	 * @param int          $id       Attachment ID for image.
+	 * @param string|int[] $size     Requested image size. Can be any registered image size name, or
+	 *                               an array of width and height values in pixels (in that order).
+	 */
+	$out = apply_filters( 'image_downsize', false, $id, $size );
+
+	if ( $out ) {
+		return $out;
+	}
+
+	$img_url          = wp_get_attachment_url( $id );
+	$meta             = wp_get_attachment_metadata( $id );
+	$width            = 0;
+	$height           = 0;
+	$is_intermediate  = false;
+	$img_url_basename = wp_basename( $img_url );
+
+	// If the file isn't an image, attempt to replace its URL with a rendered image from its meta.
+	// Otherwise, a non-image type could be returned.
+	if ( ! $is_image ) {
+		if ( ! empty( $meta['sizes']['full'] ) ) {
+			$img_url          = str_replace( $img_url_basename, $meta['sizes']['full']['file'], $img_url );
+			$img_url_basename = $meta['sizes']['full']['file'];
+			$width            = $meta['sizes']['full']['width'];
+			$height           = $meta['sizes']['full']['height'];
+		} else {
+			return false;
+		}
+	}
+
+	// Try for a new style intermediate size.
+	$intermediate = image_get_intermediate_size( $id, $size );
+
+	if ( $intermediate ) {
+		$img_url         = str_replace( $img_url_basename, $intermediate['file'], $img_url );
+		$width           = $intermediate['width'];
+		$height          = $intermediate['height'];
+		$is_intermediate = true;
+	} elseif ( 'thumbnail' === $size ) {
+		// Fall back to the old thumbnail.
+		$thumb_file = wp_get_attachment_thumb_file( $id );
+		$info       = null;
+
+		if ( $thumb_file ) {
+			$info = wp_getimagesize( $thumb_file );
+		}
+
+		if ( $thumb_file &amp;&amp; $info ) {
+			$img_url         = str_replace( $img_url_basename, wp_basename( $thumb_file ), $img_url );
+			$width           = $info[0];
+			$height          = $info[1];
+			$is_intermediate = true;
+		}
+	}
+
+	if ( ! $width &amp;&amp; ! $height &amp;&amp; isset( $meta['width'], $meta['height'] ) ) {
+		// Any other type: use the real image.
+		$width  = $meta['width'];
+		$height = $meta['height'];
+	}
+
+	if ( $img_url ) {
+		// We have the actual image size, but might need to further constrain it if content_width is narrower.
+		list( $width, $height ) = image_constrain_size_for_editor( $width, $height, $size );
+
+		return array( $img_url, $width, $height, $is_intermediate );
+	}
+
+	return false;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/media.php:</span> <a href="wp_getimagesize">wp_getimagesize()</a> </td> <td class="related-desc"> <p>Allows PHP’s getimagesize() to be debuggable when necessary.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_basename">wp_basename()</a> </td> <td class="related-desc"> <p>i18n-friendly version of basename().</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="image_get_intermediate_size">image_get_intermediate_size()</a> </td> <td class="related-desc"> <p>Retrieves the image’s intermediate size (resized) path, width, and height.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="image_constrain_size_for_editor">image_constrain_size_for_editor()</a> </td> <td class="related-desc"> <p>Scale down the default size of an image.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="../hooks/image_downsize">image_downsize</a> </td> <td class="related-desc"> <p>Filters whether to preempt the output of <a href="image_downsize">image_downsize()</a>.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_attachment_is_image">wp_attachment_is_image()</a> </td> <td class="related-desc"> <p>Determines whether an attachment is an image.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_get_attachment_url">wp_get_attachment_url()</a> </td> <td class="related-desc"> <p>Retrieve the URL for an attachment.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_get_attachment_metadata">wp_get_attachment_metadata()</a> </td> <td class="related-desc"> <p>Retrieves attachment metadata for attachment ID.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_get_attachment_thumb_file">wp_get_attachment_thumb_file()</a> </td> <td class="related-desc"> <p>Retrieve thumbnail for an attachment.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="image_size_input_fields">image_size_input_fields()</a> </td> <td class="related-desc"> <p>Retrieves HTML for the size radio buttons with the specified one checked.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="get_image_tag">get_image_tag()</a> </td> <td class="related-desc"> <p>Gets an img tag for an image attachment, scaling it down if requested.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="wp_get_attachment_image_src">wp_get_attachment_image_src()</a> </td> <td class="related-desc"> <p>Retrieves an image to represent an attachment.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_get_attachment_thumb_url">wp_get_attachment_thumb_url()</a> </td> <td class="related-desc"> <p>Retrieve URL for an attachment thumbnail.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="../classes/wp_xmlrpc_server/_prepare_media_item">wp_xmlrpc_server::_prepare_media_item()</a> </td> <td class="related-desc"> <p>Prepares media item data for return in an XML-RPC object.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.5.0/" alt="WordPress 2.5.0">2.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/image_downsize" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/image_downsize</a>
+  </p>
+</div>

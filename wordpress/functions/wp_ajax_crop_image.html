@@ -1,0 +1,139 @@
+<h1>wp_ajax_crop_image()</h1>  <section> <p>Ajax handler for cropping an image.</p> </section> <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/ajax-actions.php/">wp-admin/includes/ajax-actions.php</a> </p> <pre data-language="php">function wp_ajax_crop_image() {
+	$attachment_id = absint( $_POST['id'] );
+
+	check_ajax_referer( 'image_editor-' . $attachment_id, 'nonce' );
+
+	if ( empty( $attachment_id ) || ! current_user_can( 'edit_post', $attachment_id ) ) {
+		wp_send_json_error();
+	}
+
+	$context = str_replace( '_', '-', $_POST['context'] );
+	$data    = array_map( 'absint', $_POST['cropDetails'] );
+	$cropped = wp_crop_image( $attachment_id, $data['x1'], $data['y1'], $data['width'], $data['height'], $data['dst_width'], $data['dst_height'] );
+
+	if ( ! $cropped || is_wp_error( $cropped ) ) {
+		wp_send_json_error( array( 'message' =&gt; __( 'Image could not be processed.' ) ) );
+	}
+
+	switch ( $context ) {
+		case 'site-icon':
+			require_once ABSPATH . 'wp-admin/includes/class-wp-site-icon.php';
+			$wp_site_icon = new WP_Site_Icon();
+
+			// Skip creating a new attachment if the attachment is a Site Icon.
+			if ( get_post_meta( $attachment_id, '_wp_attachment_context', true ) == $context ) {
+
+				// Delete the temporary cropped file, we don't need it.
+				wp_delete_file( $cropped );
+
+				// Additional sizes in wp_prepare_attachment_for_js().
+				add_filter( 'image_size_names_choose', array( $wp_site_icon, 'additional_sizes' ) );
+				break;
+			}
+
+			/** This filter is documented in wp-admin/includes/class-custom-image-header.php */
+			$cropped    = apply_filters( 'wp_create_file_in_uploads', $cropped, $attachment_id ); // For replication.
+			$attachment = $wp_site_icon-&gt;create_attachment_object( $cropped, $attachment_id );
+			unset( $attachment['ID'] );
+
+			// Update the attachment.
+			add_filter( 'intermediate_image_sizes_advanced', array( $wp_site_icon, 'additional_sizes' ) );
+			$attachment_id = $wp_site_icon-&gt;insert_attachment( $attachment, $cropped );
+			remove_filter( 'intermediate_image_sizes_advanced', array( $wp_site_icon, 'additional_sizes' ) );
+
+			// Additional sizes in wp_prepare_attachment_for_js().
+			add_filter( 'image_size_names_choose', array( $wp_site_icon, 'additional_sizes' ) );
+			break;
+
+		default:
+			/**
+			 * Fires before a cropped image is saved.
+			 *
+			 * Allows to add filters to modify the way a cropped image is saved.
+			 *
+			 * @since 4.3.0
+			 *
+			 * @param string $context       The Customizer control requesting the cropped image.
+			 * @param int    $attachment_id The attachment ID of the original image.
+			 * @param string $cropped       Path to the cropped image file.
+			 */
+			do_action( 'wp_ajax_crop_image_pre_save', $context, $attachment_id, $cropped );
+
+			/** This filter is documented in wp-admin/includes/class-custom-image-header.php */
+			$cropped = apply_filters( 'wp_create_file_in_uploads', $cropped, $attachment_id ); // For replication.
+
+			$parent_url      = wp_get_attachment_url( $attachment_id );
+			$parent_basename = wp_basename( $parent_url );
+			$url             = str_replace( $parent_basename, wp_basename( $cropped ), $parent_url );
+
+			$size       = wp_getimagesize( $cropped );
+			$image_type = ( $size ) ? $size['mime'] : 'image/jpeg';
+
+			// Get the original image's post to pre-populate the cropped image.
+			$original_attachment  = get_post( $attachment_id );
+			$sanitized_post_title = sanitize_file_name( $original_attachment-&gt;post_title );
+			$use_original_title   = (
+				( '' !== trim( $original_attachment-&gt;post_title ) ) &amp;&amp;
+				/*
+				 * Check if the original image has a title other than the "filename" default,
+				 * meaning the image had a title when originally uploaded or its title was edited.
+				 */
+				( $parent_basename !== $sanitized_post_title ) &amp;&amp;
+				( pathinfo( $parent_basename, PATHINFO_FILENAME ) !== $sanitized_post_title )
+			);
+			$use_original_description = ( '' !== trim( $original_attachment-&gt;post_content ) );
+
+			$attachment = array(
+				'post_title'     =&gt; $use_original_title ? $original_attachment-&gt;post_title : wp_basename( $cropped ),
+				'post_content'   =&gt; $use_original_description ? $original_attachment-&gt;post_content : $url,
+				'post_mime_type' =&gt; $image_type,
+				'guid'           =&gt; $url,
+				'context'        =&gt; $context,
+			);
+
+			// Copy the image caption attribute (post_excerpt field) from the original image.
+			if ( '' !== trim( $original_attachment-&gt;post_excerpt ) ) {
+				$attachment['post_excerpt'] = $original_attachment-&gt;post_excerpt;
+			}
+
+			// Copy the image alt text attribute from the original image.
+			if ( '' !== trim( $original_attachment-&gt;_wp_attachment_image_alt ) ) {
+				$attachment['meta_input'] = array(
+					'_wp_attachment_image_alt' =&gt; wp_slash( $original_attachment-&gt;_wp_attachment_image_alt ),
+				);
+			}
+
+			$attachment_id = wp_insert_attachment( $attachment, $cropped );
+			$metadata      = wp_generate_attachment_metadata( $attachment_id, $cropped );
+
+			/**
+			 * Filters the cropped image attachment metadata.
+			 *
+			 * @since 4.3.0
+			 *
+			 * @see wp_generate_attachment_metadata()
+			 *
+			 * @param array $metadata Attachment metadata.
+			 */
+			$metadata = apply_filters( 'wp_ajax_cropped_attachment_metadata', $metadata );
+			wp_update_attachment_metadata( $attachment_id, $metadata );
+
+			/**
+			 * Filters the attachment ID for a cropped image.
+			 *
+			 * @since 4.3.0
+			 *
+			 * @param int    $attachment_id The attachment ID of the cropped image.
+			 * @param string $context       The Customizer control requesting the cropped image.
+			 */
+			$attachment_id = apply_filters( 'wp_ajax_cropped_attachment_id', $attachment_id, $context );
+	}
+
+	wp_send_json_success( wp_prepare_attachment_for_js( $attachment_id ) );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/media.php:</span> <a href="wp_getimagesize">wp_getimagesize()</a> </td> <td class="related-desc"> <p>Allows PHP’s getimagesize() to be debuggable when necessary.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-site-icon.php:</span> <a href="../classes/wp_site_icon/__construct">WP_Site_Icon::__construct()</a> </td> <td class="related-desc"> <p>Registers actions and filters.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-site-icon.php:</span> <a href="../classes/wp_site_icon/create_attachment_object">WP_Site_Icon::create_attachment_object()</a> </td> <td class="related-desc"> <p>Creates an attachment ‘object’.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-site-icon.php:</span> <a href="../classes/wp_site_icon/insert_attachment">WP_Site_Icon::insert_attachment()</a> </td> <td class="related-desc"> <p>Inserts an attachment.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/ajax-actions.php:</span> <a href="../hooks/wp_ajax_crop_image_pre_save">wp_ajax_crop_image_pre_save</a> </td> <td class="related-desc"> <p>Fires before a cropped image is saved.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/ajax-actions.php:</span> <a href="../hooks/wp_ajax_cropped_attachment_metadata">wp_ajax_cropped_attachment_metadata</a> </td> <td class="related-desc"> <p>Filters the cropped image attachment metadata.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/ajax-actions.php:</span> <a href="../hooks/wp_ajax_cropped_attachment_id">wp_ajax_cropped_attachment_id</a> </td> <td class="related-desc"> <p>Filters the attachment ID for a cropped image.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_delete_file">wp_delete_file()</a> </td> <td class="related-desc"> <p>Delete a file</p> </td> </tr> <tr> <td> <span>wp-admin/includes/image.php:</span> <a href="wp_generate_attachment_metadata">wp_generate_attachment_metadata()</a> </td> <td class="related-desc"> <p>Generate attachment meta data and create image sub-sizes for images.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/image.php:</span> <a href="wp_crop_image">wp_crop_image()</a> </td> <td class="related-desc"> <p>Crops an image to a given size.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="../hooks/wp_create_file_in_uploads">wp_create_file_in_uploads</a> </td> <td class="related-desc"> <p>Fires after the header image is set or an error is returned.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_basename">wp_basename()</a> </td> <td class="related-desc"> <p>i18n-friendly version of basename().</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_slash">wp_slash()</a> </td> <td class="related-desc"> <p>Adds slashes to a string or recursively adds slashes to strings within an array.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="sanitize_file_name">sanitize_file_name()</a> </td> <td class="related-desc"> <p>Sanitizes a filename, replacing whitespace with dashes.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="check_ajax_referer">check_ajax_referer()</a> </td> <td class="related-desc"> <p>Verifies the Ajax request to prevent processing requests external of the blog.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="absint">absint()</a> </td> <td class="related-desc"> <p>Convert a value to non-negative integer.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_send_json_error">wp_send_json_error()</a> </td> <td class="related-desc"> <p>Send a JSON response back to an Ajax request, indicating failure.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_send_json_success">wp_send_json_success()</a> </td> <td class="related-desc"> <p>Send a JSON response back to an Ajax request, indicating success.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="add_filter">add_filter()</a> </td> <td class="related-desc"> <p>Adds a callback function to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="remove_filter">remove_filter()</a> </td> <td class="related-desc"> <p>Removes a callback function from a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="wp_prepare_attachment_for_js">wp_prepare_attachment_for_js()</a> </td> <td class="related-desc"> <p>Prepares an attachment post object for JS, where it is expected to be JSON-encoded and fit into an Attachment model.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_get_attachment_url">wp_get_attachment_url()</a> </td> <td class="related-desc"> <p>Retrieve the URL for an attachment.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_insert_attachment">wp_insert_attachment()</a> </td> <td class="related-desc"> <p>Insert an attachment.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_update_attachment_metadata">wp_update_attachment_metadata()</a> </td> <td class="related-desc"> <p>Updates metadata for an attachment.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post_meta">get_post_meta()</a> </td> <td class="related-desc"> <p>Retrieves a post meta field for the given post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.3.0/" alt="WordPress 4.3.0">4.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_ajax_crop_image" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_ajax_crop_image</a>
+  </p>
+</div>

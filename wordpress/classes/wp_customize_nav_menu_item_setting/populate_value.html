@@ -1,0 +1,98 @@
+<h1>WP_Customize_Nav_Menu_Item_Setting::populate_value()</h1>  <section> <p>Ensure that the value is fully populated with the necessary properties.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Translates some properties added by <a href="../../functions/wp_setup_nav_menu_item">wp_setup_nav_menu_item()</a> and removes others.</p> <h3 id="see-also">See also</h3> <ul> <li><a href="../wp_customize_nav_menu_item_setting/value">WP_Customize_Nav_Menu_Item_Setting::value()</a></li> </ul> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/customize/class-wp-customize-nav-menu-item-setting.php/">wp-includes/customize/class-wp-customize-nav-menu-item-setting.php</a> </p> <pre data-language="php">protected function populate_value() {
+		if ( ! is_array( $this-&gt;value ) ) {
+			return;
+		}
+
+		if ( isset( $this-&gt;value['menu_order'] ) ) {
+			$this-&gt;value['position'] = $this-&gt;value['menu_order'];
+			unset( $this-&gt;value['menu_order'] );
+		}
+		if ( isset( $this-&gt;value['post_status'] ) ) {
+			$this-&gt;value['status'] = $this-&gt;value['post_status'];
+			unset( $this-&gt;value['post_status'] );
+		}
+
+		if ( ! isset( $this-&gt;value['original_title'] ) ) {
+			$this-&gt;value['original_title'] = $this-&gt;get_original_title( (object) $this-&gt;value );
+		}
+
+		if ( ! isset( $this-&gt;value['nav_menu_term_id'] ) &amp;&amp; $this-&gt;post_id &gt; 0 ) {
+			$menus = wp_get_post_terms(
+				$this-&gt;post_id,
+				WP_Customize_Nav_Menu_Setting::TAXONOMY,
+				array(
+					'fields' =&gt; 'ids',
+				)
+			);
+			if ( ! empty( $menus ) ) {
+				$this-&gt;value['nav_menu_term_id'] = array_shift( $menus );
+			} else {
+				$this-&gt;value['nav_menu_term_id'] = 0;
+			}
+		}
+
+		foreach ( array( 'object_id', 'menu_item_parent', 'nav_menu_term_id' ) as $key ) {
+			if ( ! is_int( $this-&gt;value[ $key ] ) ) {
+				$this-&gt;value[ $key ] = (int) $this-&gt;value[ $key ];
+			}
+		}
+		foreach ( array( 'classes', 'xfn' ) as $key ) {
+			if ( is_array( $this-&gt;value[ $key ] ) ) {
+				$this-&gt;value[ $key ] = implode( ' ', $this-&gt;value[ $key ] );
+			}
+		}
+
+		if ( ! isset( $this-&gt;value['title'] ) ) {
+			$this-&gt;value['title'] = '';
+		}
+
+		if ( ! isset( $this-&gt;value['_invalid'] ) ) {
+			$this-&gt;value['_invalid'] = false;
+			$is_known_invalid        = (
+				( ( 'post_type' === $this-&gt;value['type'] || 'post_type_archive' === $this-&gt;value['type'] ) &amp;&amp; ! post_type_exists( $this-&gt;value['object'] ) )
+				||
+				( 'taxonomy' === $this-&gt;value['type'] &amp;&amp; ! taxonomy_exists( $this-&gt;value['object'] ) )
+			);
+			if ( $is_known_invalid ) {
+				$this-&gt;value['_invalid'] = true;
+			}
+		}
+
+		// Remove remaining properties available on a setup nav_menu_item post object which aren't relevant to the setting value.
+		$irrelevant_properties = array(
+			'ID',
+			'comment_count',
+			'comment_status',
+			'db_id',
+			'filter',
+			'guid',
+			'ping_status',
+			'pinged',
+			'post_author',
+			'post_content',
+			'post_content_filtered',
+			'post_date',
+			'post_date_gmt',
+			'post_excerpt',
+			'post_mime_type',
+			'post_modified',
+			'post_modified_gmt',
+			'post_name',
+			'post_parent',
+			'post_password',
+			'post_title',
+			'post_type',
+			'to_ping',
+		);
+		foreach ( $irrelevant_properties as $property ) {
+			unset( $this-&gt;value[ $property ] );
+		}
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/customize/class-wp-customize-nav-menu-item-setting.php:</span> <a href="get_original_title">WP_Customize_Nav_Menu_Item_Setting::get_original_title()</a> </td> <td class="related-desc"> <p>Get original title.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="../../functions/taxonomy_exists">taxonomy_exists()</a> </td> <td class="related-desc"> <p>Determines whether the taxonomy name exists.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/wp_get_post_terms">wp_get_post_terms()</a> </td> <td class="related-desc"> <p>Retrieves the terms for a post.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/post_type_exists">post_type_exists()</a> </td> <td class="related-desc"> <p>Determines whether a post type is registered.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/customize/class-wp-customize-nav-menu-item-setting.php:</span> <a href="value">WP_Customize_Nav_Menu_Item_Setting::value()</a> </td> <td class="related-desc"> <p>Get the instance data for a given nav_menu_item setting.</p> </td> </tr> <tr> <td> <span>wp-includes/customize/class-wp-customize-nav-menu-item-setting.php:</span> <a href="__construct">WP_Customize_Nav_Menu_Item_Setting::__construct()</a> </td> <td class="related-desc"> <p>Constructor.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.3.0/" alt="WordPress 4.3.0">4.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_customize_nav_menu_item_setting/populate_value" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_customize_nav_menu_item_setting/populate_value</a>
+  </p>
+</div>

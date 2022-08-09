@@ -1,0 +1,56 @@
+<h1>WP_REST_Term_Search_Handler::search_items( WP_REST_Request $request )</h1>  <section> <p>Searches the object type content for a given search request.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$request</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_REST_Request"><a href="../wp_rest_request">WP_REST_Request</a></span>)</span> <span class="required">(Required)</span> <span class="description">Full REST request.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> Associative array containing an <code>WP_REST_Search_Handler::RESULT_IDS</code> containing an array of found IDs and <code>WP_REST_Search_Handler::RESULT_TOTAL</code> containing the total count for the matching search results.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/rest-api/search/class-wp-rest-term-search-handler.php/">wp-includes/rest-api/search/class-wp-rest-term-search-handler.php</a> </p> <pre data-language="php">public function search_items( WP_REST_Request $request ) {
+		$taxonomies = $request[ WP_REST_Search_Controller::PROP_SUBTYPE ];
+		if ( in_array( WP_REST_Search_Controller::TYPE_ANY, $taxonomies, true ) ) {
+			$taxonomies = $this-&gt;subtypes;
+		}
+
+		$page     = (int) $request['page'];
+		$per_page = (int) $request['per_page'];
+
+		$query_args = array(
+			'taxonomy'   =&gt; $taxonomies,
+			'hide_empty' =&gt; false,
+			'offset'     =&gt; ( $page - 1 ) * $per_page,
+			'number'     =&gt; $per_page,
+		);
+
+		if ( ! empty( $request['search'] ) ) {
+			$query_args['search'] = $request['search'];
+		}
+
+		/**
+		 * Filters the query arguments for a REST API search request.
+		 *
+		 * Enables adding extra arguments or setting defaults for a term search request.
+		 *
+		 * @since 5.6.0
+		 *
+		 * @param array           $query_args Key value array of query var to query value.
+		 * @param WP_REST_Request $request    The request used.
+		 */
+		$query_args = apply_filters( 'rest_term_search_query', $query_args, $request );
+
+		$query       = new WP_Term_Query();
+		$found_terms = $query-&gt;query( $query_args );
+		$found_ids   = wp_list_pluck( $found_terms, 'term_id' );
+
+		unset( $query_args['offset'], $query_args['number'] );
+
+		$total = wp_count_terms( $query_args );
+
+		// wp_count_terms() can return a falsey value when the term has no children.
+		if ( ! $total ) {
+			$total = 0;
+		}
+
+		return array(
+			self::RESULT_IDS   =&gt; $found_ids,
+			self::RESULT_TOTAL =&gt; $total,
+		);
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/search/class-wp-rest-term-search-handler.php:</span> <a href="../../hooks/rest_term_search_query">rest_term_search_query</a> </td> <td class="related-desc"> <p>Filters the query arguments for a REST API search request.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-term-query.php:</span> <a href="../wp_term_query/__construct">WP_Term_Query::__construct()</a> </td> <td class="related-desc"> <p>Constructor.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_list_pluck">wp_list_pluck()</a> </td> <td class="related-desc"> <p>Plucks a certain field out of each object or array in an array.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="../../functions/wp_count_terms">wp_count_terms()</a> </td> <td class="related-desc"> <p>Counts how many terms are in taxonomy.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.6.0/" alt="WordPress 5.6.0">5.6.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_rest_term_search_handler/search_items" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_rest_term_search_handler/search_items</a>
+  </p>
+</div>

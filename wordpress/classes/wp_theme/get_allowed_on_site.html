@@ -1,0 +1,77 @@
+<h1>WP_Theme::get_allowed_on_site( int $blog_id = null )</h1>  <section> <p>Returns array of stylesheet names of themes allowed on the site.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$blog_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description"> ID of the site. Defaults to the current site.</span> </p> <p class="default">Default value: null</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string[])</span> Array of stylesheet names.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-theme.php/">wp-includes/class-wp-theme.php</a> </p> <pre data-language="php">public static function get_allowed_on_site( $blog_id = null ) {
+		static $allowed_themes = array();
+
+		if ( ! $blog_id || ! is_multisite() ) {
+			$blog_id = get_current_blog_id();
+		}
+
+		if ( isset( $allowed_themes[ $blog_id ] ) ) {
+			/**
+			 * Filters the array of themes allowed on the site.
+			 *
+			 * @since 4.5.0
+			 *
+			 * @param string[] $allowed_themes An array of theme stylesheet names.
+			 * @param int      $blog_id        ID of the site. Defaults to current site.
+			 */
+			return (array) apply_filters( 'site_allowed_themes', $allowed_themes[ $blog_id ], $blog_id );
+		}
+
+		$current = get_current_blog_id() == $blog_id;
+
+		if ( $current ) {
+			$allowed_themes[ $blog_id ] = get_option( 'allowedthemes' );
+		} else {
+			switch_to_blog( $blog_id );
+			$allowed_themes[ $blog_id ] = get_option( 'allowedthemes' );
+			restore_current_blog();
+		}
+
+		// This is all super old MU back compat joy.
+		// 'allowedthemes' keys things by stylesheet. 'allowed_themes' keyed things by name.
+		if ( false === $allowed_themes[ $blog_id ] ) {
+			if ( $current ) {
+				$allowed_themes[ $blog_id ] = get_option( 'allowed_themes' );
+			} else {
+				switch_to_blog( $blog_id );
+				$allowed_themes[ $blog_id ] = get_option( 'allowed_themes' );
+				restore_current_blog();
+			}
+
+			if ( ! is_array( $allowed_themes[ $blog_id ] ) || empty( $allowed_themes[ $blog_id ] ) ) {
+				$allowed_themes[ $blog_id ] = array();
+			} else {
+				$converted = array();
+				$themes    = wp_get_themes();
+				foreach ( $themes as $stylesheet =&gt; $theme_data ) {
+					if ( isset( $allowed_themes[ $blog_id ][ $theme_data-&gt;get( 'Name' ) ] ) ) {
+						$converted[ $stylesheet ] = true;
+					}
+				}
+				$allowed_themes[ $blog_id ] = $converted;
+			}
+			// Set the option so we never have to go through this pain again.
+			if ( is_admin() &amp;&amp; $allowed_themes[ $blog_id ] ) {
+				if ( $current ) {
+					update_option( 'allowedthemes', $allowed_themes[ $blog_id ] );
+					delete_option( 'allowed_themes' );
+				} else {
+					switch_to_blog( $blog_id );
+					update_option( 'allowedthemes', $allowed_themes[ $blog_id ] );
+					delete_option( 'allowed_themes' );
+					restore_current_blog();
+				}
+			}
+		}
+
+		/** This filter is documented in wp-includes/class-wp-theme.php */
+		return (array) apply_filters( 'site_allowed_themes', $allowed_themes[ $blog_id ], $blog_id );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-theme.php:</span> <a href="../../hooks/site_allowed_themes">site_allowed_themes</a> </td> <td class="related-desc"> <p>Filters the array of themes allowed on the site.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="../../functions/wp_get_themes">wp_get_themes()</a> </td> <td class="related-desc"> <p>Returns an array of <a href="../wp_theme">WP_Theme</a> objects based on the arguments.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_multisite">is_multisite()</a> </td> <td class="related-desc"> <p>If Multisite is enabled.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/get_current_blog_id">get_current_blog_id()</a> </td> <td class="related-desc"> <p>Retrieve the current site ID.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_admin">is_admin()</a> </td> <td class="related-desc"> <p>Determines whether the current request is for an administrative interface page.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../../functions/update_option">update_option()</a> </td> <td class="related-desc"> <p>Updates the value of an option that was already added.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../../functions/delete_option">delete_option()</a> </td> <td class="related-desc"> <p>Removes option by name. Prevents removal of protected WordPress options.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../../functions/get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-blogs.php:</span> <a href="../../functions/switch_to_blog">switch_to_blog()</a> </td> <td class="related-desc"> <p>Switch the current blog.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-blogs.php:</span> <a href="../../functions/restore_current_blog">restore_current_blog()</a> </td> <td class="related-desc"> <p>Restore the current blog, after calling <a href="../../functions/switch_to_blog">switch_to_blog()</a>.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/ms-deprecated.php:</span> <a href="../../functions/wpmu_get_blog_allowedthemes">wpmu_get_blog_allowedthemes()</a> </td> <td class="related-desc"> <p>Deprecated functionality for getting themes allowed on a specific site.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="../../functions/wp_get_themes">wp_get_themes()</a> </td> <td class="related-desc"> <p>Returns an array of <a href="../wp_theme">WP_Theme</a> objects based on the arguments.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-theme.php:</span> <a href="get_allowed">WP_Theme::get_allowed()</a> </td> <td class="related-desc"> <p>Returns array of stylesheet names of themes allowed on the site or network.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-theme.php:</span> <a href="is_allowed">WP_Theme::is_allowed()</a> </td> <td class="related-desc"> <p>Determines whether the theme is allowed (multisite only).</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.4.0/" alt="WordPress 3.4.0">3.4.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_theme/get_allowed_on_site" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_theme/get_allowed_on_site</a>
+  </p>
+</div>

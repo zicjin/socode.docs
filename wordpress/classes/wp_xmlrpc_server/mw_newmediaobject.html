@@ -1,0 +1,109 @@
+<h1>wp_xmlrpc_server::mw_newMediaObject( array $args )</h1>  <section> <p>Uploads a file, following your settings.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Adapted from a patch by Johann Richard.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Method arguments. Note: arguments must be ordered as documented. <ul class="param-hash">
+<li>
+<b>'blog_id'</b><br><i><span class="type">(int)</span></i> (unused)</li> <li>
+<b>'username'</b><br><i><span class="type">(string)</span></i> </li> <li>
+<b>'password'</b><br><i><span class="type">(string)</span></i> </li> <li>
+<b>'data'</b><br><i><span class="type">(array)</span></i> </li> </ul> </span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array|<a href="../ixr_error">IXR_Error</a>)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-xmlrpc-server.php/">wp-includes/class-wp-xmlrpc-server.php</a> </p> <pre data-language="php">public function mw_newMediaObject( $args ) {
+		global $wpdb;
+
+		$username = $this-&gt;escape( $args[1] );
+		$password = $this-&gt;escape( $args[2] );
+		$data     = $args[3];
+
+		$name = sanitize_file_name( $data['name'] );
+		$type = $data['type'];
+		$bits = $data['bits'];
+
+		$user = $this-&gt;login( $username, $password );
+		if ( ! $user ) {
+			return $this-&gt;error;
+		}
+
+		/** This action is documented in wp-includes/class-wp-xmlrpc-server.php */
+		do_action( 'xmlrpc_call', 'metaWeblog.newMediaObject', $args, $this );
+
+		if ( ! current_user_can( 'upload_files' ) ) {
+			$this-&gt;error = new IXR_Error( 401, __( 'Sorry, you are not allowed to upload files.' ) );
+			return $this-&gt;error;
+		}
+
+		if ( is_multisite() &amp;&amp; upload_is_user_over_quota( false ) ) {
+			$this-&gt;error = new IXR_Error(
+				401,
+				sprintf(
+					/* translators: %s: Allowed space allocation. */
+					__( 'Sorry, you have used your space allocation of %s. Please delete some files to upload more files.' ),
+					size_format( get_space_allowed() * MB_IN_BYTES )
+				)
+			);
+			return $this-&gt;error;
+		}
+
+		/**
+		 * Filters whether to preempt the XML-RPC media upload.
+		 *
+		 * Returning a truthy value will effectively short-circuit the media upload,
+		 * returning that value as a 500 error instead.
+		 *
+		 * @since 2.1.0
+		 *
+		 * @param bool $error Whether to pre-empt the media upload. Default false.
+		 */
+		$upload_err = apply_filters( 'pre_upload_error', false );
+		if ( $upload_err ) {
+			return new IXR_Error( 500, $upload_err );
+		}
+
+		$upload = wp_upload_bits( $name, null, $bits );
+		if ( ! empty( $upload['error'] ) ) {
+			/* translators: 1: File name, 2: Error message. */
+			$errorString = sprintf( __( 'Could not write file %1$s (%2$s).' ), $name, $upload['error'] );
+			return new IXR_Error( 500, $errorString );
+		}
+		// Construct the attachment array.
+		$post_id = 0;
+		if ( ! empty( $data['post_id'] ) ) {
+			$post_id = (int) $data['post_id'];
+
+			if ( ! current_user_can( 'edit_post', $post_id ) ) {
+				return new IXR_Error( 401, __( 'Sorry, you are not allowed to edit this post.' ) );
+			}
+		}
+		$attachment = array(
+			'post_title'     =&gt; $name,
+			'post_content'   =&gt; '',
+			'post_type'      =&gt; 'attachment',
+			'post_parent'    =&gt; $post_id,
+			'post_mime_type' =&gt; $type,
+			'guid'           =&gt; $upload['url'],
+		);
+
+		// Save the data.
+		$id = wp_insert_attachment( $attachment, $upload['file'], $post_id );
+		wp_update_attachment_metadata( $id, wp_generate_attachment_metadata( $id, $upload['file'] ) );
+
+		/**
+		 * Fires after a new attachment has been added via the XML-RPC MovableType API.
+		 *
+		 * @since 3.4.0
+		 *
+		 * @param int   $id   ID of the new attachment.
+		 * @param array $args An array of arguments to add the attachment.
+		 */
+		do_action( 'xmlrpc_call_success_mw_newMediaObject', $id, $args ); // phpcs:ignore WordPress.NamingConventions.ValidHookName.NotLowercase
+
+		$struct = $this-&gt;_prepare_media_item( get_post( $id ) );
+
+		// Deprecated values.
+		$struct['id']   = $struct['attachment_id'];
+		$struct['file'] = $struct['title'];
+		$struct['url']  = $struct['link'];
+
+		return $struct;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/IXR/class-IXR-error.php:</span> <a href="../ixr_error/__construct">IXR_Error::__construct()</a> </td> <td class="related-desc"> <p>PHP5 constructor.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/ms.php:</span> <a href="../../functions/upload_is_user_over_quota">upload_is_user_over_quota()</a> </td> <td class="related-desc"> <p>Check whether a site has used its allotted upload space.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/image.php:</span> <a href="../../functions/wp_generate_attachment_metadata">wp_generate_attachment_metadata()</a> </td> <td class="related-desc"> <p>Generate attachment meta data and create image sub-sizes for images.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="../../functions/current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/sanitize_file_name">sanitize_file_name()</a> </td> <td class="related-desc"> <p>Sanitizes a filename, replacing whitespace with dashes.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_multisite">is_multisite()</a> </td> <td class="related-desc"> <p>If Multisite is enabled.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_upload_bits">wp_upload_bits()</a> </td> <td class="related-desc"> <p>Create a file in the upload folder with given content.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/size_format">size_format()</a> </td> <td class="related-desc"> <p>Converts a number of bytes to the largest unit the bytes will fit into.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/wp_update_attachment_metadata">wp_update_attachment_metadata()</a> </td> <td class="related-desc"> <p>Updates metadata for an attachment.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/wp_insert_attachment">wp_insert_attachment()</a> </td> <td class="related-desc"> <p>Insert an attachment.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="../../functions/get_space_allowed">get_space_allowed()</a> </td> <td class="related-desc"> <p>Returns the upload quota for the current blog.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="../../hooks/pre_upload_error">pre_upload_error</a> </td> <td class="related-desc"> <p>Filters whether to preempt the XML-RPC media upload.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="../../hooks/xmlrpc_call_success_mw_newmediaobject">xmlrpc_call_success_mw_newMediaObject</a> </td> <td class="related-desc"> <p>Fires after a new attachment has been added via the XML-RPC MovableType API.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="_prepare_media_item">wp_xmlrpc_server::_prepare_media_item()</a> </td> <td class="related-desc"> <p>Prepares media item data for return in an XML-RPC object.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="../../hooks/xmlrpc_call">xmlrpc_call</a> </td> <td class="related-desc"> <p>Fires after the XML-RPC user has been authenticated but before the rest of the method logic begins.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="escape">wp_xmlrpc_server::escape()</a> </td> <td class="related-desc"> <p>Escape string or array of strings for database.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="login">wp_xmlrpc_server::login()</a> </td> <td class="related-desc"> <p>Log user in.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/1.5.0/" alt="WordPress 1.5.0">1.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_xmlrpc_server/mw_newmediaobject" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_xmlrpc_server/mw_newmediaobject</a>
+  </p>
+</div>

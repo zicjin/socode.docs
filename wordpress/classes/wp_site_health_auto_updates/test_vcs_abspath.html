@@ -1,0 +1,70 @@
+<h1>WP_Site_Health_Auto_Updates::test_vcs_abspath()</h1>  <section> <p>Check if WordPress is controlled by a VCS (Git, Subversion etc).</p> </section> <div class="content-toc">  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> The test results.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-site-health-auto-updates.php/">wp-admin/includes/class-wp-site-health-auto-updates.php</a> </p> <pre data-language="php">public function test_vcs_abspath() {
+		$context_dirs = array( ABSPATH );
+		$vcs_dirs     = array( '.svn', '.git', '.hg', '.bzr' );
+		$check_dirs   = array();
+
+		foreach ( $context_dirs as $context_dir ) {
+			// Walk up from $context_dir to the root.
+			do {
+				$check_dirs[] = $context_dir;
+
+				// Once we've hit '/' or 'C:\', we need to stop. dirname will keep returning the input here.
+				if ( dirname( $context_dir ) === $context_dir ) {
+					break;
+				}
+
+				// Continue one level at a time.
+			} while ( $context_dir = dirname( $context_dir ) );
+		}
+
+		$check_dirs = array_unique( $check_dirs );
+
+		// Search all directories we've found for evidence of version control.
+		foreach ( $vcs_dirs as $vcs_dir ) {
+			foreach ( $check_dirs as $check_dir ) {
+				// phpcs:ignore WordPress.CodeAnalysis.AssignmentInCondition,Squiz.PHP.DisallowMultipleAssignments
+				if ( $checkout = @is_dir( rtrim( $check_dir, '\\/' ) . "/$vcs_dir" ) ) {
+					break 2;
+				}
+			}
+		}
+
+		/** This filter is documented in wp-admin/includes/class-wp-automatic-updater.php */
+		if ( $checkout &amp;&amp; ! apply_filters( 'automatic_updates_is_vcs_checkout', true, ABSPATH ) ) {
+			return array(
+				'description' =&gt; sprintf(
+					/* translators: 1: Folder name. 2: Version control directory. 3: Filter name. */
+					__( 'The folder %1$s was detected as being under version control (%2$s), but the %3$s filter is allowing updates.' ),
+					'&lt;code&gt;' . $check_dir . '&lt;/code&gt;',
+					"&lt;code&gt;$vcs_dir&lt;/code&gt;",
+					'&lt;code&gt;automatic_updates_is_vcs_checkout&lt;/code&gt;'
+				),
+				'severity'    =&gt; 'info',
+			);
+		}
+
+		if ( $checkout ) {
+			return array(
+				'description' =&gt; sprintf(
+					/* translators: 1: Folder name. 2: Version control directory. */
+					__( 'The folder %1$s was detected as being under version control (%2$s).' ),
+					'&lt;code&gt;' . $check_dir . '&lt;/code&gt;',
+					"&lt;code&gt;$vcs_dir&lt;/code&gt;"
+				),
+				'severity'    =&gt; 'warning',
+			);
+		}
+
+		return array(
+			'description' =&gt; __( 'No version control systems were detected.' ),
+			'severity'    =&gt; 'pass',
+		);
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-automatic-updater.php:</span> <a href="../../hooks/automatic_updates_is_vcs_checkout">automatic_updates_is_vcs_checkout</a> </td> <td class="related-desc"> <p>Filters whether the automatic updater should consider a filesystem location to be potentially managed by a version control system.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-site-health-auto-updates.php:</span> <a href="run_tests">WP_Site_Health_Auto_Updates::run_tests()</a> </td> <td class="related-desc"> <p>Run tests to determine if auto-updates can run.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.2.0/" alt="WordPress 5.2.0">5.2.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_site_health_auto_updates/test_vcs_abspath" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_site_health_auto_updates/test_vcs_abspath</a>
+  </p>
+</div>

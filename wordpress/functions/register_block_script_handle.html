@@ -1,0 +1,70 @@
+<h1>register_block_script_handle( array $metadata, string $field_name )</h1>  <section> <p>Finds a script handle for the selected block metadata field. It detects when a path to file was provided and finds a corresponding asset file with details necessary to register the script under automatically generated handle name. It returns unprocessed script handle otherwise.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$metadata</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Block metadata.</span> </p> </dd> <dt>$field_name</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Field name to pick from metadata.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string|false)</span> Script handle provided directly or created through script's registration, or false on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/blocks.php/">wp-includes/blocks.php</a> </p> <pre data-language="php">function register_block_script_handle( $metadata, $field_name ) {
+	if ( empty( $metadata[ $field_name ] ) ) {
+		return false;
+	}
+	$script_handle = $metadata[ $field_name ];
+	$script_path   = remove_block_asset_path_prefix( $metadata[ $field_name ] );
+	if ( $script_handle === $script_path ) {
+		return $script_handle;
+	}
+
+	$script_handle     = generate_block_asset_handle( $metadata['name'], $field_name );
+	$script_asset_path = wp_normalize_path(
+		realpath(
+			dirname( $metadata['file'] ) . '/' .
+			substr_replace( $script_path, '.asset.php', - strlen( '.js' ) )
+		)
+	);
+	if ( ! file_exists( $script_asset_path ) ) {
+		_doing_it_wrong(
+			__FUNCTION__,
+			sprintf(
+				/* translators: 1: Field name, 2: Block name. */
+				__( 'The asset file for the "%1$s" defined in "%2$s" block definition is missing.' ),
+				$field_name,
+				$metadata['name']
+			),
+			'5.5.0'
+		);
+		return false;
+	}
+	// Path needs to be normalized to work in Windows env.
+	$wpinc_path_norm  = wp_normalize_path( realpath( ABSPATH . WPINC ) );
+	$theme_path_norm  = wp_normalize_path( get_theme_file_path() );
+	$script_path_norm = wp_normalize_path( realpath( dirname( $metadata['file'] ) . '/' . $script_path ) );
+	$is_core_block    = isset( $metadata['file'] ) &amp;&amp; 0 === strpos( $metadata['file'], $wpinc_path_norm );
+	$is_theme_block   = 0 === strpos( $script_path_norm, $theme_path_norm );
+
+	$script_uri = plugins_url( $script_path, $metadata['file'] );
+	if ( $is_core_block ) {
+		$script_uri = includes_url( str_replace( $wpinc_path_norm, '', $script_path_norm ) );
+	} elseif ( $is_theme_block ) {
+		$script_uri = get_theme_file_uri( str_replace( $theme_path_norm, '', $script_path_norm ) );
+	}
+
+	$script_asset        = require $script_asset_path;
+	$script_dependencies = isset( $script_asset['dependencies'] ) ? $script_asset['dependencies'] : array();
+	$result              = wp_register_script(
+		$script_handle,
+		$script_uri,
+		$script_dependencies,
+		isset( $script_asset['version'] ) ? $script_asset['version'] : false
+	);
+	if ( ! $result ) {
+		return false;
+	}
+
+	if ( ! empty( $metadata['textdomain'] ) &amp;&amp; in_array( 'wp-i18n', $script_dependencies, true ) ) {
+		wp_set_script_translations( $script_handle, $metadata['textdomain'] );
+	}
+
+	return $script_handle;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="generate_block_asset_handle">generate_block_asset_handle()</a> </td> <td class="related-desc"> <p>Generates the name for an asset based on the name of the block and the field name provided.</p> </td> </tr> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="remove_block_asset_path_prefix">remove_block_asset_path_prefix()</a> </td> <td class="related-desc"> <p>Removes the block asset’s path prefix if provided.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.wp-scripts.php:</span> <a href="wp_set_script_translations">wp_set_script_translations()</a> </td> <td class="related-desc"> <p>Sets translated strings for a script.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="get_theme_file_path">get_theme_file_path()</a> </td> <td class="related-desc"> <p>Retrieves the path of a file in the theme.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="get_theme_file_uri">get_theme_file_uri()</a> </td> <td class="related-desc"> <p>Retrieves the URL of a file in the theme.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.wp-scripts.php:</span> <a href="wp_register_script">wp_register_script()</a> </td> <td class="related-desc"> <p>Register a new script.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="_doing_it_wrong">_doing_it_wrong()</a> </td> <td class="related-desc"> <p>Mark something as being incorrectly called.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_normalize_path">wp_normalize_path()</a> </td> <td class="related-desc"> <p>Normalize a filesystem path.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="plugins_url">plugins_url()</a> </td> <td class="related-desc"> <p>Retrieves a URL within the plugins or mu-plugins directory.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="includes_url">includes_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the includes directory.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="register_block_type_from_metadata">register_block_type_from_metadata()</a> </td> <td class="related-desc"> <p>Registers a block type from the metadata stored in the <code>block.json</code> file.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.0/" alt="WordPress 5.5.0">5.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/register_block_script_handle" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/register_block_script_handle</a>
+  </p>
+</div>

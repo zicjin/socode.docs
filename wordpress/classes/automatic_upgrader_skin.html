@@ -1,0 +1,128 @@
+<h1>Automatic_Upgrader_Skin</h1>  <section> <p>Upgrader Skin for Automatic WordPress Upgrades.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>This skin is designed to be used when no output is intended, all output is captured and stored for the caller to process and log/email/discard.</p> <h3 id="see-also">See also</h3> <ul> <li><a href="bulk_upgrader_skin">Bulk_Upgrader_Skin</a></li> </ul> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-automatic-upgrader-skin.php/">wp-admin/includes/class-automatic-upgrader-skin.php</a> </p> <pre data-language="php">class Automatic_Upgrader_Skin extends WP_Upgrader_Skin {
+	protected $messages = array();
+
+	/**
+	 * Determines whether the upgrader needs FTP/SSH details in order to connect
+	 * to the filesystem.
+	 *
+	 * @since 3.7.0
+	 * @since 4.6.0 The `$context` parameter default changed from `false` to an empty string.
+	 *
+	 * @see request_filesystem_credentials()
+	 *
+	 * @param bool|WP_Error $error                        Optional. Whether the current request has failed to connect,
+	 *                                                    or an error object. Default false.
+	 * @param string        $context                      Optional. Full path to the directory that is tested
+	 *                                                    for being writable. Default empty.
+	 * @param bool          $allow_relaxed_file_ownership Optional. Whether to allow Group/World writable. Default false.
+	 * @return bool True on success, false on failure.
+	 */
+	public function request_filesystem_credentials( $error = false, $context = '', $allow_relaxed_file_ownership = false ) {
+		if ( $context ) {
+			$this-&gt;options['context'] = $context;
+		}
+		/*
+		 * TODO: Fix up request_filesystem_credentials(), or split it, to allow us to request a no-output version.
+		 * This will output a credentials form in event of failure. We don't want that, so just hide with a buffer.
+		 */
+		ob_start();
+		$result = parent::request_filesystem_credentials( $error, $context, $allow_relaxed_file_ownership );
+		ob_end_clean();
+		return $result;
+	}
+
+	/**
+	 * Retrieves the upgrade messages.
+	 *
+	 * @since 3.7.0
+	 *
+	 * @return string[] Messages during an upgrade.
+	 */
+	public function get_upgrade_messages() {
+		return $this-&gt;messages;
+	}
+
+	/**
+	 * Stores a message about the upgrade.
+	 *
+	 * @since 3.7.0
+	 * @since 5.9.0 Renamed `$data` to `$feedback` for PHP 8 named parameter support.
+	 *
+	 * @param string|array|WP_Error $feedback Message data.
+	 * @param mixed                 ...$args  Optional text replacements.
+	 */
+	public function feedback( $feedback, ...$args ) {
+		if ( is_wp_error( $feedback ) ) {
+			$string = $feedback-&gt;get_error_message();
+		} elseif ( is_array( $feedback ) ) {
+			return;
+		} else {
+			$string = $feedback;
+		}
+
+		if ( ! empty( $this-&gt;upgrader-&gt;strings[ $string ] ) ) {
+			$string = $this-&gt;upgrader-&gt;strings[ $string ];
+		}
+
+		if ( strpos( $string, '%' ) !== false ) {
+			if ( ! empty( $args ) ) {
+				$string = vsprintf( $string, $args );
+			}
+		}
+
+		$string = trim( $string );
+
+		// Only allow basic HTML in the messages, as it'll be used in emails/logs rather than direct browser output.
+		$string = wp_kses(
+			$string,
+			array(
+				'a'      =&gt; array(
+					'href' =&gt; true,
+				),
+				'br'     =&gt; true,
+				'em'     =&gt; true,
+				'strong' =&gt; true,
+			)
+		);
+
+		if ( empty( $string ) ) {
+			return;
+		}
+
+		$this-&gt;messages[] = $string;
+	}
+
+	/**
+	 * Creates a new output buffer.
+	 *
+	 * @since 3.7.0
+	 */
+	public function header() {
+		ob_start();
+	}
+
+	/**
+	 * Retrieves the buffered content, deletes the buffer, and processes the output.
+	 *
+	 * @since 3.7.0
+	 */
+	public function footer() {
+		$output = ob_get_clean();
+		if ( ! empty( $output ) ) {
+			$this-&gt;feedback( $output );
+		}
+	}
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-upgrader-skin.php:</span> <a href="wp_upgrader_skin">WP_Upgrader_Skin</a> </td> <td class="related-desc"> <p>Generic Skin for the WordPress Upgrader classes. This skin is designed to be extended for specific purposes.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-ajax-upgrader-skin.php:</span> <a href="wp_ajax_upgrader_skin">WP_Ajax_Upgrader_Skin</a> </td> <td class="related-desc"> <p>Upgrader Skin for Ajax WordPress upgrades.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="methods">Methods</h2> <ul> <li>
+<a href="automatic_upgrader_skin/feedback"> feedback</a> — Stores a message about the upgrade. </li> <li>
+<a href="automatic_upgrader_skin/footer"> footer</a> — Retrieves the buffered content, deletes the buffer, and processes the output. </li> <li>
+<a href="automatic_upgrader_skin/get_upgrade_messages"> get_upgrade_messages</a> — Retrieves the upgrade messages. </li> <li>
+<a href="automatic_upgrader_skin/header"> header</a> — Creates a new output buffer. </li> <li>
+<a href="automatic_upgrader_skin/request_filesystem_credentials"> request_filesystem_credentials</a> — Determines whether the upgrader needs FTP/SSH details in order to connect to the filesystem. </li> </ul> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.6.0/" alt="WordPress 4.6.0">4.6.0</a></td> <td><span class="since-description">Moved to its own file from wp-admin/includes/class-wp-upgrader-skins.php.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.7.0/" alt="WordPress 3.7.0">3.7.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/automatic_upgrader_skin" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/automatic_upgrader_skin</a>
+  </p>
+</div>

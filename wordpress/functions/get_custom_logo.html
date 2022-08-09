@@ -1,0 +1,101 @@
+<h1>get_custom_logo( int $blog_id )</h1>  <section> <p>Returns a custom logo, linked to home unless the theme supports removing the link on the home page.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$blog_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description"> ID of the blog in question. Default is the ID of the current blog.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> Custom logo markup.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/general-template.php/">wp-includes/general-template.php</a> </p> <pre data-language="php">function get_custom_logo( $blog_id = 0 ) {
+	$html          = '';
+	$switched_blog = false;
+
+	if ( is_multisite() &amp;&amp; ! empty( $blog_id ) &amp;&amp; get_current_blog_id() !== (int) $blog_id ) {
+		switch_to_blog( $blog_id );
+		$switched_blog = true;
+	}
+
+	$custom_logo_id = get_theme_mod( 'custom_logo' );
+
+	// We have a logo. Logo is go.
+	if ( $custom_logo_id ) {
+		$custom_logo_attr = array(
+			'class'   =&gt; 'custom-logo',
+			'loading' =&gt; false,
+		);
+
+		$unlink_homepage_logo = (bool) get_theme_support( 'custom-logo', 'unlink-homepage-logo' );
+
+		if ( $unlink_homepage_logo &amp;&amp; is_front_page() &amp;&amp; ! is_paged() ) {
+			/*
+			 * If on the home page, set the logo alt attribute to an empty string,
+			 * as the image is decorative and doesn't need its purpose to be described.
+			 */
+			$custom_logo_attr['alt'] = '';
+		} else {
+			/*
+			 * If the logo alt attribute is empty, get the site title and explicitly pass it
+			 * to the attributes used by wp_get_attachment_image().
+			 */
+			$image_alt = get_post_meta( $custom_logo_id, '_wp_attachment_image_alt', true );
+			if ( empty( $image_alt ) ) {
+				$custom_logo_attr['alt'] = get_bloginfo( 'name', 'display' );
+			}
+		}
+
+		/**
+		 * Filters the list of custom logo image attributes.
+		 *
+		 * @since 5.5.0
+		 *
+		 * @param array $custom_logo_attr Custom logo image attributes.
+		 * @param int   $custom_logo_id   Custom logo attachment ID.
+		 * @param int   $blog_id          ID of the blog to get the custom logo for.
+		 */
+		$custom_logo_attr = apply_filters( 'get_custom_logo_image_attributes', $custom_logo_attr, $custom_logo_id, $blog_id );
+
+		/*
+		 * If the alt attribute is not empty, there's no need to explicitly pass it
+		 * because wp_get_attachment_image() already adds the alt attribute.
+		 */
+		$image = wp_get_attachment_image( $custom_logo_id, 'full', false, $custom_logo_attr );
+
+		if ( $unlink_homepage_logo &amp;&amp; is_front_page() &amp;&amp; ! is_paged() ) {
+			// If on the home page, don't link the logo to home.
+			$html = sprintf(
+				'&lt;span class="custom-logo-link"&gt;%1$s&lt;/span&gt;',
+				$image
+			);
+		} else {
+			$aria_current = is_front_page() &amp;&amp; ! is_paged() ? ' aria-current="page"' : '';
+
+			$html = sprintf(
+				'&lt;a href="%1$s" class="custom-logo-link" rel="home"%2$s&gt;%3$s&lt;/a&gt;',
+				esc_url( home_url( '/' ) ),
+				$aria_current,
+				$image
+			);
+		}
+	} elseif ( is_customize_preview() ) {
+		// If no logo is set but we're in the Customizer, leave a placeholder (needed for the live preview).
+		$html = sprintf(
+			'&lt;a href="%1$s" class="custom-logo-link" style="display:none;"&gt;&lt;img class="custom-logo" alt="" /&gt;&lt;/a&gt;',
+			esc_url( home_url( '/' ) )
+		);
+	}
+
+	if ( $switched_blog ) {
+		restore_current_blog();
+	}
+
+	/**
+	 * Filters the custom logo output.
+	 *
+	 * @since 4.5.0
+	 * @since 4.6.0 Added the `$blog_id` parameter.
+	 *
+	 * @param string $html    Custom logo HTML output.
+	 * @param int    $blog_id ID of the blog to get the custom logo for.
+	 */
+	return apply_filters( 'get_custom_logo', $html, $blog_id );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="../hooks/get_custom_logo_image_attributes">get_custom_logo_image_attributes</a> </td> <td class="related-desc"> <p>Filters the list of custom logo image attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="../hooks/get_custom_logo">get_custom_logo</a> </td> <td class="related-desc"> <p>Filters the custom logo output.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="is_customize_preview">is_customize_preview()</a> </td> <td class="related-desc"> <p>Whether the site is being previewed in the Customizer.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="get_theme_support">get_theme_support()</a> </td> <td class="related-desc"> <p>Gets the theme support arguments passed when registering that support.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="get_theme_mod">get_theme_mod()</a> </td> <td class="related-desc"> <p>Retrieves theme modification value for the active theme.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="get_bloginfo">get_bloginfo()</a> </td> <td class="related-desc"> <p>Retrieves information about the current site.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="is_front_page">is_front_page()</a> </td> <td class="related-desc"> <p>Determines whether the query is for the front page of the site.</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="is_paged">is_paged()</a> </td> <td class="related-desc"> <p>Determines whether the query is for a paged result and not for the first page.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_multisite">is_multisite()</a> </td> <td class="related-desc"> <p>If Multisite is enabled.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="get_current_blog_id">get_current_blog_id()</a> </td> <td class="related-desc"> <p>Retrieve the current site ID.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="home_url">home_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL for the current site where the front end is accessible.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="wp_get_attachment_image">wp_get_attachment_image()</a> </td> <td class="related-desc"> <p>Get an HTML img element representing an image attachment.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post_meta">get_post_meta()</a> </td> <td class="related-desc"> <p>Retrieves a post meta field for the given post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-blogs.php:</span> <a href="switch_to_blog">switch_to_blog()</a> </td> <td class="related-desc"> <p>Switch the current blog.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-blogs.php:</span> <a href="restore_current_blog">restore_current_blog()</a> </td> <td class="related-desc"> <p>Restore the current blog, after calling <a href="switch_to_blog">switch_to_blog()</a>.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="../classes/wp_customize_manager/_render_custom_logo_partial">WP_Customize_Manager::_render_custom_logo_partial()</a> </td> <td class="related-desc"> <p>Callback for rendering the custom logo, used in the custom_logo partial.</p> </td> </tr> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="the_custom_logo">the_custom_logo()</a> </td> <td class="related-desc"> <p>Displays a custom logo, linked to home unless the theme supports removing the link on the home page.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.1/" alt="WordPress 5.5.1">5.5.1</a></td> <td><span class="since-description">Disabled lazy-loading by default.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.0/" alt="WordPress 5.5.0">5.5.0</a></td> <td><span class="since-description">Added option to remove the link on the home page with <code>unlink-homepage-logo</code> theme support for the <code>custom-logo</code> theme feature.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.5.0/" alt="WordPress 4.5.0">4.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/get_custom_logo" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/get_custom_logo</a>
+  </p>
+</div>

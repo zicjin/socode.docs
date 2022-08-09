@@ -1,0 +1,89 @@
+<h1>wp_upload_dir( string $time = null, bool $create_dir = true, bool $refresh_cache = false )</h1>  <section> <p>Returns an array containing the current upload directory’s path and URL.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Checks the ‘upload_path’ option, which should be from the web root folder, and if it isn’t empty it will be used. If it is empty, then the path will be ‘WP_CONTENT_DIR/uploads’. If the ‘UPLOADS’ constant is defined, then it will override the ‘upload_path’ option and ‘WP_CONTENT_DIR/uploads’ path.</p> <p>The upload URL path is set either by the ‘upload_url_path’ option or by using the ‘WP_CONTENT_URL’ constant and appending ‘/uploads’ to the path.</p> <p>If the ‘uploads_use_yearmonth_folders’ is set to true (checkbox if checked in the administration settings panel), then the time will be used. The format will be year first and then month.</p> <p>If the path couldn’t be created, then an error will be returned with the key ‘error’ containing the error message. The error suggests that the parent directory is not writable by the server.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$time</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> Time formatted in 'yyyy/mm'. </span> </p> <p class="default">Default value: null</p> </dd> <dt>$create_dir</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> Whether to check and create the uploads directory. Default true for backward compatibility.</span> </p> <p class="default">Default value: true</p> </dd> <dt>$refresh_cache</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> Whether to refresh the cache. </span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> Array of information about the upload directory. </p>
+<ul class="param-hash">
+<li>
+<b>'path'</b><br><i><span class="type">(string)</span></i> Base directory and subdirectory or full path to upload directory.</li> <li>
+<b>'url'</b><br><i><span class="type">(string)</span></i> Base URL and subdirectory or absolute URL to upload directory.</li> <li>
+<b>'subdir'</b><br><i><span class="type">(string)</span></i> Subdirectory if uploads use year/month folders option is on.</li> <li>
+<b>'basedir'</b><br><i><span class="type">(string)</span></i> Path without subdir.</li> <li>
+<b>'baseurl'</b><br><i><span class="type">(string)</span></i> URL path without subdir.</li> <li>
+<b>'error'</b><br><i><span class="type">(string|false)</span></i> False or error message.</li> </ul> </section>  <section> <h2 id="more-information">More Information</h2> <p>Note that using this function <strong>will create a subfolder in your Uploads folder</strong> corresponding to the queried month (or current month, if no <code>$time</code> argument is provided), if that folder is not already there. You don’t have to upload anything in order for this folder to be created.</p> <p>For creating custom folder for users</p> <pre class="brush: php; title: ; notranslate" title="" data-language="php">
+$current_user = wp_get_current_user();
+$upload_dir   = wp_upload_dir();
+
+if ( isset( $current_user-&gt;user_login ) &amp;&amp; ! empty( $upload_dir['basedir'] ) ) {
+    $user_dirname = $upload_dir['basedir'].'/'.$current_user-&gt;user_login;
+        if ( ! file_exists( $user_dirname ) ) {
+	    wp_mkdir_p( $user_dirname );
+    }
+}
+</pre> <h3 id="folder-name">Folder Name</h3> <p>In case you want to move the <code>/uploads</code> folder, you’ll have to use the <code>UPLOADS</code> constant. It normally shouldn’t get used, as it only get’s defined when <code>ms_default_constants()</code> is run (only multisite), but you can simply set:</p> <pre class="brush: php; title: ; notranslate" title="" data-language="php">
+define( 'UPLOADS', trailingslashit( WP_CONTENT_DIR ) . 'custom_uploads_name' );
+</pre> <p>in a single site install and it will just work, as the public directory structure function <code>wp_upload_dir()</code> sets it up, when it was defined:</p> <pre class="brush: php; title: ; notranslate" title="" data-language="php">
+$dir = ABSPATH . UPLOADS;
+</pre> <p><em>Note:</em> You can extract the folder name with the following line:</p> <pre class="brush: php; title: ; notranslate" title="" data-language="php">
+// returns `false` if the UPLOADS constant is not defined
+$upload_dir_name = false;
+if ( defined( 'UPLOADS' ) ) {
+	str_replace( trailingslashit( WP_CONTENT_DIR ), '', untrailingslashit( UPLOADS ) );
+}
+</pre> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/functions.php/">wp-includes/functions.php</a> </p> <pre data-language="php">function wp_upload_dir( $time = null, $create_dir = true, $refresh_cache = false ) {
+	static $cache = array(), $tested_paths = array();
+
+	$key = sprintf( '%d-%s', get_current_blog_id(), (string) $time );
+
+	if ( $refresh_cache || empty( $cache[ $key ] ) ) {
+		$cache[ $key ] = _wp_upload_dir( $time );
+	}
+
+	/**
+	 * Filters the uploads directory data.
+	 *
+	 * @since 2.0.0
+	 *
+	 * @param array $uploads {
+	 *     Array of information about the upload directory.
+	 *
+	 *     @type string       $path    Base directory and subdirectory or full path to upload directory.
+	 *     @type string       $url     Base URL and subdirectory or absolute URL to upload directory.
+	 *     @type string       $subdir  Subdirectory if uploads use year/month folders option is on.
+	 *     @type string       $basedir Path without subdir.
+	 *     @type string       $baseurl URL path without subdir.
+	 *     @type string|false $error   False or error message.
+	 * }
+	 */
+	$uploads = apply_filters( 'upload_dir', $cache[ $key ] );
+
+	if ( $create_dir ) {
+		$path = $uploads['path'];
+
+		if ( array_key_exists( $path, $tested_paths ) ) {
+			$uploads['error'] = $tested_paths[ $path ];
+		} else {
+			if ( ! wp_mkdir_p( $path ) ) {
+				if ( 0 === strpos( $uploads['basedir'], ABSPATH ) ) {
+					$error_path = str_replace( ABSPATH, '', $uploads['basedir'] ) . $uploads['subdir'];
+				} else {
+					$error_path = wp_basename( $uploads['basedir'] ) . $uploads['subdir'];
+				}
+
+				$uploads['error'] = sprintf(
+					/* translators: %s: Directory path. */
+					__( 'Unable to create directory %s. Is its parent directory writable by the server?' ),
+					esc_html( $error_path )
+				);
+			}
+
+			$tested_paths[ $path ] = $uploads['error'];
+		}
+	}
+
+	return $uploads;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/functions.php:</span> <a href="_wp_upload_dir">_wp_upload_dir()</a> </td> <td class="related-desc"> <p>A non-filtered, non-cached version of <a href="wp_upload_dir">wp_upload_dir()</a> that doesn’t check the path.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_basename">wp_basename()</a> </td> <td class="related-desc"> <p>i18n-friendly version of basename().</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_html">esc_html()</a> </td> <td class="related-desc"> <p>Escaping for HTML blocks.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="get_current_blog_id">get_current_blog_id()</a> </td> <td class="related-desc"> <p>Retrieve the current site ID.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_mkdir_p">wp_mkdir_p()</a> </td> <td class="related-desc"> <p>Recursive directory creation based on full path.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../hooks/upload_dir">upload_dir</a> </td> <td class="related-desc"> <p>Filters the uploads directory data.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-attachments-controller.php:</span> <a href="../classes/wp_rest_attachments_controller/edit_media_item">WP_REST_Attachments_Controller::edit_media_item()</a> </td> <td class="related-desc"> <p>Applies edits to a media item and creates a new attachment record.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-debug-data.php:</span> <a href="../classes/wp_debug_data/debug_data">WP_Debug_Data::debug_data()</a> </td> <td class="related-desc"> <p>Static function for generating site debug data when required.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_privacy_exports_dir">wp_privacy_exports_dir()</a> </td> <td class="related-desc"> <p>Returns the directory used to store personal data export files.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_privacy_exports_url">wp_privacy_exports_url()</a> </td> <td class="related-desc"> <p>Returns the URL of the directory used to store personal data export files.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_get_upload_dir">wp_get_upload_dir()</a> </td> <td class="related-desc"> <p>Retrieves uploads directory information.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/file.php:</span> <a href="_wp_handle_upload">_wp_handle_upload()</a> </td> <td class="related-desc"> <p>Handles PHP uploads in WordPress.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-file-upload-upgrader.php:</span> <a href="../classes/file_upload_upgrader/__construct">File_Upload_Upgrader::__construct()</a> </td> <td class="related-desc"> <p>Construct the upgrader for a form.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/template.php:</span> <a href="wp_import_upload_form">wp_import_upload_form()</a> </td> <td class="related-desc"> <p>Outputs the form used by the importers to accept the data to be imported</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_upload_bits">wp_upload_bits()</a> </td> <td class="related-desc"> <p>Create a file in the upload folder with given content.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="get_space_used">get_space_used()</a> </td> <td class="related-desc"> <p>Returns the space used by the current site.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.0.0/" alt="WordPress 2.0.0">2.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_upload_dir" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_upload_dir</a>
+  </p>
+</div>

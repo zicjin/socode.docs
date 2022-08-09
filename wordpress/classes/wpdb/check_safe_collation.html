@@ -1,0 +1,56 @@
+<h1>wpdb::check_safe_collation( string $query )</h1>  <section> <p>Checks if the query is accessing a collation considered safe on the current version of MySQL.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$query</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The query to check.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> True if the collation is safe, false if it isn't.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/wp-db.php/">wp-includes/wp-db.php</a> </p> <pre data-language="php">protected function check_safe_collation( $query ) {
+		if ( $this-&gt;checking_collation ) {
+			return true;
+		}
+
+		// We don't need to check the collation for queries that don't read data.
+		$query = ltrim( $query, "\r\n\t (" );
+		if ( preg_match( '/^(?:SHOW|DESCRIBE|DESC|EXPLAIN|CREATE)\s/i', $query ) ) {
+			return true;
+		}
+
+		// All-ASCII queries don't need extra checking.
+		if ( $this-&gt;check_ascii( $query ) ) {
+			return true;
+		}
+
+		$table = $this-&gt;get_table_from_query( $query );
+		if ( ! $table ) {
+			return false;
+		}
+
+		$this-&gt;checking_collation = true;
+		$collation                = $this-&gt;get_table_charset( $table );
+		$this-&gt;checking_collation = false;
+
+		// Tables with no collation, or latin1 only, don't need extra checking.
+		if ( false === $collation || 'latin1' === $collation ) {
+			return true;
+		}
+
+		$table = strtolower( $table );
+		if ( empty( $this-&gt;col_meta[ $table ] ) ) {
+			return false;
+		}
+
+		// If any of the columns don't have one of these collations, it needs more sanity checking.
+		foreach ( $this-&gt;col_meta[ $table ] as $col ) {
+			if ( empty( $col-&gt;Collation ) ) {
+				continue;
+			}
+
+			if ( ! in_array( $col-&gt;Collation, array( 'utf8_general_ci', 'utf8_bin', 'utf8mb4_general_ci', 'utf8mb4_bin' ), true ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="get_table_from_query">wpdb::get_table_from_query()</a> </td> <td class="related-desc"> <p>Finds the first table name referenced in a query.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="check_ascii">wpdb::check_ascii()</a> </td> <td class="related-desc"> <p>Checks if a string is ASCII.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="get_table_charset">wpdb::get_table_charset()</a> </td> <td class="related-desc"> <p>Retrieves the character set for the given table.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="get_var">wpdb::get_var()</a> </td> <td class="related-desc"> <p>Retrieves one variable from the database.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="get_row">wpdb::get_row()</a> </td> <td class="related-desc"> <p>Retrieves one row from the database.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="get_col">wpdb::get_col()</a> </td> <td class="related-desc"> <p>Retrieves one column from the database.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="get_results">wpdb::get_results()</a> </td> <td class="related-desc"> <p>Retrieves an entire SQL result set from the database (i.e., many rows).</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.2.0/" alt="WordPress 4.2.0">4.2.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wpdb/check_safe_collation" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wpdb/check_safe_collation</a>
+  </p>
+</div>

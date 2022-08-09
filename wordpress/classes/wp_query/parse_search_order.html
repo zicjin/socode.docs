@@ -1,0 +1,54 @@
+<h1>WP_Query::parse_search_order( array $q )</h1>  <section> <p>Generates SQL for the ORDER BY condition based on passed search terms.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$q</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Query variables.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> ORDER BY clause.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-query.php/">wp-includes/class-wp-query.php</a> </p> <pre data-language="php">protected function parse_search_order( &amp;$q ) {
+		global $wpdb;
+
+		if ( $q['search_terms_count'] &gt; 1 ) {
+			$num_terms = count( $q['search_orderby_title'] );
+
+			// If the search terms contain negative queries, don't bother ordering by sentence matches.
+			$like = '';
+			if ( ! preg_match( '/(?:\s|^)\-/', $q['s'] ) ) {
+				$like = '%' . $wpdb-&gt;esc_like( $q['s'] ) . '%';
+			}
+
+			$search_orderby = '';
+
+			// Sentence match in 'post_title'.
+			if ( $like ) {
+				$search_orderby .= $wpdb-&gt;prepare( "WHEN {$wpdb-&gt;posts}.post_title LIKE %s THEN 1 ", $like );
+			}
+
+			// Sanity limit, sort as sentence when more than 6 terms
+			// (few searches are longer than 6 terms and most titles are not).
+			if ( $num_terms &lt; 7 ) {
+				// All words in title.
+				$search_orderby .= 'WHEN ' . implode( ' AND ', $q['search_orderby_title'] ) . ' THEN 2 ';
+				// Any word in title, not needed when $num_terms == 1.
+				if ( $num_terms &gt; 1 ) {
+					$search_orderby .= 'WHEN ' . implode( ' OR ', $q['search_orderby_title'] ) . ' THEN 3 ';
+				}
+			}
+
+			// Sentence match in 'post_content' and 'post_excerpt'.
+			if ( $like ) {
+				$search_orderby .= $wpdb-&gt;prepare( "WHEN {$wpdb-&gt;posts}.post_excerpt LIKE %s THEN 4 ", $like );
+				$search_orderby .= $wpdb-&gt;prepare( "WHEN {$wpdb-&gt;posts}.post_content LIKE %s THEN 5 ", $like );
+			}
+
+			if ( $search_orderby ) {
+				$search_orderby = '(CASE ' . $search_orderby . 'ELSE 6 END)';
+			}
+		} else {
+			// Single word or sentence search.
+			$search_orderby = reset( $q['search_orderby_title'] ) . ' DESC';
+		}
+
+		return $search_orderby;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../wpdb/esc_like">wpdb::esc_like()</a> </td> <td class="related-desc"> <p>First half of escaping for <code>LIKE</code> special characters <code>%</code> and <code>_</code> before preparing for SQL.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../wpdb/prepare">wpdb::prepare()</a> </td> <td class="related-desc"> <p>Prepares a SQL query for safe execution.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-query.php:</span> <a href="get_posts">WP_Query::get_posts()</a> </td> <td class="related-desc"> <p>Retrieves an array of posts based on query variables.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.7.0/" alt="WordPress 3.7.0">3.7.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_query/parse_search_order" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_query/parse_search_order</a>
+  </p>
+</div>

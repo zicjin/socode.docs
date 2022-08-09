@@ -1,0 +1,75 @@
+<h1>wp_update_https_detection_errors()</h1> <div class="callout callout-alert">
+<p> This function’s access is marked private. This means it is not intended for use by plugin or theme developers, only in other core functions. It is listed here for completeness.</p> </div>  <section> <p>Runs a remote HTTPS request to detect whether HTTPS supported, and stores potential errors.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>This internal function is called by a regular Cron hook to ensure HTTPS support is detected and maintained.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/https-detection.php/">wp-includes/https-detection.php</a> </p> <pre data-language="php">function wp_update_https_detection_errors() {
+	/**
+	 * Short-circuits the process of detecting errors related to HTTPS support.
+	 *
+	 * Returning a `WP_Error` from the filter will effectively short-circuit the default logic of trying a remote
+	 * request to the site over HTTPS, storing the errors array from the returned `WP_Error` instead.
+	 *
+	 * @since 5.7.0
+	 *
+	 * @param null|WP_Error $pre Error object to short-circuit detection,
+	 *                           or null to continue with the default behavior.
+	 */
+	$support_errors = apply_filters( 'pre_wp_update_https_detection_errors', null );
+	if ( is_wp_error( $support_errors ) ) {
+		update_option( 'https_detection_errors', $support_errors-&gt;errors );
+		return;
+	}
+
+	$support_errors = new WP_Error();
+
+	$response = wp_remote_request(
+		home_url( '/', 'https' ),
+		array(
+			'headers'   =&gt; array(
+				'Cache-Control' =&gt; 'no-cache',
+			),
+			'sslverify' =&gt; true,
+		)
+	);
+
+	if ( is_wp_error( $response ) ) {
+		$unverified_response = wp_remote_request(
+			home_url( '/', 'https' ),
+			array(
+				'headers'   =&gt; array(
+					'Cache-Control' =&gt; 'no-cache',
+				),
+				'sslverify' =&gt; false,
+			)
+		);
+
+		if ( is_wp_error( $unverified_response ) ) {
+			$support_errors-&gt;add(
+				'https_request_failed',
+				__( 'HTTPS request failed.' )
+			);
+		} else {
+			$support_errors-&gt;add(
+				'ssl_verification_failed',
+				__( 'SSL verification failed.' )
+			);
+		}
+
+		$response = $unverified_response;
+	}
+
+	if ( ! is_wp_error( $response ) ) {
+		if ( 200 !== wp_remote_retrieve_response_code( $response ) ) {
+			$support_errors-&gt;add( 'bad_response_code', wp_remote_retrieve_response_message( $response ) );
+		} elseif ( false === wp_is_local_html_output( wp_remote_retrieve_body( $response ) ) ) {
+			$support_errors-&gt;add( 'bad_response_source', __( 'It looks like the response did not come from this site.' ) );
+		}
+	}
+
+	update_option( 'https_detection_errors', $support_errors-&gt;errors );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/https-detection.php:</span> <a href="wp_is_local_html_output">wp_is_local_html_output()</a> </td> <td class="related-desc"> <p>Checks whether a given HTML string is likely an output from this WordPress site.</p> </td> </tr> <tr> <td> <span>wp-includes/https-detection.php:</span> <a href="../hooks/pre_wp_update_https_detection_errors">pre_wp_update_https_detection_errors</a> </td> <td class="related-desc"> <p>Short-circuits the process of detecting errors related to HTTPS support.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="home_url">home_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL for the current site where the front end is accessible.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_remote_request">wp_remote_request()</a> </td> <td class="related-desc"> <p>Performs an HTTP request and returns its response.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_remote_retrieve_response_code">wp_remote_retrieve_response_code()</a> </td> <td class="related-desc"> <p>Retrieve only the response code from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_remote_retrieve_response_message">wp_remote_retrieve_response_message()</a> </td> <td class="related-desc"> <p>Retrieve only the response message from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_remote_retrieve_body">wp_remote_retrieve_body()</a> </td> <td class="related-desc"> <p>Retrieve only the body from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="update_option">update_option()</a> </td> <td class="related-desc"> <p>Updates the value of an option that was already added.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../classes/wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/https-detection.php:</span> <a href="wp_is_https_supported">wp_is_https_supported()</a> </td> <td class="related-desc"> <p>Checks whether HTTPS is supported for the server and domain.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-site-health.php:</span> <a href="../classes/wp_site_health/get_test_https_status">WP_Site_Health::get_test_https_status()</a> </td> <td class="related-desc"> <p>Test if your site is serving content over HTTPS.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.7.0/" alt="WordPress 5.7.0">5.7.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_update_https_detection_errors" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_update_https_detection_errors</a>
+  </p>
+</div>

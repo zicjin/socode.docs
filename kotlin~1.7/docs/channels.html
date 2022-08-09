@@ -1,0 +1,361 @@
+<h1 data-toc="channels" id="channels.md">Channels</h1>
+<p id="8fdd0d41">Deferred values provide a convenient way to transfer a single value between coroutines. Channels provide a way to transfer a stream of values.</p>
+<section class="chapter"><h2 id="channel-basics" data-toc="channels#channel-basics">Channel basics</h2>
+<p id="2fd6ce">A <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.channels/-channel/index.html" id="9abd8ca4" data-external="true" rel="noopener noreferrer">Channel</a> is conceptually very similar to <code class="code ">BlockingQueue</code>. One key difference is that instead of a blocking <code class="code ">put</code> operation it has a suspending <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.channels/-send-channel/send.html" id="edf8b0e8" data-external="true" rel="noopener noreferrer">send</a>, and instead of a blocking <code class="code ">take</code> operation it has a suspending <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.channels/-receive-channel/receive.html" id="9d21d336" data-external="true" rel="noopener noreferrer">receive</a>.</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.*
+
+fun main() = runBlocking {
+//sampleStart
+    val channel = Channel&lt;Int&gt;()
+    launch {
+        // this might be heavy CPU-consuming computation or async logic, we'll just send five squares
+        for (x in 1..5) channel.send(x * x)
+    }
+    // here we print five received integers:
+    repeat(5) { println(channel.receive()) }
+    println("Done!")
+//sampleEnd
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="e872108e"><p id="9763fa61">You can get the full code <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-channel-01.kt" id="d1d68a4c" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="ff90b482">The output of this code is:</p>
+<pre class="code" data-language="plaintext">1
+4
+9
+16
+25
+Done!
+</pre></section><section class="chapter"><h2 id="closing-and-iteration-over-channels" data-toc="channels#closing-and-iteration-over-channels">Closing and iteration over channels</h2>
+<p id="68188488">Unlike a queue, a channel can be closed to indicate that no more elements are coming. On the receiver side it is convenient to use a regular <code class="code ">for</code> loop to receive elements from the channel.</p>
+<p id="ffbe6556">Conceptually, a <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.channels/-send-channel/close.html" id="1600aafb" data-external="true" rel="noopener noreferrer">close</a> is like sending a special close token to the channel. The iteration stops as soon as this close token is received, so there is a guarantee that all previously sent elements before the close are received:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.*
+
+fun main() = runBlocking {
+//sampleStart
+    val channel = Channel&lt;Int&gt;()
+    launch {
+        for (x in 1..5) channel.send(x * x)
+        channel.close() // we're done sending
+    }
+    // here we print received values using `for` loop (until the channel is closed)
+    for (y in channel) println(y)
+    println("Done!")
+//sampleEnd
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="8a58a4d"><p id="370f3a91">You can get the full code <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-channel-02.kt" id="5a64b80" data-external="true" rel="noopener noreferrer">here</a>.</p></aside></section><section class="chapter"><h2 id="building-channel-producers" data-toc="channels#building-channel-producers">Building channel producers</h2>
+<p id="289dfe60">The pattern where a coroutine is producing a sequence of elements is quite common. This is a part of <em id="d76fd8b1" class="">producer-consumer</em> pattern that is often found in concurrent code. You could abstract such a producer into a function that takes channel as its parameter, but this goes contrary to common sense that results must be returned from functions.</p>
+<p id="a7593dee">There is a convenient coroutine builder named <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.channels/produce.html" id="616227a2" data-external="true" rel="noopener noreferrer">produce</a> that makes it easy to do it right on producer side, and an extension function <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.channels/consume-each.html" id="276b30e3" data-external="true" rel="noopener noreferrer">consumeEach</a>, that replaces a <code class="code ">for</code> loop on the consumer side:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.*
+
+fun CoroutineScope.produceSquares(): ReceiveChannel&lt;Int&gt; = produce {
+    for (x in 1..5) send(x * x)
+}
+
+fun main() = runBlocking {
+//sampleStart
+    val squares = produceSquares()
+    squares.consumeEach { println(it) }
+    println("Done!")
+//sampleEnd
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="d2a9c33c"><p id="97d75ad1">You can get the full code <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-channel-03.kt" id="a4def8f0" data-external="true" rel="noopener noreferrer">here</a>.</p></aside></section><section class="chapter"><h2 id="pipelines" data-toc="channels#pipelines">Pipelines</h2>
+<p id="fb5c52ba">A pipeline is a pattern where one coroutine is producing, possibly infinite, stream of values:</p>
+<pre class="code" data-language="kotlin">fun CoroutineScope.produceNumbers() = produce&lt;Int&gt; {
+    var x = 1
+    while (true) send(x++) // infinite stream of integers starting from 1
+}
+</pre>
+<p id="bf13628f">And another coroutine or coroutines are consuming that stream, doing some processing, and producing some other results. In the example below, the numbers are just squared:</p>
+<pre class="code" data-language="kotlin">fun CoroutineScope.square(numbers: ReceiveChannel&lt;Int&gt;): ReceiveChannel&lt;Int&gt; = produce {
+    for (x in numbers) send(x * x)
+}
+</pre>
+<p id="2ff3ff37">The main code starts and connects the whole pipeline:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.*
+
+fun main() = runBlocking {
+//sampleStart
+    val numbers = produceNumbers() // produces integers from 1 and on
+    val squares = square(numbers) // squares integers
+    repeat(5) {
+        println(squares.receive()) // print first five
+    }
+    println("Done!") // we are done
+    coroutineContext.cancelChildren() // cancel children coroutines
+//sampleEnd
+}
+
+fun CoroutineScope.produceNumbers() = produce&lt;Int&gt; {
+    var x = 1
+    while (true) send(x++) // infinite stream of integers starting from 1
+}
+
+fun CoroutineScope.square(numbers: ReceiveChannel&lt;Int&gt;): ReceiveChannel&lt;Int&gt; = produce {
+    for (x in numbers) send(x * x)
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="4053d614"><p id="21050aa4">You can get the full code <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-channel-04.kt" id="1cea1444" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><aside data-type="note" class="prompt" data-title="" id="70094008"><p id="d759caf0">All functions that create coroutines are defined as extensions on <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-coroutine-scope/index.html" id="83b1010d" data-external="true" rel="noopener noreferrer">CoroutineScope</a>, so that we can rely on <a href="composing-suspending-functions#structured-concurrency-with-async" id="f25094e0">structured concurrency</a> to make sure that we don't have lingering global coroutines in our application.</p></aside></section><section class="chapter"><h2 id="prime-numbers-with-pipeline" data-toc="channels#prime-numbers-with-pipeline">Prime numbers with pipeline</h2>
+<p id="3c20615">Let's take pipelines to the extreme with an example that generates prime numbers using a pipeline of coroutines. We start with an infinite sequence of numbers.</p>
+<pre class="code" data-language="kotlin">fun CoroutineScope.numbersFrom(start: Int) = produce&lt;Int&gt; {
+    var x = start
+    while (true) send(x++) // infinite stream of integers from start
+}
+</pre>
+<p id="abc85220">The following pipeline stage filters an incoming stream of numbers, removing all the numbers that are divisible by the given prime number:</p>
+<pre class="code" data-language="kotlin">fun CoroutineScope.filter(numbers: ReceiveChannel&lt;Int&gt;, prime: Int) = produce&lt;Int&gt; {
+    for (x in numbers) if (x % prime != 0) send(x)
+}
+</pre>
+<p id="284cd49e">Now we build our pipeline by starting a stream of numbers from 2, taking a prime number from the current channel, and launching new pipeline stage for each prime number found:</p>
+<pre class="code" data-language="none">numbersFrom(2) -&gt; filter(2) -&gt; filter(3) -&gt; filter(5) -&gt; filter(7) ... 
+</pre>
+<p id="9bb41d2f">The following example prints the first ten prime numbers, running the whole pipeline in the context of the main thread. Since all the coroutines are launched in the scope of the main <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/run-blocking.html" id="c5de4413" data-external="true" rel="noopener noreferrer">runBlocking</a> coroutine we don't have to keep an explicit list of all the coroutines we have started. We use <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/cancel-children.html" id="118641a7" data-external="true" rel="noopener noreferrer">cancelChildren</a> extension function to cancel all the children coroutines after we have printed the first ten prime numbers.</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.*
+
+fun main() = runBlocking {
+//sampleStart
+    var cur = numbersFrom(2)
+    repeat(10) {
+        val prime = cur.receive()
+        println(prime)
+        cur = filter(cur, prime)
+    }
+    coroutineContext.cancelChildren() // cancel all children to let main finish
+//sampleEnd    
+}
+
+fun CoroutineScope.numbersFrom(start: Int) = produce&lt;Int&gt; {
+    var x = start
+    while (true) send(x++) // infinite stream of integers from start
+}
+
+fun CoroutineScope.filter(numbers: ReceiveChannel&lt;Int&gt;, prime: Int) = produce&lt;Int&gt; {
+    for (x in numbers) if (x % prime != 0) send(x)
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="a1f49ce1"><p id="56484f7b">You can get the full code <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-channel-05.kt" id="f47e4e4a" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="b94a2bf6">The output of this code is:</p>
+<pre class="code" data-language="plaintext">2
+3
+5
+7
+11
+13
+17
+19
+23
+29
+</pre>
+<p id="31e2a496">Note that you can build the same pipeline using <a href="../api/latest/jvm/stdlib/kotlin.sequences/iterator" id="26f31f16" data-external="true" rel="noopener noreferrer"><code class="code ">iterator</code></a> coroutine builder from the standard library. Replace <code class="code ">produce</code> with <code class="code ">iterator</code>, <code class="code ">send</code> with <code class="code ">yield</code>, <code class="code ">receive</code> with <code class="code ">next</code>, <code class="code ">ReceiveChannel</code> with <code class="code ">Iterator</code>, and get rid of the coroutine scope. You will not need <code class="code ">runBlocking</code> either. However, the benefit of a pipeline that uses channels as shown above is that it can actually use multiple CPU cores if you run it in <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-dispatchers/-default.html" id="c2992808" data-external="true" rel="noopener noreferrer">Dispatchers.Default</a> context.</p>
+<p id="19e316a4">Anyway, this is an extremely impractical way to find prime numbers. In practice, pipelines do involve some other suspending invocations (like asynchronous calls to remote services) and these pipelines cannot be built using <code class="code ">sequence</code>/<code class="code ">iterator</code>, because they do not allow arbitrary suspension, unlike <code class="code ">produce</code>, which is fully asynchronous.</p></section><section class="chapter"><h2 id="fan-out" data-toc="channels#fan-out">Fan-out</h2>
+<p id="a54af0c9">Multiple coroutines may receive from the same channel, distributing work between themselves. Let us start with a producer coroutine that is periodically producing integers (ten numbers per second):</p>
+<pre class="code" data-language="kotlin">fun CoroutineScope.produceNumbers() = produce&lt;Int&gt; {
+    var x = 1 // start from 1
+    while (true) {
+        send(x++) // produce next
+        delay(100) // wait 0.1s
+    }
+}
+</pre>
+<p id="e44ca168">Then we can have several processor coroutines. In this example, they just print their id and received number:</p>
+<pre class="code" data-language="kotlin">fun CoroutineScope.launchProcessor(id: Int, channel: ReceiveChannel&lt;Int&gt;) = launch {
+    for (msg in channel) {
+        println("Processor #$id received $msg")
+    }    
+}
+</pre>
+<p id="59ee13cd">Now let us launch five processors and let them work for almost a second. See what happens:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.*
+
+fun main() = runBlocking&lt;Unit&gt; {
+//sampleStart
+    val producer = produceNumbers()
+    repeat(5) { launchProcessor(it, producer) }
+    delay(950)
+    producer.cancel() // cancel producer coroutine and thus kill them all
+//sampleEnd
+}
+
+fun CoroutineScope.produceNumbers() = produce&lt;Int&gt; {
+    var x = 1 // start from 1
+    while (true) {
+        send(x++) // produce next
+        delay(100) // wait 0.1s
+    }
+}
+
+fun CoroutineScope.launchProcessor(id: Int, channel: ReceiveChannel&lt;Int&gt;) = launch {
+    for (msg in channel) {
+        println("Processor #$id received $msg")
+    }    
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="8a9809e5"><p id="6dbc924e">You can get the full code <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-channel-06.kt" id="d7e1c1cb" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="c67dd2ce">The output will be similar to the the following one, albeit the processor ids that receive each specific integer may be different:</p>
+<pre class="code" data-language="plaintext">Processor #2 received 1
+Processor #4 received 2
+Processor #0 received 3
+Processor #1 received 4
+Processor #3 received 5
+Processor #2 received 6
+Processor #4 received 7
+Processor #0 received 8
+Processor #1 received 9
+Processor #3 received 10
+</pre>
+<p id="68165fe5">Note that cancelling a producer coroutine closes its channel, thus eventually terminating iteration over the channel that processor coroutines are doing.</p>
+<p id="79355d80">Also, pay attention to how we explicitly iterate over channel with <code class="code ">for</code> loop to perform fan-out in <code class="code ">launchProcessor</code> code. Unlike <code class="code ">consumeEach</code>, this <code class="code ">for</code> loop pattern is perfectly safe to use from multiple coroutines. If one of the processor coroutines fails, then others would still be processing the channel, while a processor that is written via <code class="code ">consumeEach</code> always consumes (cancels) the underlying channel on its normal or abnormal completion.</p></section><section class="chapter"><h2 id="fan-in" data-toc="channels#fan-in">Fan-in</h2>
+<p id="4bd15f69">Multiple coroutines may send to the same channel. For example, let us have a channel of strings, and a suspending function that repeatedly sends a specified string to this channel with a specified delay:</p>
+<pre class="code" data-language="kotlin">suspend fun sendString(channel: SendChannel&lt;String&gt;, s: String, time: Long) {
+    while (true) {
+        delay(time)
+        channel.send(s)
+    }
+}
+</pre>
+<p id="e1f8f093">Now, let us see what happens if we launch a couple of coroutines sending strings (in this example we launch them in the context of the main thread as main coroutine's children):</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.*
+
+fun main() = runBlocking {
+//sampleStart
+    val channel = Channel&lt;String&gt;()
+    launch { sendString(channel, "foo", 200L) }
+    launch { sendString(channel, "BAR!", 500L) }
+    repeat(6) { // receive first six
+        println(channel.receive())
+    }
+    coroutineContext.cancelChildren() // cancel all children to let main finish
+//sampleEnd
+}
+
+suspend fun sendString(channel: SendChannel&lt;String&gt;, s: String, time: Long) {
+    while (true) {
+        delay(time)
+        channel.send(s)
+    }
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="1db64695"><p id="6bac5d32">You can get the full code <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-channel-07.kt" id="87f59069" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="c48177a3">The output is:</p>
+<pre class="code" data-language="plaintext">foo
+foo
+BAR!
+foo
+foo
+BAR!
+</pre></section><section class="chapter"><h2 id="buffered-channels" data-toc="channels#buffered-channels">Buffered channels</h2>
+<p id="17adfa6a">The channels shown so far had no buffer. Unbuffered channels transfer elements when sender and receiver meet each other (aka rendezvous). If send is invoked first, then it is suspended until receive is invoked, if receive is invoked first, it is suspended until send is invoked.</p>
+<p id="36fb80b7">Both <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.channels/-channel.html" id="b32c8457" data-external="true" rel="noopener noreferrer">Channel()</a> factory function and <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.channels/produce.html" id="7d175ec6" data-external="true" rel="noopener noreferrer">produce</a> builder take an optional <code class="code ">capacity</code> parameter to specify <em id="b0fa7eb8" class="">buffer size</em>. Buffer allows senders to send multiple elements before suspending, similar to the <code class="code ">BlockingQueue</code> with a specified capacity, which blocks when buffer is full.</p>
+<p id="281fa557">Take a look at the behavior of the following code:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.*
+
+fun main() = runBlocking&lt;Unit&gt; {
+//sampleStart
+    val channel = Channel&lt;Int&gt;(4) // create buffered channel
+    val sender = launch { // launch sender coroutine
+        repeat(10) {
+            println("Sending $it") // print before sending each element
+            channel.send(it) // will suspend when buffer is full
+        }
+    }
+    // don't receive anything... just wait....
+    delay(1000)
+    sender.cancel() // cancel sender coroutine
+//sampleEnd    
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="b80dfdfa"><p id="857b65de">You can get the full code <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-channel-08.kt" id="1fe0386b" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="fd4a69e5">It prints "sending" <em id="5c48fe8e" class="">five</em> times using a buffered channel with capacity of <em id="b6704b3e" class="">four</em>:</p>
+<pre class="code" data-language="plaintext">Sending 0
+Sending 1
+Sending 2
+Sending 3
+Sending 4
+</pre>
+<p id="4786e177">The first four elements are added to the buffer and the sender suspends when trying to send the fifth one.</p></section><section class="chapter"><h2 id="channels-are-fair" data-toc="channels#channels-are-fair">Channels are fair</h2>
+<p id="5a362cf2">Send and receive operations to channels are <em id="1290af39" class="">fair</em> with respect to the order of their invocation from multiple coroutines. They are served in first-in first-out order, e.g. the first coroutine to invoke <code class="code ">receive</code> gets the element. In the following example two coroutines "ping" and "pong" are receiving the "ball" object from the shared "table" channel.</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.*
+
+//sampleStart
+data class Ball(var hits: Int)
+
+fun main() = runBlocking {
+    val table = Channel&lt;Ball&gt;() // a shared table
+    launch { player("ping", table) }
+    launch { player("pong", table) }
+    table.send(Ball(0)) // serve the ball
+    delay(1000) // delay 1 second
+    coroutineContext.cancelChildren() // game over, cancel them
+}
+
+suspend fun player(name: String, table: Channel&lt;Ball&gt;) {
+    for (ball in table) { // receive the ball in a loop
+        ball.hits++
+        println("$name $ball")
+        delay(300) // wait a bit
+        table.send(ball) // send the ball back
+    }
+}
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="45fc3829"><p id="61d365c8">You can get the full code <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-channel-09.kt" id="b711bc42" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="6c8e6ea3">The "ping" coroutine is started first, so it is the first one to receive the ball. Even though "ping" coroutine immediately starts receiving the ball again after sending it back to the table, the ball gets received by the "pong" coroutine, because it was already waiting for it:</p>
+<pre class="code" data-language="plaintext">ping Ball(hits=1)
+pong Ball(hits=2)
+ping Ball(hits=3)
+pong Ball(hits=4)
+</pre>
+<p id="c44649a0">Note that sometimes channels may produce executions that look unfair due to the nature of the executor that is being used. See <a href="https://github.com/Kotlin/kotlinx.coroutines/issues/111" id="c714aac5" data-external="true" rel="noopener noreferrer">this issue</a> for details.</p></section><section class="chapter"><h2 id="ticker-channels" data-toc="channels#ticker-channels">Ticker channels</h2>
+<p id="3d90e826">Ticker channel is a special rendezvous channel that produces <code class="code ">Unit</code> every time given delay passes since last consumption from this channel. Though it may seem to be useless standalone, it is a useful building block to create complex time-based <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.channels/produce.html" id="8ea56694" data-external="true" rel="noopener noreferrer">produce</a> pipelines and operators that do windowing and other time-dependent processing. Ticker channel can be used in <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.selects/select.html" id="1d137446" data-external="true" rel="noopener noreferrer">select</a> to perform "on tick" action.</p>
+<p id="d2620d11">To create such channel use a factory method <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.channels/ticker.html" id="6d1eb309" data-external="true" rel="noopener noreferrer">ticker</a>. To indicate that no further elements are needed use <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.channels/-receive-channel/cancel.html" id="fc49e00e" data-external="true" rel="noopener noreferrer">ReceiveChannel.cancel</a> method on it.</p>
+<p id="5154a69">Now let's see how it works in practice:</p>
+<pre class="code" data-language="kotlin">import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.*
+
+//sampleStart
+fun main() = runBlocking&lt;Unit&gt; {
+    val tickerChannel = ticker(delayMillis = 100, initialDelayMillis = 0) // create ticker channel
+    var nextElement = withTimeoutOrNull(1) { tickerChannel.receive() }
+    println("Initial element is available immediately: $nextElement") // no initial delay
+
+    nextElement = withTimeoutOrNull(50) { tickerChannel.receive() } // all subsequent elements have 100ms delay
+    println("Next element is not ready in 50 ms: $nextElement")
+
+    nextElement = withTimeoutOrNull(60) { tickerChannel.receive() }
+    println("Next element is ready in 100 ms: $nextElement")
+
+    // Emulate large consumption delays
+    println("Consumer pauses for 150ms")
+    delay(150)
+    // Next element is available immediately
+    nextElement = withTimeoutOrNull(1) { tickerChannel.receive() }
+    println("Next element is available immediately after large consumer delay: $nextElement")
+    // Note that the pause between `receive` calls is taken into account and next element arrives faster
+    nextElement = withTimeoutOrNull(60) { tickerChannel.receive() } 
+    println("Next element is ready in 50ms after consumer pause in 150ms: $nextElement")
+
+    tickerChannel.cancel() // indicate that no more elements are needed
+}
+//sampleEnd
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="fcd2df00"><p id="5cedde13">You can get the full code <a href="https://github.com/Kotlin/kotlinx.coroutines/blob/master/kotlinx-coroutines-core/jvm/test/guide/example-channel-10.kt" id="8677371b" data-external="true" rel="noopener noreferrer">here</a>.</p></aside><p id="27d71030">It prints following lines:</p>
+<pre class="code" data-language="plaintext">Initial element is available immediately: kotlin.Unit
+Next element is not ready in 50 ms: null
+Next element is ready in 100 ms: kotlin.Unit
+Consumer pauses for 150ms
+Next element is available immediately after large consumer delay: kotlin.Unit
+Next element is ready in 50ms after consumer pause in 150ms: kotlin.Unit
+</pre>
+<p id="8f0e3219">Note that <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.channels/ticker.html" id="a1b83666" data-external="true" rel="noopener noreferrer">ticker</a> is aware of possible consumer pauses and, by default, adjusts next produced element delay if a pause occurs, trying to maintain a fixed rate of produced elements.</p>
+<p id="84df6370">Optionally, a <code class="code ">mode</code> parameter equal to <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.channels/-ticker-mode/-f-i-x-e-d_-d-e-l-a-y/index.html" id="9084693a" data-external="true" rel="noopener noreferrer">TickerMode.FIXED_DELAY</a> can be specified to maintain a fixed delay between elements.</p></section><div class="last-modified"> Last modified: 02 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="flow">Asynchronous Flow</a> <a class="navigation-links__next" href="exception-handling">Coroutine exceptions handling</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/channels.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/channels.html</a>
+  </p>
+</div>

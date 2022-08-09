@@ -1,0 +1,77 @@
+<h1>wp_dashboard_recent_drafts( WP_Post[]|false $drafts = false )</h1>  <section> <p>Show recent drafts of the user on the dashboard.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$drafts</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Post[]"><a href="../classes/wp_post">WP_Post</a>[]</span>|<span class="false">false</span>)</span> <span class="required">(Optional)</span> <span class="description"> Array of posts to display. </span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/dashboard.php/">wp-admin/includes/dashboard.php</a> </p> <pre data-language="php">function wp_dashboard_recent_drafts( $drafts = false ) {
+	if ( ! $drafts ) {
+		$query_args = array(
+			'post_type'      =&gt; 'post',
+			'post_status'    =&gt; 'draft',
+			'author'         =&gt; get_current_user_id(),
+			'posts_per_page' =&gt; 4,
+			'orderby'        =&gt; 'modified',
+			'order'          =&gt; 'DESC',
+		);
+
+		/**
+		 * Filters the post query arguments for the 'Recent Drafts' dashboard widget.
+		 *
+		 * @since 4.4.0
+		 *
+		 * @param array $query_args The query arguments for the 'Recent Drafts' dashboard widget.
+		 */
+		$query_args = apply_filters( 'dashboard_recent_drafts_query_args', $query_args );
+
+		$drafts = get_posts( $query_args );
+		if ( ! $drafts ) {
+			return;
+		}
+	}
+
+	echo '&lt;div class="drafts"&gt;';
+
+	if ( count( $drafts ) &gt; 3 ) {
+		printf(
+			'&lt;p class="view-all"&gt;&lt;a href="%s"&gt;%s&lt;/a&gt;&lt;/p&gt;' . "\n",
+			esc_url( admin_url( 'edit.php?post_status=draft' ) ),
+			__( 'View all drafts' )
+		);
+	}
+
+	echo '&lt;h2 class="hide-if-no-js"&gt;' . __( 'Your Recent Drafts' ) . "&lt;/h2&gt;\n";
+	echo '&lt;ul&gt;';
+
+	/* translators: Maximum number of words used in a preview of a draft on the dashboard. */
+	$draft_length = (int) _x( '10', 'draft_length' );
+
+	$drafts = array_slice( $drafts, 0, 3 );
+	foreach ( $drafts as $draft ) {
+		$url   = get_edit_post_link( $draft-&gt;ID );
+		$title = _draft_or_post_title( $draft-&gt;ID );
+
+		echo "&lt;li&gt;\n";
+		printf(
+			'&lt;div class="draft-title"&gt;&lt;a href="%s" aria-label="%s"&gt;%s&lt;/a&gt;&lt;time datetime="%s"&gt;%s&lt;/time&gt;&lt;/div&gt;',
+			esc_url( $url ),
+			/* translators: %s: Post title. */
+			esc_attr( sprintf( __( 'Edit &amp;#8220;%s&amp;#8221;' ), $title ) ),
+			esc_html( $title ),
+			get_the_time( 'c', $draft ),
+			get_the_time( __( 'F j, Y' ), $draft )
+		);
+
+		$the_content = wp_trim_words( $draft-&gt;post_content, $draft_length );
+
+		if ( $the_content ) {
+			echo '&lt;p&gt;' . $the_content . '&lt;/p&gt;';
+		}
+		echo "&lt;/li&gt;\n";
+	}
+
+	echo "&lt;/ul&gt;\n";
+	echo '&lt;/div&gt;';
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/dashboard.php:</span> <a href="../hooks/dashboard_recent_drafts_query_args">dashboard_recent_drafts_query_args</a> </td> <td class="related-desc"> <p>Filters the post query arguments for the ‘Recent Drafts’ dashboard widget.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/template.php:</span> <a href="_draft_or_post_title">_draft_or_post_title()</a> </td> <td class="related-desc"> <p>Gets the post title.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="_x">_x()</a> </td> <td class="related-desc"> <p>Retrieve translated string with gettext context.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_html">esc_html()</a> </td> <td class="related-desc"> <p>Escaping for HTML blocks.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_trim_words">wp_trim_words()</a> </td> <td class="related-desc"> <p>Trims text to a certain number of words.</p> </td> </tr> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="get_the_time">get_the_time()</a> </td> <td class="related-desc"> <p>Retrieve the time at which the post was written.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="admin_url">admin_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the admin area for the current site.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="get_edit_post_link">get_edit_post_link()</a> </td> <td class="related-desc"> <p>Retrieves the edit post link for post.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="get_current_user_id">get_current_user_id()</a> </td> <td class="related-desc"> <p>Gets the current user’s ID.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_posts">get_posts()</a> </td> <td class="related-desc"> <p>Retrieves an array of the latest posts, or posts matching the given criteria.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/dashboard.php:</span> <a href="wp_dashboard_quick_press">wp_dashboard_quick_press()</a> </td> <td class="related-desc"> <p>The Quick Draft widget display and creation of drafts.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.7.0/" alt="WordPress 2.7.0">2.7.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_dashboard_recent_drafts" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_dashboard_recent_drafts</a>
+  </p>
+</div>

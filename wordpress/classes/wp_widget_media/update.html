@@ -1,0 +1,46 @@
+<h1>WP_Widget_Media::update( array $new_instance, array $old_instance )</h1>  <section> <p>Sanitizes the widget form values as they are saved.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <h3 id="see-also">See also</h3> <ul> <li><a href="../wp_widget/update">WP_Widget::update()</a></li> <li><a href="../wp_rest_request/has_valid_params">WP_REST_Request::has_valid_params()</a></li> <li><a href="../wp_rest_request/sanitize_params">WP_REST_Request::sanitize_params()</a></li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$new_instance</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Values just sent to be saved.</span> </p> </dd> <dt>$old_instance</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Previously saved values from database.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> Updated safe values to be saved.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/widgets/class-wp-widget-media.php/">wp-includes/widgets/class-wp-widget-media.php</a> </p> <pre data-language="php">public function update( $new_instance, $old_instance ) {
+
+		$schema = $this-&gt;get_instance_schema();
+		foreach ( $schema as $field =&gt; $field_schema ) {
+			if ( ! array_key_exists( $field, $new_instance ) ) {
+				continue;
+			}
+			$value = $new_instance[ $field ];
+
+			/*
+			 * Workaround for rest_validate_value_from_schema() due to the fact that
+			 * rest_is_boolean( '' ) === false, while rest_is_boolean( '1' ) is true.
+			 */
+			if ( 'boolean' === $field_schema['type'] &amp;&amp; '' === $value ) {
+				$value = false;
+			}
+
+			if ( true !== rest_validate_value_from_schema( $value, $field_schema, $field ) ) {
+				continue;
+			}
+
+			$value = rest_sanitize_value_from_schema( $value, $field_schema );
+
+			// @codeCoverageIgnoreStart
+			if ( is_wp_error( $value ) ) {
+				continue; // Handle case when rest_sanitize_value_from_schema() ever returns WP_Error as its phpdoc @return tag indicates.
+			}
+
+			// @codeCoverageIgnoreEnd
+			if ( isset( $field_schema['sanitize_callback'] ) ) {
+				$value = call_user_func( $field_schema['sanitize_callback'], $value );
+			}
+			if ( is_wp_error( $value ) ) {
+				continue;
+			}
+			$old_instance[ $field ] = $value;
+		}
+
+		return $old_instance;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/widgets/class-wp-widget-media.php:</span> <a href="get_instance_schema">WP_Widget_Media::get_instance_schema()</a> </td> <td class="related-desc"> <p>Get schema for properties of a widget instance (item).</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="../../functions/rest_sanitize_value_from_schema">rest_sanitize_value_from_schema()</a> </td> <td class="related-desc"> <p>Sanitize a value based on a schema.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="../../functions/rest_validate_value_from_schema">rest_validate_value_from_schema()</a> </td> <td class="related-desc"> <p>Validate a value based on a schema.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.9.0/" alt="WordPress 5.9.0">5.9.0</a></td> <td><span class="since-description">Renamed <code>$instance</code> to <code>$old_instance</code> to match parent class for PHP 8 named parameter support.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.8.0/" alt="WordPress 4.8.0">4.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_widget_media/update" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_widget_media/update</a>
+  </p>
+</div>

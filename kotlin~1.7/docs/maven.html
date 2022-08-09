@@ -1,0 +1,335 @@
+<h1 data-toc="maven" id="maven.md">Maven</h1>
+<section class="chapter"><h2 id="plugin-and-versions" data-toc="maven#plugin-and-versions">Plugin and versions</h2>
+<p id="8db1091e">The <em id="57d0d442" class="">kotlin-maven-plugin</em> compiles Kotlin sources and modules. Currently, only Maven v3 is supported.</p>
+<p id="fa75ad69">Define the version of Kotlin you want to use via a <em id="38c2fa4b" class="">kotlin.version</em> property:</p>
+<pre class="code" data-language="markup">&lt;properties&gt;
+    &lt;kotlin.version&gt;1.7.10&lt;/kotlin.version&gt;
+&lt;/properties&gt;
+</pre></section><section class="chapter"><h2 id="dependencies" data-toc="maven#dependencies">Dependencies</h2>
+<p id="b8d046e6">Kotlin has an extensive standard library that can be used in your applications. To use the standard library in your project, add the following dependency in the pom file:</p>
+<pre class="code" data-language="markup">&lt;dependencies&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;org.jetbrains.kotlin&lt;/groupId&gt;
+        &lt;artifactId&gt;kotlin-stdlib&lt;/artifactId&gt;
+        &lt;version&gt;${kotlin.version}&lt;/version&gt;
+    &lt;/dependency&gt;
+&lt;/dependencies&gt;
+</pre>
+<p id="4758eec2">If you're targeting JDK 7 or JDK 8, you can use extended versions of the Kotlin standard library. They contain additional extension functions for APIs added in new JDK versions. Instead of <code class="code ">kotlin-stdlib</code>, use <code class="code ">kotlin-stdlib-jdk7</code> or <code class="code ">kotlin-stdlib-jdk8</code>, depending on your JDK version.</p>
+<aside data-type="note" class="prompt" data-title="" id="7222ded6"><p id="b5f36ba5">For Kotlin versions older than 1.2, use <code class="code ">kotlin-stdlib-jre7</code> and <code class="code ">kotlin-stdlib-jre8</code>.</p></aside><p id="84dbec15">If your project uses <a href="../api/latest/jvm/stdlib/kotlin.reflect.full/index" id="9dcea70c" data-external="true" rel="noopener noreferrer">Kotlin reflection</a> or testing facilities, you need to add the corresponding dependencies as well. The artifact IDs are <code class="code ">kotlin-reflect</code> for the reflection library, and <code class="code ">kotlin-test</code> and <code class="code ">kotlin-test-junit</code> for the testing libraries.</p></section><section class="chapter"><h2 id="compile-kotlin-only-source-code" data-toc="maven#compile-kotlin-only-source-code">Compile Kotlin-only source code</h2>
+<p id="3f91fbfc">To compile source code, specify the source directories in the <code class="code ">&lt;build&gt;</code> tag:</p>
+<pre class="code" data-language="markup">&lt;build&gt;
+    &lt;sourceDirectory&gt;${project.basedir}/src/main/kotlin&lt;/sourceDirectory&gt;
+    &lt;testSourceDirectory&gt;${project.basedir}/src/test/kotlin&lt;/testSourceDirectory&gt;
+&lt;/build&gt;
+</pre>
+<p id="fe6a62db">The Kotlin Maven Plugin needs to be referenced to compile the sources:</p>
+<pre class="code" data-language="markup">&lt;build&gt;
+    &lt;plugins&gt;
+        &lt;plugin&gt;
+            &lt;groupId&gt;org.jetbrains.kotlin&lt;/groupId&gt;
+            &lt;artifactId&gt;kotlin-maven-plugin&lt;/artifactId&gt;
+            &lt;version&gt;${kotlin.version}&lt;/version&gt;
+
+            &lt;executions&gt;
+                &lt;execution&gt;
+                    &lt;id&gt;compile&lt;/id&gt;
+                    &lt;goals&gt;
+                        &lt;goal&gt;compile&lt;/goal&gt;
+                    &lt;/goals&gt;
+                &lt;/execution&gt;
+
+                &lt;execution&gt;
+                    &lt;id&gt;test-compile&lt;/id&gt;
+                    &lt;goals&gt;
+                        &lt;goal&gt;test-compile&lt;/goal&gt;
+                    &lt;/goals&gt;
+                &lt;/execution&gt;
+            &lt;/executions&gt;
+        &lt;/plugin&gt;
+    &lt;/plugins&gt;
+&lt;/build&gt;
+</pre></section><section class="chapter"><h2 id="compile-kotlin-and-java-sources" data-toc="maven#compile-kotlin-and-java-sources">Compile Kotlin and Java sources</h2>
+<p id="4feca232">To compile projects that include Kotlin and Java source code, invoke the Kotlin compiler before the Java compiler. In maven terms that means that <code class="code ">kotlin-maven-plugin</code> should be run before <code class="code ">maven-compiler-plugin</code> using the following method, making sure that the <code class="code ">kotlin</code> plugin comes before the <code class="code ">maven-compiler-plugin</code> in your <code class="code ">pom.xml</code> file:</p>
+<pre class="code" data-language="markup">&lt;build&gt;
+    &lt;plugins&gt;
+        &lt;plugin&gt;
+            &lt;groupId&gt;org.jetbrains.kotlin&lt;/groupId&gt;
+            &lt;artifactId&gt;kotlin-maven-plugin&lt;/artifactId&gt;
+            &lt;version&gt;${kotlin.version}&lt;/version&gt;
+            &lt;executions&gt;
+                &lt;execution&gt;
+                    &lt;id&gt;compile&lt;/id&gt;
+                    &lt;goals&gt;
+                        &lt;goal&gt;compile&lt;/goal&gt;
+                    &lt;/goals&gt;
+                    &lt;configuration&gt;
+                        &lt;sourceDirs&gt;
+                            &lt;sourceDir&gt;${project.basedir}/src/main/kotlin&lt;/sourceDir&gt;
+                            &lt;sourceDir&gt;${project.basedir}/src/main/java&lt;/sourceDir&gt;
+                        &lt;/sourceDirs&gt;
+                    &lt;/configuration&gt;
+                &lt;/execution&gt;
+                &lt;execution&gt;
+                    &lt;id&gt;test-compile&lt;/id&gt;
+                    &lt;goals&gt; &lt;goal&gt;test-compile&lt;/goal&gt; &lt;/goals&gt;
+                    &lt;configuration&gt;
+                        &lt;sourceDirs&gt;
+                            &lt;sourceDir&gt;${project.basedir}/src/test/kotlin&lt;/sourceDir&gt;
+                            &lt;sourceDir&gt;${project.basedir}/src/test/java&lt;/sourceDir&gt;
+                        &lt;/sourceDirs&gt;
+                    &lt;/configuration&gt;
+                &lt;/execution&gt;
+            &lt;/executions&gt;
+        &lt;/plugin&gt;
+        &lt;plugin&gt;
+            &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+            &lt;artifactId&gt;maven-compiler-plugin&lt;/artifactId&gt;
+            &lt;version&gt;3.5.1&lt;/version&gt;
+            &lt;executions&gt;
+                &lt;!-- Replacing default-compile as it is treated specially by maven --&gt;
+                &lt;execution&gt;
+                    &lt;id&gt;default-compile&lt;/id&gt;
+                    &lt;phase&gt;none&lt;/phase&gt;
+                &lt;/execution&gt;
+                &lt;!-- Replacing default-testCompile as it is treated specially by maven --&gt;
+                &lt;execution&gt;
+                    &lt;id&gt;default-testCompile&lt;/id&gt;
+                    &lt;phase&gt;none&lt;/phase&gt;
+                &lt;/execution&gt;
+                &lt;execution&gt;
+                    &lt;id&gt;java-compile&lt;/id&gt;
+                    &lt;phase&gt;compile&lt;/phase&gt;
+                    &lt;goals&gt;
+                        &lt;goal&gt;compile&lt;/goal&gt;
+                    &lt;/goals&gt;
+                &lt;/execution&gt;
+                &lt;execution&gt;
+                    &lt;id&gt;java-test-compile&lt;/id&gt;
+                    &lt;phase&gt;test-compile&lt;/phase&gt;
+                    &lt;goals&gt;
+                        &lt;goal&gt;testCompile&lt;/goal&gt;
+                    &lt;/goals&gt;
+                &lt;/execution&gt;
+            &lt;/executions&gt;
+        &lt;/plugin&gt;
+    &lt;/plugins&gt;
+&lt;/build&gt;
+</pre></section><section class="chapter"><h2 id="incremental-compilation" data-toc="maven#incremental-compilation">Incremental compilation</h2>
+<p id="4120ec5e">To make your builds faster, you can enable incremental compilation for Maven by defining the <code class="code ">kotlin.compiler.incremental</code> property:</p>
+<pre class="code" data-language="markup">&lt;properties&gt;
+    &lt;kotlin.compiler.incremental&gt;true&lt;/kotlin.compiler.incremental&gt;
+&lt;/properties&gt;
+</pre>
+<p id="43d9333d">Alternatively, run your build with the <code class="code ">-Dkotlin.compiler.incremental=true</code> option.</p></section><section class="chapter"><h2 id="annotation-processing" data-toc="maven#annotation-processing">Annotation processing</h2>
+<p id="9c9242af">See the description of <a href="kapt" id="7d9af16b">Kotlin annotation processing tool</a> (<code class="code ">kapt</code>).</p></section><section class="chapter"><h2 id="jar-file" data-toc="maven#jar-file">Jar file</h2>
+<p id="f6118c6a">To create a small Jar file containing just the code from your module, include the following under <code class="code ">build-&gt;plugins</code> in your Maven pom.xml file, where <code class="code ">main.class</code> is defined as a property and points to the main Kotlin or Java class:</p>
+<pre class="code" data-language="markup">&lt;plugin&gt;
+    &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+    &lt;artifactId&gt;maven-jar-plugin&lt;/artifactId&gt;
+    &lt;version&gt;2.6&lt;/version&gt;
+    &lt;configuration&gt;
+        &lt;archive&gt;
+            &lt;manifest&gt;
+                &lt;addClasspath&gt;true&lt;/addClasspath&gt;
+                &lt;mainClass&gt;${main.class}&lt;/mainClass&gt;
+            &lt;/manifest&gt;
+        &lt;/archive&gt;
+    &lt;/configuration&gt;
+&lt;/plugin&gt;
+</pre></section><section class="chapter"><h2 id="self-contained-jar-file" data-toc="maven#self-contained-jar-file">Self-contained Jar file</h2>
+<p id="20af9253">To create a self-contained Jar file containing the code from your module along with dependencies, include the following under <code class="code ">build-&gt;plugins</code> in your Maven pom.xml file, where <code class="code ">main.class</code> is defined as a property and points to the main Kotlin or Java class:</p>
+<pre class="code" data-language="markup">&lt;plugin&gt;
+    &lt;groupId&gt;org.apache.maven.plugins&lt;/groupId&gt;
+    &lt;artifactId&gt;maven-assembly-plugin&lt;/artifactId&gt;
+    &lt;version&gt;2.6&lt;/version&gt;
+    &lt;executions&gt;
+        &lt;execution&gt;
+            &lt;id&gt;make-assembly&lt;/id&gt;
+            &lt;phase&gt;package&lt;/phase&gt;
+            &lt;goals&gt; &lt;goal&gt;single&lt;/goal&gt; &lt;/goals&gt;
+            &lt;configuration&gt;
+                &lt;archive&gt;
+                    &lt;manifest&gt;
+                        &lt;mainClass&gt;${main.class}&lt;/mainClass&gt;
+                    &lt;/manifest&gt;
+                &lt;/archive&gt;
+                &lt;descriptorRefs&gt;
+                    &lt;descriptorRef&gt;jar-with-dependencies&lt;/descriptorRef&gt;
+                &lt;/descriptorRefs&gt;
+            &lt;/configuration&gt;
+        &lt;/execution&gt;
+    &lt;/executions&gt;
+&lt;/plugin&gt;
+</pre>
+<p id="58f81df8">This self-contained jar file can be passed directly to a JRE to run your application:</p>
+<pre class="code" data-language="bash">java -jar target/mymodule-0.0.1-SNAPSHOT-jar-with-dependencies.jar
+</pre></section><section class="chapter"><h2 id="specifying-compiler-options" data-toc="maven#specifying-compiler-options">Specifying compiler options</h2>
+<p id="c025ce4f">Additional options and arguments for the compiler can be specified as tags under the <code class="code ">&lt;configuration&gt;</code> element of the Maven plugin node:</p>
+<pre class="code" data-language="markup">&lt;plugin&gt;
+    &lt;groupId&gt;org.jetbrains.kotlin&lt;/groupId&gt;
+    &lt;artifactId&gt;kotlin-maven-plugin&lt;/artifactId&gt;
+    &lt;version&gt;${kotlin.version}&lt;/version&gt;
+    &lt;executions&gt;...&lt;/executions&gt;
+    &lt;configuration&gt;
+        &lt;nowarn&gt;true&lt;/nowarn&gt;  &lt;!-- Disable warnings --&gt;
+        &lt;args&gt;
+            &lt;arg&gt;-Xjsr305=strict&lt;/arg&gt; &lt;!-- Enable strict mode for JSR-305 annotations --&gt;
+            ...
+        &lt;/args&gt;
+    &lt;/configuration&gt;
+&lt;/plugin&gt;
+</pre>
+<p id="2b5cada5">Many of the options can also be configured through properties:</p>
+<pre class="code" data-language="markup">&lt;project ...&gt;
+    &lt;properties&gt;
+        &lt;kotlin.compiler.languageVersion&gt;1.0&lt;/kotlin.compiler.languageVersion&gt;
+    &lt;/properties&gt;
+&lt;/project&gt;
+</pre>
+<p id="3cdab27c">The following attributes are supported:</p>
+<section class="chapter"><h3 id="attributes-common-to-jvm-and-js" data-toc="maven#attributes-common-to-jvm-and-js">Attributes common to JVM and JS</h3>
+<div class="table-wrapper"><table class=" wide" id="1c270258">
+<thead><tr class="ijRowHead" id="2087d7df">
+<th id="16e275dc"><p>Name</p></th>
+<th id="8156be69"><p>Property name</p></th>
+<th id="29a7b631"><p>Description</p></th>
+<th id="a025f941"><p>Possible values</p></th>
+<th id="8e77dc12"><p>Default value</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="8788c617">
+<td id="b67e8e71"><p><code class="code ">nowarn</code></p></td>
+<td id="2f457389"></td>
+<td id="898ad5cd"><p>Generate no warnings</p></td>
+<td id="af64274d"><p>true, false</p></td>
+<td id="fa0395f3"><p>false</p></td>
+</tr>
+<tr class="" id="3c58da4e">
+<td id="f12c0f70"><p><code class="code ">languageVersion</code></p></td>
+<td id="aa810750"><p>kotlin.compiler.languageVersion</p></td>
+<td id="9f094b12"><p>Provide source compatibility with the specified version of Kotlin</p></td>
+<td id="e26bec2"><p>"1.4" (DEPRECATED), "1.5", "1.6", "1.7"</p></td>
+</tr>
+<tr class="" id="ad4a693f">
+<td id="fd2e2fdb"><p><code class="code ">apiVersion</code></p></td>
+<td id="cf6b2e6"><p>kotlin.compiler.apiVersion</p></td>
+<td id="49d6716f"><p>Allow using declarations only from the specified version of bundled libraries</p></td>
+<td id="78abdde4"><p>"1.3" (DEPRECATED), "1.4" (DEPRECATED), "1.5", "1.6", "1.7"</p></td>
+</tr>
+<tr class="" id="ddb73049">
+<td id="a4fd2c23"><p><code class="code ">sourceDirs</code></p></td>
+<td id="7cb9b219"></td>
+<td id="2911f54e"><p>The directories containing the source files to compile</p></td>
+<td id="f7cf61e7"></td>
+<td id="e776230c"><p>The project source roots</p></td>
+</tr>
+<tr class="" id="fc273f2c">
+<td id="792561d8"><p><code class="code ">compilerPlugins</code></p></td>
+<td id="d5bc30cc"></td>
+<td id="fcc4ffb2"><p>Enabled compiler plugins</p></td>
+<td id="e6ab6900"></td>
+<td id="1f4b6265"><p>[]</p></td>
+</tr>
+<tr class="" id="d7d04691">
+<td id="c0d4464e"><p><code class="code ">pluginOptions</code></p></td>
+<td id="8fe98969"></td>
+<td id="5b0497db"><p>Options for compiler plugins</p></td>
+<td id="13c38c0e"></td>
+<td id="6b3b456a"><p>[]</p></td>
+</tr>
+<tr class="" id="38d31b54">
+<td id="40926d1b"><p><code class="code ">args</code></p></td>
+<td id="828151bd"></td>
+<td id="d9546659"><p>Additional compiler arguments</p></td>
+<td id="4960b7aa"></td>
+<td id="35318378"><p>[]</p></td>
+</tr>
+</tbody>
+</table></div></section><section class="chapter"><h3 id="attributes-specific-to-jvm" data-toc="maven#attributes-specific-to-jvm">Attributes specific to JVM</h3>
+<div class="table-wrapper"><table class=" wide" id="ec5a4bb6">
+<thead><tr class="ijRowHead" id="9f1bb12d">
+<th id="c90b70fd"><p>Name</p></th>
+<th id="8433606d"><p>Property name</p></th>
+<th id="cba18e07"><p>Description</p></th>
+<th id="7b5b5aca"><p>Possible values</p></th>
+<th id="cea53917"><p>Default value</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="127483a2">
+<td id="f8165ca2"><p><code class="code ">jvmTarget</code></p></td>
+<td id="db4fe83e"><p><code class="code ">kotlin.compiler.jvmTarget</code></p></td>
+<td id="c20af8e"><p>Target version of the generated JVM bytecode</p></td>
+<td id="f9cbcbe9"><p>"1.8", "9", "10", ..., "18"</p></td>
+<td id="576007f1"><p>"1.8"</p></td>
+</tr>
+<tr class="" id="d4eae41e">
+<td id="be9756fe"><p><code class="code ">jdkHome</code></p></td>
+<td id="b98a6718"><p><code class="code ">kotlin.compiler.jdkHome</code></p></td>
+<td id="dfbbcc9e"><p>Include a custom JDK from the specified location into the classpath instead of the default JAVA_HOME</p></td>
+<td id="c8a7a9ac"></td>
+<td id="afda3d7d"></td>
+</tr>
+</tbody>
+</table></div></section><section class="chapter"><h3 id="attributes-specific-to-js" data-toc="maven#attributes-specific-to-js">Attributes specific to JS</h3>
+<div class="table-wrapper"><table class=" wide" id="126b8ee5">
+<thead><tr class="ijRowHead" id="9f114630">
+<th id="d01cbe30"><p>Name</p></th>
+<th id="3321927a"><p>Property name</p></th>
+<th id="1ee80cce"><p>Description</p></th>
+<th id="fbf9dd57"><p>Possible values</p></th>
+<th id="bf3a8349"><p>Default value</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="da7cdaf4">
+<td id="83b868d4"><p><code class="code ">outputFile</code></p></td>
+<td id="359ee83e"></td>
+<td id="d09e0287"><p>Destination *.js file for the compilation result</p></td>
+<td id="b33e080d"></td>
+<td id="1c4ea22d"></td>
+</tr>
+<tr class="" id="7c0cabba">
+<td id="b7225402"><p><code class="code ">metaInfo</code></p></td>
+<td id="ded75693"></td>
+<td id="bea985d1"><p>Generate .meta.js and .kjsm files with metadata. Use to create a library</p></td>
+<td id="8079f515"><p>true, false</p></td>
+<td id="7c88ed21"><p>true</p></td>
+</tr>
+<tr class="" id="f043da66">
+<td id="11666e40"><p><code class="code ">sourceMap</code></p></td>
+<td id="bf5870c"></td>
+<td id="2a4e6ff2"><p>Generate source map</p></td>
+<td id="1caf82f8"><p>true, false</p></td>
+<td id="2a44d02f"><p>false</p></td>
+</tr>
+<tr class="" id="51103a51">
+<td id="c822ca9f"><p><code class="code ">sourceMapEmbedSources</code></p></td>
+<td id="e109d2dc"></td>
+<td id="7f320802"><p>Embed source files into source map</p></td>
+<td id="6035fb87"><p>"never", "always", "inlining"</p></td>
+<td id="517990ca"><p>"inlining"</p></td>
+</tr>
+<tr class="" id="10c47494">
+<td id="57b6485"><p><code class="code ">sourceMapPrefix</code></p></td>
+<td id="46572d8"></td>
+<td id="1a913ac4"><p>Add the specified prefix to paths in the source map</p></td>
+<td id="1cf9f277"></td>
+<td id="f35d8d1a"></td>
+</tr>
+<tr class="" id="f4d041e0">
+<td id="96fe6035"><p><code class="code ">moduleKind</code></p></td>
+<td id="750bd723"></td>
+<td id="de80dd3d"><p>The kind of JS module generated by the compiler</p></td>
+<td id="55e3077f"><p>"umd", "commonjs", "amd", "plain"</p></td>
+<td id="f28fe13c"><p>"umd"</p></td>
+</tr>
+</tbody>
+</table></div></section></section><section class="chapter"><h2 id="generating-documentation" data-toc="maven#generating-documentation">Generating documentation</h2>
+<p id="4a89d747">The standard Javadoc generation plugin (<code class="code ">maven-javadoc-plugin</code>) does not support Kotlin code. To generate documentation for Kotlin projects, use <a href="https://github.com/Kotlin/dokka" id="759d36d6" data-external="true" rel="noopener noreferrer">Dokka</a>; please refer to the <a href="https://github.com/Kotlin/dokka/blob/master/README.md#using-the-maven-plugin" id="cf52a0bb" data-external="true" rel="noopener noreferrer">Dokka README</a> for configuration instructions. Dokka supports mixed-language projects and can generate output in multiple formats, including standard Javadoc.</p></section><section class="chapter"><h2 id="osgi" data-toc="maven#osgi">OSGi</h2>
+<p id="29128a5">For OSGi support see the <a href="kotlin-osgi" id="9240a7da">Kotlin OSGi page</a>.</p></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="gradle">Gradle</a> <a class="navigation-links__next" href="ant">Ant</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/maven.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/maven.html</a>
+  </p>
+</div>

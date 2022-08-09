@@ -1,0 +1,47 @@
+<h1>wp_match_mime_types( string|string[] $wildcard_mime_types, string|string[] $real_mime_types )</h1>  <section> <p>Check a MIME-Type against a list.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>If the wildcard_mime_types parameter is a string, it must be comma separated list. If the real_mime_types is a string, it is also comma separated to create the list.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$wildcard_mime_types</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>|<span class="string[]">string[]</span>)</span> <span class="required">(Required)</span> <span class="description">Mime types, e.g. audio/mpeg or image (same as image/*) or flash (same as *flash*).</span> </p> </dd> <dt>$real_mime_types</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>|<span class="string[]">string[]</span>)</span> <span class="required">(Required)</span> <span class="description">Real post mime type values.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> array(wildcard=&gt;array(real types)).</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/post.php/">wp-includes/post.php</a> </p> <pre data-language="php">function wp_match_mime_types( $wildcard_mime_types, $real_mime_types ) {
+	$matches = array();
+	if ( is_string( $wildcard_mime_types ) ) {
+		$wildcard_mime_types = array_map( 'trim', explode( ',', $wildcard_mime_types ) );
+	}
+	if ( is_string( $real_mime_types ) ) {
+		$real_mime_types = array_map( 'trim', explode( ',', $real_mime_types ) );
+	}
+
+	$patternses = array();
+	$wild       = '[-._a-z0-9]*';
+
+	foreach ( (array) $wildcard_mime_types as $type ) {
+		$mimes = array_map( 'trim', explode( ',', $type ) );
+		foreach ( $mimes as $mime ) {
+			$regex = str_replace( '__wildcard__', $wild, preg_quote( str_replace( '*', '__wildcard__', $mime ) ) );
+
+			$patternses[][ $type ] = "^$regex$";
+
+			if ( false === strpos( $mime, '/' ) ) {
+				$patternses[][ $type ] = "^$regex/";
+				$patternses[][ $type ] = $regex;
+			}
+		}
+	}
+	asort( $patternses );
+
+	foreach ( $patternses as $patterns ) {
+		foreach ( $patterns as $type =&gt; $pattern ) {
+			foreach ( (array) $real_mime_types as $real ) {
+				if ( preg_match( "#$pattern#", $real )
+					&amp;&amp; ( empty( $matches[ $type ] ) || false === array_search( $real, $matches[ $type ], true ) )
+				) {
+					$matches[ $type ][] = $real;
+				}
+			}
+		}
+	}
+
+	return $matches;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="media_upload_library_form">media_upload_library_form()</a> </td> <td class="related-desc"> <p>Outputs the legacy media upload form for the media library.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="get_media_item">get_media_item()</a> </td> <td class="related-desc"> <p>Retrieves HTML form for modifying the image attachment.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/ajax-actions.php:</span> <a href="wp_ajax_upload_attachment">wp_ajax_upload_attachment()</a> </td> <td class="related-desc"> <p>Ajax handler for uploading attachments</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-media-list-table.php:</span> <a href="../classes/wp_media_list_table/get_views">WP_Media_List_Table::get_views()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-admin/includes/class-custom-image-header.php:</span> <a href="../classes/custom_image_header/step_2_manage_upload">Custom_Image_Header::step_2_manage_upload()</a> </td> <td class="related-desc"> <p>Upload the file to be cropped in the second step.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-custom-background.php:</span> <a href="../classes/custom_background/handle_upload">Custom_Background::handle_upload()</a> </td> <td class="related-desc"> <p>Handle an Image upload for the background image.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_mime_type_icon">wp_mime_type_icon()</a> </td> <td class="related-desc"> <p>Retrieve the icon for a MIME type or attachment.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.5.0/" alt="WordPress 2.5.0">2.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_match_mime_types" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_match_mime_types</a>
+  </p>
+</div>

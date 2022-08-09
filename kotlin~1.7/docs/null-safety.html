@@ -1,0 +1,124 @@
+<h1 data-toc="null-safety" id="null-safety.md">Null safety</h1>
+<section class="chapter"><h2 id="nullable-types-and-non-null-types" data-toc="null-safety#nullable-types-and-non-null-types">Nullable types and non-null types</h2>
+<p id="ff1c53cc">Kotlin's type system is aimed at eliminating the danger of null references, also known as <a href="https://en.wikipedia.org/wiki/Tony_Hoare#Apologies_and_retractions" id="1be8cf59" data-external="true" rel="noopener noreferrer">The Billion Dollar Mistake</a>.</p>
+<p id="203176d6">One of the most common pitfalls in many programming languages, including Java, is that accessing a member of a null reference will result in a null reference exception. In Java this would be the equivalent of a <code class="code ">NullPointerException</code>, or an <em id="ad6852e1" class="">NPE</em> for short.</p>
+<p id="131e4989">The only possible causes of an NPE in Kotlin are:</p>
+<ul class="list _ul" id="a7040f43">
+<li class="list__item" id="f7c88b85"><p>An explicit call to <code class="code ">throw NullPointerException()</code>.</p></li>
+<li class="list__item" id="f3f3270d"><p>Usage of the <code class="code ">!!</code> operator that is described below.</p></li>
+<li class="list__item" id="d8afdf3c">
+<p>Data inconsistency with regard to initialization, such as when: </p>
+<ul class="list _ul" id="da141e03">
+<li class="list__item" id="15db3612"><p>An uninitialized <code class="code ">this</code> available in a constructor is passed and used somewhere (a "leaking <code class="code ">this</code>").</p></li>
+<li class="list__item" id="cbd787b6"><p>A <a href="inheritance#derived-class-initialization-order" id="44f3dcac">superclass constructor calls an open member</a> whose implementation in the derived class uses an uninitialized state.</p></li>
+</ul>
+</li>
+<li class="list__item" id="1d1d7c2c">
+<p>Java interoperation: </p>
+<ul class="list _ul" id="ed3c00ba">
+<li class="list__item" id="9f097cc6"><p>Attempts to access a member of a <code class="code ">null</code> reference of a <a href="java-interop#null-safety-and-platform-types" id="8d5aa502">platform type</a>;</p></li>
+<li class="list__item" id="bc542351"><p>Nullability issues with generic types being used for Java interoperation. For example, a piece of Java code might add <code class="code ">null</code> into a Kotlin <code class="code ">MutableList&lt;String&gt;</code>, therefore requiring a <code class="code ">MutableList&lt;String?&gt;</code> for working with it.</p></li>
+<li class="list__item" id="c0094c3a"><p>Other issues caused by external Java code.</p></li>
+</ul>
+</li>
+</ul>
+<p id="6addac5f">In Kotlin, the type system distinguishes between references that can hold <code class="code ">null</code> (nullable references) and those that cannot (non-null references). For example, a regular variable of type <code class="code ">String</code> cannot hold <code class="code ">null</code>:</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    var a: String = "abc" // Regular initialization means non-null by default
+    a = null // compilation error
+//sampleEnd
+}
+</pre>
+<p id="c7d46904">To allow nulls, you can declare a variable as a nullable string by writing <code class="code ">String?</code>:</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    var b: String? = "abc" // can be set to null
+    b = null // ok
+    print(b)
+//sampleEnd
+}
+</pre>
+<p id="2d2c9876">Now, if you call a method or access a property on <code class="code ">a</code>, it's guaranteed not to cause an NPE, so you can safely say:</p>
+<pre class="code" data-language="kotlin">val l = a.length
+</pre>
+<p id="890ed299">But if you want to access the same property on <code class="code ">b</code>, that would not be safe, and the compiler reports an error:</p>
+<pre class="code" data-language="kotlin">val l = b.length // error: variable 'b' can be null
+</pre>
+<p id="498391c">But you still need to access that property, right? There are a few ways to do so.</p></section><section class="chapter"><h2 id="checking-for-null-in-conditions" data-toc="null-safety#checking-for-null-in-conditions">Checking for null in conditions</h2>
+<p id="b14e7479">First, you can explicitly check whether <code class="code ">b</code> is <code class="code ">null</code>, and handle the two options separately:</p>
+<pre class="code" data-language="kotlin">val l = if (b != null) b.length else -1
+</pre>
+<p id="25f57c35">The compiler tracks the information about the check you performed, and allows the call to <code class="code ">length</code> inside the <code class="code ">if</code>. More complex conditions are supported as well:</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val b: String? = "Kotlin"
+    if (b != null &amp;&amp; b.length &gt; 0) {
+        print("String of length ${b.length}")
+    } else {
+        print("Empty string")
+    }
+//sampleEnd
+}
+</pre>
+<p id="f2f3cc43">Note that this only works where <code class="code ">b</code> is immutable (meaning it is a local variable that is not modified between the check and its usage or it is a member <code class="code ">val</code> that has a backing field and is not overridable), because otherwise it could be the case that <code class="code ">b</code> changes to <code class="code ">null</code> after the check.</p></section><section class="chapter"><h2 id="safe-calls" data-toc="null-safety#safe-calls">Safe calls</h2>
+<p id="3908c397">Your second option for accessing a property on a nullable variable is using the safe call operator <code class="code ">?.</code>:</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val a = "Kotlin"
+    val b: String? = null
+    println(b?.length)
+    println(a?.length) // Unnecessary safe call
+//sampleEnd
+}
+</pre>
+<p id="58611422">This returns <code class="code ">b.length</code> if <code class="code ">b</code> is not null, and <code class="code ">null</code> otherwise. The type of this expression is <code class="code ">Int?</code>.</p>
+<p id="7002b202">Safe calls are useful in chains. For example, Bob is an employee who may be assigned to a department (or not). That department may in turn have another employee as a department head. To obtain the name of Bob's department head (if there is one), you write the following:</p>
+<pre class="code" data-language="kotlin">bob?.department?.head?.name
+</pre>
+<p id="c5ba8200">Such a chain returns <code class="code ">null</code> if any of the properties in it is <code class="code ">null</code>.</p>
+<p id="9d447bcb">To perform a certain operation only for non-null values, you can use the safe call operator together with <a href="../api/latest/jvm/stdlib/kotlin/let" id="80c40a5e" data-external="true" rel="noopener noreferrer"><code class="code ">let</code></a>:</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val listWithNulls: List&lt;String?&gt; = listOf("Kotlin", null)
+    for (item in listWithNulls) {
+         item?.let { println(it) } // prints Kotlin and ignores null
+    }
+//sampleEnd
+}
+</pre>
+<p id="b4a8f2c0">A safe call can also be placed on the left side of an assignment. Then, if one of the receivers in the safe calls chain is <code class="code ">null</code>, the assignment is skipped and the expression on the right is not evaluated at all:</p>
+<pre class="code" data-language="kotlin">// If either `person` or `person.department` is null, the function is not called:
+person?.department?.head = managersPool.getManager()
+</pre></section><section class="chapter"><h2 id="elvis-operator" data-toc="null-safety#elvis-operator">Elvis operator</h2>
+<p id="dcf6755a">When you have a nullable reference, <code class="code ">b</code>, you can say "if <code class="code ">b</code> is not <code class="code ">null</code>, use it, otherwise use some non-null value":</p>
+<pre class="code" data-language="kotlin">val l: Int = if (b != null) b.length else -1
+</pre>
+<p id="1d8f0aed">Instead of writing the complete <code class="code ">if</code> expression, you can also express this with the Elvis operator <code class="code ">?:</code>:</p>
+<pre class="code" data-language="kotlin">val l = b?.length ?: -1
+</pre>
+<p id="e4a3dd67">If the expression to the left of <code class="code ">?:</code> is not <code class="code ">null</code>, the Elvis operator returns it, otherwise it returns the expression to the right. Note that the expression on the right-hand side is evaluated only if the left-hand side is <code class="code ">null</code>.</p>
+<p id="cb1e448c">Since <code class="code ">throw</code> and <code class="code ">return</code> are expressions in Kotlin, they can also be used on the right-hand side of the Elvis operator. This can be handy, for example, when checking function arguments:</p>
+<pre class="code" data-language="kotlin">fun foo(node: Node): String? {
+    val parent = node.getParent() ?: return null
+    val name = node.getName() ?: throw IllegalArgumentException("name expected")
+    // ...
+}
+</pre></section><section class="chapter"><h2 id="the-operator" data-toc="null-safety#the-operator">The !! operator</h2>
+<p id="5c254b2a">The third option is for NPE-lovers: the not-null assertion operator (<code class="code ">!!</code>) converts any value to a non-null type and throws an exception if the value is <code class="code ">null</code>. You can write <code class="code ">b!!</code>, and this will return a non-null value of <code class="code ">b</code> (for example, a <code class="code ">String</code> in our example) or throw an NPE if <code class="code ">b</code> is <code class="code ">null</code>:</p>
+<pre class="code" data-language="kotlin">val l = b!!.length
+</pre>
+<p id="15525928">Thus, if you want an NPE, you can have it, but you have to ask for it explicitly and it won’t appear out of the blue.</p></section><section class="chapter"><h2 id="safe-casts" data-toc="null-safety#safe-casts">Safe casts</h2>
+<p id="81f37f93">Regular casts may result in a <code class="code ">ClassCastException</code> if the object is not of the target type. Another option is to use safe casts that return <code class="code ">null</code> if the attempt was not successful:</p>
+<pre class="code" data-language="kotlin">val aInt: Int? = a as? Int
+</pre></section><section class="chapter"><h2 id="collections-of-a-nullable-type" data-toc="null-safety#collections-of-a-nullable-type">Collections of a nullable type</h2>
+<p id="d3d63a63">If you have a collection of elements of a nullable type and want to filter non-null elements, you can do so by using <code class="code ">filterNotNull</code>:</p>
+<pre class="code" data-language="kotlin">val nullableList: List&lt;Int?&gt; = listOf(1, 2, null, 4)
+val intList: List&lt;Int&gt; = nullableList.filterNotNull()
+</pre></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="using-builders-with-builder-inference">Using builders with builder type inference</a> <a class="navigation-links__next" href="equality">Equality</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/null-safety.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/null-safety.html</a>
+  </p>
+</div>

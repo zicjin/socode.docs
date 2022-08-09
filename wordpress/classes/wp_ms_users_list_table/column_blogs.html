@@ -1,0 +1,85 @@
+<h1>WP_MS_Users_List_Table::column_blogs( WP_User $user )</h1>  <section> <p>Handles the sites column output.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$user</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_User"><a href="../wp_user">WP_User</a></span>)</span> <span class="required">(Required)</span> <span class="description">The current <a href="../wp_user">WP_User</a> object.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-ms-users-list-table.php/">wp-admin/includes/class-wp-ms-users-list-table.php</a> </p> <pre data-language="php">public function column_blogs( $user ) {
+		$blogs = get_blogs_of_user( $user-&gt;ID, true );
+		if ( ! is_array( $blogs ) ) {
+			return;
+		}
+
+		foreach ( $blogs as $site ) {
+			if ( ! can_edit_network( $site-&gt;site_id ) ) {
+				continue;
+			}
+
+			$path         = ( '/' === $site-&gt;path ) ? '' : $site-&gt;path;
+			$site_classes = array( 'site-' . $site-&gt;site_id );
+			/**
+			 * Filters the span class for a site listing on the mulisite user list table.
+			 *
+			 * @since 5.2.0
+			 *
+			 * @param string[] $site_classes Array of class names used within the span tag. Default "site-#" with the site's network ID.
+			 * @param int      $site_id      Site ID.
+			 * @param int      $network_id   Network ID.
+			 * @param WP_User  $user         WP_User object.
+			 */
+			$site_classes = apply_filters( 'ms_user_list_site_class', $site_classes, $site-&gt;userblog_id, $site-&gt;site_id, $user );
+			if ( is_array( $site_classes ) &amp;&amp; ! empty( $site_classes ) ) {
+				$site_classes = array_map( 'sanitize_html_class', array_unique( $site_classes ) );
+				echo '&lt;span class="' . esc_attr( implode( ' ', $site_classes ) ) . '"&gt;';
+			} else {
+				echo '&lt;span&gt;';
+			}
+			echo '&lt;a href="' . esc_url( network_admin_url( 'site-info.php?id=' . $site-&gt;userblog_id ) ) . '"&gt;' . str_replace( '.' . get_network()-&gt;domain, '', $site-&gt;domain . $path ) . '&lt;/a&gt;';
+			echo ' &lt;small class="row-actions"&gt;';
+			$actions         = array();
+			$actions['edit'] = '&lt;a href="' . esc_url( network_admin_url( 'site-info.php?id=' . $site-&gt;userblog_id ) ) . '"&gt;' . __( 'Edit' ) . '&lt;/a&gt;';
+
+			$class = '';
+			if ( 1 === (int) $site-&gt;spam ) {
+				$class .= 'site-spammed ';
+			}
+			if ( 1 === (int) $site-&gt;mature ) {
+				$class .= 'site-mature ';
+			}
+			if ( 1 === (int) $site-&gt;deleted ) {
+				$class .= 'site-deleted ';
+			}
+			if ( 1 === (int) $site-&gt;archived ) {
+				$class .= 'site-archived ';
+			}
+
+			$actions['view'] = '&lt;a class="' . $class . '" href="' . esc_url( get_home_url( $site-&gt;userblog_id ) ) . '"&gt;' . __( 'View' ) . '&lt;/a&gt;';
+
+			/**
+			 * Filters the action links displayed next the sites a user belongs to
+			 * in the Network Admin Users list table.
+			 *
+			 * @since 3.1.0
+			 *
+			 * @param string[] $actions     An array of action links to be displayed. Default 'Edit', 'View'.
+			 * @param int      $userblog_id The site ID.
+			 */
+			$actions = apply_filters( 'ms_user_list_site_actions', $actions, $site-&gt;userblog_id );
+
+			$action_count = count( $actions );
+
+			$i = 0;
+
+			foreach ( $actions as $action =&gt; $link ) {
+				++$i;
+
+				$sep = ( $i &lt; $action_count ) ? ' | ' : '';
+
+				echo "&lt;span class='$action'&gt;$link$sep&lt;/span&gt;";
+			}
+
+			echo '&lt;/small&gt;&lt;/span&gt;&lt;br/&gt;';
+		}
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-ms-users-list-table.php:</span> <a href="../../hooks/ms_user_list_site_class">ms_user_list_site_class</a> </td> <td class="related-desc"> <p>Filters the span class for a site listing on the mulisite user list table.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-network.php:</span> <a href="../../functions/get_network">get_network()</a> </td> <td class="related-desc"> <p>Retrieves network data given a network ID or network object.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-ms-users-list-table.php:</span> <a href="../../hooks/ms_user_list_site_actions">ms_user_list_site_actions</a> </td> <td class="related-desc"> <p>Filters the action links displayed next the sites a user belongs to in the Network Admin Users list table.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/ms.php:</span> <a href="../../functions/can_edit_network">can_edit_network()</a> </td> <td class="related-desc"> <p>Whether or not we can edit this network from this page.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="../../functions/network_admin_url">network_admin_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the admin area for the network.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="../../functions/get_home_url">get_home_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL for a given site where the front end is accessible.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="../../functions/get_blogs_of_user">get_blogs_of_user()</a> </td> <td class="related-desc"> <p>Gets the sites a user belongs to.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-ms-users-list-table.php:</span> <a href="_column_blogs">WP_MS_Users_List_Table::_column_blogs()</a> </td> <td class="related-desc"> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.3.0/" alt="WordPress 4.3.0">4.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_ms_users_list_table/column_blogs" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_ms_users_list_table/column_blogs</a>
+  </p>
+</div>

@@ -1,0 +1,227 @@
+<h1>wp_notify_postauthor( int|WP_Comment $comment_id, string $deprecated = null )</h1>  <section> <p>Notify an author (and/or others) of a comment/trackback/pingback on a post.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$comment_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>|<span class="WP_Comment"><a href="../classes/wp_comment">WP_Comment</a></span>)</span> <span class="required">(Required)</span> <span class="description">Comment ID or <a href="../classes/wp_comment">WP_Comment</a> object.</span> </p> </dd> <dt>$deprecated</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description">Not used</span> </p> <p class="default">Default value: null</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> True on completion. False if no email addresses were specified.</p> </section>  <section> <h2 id="more-information">More Information</h2> <ul> <li>This function can be replaced via <a href="https://wordpress.org/support/article/glossary/">plugins</a>. If plugins do not redefine these functions, then this will be used instead.</li> <li>This function is pluggable using the following filters: <ul> <li>comment_notification_text</li> <li>comment_notification_subject</li> <li>comment_notification_headers</li> </ul> <p>If the plugins do not redefine the functions using filters, then the default functionality will be used.</p> <p>To modify the content of the email that is sent when a reader leaves a comment, you may provide filters for each of the above functions in your plugin.</p> <p>This function also sanitizes a URL for use in a redirect.</p>
+</li> </ul> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/pluggable.php/">wp-includes/pluggable.php</a> </p> <pre data-language="php">function wp_notify_postauthor( $comment_id, $deprecated = null ) {
+		if ( null !== $deprecated ) {
+			_deprecated_argument( __FUNCTION__, '3.8.0' );
+		}
+
+		$comment = get_comment( $comment_id );
+		if ( empty( $comment ) || empty( $comment-&gt;comment_post_ID ) ) {
+			return false;
+		}
+
+		$post   = get_post( $comment-&gt;comment_post_ID );
+		$author = get_userdata( $post-&gt;post_author );
+
+		// Who to notify? By default, just the post author, but others can be added.
+		$emails = array();
+		if ( $author ) {
+			$emails[] = $author-&gt;user_email;
+		}
+
+		/**
+		 * Filters the list of email addresses to receive a comment notification.
+		 *
+		 * By default, only post authors are notified of comments. This filter allows
+		 * others to be added.
+		 *
+		 * @since 3.7.0
+		 *
+		 * @param string[] $emails     An array of email addresses to receive a comment notification.
+		 * @param string   $comment_id The comment ID as a numeric string.
+		 */
+		$emails = apply_filters( 'comment_notification_recipients', $emails, $comment-&gt;comment_ID );
+		$emails = array_filter( $emails );
+
+		// If there are no addresses to send the comment to, bail.
+		if ( ! count( $emails ) ) {
+			return false;
+		}
+
+		// Facilitate unsetting below without knowing the keys.
+		$emails = array_flip( $emails );
+
+		/**
+		 * Filters whether to notify comment authors of their comments on their own posts.
+		 *
+		 * By default, comment authors aren't notified of their comments on their own
+		 * posts. This filter allows you to override that.
+		 *
+		 * @since 3.8.0
+		 *
+		 * @param bool   $notify     Whether to notify the post author of their own comment.
+		 *                           Default false.
+		 * @param string $comment_id The comment ID as a numeric string.
+		 */
+		$notify_author = apply_filters( 'comment_notification_notify_author', false, $comment-&gt;comment_ID );
+
+		// The comment was left by the author.
+		if ( $author &amp;&amp; ! $notify_author &amp;&amp; $comment-&gt;user_id == $post-&gt;post_author ) {
+			unset( $emails[ $author-&gt;user_email ] );
+		}
+
+		// The author moderated a comment on their own post.
+		if ( $author &amp;&amp; ! $notify_author &amp;&amp; get_current_user_id() == $post-&gt;post_author ) {
+			unset( $emails[ $author-&gt;user_email ] );
+		}
+
+		// The post author is no longer a member of the blog.
+		if ( $author &amp;&amp; ! $notify_author &amp;&amp; ! user_can( $post-&gt;post_author, 'read_post', $post-&gt;ID ) ) {
+			unset( $emails[ $author-&gt;user_email ] );
+		}
+
+		// If there's no email to send the comment to, bail, otherwise flip array back around for use below.
+		if ( ! count( $emails ) ) {
+			return false;
+		} else {
+			$emails = array_flip( $emails );
+		}
+
+		$switched_locale = switch_to_locale( get_locale() );
+
+		$comment_author_domain = '';
+		if ( WP_Http::is_ip_address( $comment-&gt;comment_author_IP ) ) {
+			$comment_author_domain = gethostbyaddr( $comment-&gt;comment_author_IP );
+		}
+
+		// The blogname option is escaped with esc_html() on the way into the database in sanitize_option().
+		// We want to reverse this for the plain text arena of emails.
+		$blogname        = wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES );
+		$comment_content = wp_specialchars_decode( $comment-&gt;comment_content );
+
+		switch ( $comment-&gt;comment_type ) {
+			case 'trackback':
+				/* translators: %s: Post title. */
+				$notify_message = sprintf( __( 'New trackback on your post "%s"' ), $post-&gt;post_title ) . "\r\n";
+				/* translators: 1: Trackback/pingback website name, 2: Website IP address, 3: Website hostname. */
+				$notify_message .= sprintf( __( 'Website: %1$s (IP address: %2$s, %3$s)' ), $comment-&gt;comment_author, $comment-&gt;comment_author_IP, $comment_author_domain ) . "\r\n";
+				/* translators: %s: Trackback/pingback/comment author URL. */
+				$notify_message .= sprintf( __( 'URL: %s' ), $comment-&gt;comment_author_url ) . "\r\n";
+				/* translators: %s: Comment text. */
+				$notify_message .= sprintf( __( 'Comment: %s' ), "\r\n" . $comment_content ) . "\r\n\r\n";
+				$notify_message .= __( 'You can see all trackbacks on this post here:' ) . "\r\n";
+				/* translators: Trackback notification email subject. 1: Site title, 2: Post title. */
+				$subject = sprintf( __( '[%1$s] Trackback: "%2$s"' ), $blogname, $post-&gt;post_title );
+				break;
+
+			case 'pingback':
+				/* translators: %s: Post title. */
+				$notify_message = sprintf( __( 'New pingback on your post "%s"' ), $post-&gt;post_title ) . "\r\n";
+				/* translators: 1: Trackback/pingback website name, 2: Website IP address, 3: Website hostname. */
+				$notify_message .= sprintf( __( 'Website: %1$s (IP address: %2$s, %3$s)' ), $comment-&gt;comment_author, $comment-&gt;comment_author_IP, $comment_author_domain ) . "\r\n";
+				/* translators: %s: Trackback/pingback/comment author URL. */
+				$notify_message .= sprintf( __( 'URL: %s' ), $comment-&gt;comment_author_url ) . "\r\n";
+				/* translators: %s: Comment text. */
+				$notify_message .= sprintf( __( 'Comment: %s' ), "\r\n" . $comment_content ) . "\r\n\r\n";
+				$notify_message .= __( 'You can see all pingbacks on this post here:' ) . "\r\n";
+				/* translators: Pingback notification email subject. 1: Site title, 2: Post title. */
+				$subject = sprintf( __( '[%1$s] Pingback: "%2$s"' ), $blogname, $post-&gt;post_title );
+				break;
+
+			default: // Comments.
+				/* translators: %s: Post title. */
+				$notify_message = sprintf( __( 'New comment on your post "%s"' ), $post-&gt;post_title ) . "\r\n";
+				/* translators: 1: Comment author's name, 2: Comment author's IP address, 3: Comment author's hostname. */
+				$notify_message .= sprintf( __( 'Author: %1$s (IP address: %2$s, %3$s)' ), $comment-&gt;comment_author, $comment-&gt;comment_author_IP, $comment_author_domain ) . "\r\n";
+				/* translators: %s: Comment author email. */
+				$notify_message .= sprintf( __( 'Email: %s' ), $comment-&gt;comment_author_email ) . "\r\n";
+				/* translators: %s: Trackback/pingback/comment author URL. */
+				$notify_message .= sprintf( __( 'URL: %s' ), $comment-&gt;comment_author_url ) . "\r\n";
+
+				if ( $comment-&gt;comment_parent &amp;&amp; user_can( $post-&gt;post_author, 'edit_comment', $comment-&gt;comment_parent ) ) {
+					/* translators: Comment moderation. %s: Parent comment edit URL. */
+					$notify_message .= sprintf( __( 'In reply to: %s' ), admin_url( "comment.php?action=editcomment&amp;c={$comment-&gt;comment_parent}#wpbody-content" ) ) . "\r\n";
+				}
+
+				/* translators: %s: Comment text. */
+				$notify_message .= sprintf( __( 'Comment: %s' ), "\r\n" . $comment_content ) . "\r\n\r\n";
+				$notify_message .= __( 'You can see all comments on this post here:' ) . "\r\n";
+				/* translators: Comment notification email subject. 1: Site title, 2: Post title. */
+				$subject = sprintf( __( '[%1$s] Comment: "%2$s"' ), $blogname, $post-&gt;post_title );
+				break;
+		}
+
+		$notify_message .= get_permalink( $comment-&gt;comment_post_ID ) . "#comments\r\n\r\n";
+		/* translators: %s: Comment URL. */
+		$notify_message .= sprintf( __( 'Permalink: %s' ), get_comment_link( $comment ) ) . "\r\n";
+
+		if ( user_can( $post-&gt;post_author, 'edit_comment', $comment-&gt;comment_ID ) ) {
+			if ( EMPTY_TRASH_DAYS ) {
+				/* translators: Comment moderation. %s: Comment action URL. */
+				$notify_message .= sprintf( __( 'Trash it: %s' ), admin_url( "comment.php?action=trash&amp;c={$comment-&gt;comment_ID}#wpbody-content" ) ) . "\r\n";
+			} else {
+				/* translators: Comment moderation. %s: Comment action URL. */
+				$notify_message .= sprintf( __( 'Delete it: %s' ), admin_url( "comment.php?action=delete&amp;c={$comment-&gt;comment_ID}#wpbody-content" ) ) . "\r\n";
+			}
+			/* translators: Comment moderation. %s: Comment action URL. */
+			$notify_message .= sprintf( __( 'Spam it: %s' ), admin_url( "comment.php?action=spam&amp;c={$comment-&gt;comment_ID}#wpbody-content" ) ) . "\r\n";
+		}
+
+		$wp_email = 'wordpress@' . preg_replace( '#^www\.#', '', wp_parse_url( network_home_url(), PHP_URL_HOST ) );
+
+		if ( '' === $comment-&gt;comment_author ) {
+			$from = "From: \"$blogname\" &lt;$wp_email&gt;";
+			if ( '' !== $comment-&gt;comment_author_email ) {
+				$reply_to = "Reply-To: $comment-&gt;comment_author_email";
+			}
+		} else {
+			$from = "From: \"$comment-&gt;comment_author\" &lt;$wp_email&gt;";
+			if ( '' !== $comment-&gt;comment_author_email ) {
+				$reply_to = "Reply-To: \"$comment-&gt;comment_author_email\" &lt;$comment-&gt;comment_author_email&gt;";
+			}
+		}
+
+		$message_headers = "$from\n"
+		. 'Content-Type: text/plain; charset="' . get_option( 'blog_charset' ) . "\"\n";
+
+		if ( isset( $reply_to ) ) {
+			$message_headers .= $reply_to . "\n";
+		}
+
+		/**
+		 * Filters the comment notification email text.
+		 *
+		 * @since 1.5.2
+		 *
+		 * @param string $notify_message The comment notification email text.
+		 * @param string $comment_id     Comment ID as a numeric string.
+		 */
+		$notify_message = apply_filters( 'comment_notification_text', $notify_message, $comment-&gt;comment_ID );
+
+		/**
+		 * Filters the comment notification email subject.
+		 *
+		 * @since 1.5.2
+		 *
+		 * @param string $subject    The comment notification email subject.
+		 * @param string $comment_id Comment ID as a numeric string.
+		 */
+		$subject = apply_filters( 'comment_notification_subject', $subject, $comment-&gt;comment_ID );
+
+		/**
+		 * Filters the comment notification email headers.
+		 *
+		 * @since 1.5.2
+		 *
+		 * @param string $message_headers Headers for the comment notification email.
+		 * @param string $comment_id      Comment ID as a numeric string.
+		 */
+		$message_headers = apply_filters( 'comment_notification_headers', $message_headers, $comment-&gt;comment_ID );
+
+		foreach ( $emails as $email ) {
+			wp_mail( $email, wp_specialchars_decode( $subject ), $notify_message, $message_headers );
+		}
+
+		if ( $switched_locale ) {
+			restore_previous_locale();
+		}
+
+		return true;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="restore_previous_locale">restore_previous_locale()</a> </td> <td class="related-desc"> <p>Restores the translations according to the previous locale.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="switch_to_locale">switch_to_locale()</a> </td> <td class="related-desc"> <p>Switches the translations according to the given locale.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_parse_url">wp_parse_url()</a> </td> <td class="related-desc"> <p>A wrapper for PHP’s parse_url() function that handles consistency in the return values across PHP versions.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="user_can">user_can()</a> </td> <td class="related-desc"> <p>Returns whether a particular user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="get_locale">get_locale()</a> </td> <td class="related-desc"> <p>Retrieves the current locale.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_specialchars_decode">wp_specialchars_decode()</a> </td> <td class="related-desc"> <p>Converts a number of HTML entities into their special characters.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../hooks/comment_notification_recipients">comment_notification_recipients</a> </td> <td class="related-desc"> <p>Filters the list of email addresses to receive a comment notification.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../hooks/comment_notification_notify_author">comment_notification_notify_author</a> </td> <td class="related-desc"> <p>Filters whether to notify comment authors of their comments on their own posts.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../hooks/comment_notification_text">comment_notification_text</a> </td> <td class="related-desc"> <p>Filters the comment notification email text.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../hooks/comment_notification_subject">comment_notification_subject</a> </td> <td class="related-desc"> <p>Filters the comment notification email subject.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../hooks/comment_notification_headers">comment_notification_headers</a> </td> <td class="related-desc"> <p>Filters the comment notification email headers.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="get_userdata">get_userdata()</a> </td> <td class="related-desc"> <p>Retrieve user info by user ID.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_mail">wp_mail()</a> </td> <td class="related-desc"> <p>Sends an email, similar to PHP’s mail function.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-http.php:</span> <a href="../classes/wp_http/is_ip_address">WP_Http::is_ip_address()</a> </td> <td class="related-desc"> <p>Determines if a specified string represents an IP address or not.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="_deprecated_argument">_deprecated_argument()</a> </td> <td class="related-desc"> <p>Mark a function argument as deprecated and inform when it has been used.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="admin_url">admin_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the admin area for the current site.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="network_home_url">network_home_url()</a> </td> <td class="related-desc"> <p>Retrieves the home URL for the current network.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="get_permalink">get_permalink()</a> </td> <td class="related-desc"> <p>Retrieves the full permalink for the current post or post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="get_current_user_id">get_current_user_id()</a> </td> <td class="related-desc"> <p>Gets the current user’s ID.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> <tr> <td> <span>wp-includes/comment-template.php:</span> <a href="get_comment_link">get_comment_link()</a> </td> <td class="related-desc"> <p>Retrieves the link to a given comment.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="get_comment">get_comment()</a> </td> <td class="related-desc"> <p>Retrieves comment data given a comment ID or comment object.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/comment.php:</span> <a href="wp_new_comment_notify_postauthor">wp_new_comment_notify_postauthor()</a> </td> <td class="related-desc"> <p>Sends a notification of a new comment to the post author.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/1.0.0/" alt="WordPress 1.0.0">1.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_notify_postauthor" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_notify_postauthor</a>
+  </p>
+</div>

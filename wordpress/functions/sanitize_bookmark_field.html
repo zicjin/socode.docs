@@ -1,0 +1,66 @@
+<h1>sanitize_bookmark_field( string $field, mixed $value, int $bookmark_id, string $context )</h1>  <section> <p>Sanitizes a bookmark field.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Sanitizes the bookmark fields based on what the field name is. If the field has a strict value set, then it will be tested for that, else a more generic filtering is applied. After the more strict filter is applied, if the <code>$context</code> is ‘raw’ then the value is immediately return.</p> <p>Hooks exist for the more generic cases. With the ‘edit’ context, the <a href="../hooks/edit_field">‘edit_$field’</a> filter will be called and passed the <code>$value</code> and <code>$bookmark_id</code> respectively.</p> <p>With the ‘db’ context, the <a href="../hooks/pre_field">‘pre_$field’</a> filter is called and passed the value. The ‘display’ context is the final context and has the <code>$field</code> has the filter name and is passed the <code>$value</code>, <code>$bookmark_id</code>, and <code>$context</code>, respectively.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$field</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The bookmark field.</span> </p> </dd> <dt>$value</dt> <dd> <p class="desc"> <span class="type">(<span class="mixed">mixed</span>)</span> <span class="required">(Required)</span> <span class="description">The bookmark field value.</span> </p> </dd> <dt>$bookmark_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">Bookmark ID.</span> </p> </dd> <dt>$context</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">How to filter the field value. Accepts 'raw', 'edit', 'db', 'display', 'attribute', or 'js'. Default 'display'.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(mixed)</span> The filtered value.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/bookmark.php/">wp-includes/bookmark.php</a> </p> <pre data-language="php">function sanitize_bookmark_field( $field, $value, $bookmark_id, $context ) {
+	$int_fields = array( 'link_id', 'link_rating' );
+	if ( in_array( $field, $int_fields, true ) ) {
+		$value = (int) $value;
+	}
+
+	switch ( $field ) {
+		case 'link_category': // array( ints )
+			$value = array_map( 'absint', (array) $value );
+			// We return here so that the categories aren't filtered.
+			// The 'link_category' filter is for the name of a link category, not an array of a link's link categories.
+			return $value;
+
+		case 'link_visible': // bool stored as Y|N
+			$value = preg_replace( '/[^YNyn]/', '', $value );
+			break;
+		case 'link_target': // "enum"
+			$targets = array( '_top', '_blank' );
+			if ( ! in_array( $value, $targets, true ) ) {
+				$value = '';
+			}
+			break;
+	}
+
+	if ( 'raw' === $context ) {
+		return $value;
+	}
+
+	if ( 'edit' === $context ) {
+		/** This filter is documented in wp-includes/post.php */
+		$value = apply_filters( "edit_{$field}", $value, $bookmark_id );
+
+		if ( 'link_notes' === $field ) {
+			$value = esc_html( $value ); // textarea_escaped
+		} else {
+			$value = esc_attr( $value );
+		}
+	} elseif ( 'db' === $context ) {
+		/** This filter is documented in wp-includes/post.php */
+		$value = apply_filters( "pre_{$field}", $value );
+	} else {
+		/** This filter is documented in wp-includes/post.php */
+		$value = apply_filters( "{$field}", $value, $bookmark_id, $context );
+
+		if ( 'attribute' === $context ) {
+			$value = esc_attr( $value );
+		} elseif ( 'js' === $context ) {
+			$value = esc_js( $value );
+		}
+	}
+
+	// Restore the type for integer fields after esc_attr().
+	if ( in_array( $field, $int_fields, true ) ) {
+		$value = (int) $value;
+	}
+
+	return $value;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_html">esc_html()</a> </td> <td class="related-desc"> <p>Escaping for HTML blocks.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_js">esc_js()</a> </td> <td class="related-desc"> <p>Escapes single quotes, <code>"</code>, , <code>&amp;amp;</code>, and fixes line endings.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../hooks/edit_field">edit_{$field}</a> </td> <td class="related-desc"> <p>Filters the value of a specific post field to edit.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../hooks/pre_field">pre_{$field}</a> </td> <td class="related-desc"> <p>Filters the value of a specific post field before saving.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../hooks/field">{$field}</a> </td> <td class="related-desc"> <p>Filters the value of a specific post field for display.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/deprecated.php:</span> <a href="get_links">get_links()</a> </td> <td class="related-desc"> <p>Gets the links associated with category by ID.</p> </td> </tr> <tr> <td> <span>wp-includes/deprecated.php:</span> <a href="get_linkrating">get_linkrating()</a> </td> <td class="related-desc"> <p>Legacy function that retrieved the value of a link’s link_rating field.</p> </td> </tr> <tr> <td> <span>wp-includes/bookmark-template.php:</span> <a href="_walk_bookmarks">_walk_bookmarks()</a> </td> <td class="related-desc"> <p>The formatted output of a list of bookmarks.</p> </td> </tr> <tr> <td> <span>wp-includes/bookmark.php:</span> <a href="sanitize_bookmark">sanitize_bookmark()</a> </td> <td class="related-desc"> <p>Sanitizes all bookmark fields.</p> </td> </tr> <tr> <td> <span>wp-includes/bookmark.php:</span> <a href="get_bookmark_field">get_bookmark_field()</a> </td> <td class="related-desc"> <p>Retrieve single bookmark data item or field.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.3.0/" alt="WordPress 2.3.0">2.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/sanitize_bookmark_field" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/sanitize_bookmark_field</a>
+  </p>
+</div>

@@ -1,0 +1,47 @@
+<h1>get_core_checksums( string $version, string $locale )</h1>  <section> <p>Gets and caches the checksums for the given version of WordPress.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$version</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Version string to query.</span> </p> </dd> <dt>$locale</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Locale to query.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array|false)</span> An array of checksums on success, false on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/update.php/">wp-admin/includes/update.php</a> </p> <pre data-language="php">function get_core_checksums( $version, $locale ) {
+	$http_url = 'http://api.wordpress.org/core/checksums/1.0/?' . http_build_query( compact( 'version', 'locale' ), '', '&amp;' );
+	$url      = $http_url;
+
+	$ssl = wp_http_supports( array( 'ssl' ) );
+	if ( $ssl ) {
+		$url = set_url_scheme( $url, 'https' );
+	}
+
+	$options = array(
+		'timeout' =&gt; wp_doing_cron() ? 30 : 3,
+	);
+
+	$response = wp_remote_get( $url, $options );
+	if ( $ssl &amp;&amp; is_wp_error( $response ) ) {
+		trigger_error(
+			sprintf(
+				/* translators: %s: Support forums URL. */
+				__( 'An unexpected error occurred. Something may be wrong with WordPress.org or this server&amp;#8217;s configuration. If you continue to have problems, please try the &lt;a href="%s"&gt;support forums&lt;/a&gt;.' ),
+				__( 'https://wordpress.org/support/forums/' )
+			) . ' ' . __( '(WordPress could not establish a secure connection to WordPress.org. Please contact your server administrator.)' ),
+			headers_sent() || WP_DEBUG ? E_USER_WARNING : E_USER_NOTICE
+		);
+		$response = wp_remote_get( $http_url, $options );
+	}
+
+	if ( is_wp_error( $response ) || 200 != wp_remote_retrieve_response_code( $response ) ) {
+		return false;
+	}
+
+	$body = trim( wp_remote_retrieve_body( $response ) );
+	$body = json_decode( $body, true );
+
+	if ( ! is_array( $body ) || ! isset( $body['checksums'] ) || ! is_array( $body['checksums'] ) ) {
+		return false;
+	}
+
+	return $body['checksums'];
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_doing_cron">wp_doing_cron()</a> </td> <td class="related-desc"> <p>Determines whether the current request is a WordPress cron request.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="set_url_scheme">set_url_scheme()</a> </td> <td class="related-desc"> <p>Sets the scheme for a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_http_supports">wp_http_supports()</a> </td> <td class="related-desc"> <p>Determines if there is an HTTP Transport that can process this request.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_remote_get">wp_remote_get()</a> </td> <td class="related-desc"> <p>Performs an HTTP request using the GET method and returns its response.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_remote_retrieve_response_code">wp_remote_retrieve_response_code()</a> </td> <td class="related-desc"> <p>Retrieve only the response code from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_remote_retrieve_body">wp_remote_retrieve_body()</a> </td> <td class="related-desc"> <p>Retrieve only the body from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-site-health-auto-updates.php:</span> <a href="../classes/wp_site_health_auto_updates/test_all_files_writable">WP_Site_Health_Auto_Updates::test_all_files_writable()</a> </td> <td class="related-desc"> <p>Check if core files are writable by the web user/group.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-core-upgrader.php:</span> <a href="../classes/core_upgrader/check_files">Core_Upgrader::check_files()</a> </td> <td class="related-desc"> <p>Compare the disk file checksums against the expected checksums.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/update-core.php:</span> <a href="update_core">update_core()</a> </td> <td class="related-desc"> <p>Upgrades the core of WordPress.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.7.0/" alt="WordPress 3.7.0">3.7.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/get_core_checksums" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/get_core_checksums</a>
+  </p>
+</div>

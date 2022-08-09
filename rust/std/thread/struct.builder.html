@@ -1,10 +1,10 @@
-<h1 class="fqn">Struct std::thread::Builder</h1>
-<pre class="rust struct" data-language="rust">pub struct Builder { /* fields omitted */ }</pre>
+<h1 class="main-heading">Struct std::thread::Builder</h1>
+<pre class="rust struct" data-language="rust">pub struct Builder { /* private fields */ }</pre>
 <p>Thread factory, which can be used in order to configure the properties of a new thread.</p> <p>Methods can be chained on it in order to configure it.</p> <p>The two configurations available are:</p> <ul> <li>
 <a href="struct.builder#method.name"><code>name</code></a>: specifies an <a href="index#naming-threads">associated name for the thread</a>
 </li> <li>
 <a href="struct.builder#method.stack_size"><code>stack_size</code></a>: specifies the <a href="index#stack-size">desired stack size for the thread</a>
-</li> </ul> <p>The <a href="struct.builder#method.spawn"><code>spawn</code></a> method will take ownership of the builder and create an <a href="../io/type.result"><code>io::Result</code></a> to the thread handle with the given configuration.</p> <p>The <a href="fn.spawn"><code>thread::spawn</code></a> free function uses a <code>Builder</code> with default configuration and <a href="../result/enum.result#method.unwrap"><code>unwrap</code></a>s its return value.</p> <p>You may want to use <a href="struct.builder#method.spawn"><code>spawn</code></a> instead of <a href="fn.spawn"><code>thread::spawn</code></a>, when you want to recover from a failure to launch a thread, indeed the free function will panic where the <code>Builder</code> method will return a <a href="../io/type.result"><code>io::Result</code></a>.</p> <h3 id="examples" class="section-header">Examples</h3> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::thread;
+</li> </ul> <p>The <a href="struct.builder#method.spawn"><code>spawn</code></a> method will take ownership of the builder and create an <a href="../io/type.result"><code>io::Result</code></a> to the thread handle with the given configuration.</p> <p>The <a href="fn.spawn"><code>thread::spawn</code></a> free function uses a <code>Builder</code> with default configuration and <a href="../result/enum.result#method.unwrap"><code>unwrap</code></a>s its return value.</p> <p>You may want to use <a href="struct.builder#method.spawn"><code>spawn</code></a> instead of <a href="fn.spawn"><code>thread::spawn</code></a>, when you want to recover from a failure to launch a thread, indeed the free function will panic where the <code>Builder</code> method will return a <a href="../io/type.result"><code>io::Result</code></a>.</p> <h2 id="examples">Examples</h2> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::thread;
 
 let builder = thread::Builder::new();
 
@@ -13,14 +13,47 @@ let handler = builder.spawn(|| {
 }).unwrap();
 
 handler.join().unwrap();</pre></div> <h2 id="implementations" class="small-section-header">Implementations</h2>
-<summary><div id="impl" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/mod.rs.html#270-519" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl Builder</h3>
-</div></summary><summary><div id="method.new" class="method has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/mod.rs.html#290-292" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub fn new() -&gt; Builder</h4>
-</div></summary><div class="docblock">
-<p>Generates the base configuration for spawning a thread, from which configuration methods can be chained.</p> <h5 id="examples-1" class="section-header">Examples</h5> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::thread;
+<div id="implementations-list">
+<summary><section id="impl" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/scoped.rs.html#195-254">source</a></span><h3 class="code-header in-band">impl Builder</h3></section></summary><div class="impl-items">
+<summary><section id="method.spawn_scoped" class="method has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/scoped.rs.html#243-253">source</a></span><h4 class="code-header">pub fn spawn_scoped&lt;'scope, 'env, F, T&gt;(<br> self, <br> scope: &amp;'scope Scope&lt;'scope, 'env&gt;, <br> f: F<br>) -&gt; Result&lt;ScopedJoinHandle&lt;'scope, T&gt;&gt; <span class="where fmt-newline">where<br> F: <a class="trait" href="../ops/trait.fnonce" title="trait std::ops::FnOnce">FnOnce</a>() -&gt; T + <a class="trait" href="../marker/trait.send" title="trait std::marker::Send">Send</a> + 'scope,<br> T: <a class="trait" href="../marker/trait.send" title="trait std::marker::Send">Send</a> + 'scope, </span>
+</h4></section><span class="item-info"><div class="stab unstable">
+<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>scoped_threads</code> <a href="https://github.com/rust-lang/rust/issues/93203">#93203</a>)</div></span></summary><div class="docblock">
+<p>Spawns a new scoped thread using the settings set through this <code>Builder</code>.</p> <p>Unlike <a href="struct.scope#method.spawn" title="Scope::spawn"><code>Scope::spawn</code></a>, this method yields an <a href="../io/type.result"><code>io::Result</code></a> to capture any failure to create the thread at the OS level.</p> <h5 id="panics">Panics</h5> <p>Panics if a thread name was set and it contained null bytes.</p> <h5 id="example">Example</h5> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">#![feature(scoped_threads)]
+use std::thread;
+
+let mut a = vec![1, 2, 3];
+let mut x = 0;
+
+thread::scope(|s| {
+    thread::Builder::new()
+        .name("first".to_string())
+        .spawn_scoped(s, ||
+    {
+        println!("hello from the {:?} scoped thread", thread::current().name());
+        // We can borrow `a` here.
+        dbg!(&amp;a);
+    })
+    .unwrap();
+    thread::Builder::new()
+        .name("second".to_string())
+        .spawn_scoped(s, ||
+    {
+        println!("hello from the {:?} scoped thread", thread::current().name());
+        // We can even mutably borrow `x` here,
+        // because no other threads are using it.
+        x += a[0] + a[2];
+    })
+    .unwrap();
+    println!("hello from the main thread");
+});
+
+// After the scope, we can modify and access our variables again:
+a.push(4);
+assert_eq!(x, a.len());</pre></div> </div>
+</div>
+<summary><section id="impl-1" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/mod.rs.html#272-540">source</a></span><h3 class="code-header in-band">impl Builder</h3></section></summary><div class="impl-items">
+<summary><section id="method.new" class="method has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/mod.rs.html#292-294">source</a></span><h4 class="code-header">pub fn new() -&gt; Builder</h4></section></summary><div class="docblock">
+<p>Generates the base configuration for spawning a thread, from which configuration methods can be chained.</p> <h5 id="examples-1">Examples</h5> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::thread;
 
 let builder = thread::Builder::new()
                               .name("foo".into())
@@ -31,11 +64,8 @@ let handler = builder.spawn(|| {
 }).unwrap();
 
 handler.join().unwrap();</pre></div> </div>
-<summary><div id="method.name" class="method has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/mod.rs.html#319-322" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub fn name(self, name: String) -&gt; Builder</h4>
-</div></summary><div class="docblock">
-<p>Names the thread-to-be. Currently the name is used for identification only in panic messages.</p> <p>The name must not contain null bytes (<code>\0</code>).</p> <p>For more information about named threads, see <a href="index#naming-threads">this module-level documentation</a>.</p> <h5 id="examples-2" class="section-header">Examples</h5> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::thread;
+<summary><section id="method.name" class="method has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/mod.rs.html#321-324">source</a></span><h4 class="code-header">pub fn name(self, name: String) -&gt; Builder</h4></section></summary><div class="docblock">
+<p>Names the thread-to-be. Currently the name is used for identification only in panic messages.</p> <p>The name must not contain null bytes (<code>\0</code>).</p> <p>For more information about named threads, see <a href="index#naming-threads">this module-level documentation</a>.</p> <h5 id="examples-2">Examples</h5> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::thread;
 
 let builder = thread::Builder::new()
     .name("foo".into());
@@ -45,19 +75,13 @@ let handler = builder.spawn(|| {
 }).unwrap();
 
 handler.join().unwrap();</pre></div> </div>
-<summary><div id="method.stack_size" class="method has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/mod.rs.html#342-345" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub fn stack_size(self, size: usize) -&gt; Builder</h4>
-</div></summary><div class="docblock">
-<p>Sets the size of the stack (in bytes) for the new thread.</p> <p>The actual stack size may be greater than this value if the platform specifies a minimal stack size.</p> <p>For more information about the stack size for threads, see <a href="index#stack-size">this module-level documentation</a>.</p> <h5 id="examples-3" class="section-header">Examples</h5> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::thread;
+<summary><section id="method.stack_size" class="method has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/mod.rs.html#344-347">source</a></span><h4 class="code-header">pub fn stack_size(self, size: usize) -&gt; Builder</h4></section></summary><div class="docblock">
+<p>Sets the size of the stack (in bytes) for the new thread.</p> <p>The actual stack size may be greater than this value if the platform specifies a minimal stack size.</p> <p>For more information about the stack size for threads, see <a href="index#stack-size">this module-level documentation</a>.</p> <h5 id="examples-3">Examples</h5> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::thread;
 
 let builder = thread::Builder::new().stack_size(32 * 1024);</pre></div> </div>
-<summary><div id="method.spawn" class="method has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/mod.rs.html#383-390" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub fn spawn&lt;F, T&gt;(self, f: F) -&gt; Result&lt;JoinHandle&lt;T&gt;&gt; <span class="where fmt-newline">where<br> F: <a class="trait" href="../ops/trait.fnonce" title="trait std::ops::FnOnce">FnOnce</a>() -&gt; T,<br> F: <a class="trait" href="../marker/trait.send" title="trait std::marker::Send">Send</a> + 'static,<br> T: <a class="trait" href="../marker/trait.send" title="trait std::marker::Send">Send</a> + 'static, </span>
-</h4>
-</div></summary><div class="docblock">
-<p>Spawns a new thread by taking ownership of the <code>Builder</code>, and returns an <a href="../io/type.result"><code>io::Result</code></a> to its <a href="struct.joinhandle" title="JoinHandle"><code>JoinHandle</code></a>.</p> <p>The spawned thread may outlive the caller (unless the caller thread is the main thread; the whole process is terminated when the main thread finishes). The join handle can be used to block on termination of the spawned thread, including recovering its panics.</p> <p>For a more complete documentation see <a href="fn.spawn" title="spawn"><code>thread::spawn</code></a>.</p> <h5 id="errors" class="section-header">Errors</h5> <p>Unlike the <a href="fn.spawn" title="spawn"><code>spawn</code></a> free function, this method yields an <a href="../io/type.result"><code>io::Result</code></a> to capture any failure to create the thread at the OS level.</p> <h5 id="panics" class="section-header">Panics</h5> <p>Panics if a thread name was set and it contained null bytes.</p> <h5 id="examples-4" class="section-header">Examples</h5> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::thread;
+<summary><section id="method.spawn" class="method has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/mod.rs.html#385-392">source</a></span><h4 class="code-header">pub fn spawn&lt;F, T&gt;(self, f: F) -&gt; Result&lt;JoinHandle&lt;T&gt;&gt; <span class="where fmt-newline">where<br> F: <a class="trait" href="../ops/trait.fnonce" title="trait std::ops::FnOnce">FnOnce</a>() -&gt; T,<br> F: <a class="trait" href="../marker/trait.send" title="trait std::marker::Send">Send</a> + 'static,<br> T: <a class="trait" href="../marker/trait.send" title="trait std::marker::Send">Send</a> + 'static, </span>
+</h4></section></summary><div class="docblock">
+<p>Spawns a new thread by taking ownership of the <code>Builder</code>, and returns an <a href="../io/type.result"><code>io::Result</code></a> to its <a href="struct.joinhandle" title="JoinHandle"><code>JoinHandle</code></a>.</p> <p>The spawned thread may outlive the caller (unless the caller thread is the main thread; the whole process is terminated when the main thread finishes). The join handle can be used to block on termination of the spawned thread, including recovering its panics.</p> <p>For a more complete documentation see <a href="fn.spawn" title="spawn"><code>thread::spawn</code></a>.</p> <h5 id="errors">Errors</h5> <p>Unlike the <a href="fn.spawn" title="spawn"><code>spawn</code></a> free function, this method yields an <a href="../io/type.result"><code>io::Result</code></a> to capture any failure to create the thread at the OS level.</p> <h5 id="panics-1">Panics</h5> <p>Panics if a thread name was set and it contained null bytes.</p> <h5 id="examples-4">Examples</h5> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::thread;
 
 let builder = thread::Builder::new();
 
@@ -66,14 +90,10 @@ let handler = builder.spawn(|| {
 }).unwrap();
 
 handler.join().unwrap();</pre></div> </div>
-<summary><div id="method.spawn_unchecked" class="method has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/mod.rs.html#451-518" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub unsafe fn spawn_unchecked&lt;'a, F, T&gt;(self, f: F) -&gt; Result&lt;JoinHandle&lt;T&gt;&gt; <span class="where fmt-newline">where<br> F: <a class="trait" href="../ops/trait.fnonce" title="trait std::ops::FnOnce">FnOnce</a>() -&gt; T,<br> F: <a class="trait" href="../marker/trait.send" title="trait std::marker::Send">Send</a> + 'a,<br> T: <a class="trait" href="../marker/trait.send" title="trait std::marker::Send">Send</a> + 'a, </span>
-</h4>
-</div>
-<div class="item-info"><div class="stab unstable">
-<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>thread_spawn_unchecked</code> <a href="https://github.com/rust-lang/rust/issues/55132">#55132</a>)</div></div></summary><div class="docblock">
-<p>Spawns a new thread without any lifetime restrictions by taking ownership of the <code>Builder</code>, and returns an <a href="../io/type.result"><code>io::Result</code></a> to its <a href="struct.joinhandle" title="JoinHandle"><code>JoinHandle</code></a>.</p> <p>The spawned thread may outlive the caller (unless the caller thread is the main thread; the whole process is terminated when the main thread finishes). The join handle can be used to block on termination of the spawned thread, including recovering its panics.</p> <p>This method is identical to <a href="struct.builder#method.spawn" title="Builder::spawn"><code>thread::Builder::spawn</code></a>, except for the relaxed lifetime bounds, which render it unsafe. For a more complete documentation see <a href="fn.spawn" title="spawn"><code>thread::spawn</code></a>.</p> <h5 id="errors-1" class="section-header">Errors</h5> <p>Unlike the <a href="fn.spawn" title="spawn"><code>spawn</code></a> free function, this method yields an <a href="../io/type.result"><code>io::Result</code></a> to capture any failure to create the thread at the OS level.</p> <h5 id="panics-1" class="section-header">Panics</h5> <p>Panics if a thread name was set and it contained null bytes.</p> <h5 id="safety" class="section-header">Safety</h5> <p>The caller has to ensure that the spawned thread does not outlive any references in the supplied thread closure and its return type. This can be guaranteed in two ways:</p> <ul> <li>ensure that <a href="struct.joinhandle#method.join" title="JoinHandle::join"><code>join</code></a> is called before any referenced data is dropped</li> <li>use only types with <code>'static</code> lifetime bounds, i.e., those with no or only <code>'static</code> references (both <a href="struct.builder#method.spawn" title="Builder::spawn"><code>thread::Builder::spawn</code></a> and <a href="fn.spawn" title="spawn"><code>thread::spawn</code></a> enforce this property statically)</li> </ul> <h5 id="examples-5" class="section-header">Examples</h5> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">#![feature(thread_spawn_unchecked)]
+<summary><section id="method.spawn_unchecked" class="method has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/mod.rs.html#453-460">source</a></span><h4 class="code-header">pub unsafe fn spawn_unchecked&lt;'a, F, T&gt;(self, f: F) -&gt; Result&lt;JoinHandle&lt;T&gt;&gt; <span class="where fmt-newline">where<br> F: <a class="trait" href="../ops/trait.fnonce" title="trait std::ops::FnOnce">FnOnce</a>() -&gt; T,<br> F: <a class="trait" href="../marker/trait.send" title="trait std::marker::Send">Send</a> + 'a,<br> T: <a class="trait" href="../marker/trait.send" title="trait std::marker::Send">Send</a> + 'a, </span>
+</h4></section><span class="item-info"><div class="stab unstable">
+<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>thread_spawn_unchecked</code> <a href="https://github.com/rust-lang/rust/issues/55132">#55132</a>)</div></span></summary><div class="docblock">
+<p>Spawns a new thread without any lifetime restrictions by taking ownership of the <code>Builder</code>, and returns an <a href="../io/type.result"><code>io::Result</code></a> to its <a href="struct.joinhandle" title="JoinHandle"><code>JoinHandle</code></a>.</p> <p>The spawned thread may outlive the caller (unless the caller thread is the main thread; the whole process is terminated when the main thread finishes). The join handle can be used to block on termination of the spawned thread, including recovering its panics.</p> <p>This method is identical to <a href="struct.builder#method.spawn" title="Builder::spawn"><code>thread::Builder::spawn</code></a>, except for the relaxed lifetime bounds, which render it unsafe. For a more complete documentation see <a href="fn.spawn" title="spawn"><code>thread::spawn</code></a>.</p> <h5 id="errors-1">Errors</h5> <p>Unlike the <a href="fn.spawn" title="spawn"><code>spawn</code></a> free function, this method yields an <a href="../io/type.result"><code>io::Result</code></a> to capture any failure to create the thread at the OS level.</p> <h5 id="panics-2">Panics</h5> <p>Panics if a thread name was set and it contained null bytes.</p> <h5 id="safety">Safety</h5> <p>The caller has to ensure that the spawned thread does not outlive any references in the supplied thread closure and its return type. This can be guaranteed in two ways:</p> <ul> <li>ensure that <a href="struct.joinhandle#method.join" title="JoinHandle::join"><code>join</code></a> is called before any referenced data is dropped</li> <li>use only types with <code>'static</code> lifetime bounds, i.e., those with no or only <code>'static</code> references (both <a href="struct.builder#method.spawn" title="Builder::spawn"><code>thread::Builder::spawn</code></a> and <a href="fn.spawn" title="spawn"><code>thread::spawn</code></a> enforce this property statically)</li> </ul> <h5 id="examples-5">Examples</h5> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">#![feature(thread_spawn_unchecked)]
 use std::thread;
 
 let builder = thread::Builder::new();
@@ -91,126 +111,57 @@ let handler = unsafe {
 // it is possible to access freed memory if `x` gets
 // dropped before the thread closure is executed!
 handler.join().unwrap();</pre></div> </div>
+</div>
+</div>
 <h2 id="trait-implementations" class="small-section-header">Trait Implementations</h2>
 <div id="trait-implementations-list">
-<summary><div id="impl-Debug" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/mod.rs.html#262" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl Debug for Builder</h3>
-</div></summary><div class="impl-items">
-<summary><div id="method.fmt" class="method trait-impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/mod.rs.html#262" title="goto source code">[src]</a></div>
-<h4 class="code-header">fn fmt(&amp;self, f: &amp;mut Formatter&lt;'_&gt;) -&gt; Result</h4>
-</div></summary><div class="docblock">
+<summary><section id="impl-Debug" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/mod.rs.html#264">source</a></span><h3 class="code-header in-band">impl Debug for Builder</h3></section></summary><div class="impl-items">
+<summary><section id="method.fmt" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/thread/mod.rs.html#264">source</a></span><h4 class="code-header">fn fmt(&amp;self, f: &amp;mut Formatter&lt;'_&gt;) -&gt; Result</h4></section></summary><div class="docblock">
 <p>Formats the value using the given formatter. <a href="../fmt/trait.debug#tymethod.fmt">Read more</a></p> </div>
 </div>
 </div>
 <h2 id="synthetic-implementations" class="small-section-header">Auto Trait Implementations</h2>
 <div id="synthetic-implementations-list">
-<div id="impl-RefUnwindSafe" class="impl has-srclink">
-
-<h3 class="code-header in-band">impl RefUnwindSafe for Builder</h3>
-</div>
-<div id="impl-Send" class="impl has-srclink">
-
-<h3 class="code-header in-band">impl Send for Builder</h3>
-</div>
-<div id="impl-Sync" class="impl has-srclink">
-
-<h3 class="code-header in-band">impl Sync for Builder</h3>
-</div>
-<div id="impl-Unpin" class="impl has-srclink">
-
-<h3 class="code-header in-band">impl Unpin for Builder</h3>
-</div>
-<div id="impl-UnwindSafe" class="impl has-srclink">
-
-<h3 class="code-header in-band">impl UnwindSafe for Builder</h3>
-</div>
+<section id="impl-RefUnwindSafe" class="impl has-srclink"><h3 class="code-header in-band">impl RefUnwindSafe for Builder</h3></section><section id="impl-Send" class="impl has-srclink"><h3 class="code-header in-band">impl Send for Builder</h3></section><section id="impl-Sync" class="impl has-srclink"><h3 class="code-header in-band">impl Sync for Builder</h3></section><section id="impl-Unpin" class="impl has-srclink"><h3 class="code-header in-band">impl Unpin for Builder</h3></section><section id="impl-UnwindSafe" class="impl has-srclink"><h3 class="code-header in-band">impl UnwindSafe for Builder</h3></section>
 </div>
 <h2 id="blanket-implementations" class="small-section-header">Blanket Implementations</h2>
 <div id="blanket-implementations-list">
-<summary><div id="impl-Any" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#132-136" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl&lt;T&gt; Any for T <span class="where fmt-newline">where<br> T: 'static + ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
-</h3>
-</div></summary><div class="impl-items">
-<summary><div id="method.type_id" class="method trait-impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#133" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub fn type_id(&amp;self) -&gt; TypeId</h4>
-</div></summary><div class="docblock">
+<summary><section id="impl-Any" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#132-136">source</a></span><h3 class="code-header in-band">impl&lt;T&gt; Any for T <span class="where fmt-newline">where<br> T: 'static + ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h3></section></summary><div class="impl-items">
+<summary><section id="method.type_id" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/any.rs.html#133">source</a></span><h4 class="code-header">fn type_id(&amp;self) -&gt; TypeId</h4></section></summary><div class="docblock">
 <p>Gets the <code>TypeId</code> of <code>self</code>. <a href="../any/trait.any#tymethod.type_id">Read more</a></p> </div>
 </div>
-<summary><div id="impl-Borrow%3CT%3E" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#208-213" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl&lt;T&gt; Borrow&lt;T&gt; for T <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
-</h3>
-</div></summary><div class="impl-items">
-<summary><div id="method.borrow" class="method trait-impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#210" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub fn borrow(&amp;self) -&gt; &amp;T</h4>
-</div></summary><div class="docblock">
+<summary><section id="impl-Borrow%3CT%3E" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#209-214">source</a></span><h3 class="code-header in-band">impl&lt;T&gt; Borrow&lt;T&gt; for T <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h3></section></summary><div class="impl-items">
+<summary><section id="method.borrow" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#211">source</a><span class="since" title="const unstable">const: <a href="https://github.com/rust-lang/rust/issues/91522" title="Tracking issue for const_borrow">unstable</a></span> · </span><h4 class="code-header">fn borrow(&amp;self) -&gt; &amp;T</h4></section></summary><div class="docblock">
 <p>Immutably borrows from an owned value. <a href="../borrow/trait.borrow#tymethod.borrow">Read more</a></p> </div>
 </div>
-<summary><div id="impl-BorrowMut%3CT%3E" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#216-220" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl&lt;T&gt; BorrowMut&lt;T&gt; for T <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
-</h3>
-</div></summary><div class="impl-items">
-<summary><div id="method.borrow_mut" class="method trait-impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#217" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub fn borrow_mut(&amp;mut self) -&gt; &amp;mut T</h4>
-</div></summary><div class="docblock">
+<summary><section id="impl-BorrowMut%3CT%3E" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#218-222">source</a></span><h3 class="code-header in-band">impl&lt;T&gt; BorrowMut&lt;T&gt; for T <span class="where fmt-newline">where<br> T: ?<a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
+</h3></section></summary><div class="impl-items">
+<summary><section id="method.borrow_mut" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/borrow.rs.html#219">source</a><span class="since" title="const unstable">const: <a href="https://github.com/rust-lang/rust/issues/91522" title="Tracking issue for const_borrow">unstable</a></span> · </span><h4 class="code-header">fn borrow_mut(&amp;mut self) -&gt; &amp;mut T</h4></section></summary><div class="docblock">
 <p>Mutably borrows from an owned value. <a href="../borrow/trait.borrowmut#tymethod.borrow_mut">Read more</a></p> </div>
 </div>
-<summary><div id="impl-From%3CT%3E" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#549-553" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl&lt;T&gt; From&lt;T&gt; for T</h3>
-</div></summary><div class="impl-items">
-<summary><div id="method.from" class="method trait-impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#550" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub fn from(t: T) -&gt; T</h4>
-</div></summary><div class="docblock">
-<p>Performs the conversion.</p> </div>
+<summary><section id="impl-From%3CT%3E" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#557-562">source</a></span><h3 class="code-header in-band">impl&lt;T&gt; From&lt;T&gt; for T</h3></section></summary><div class="impl-items">
+<summary><section id="method.from" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#559">source</a><span class="since" title="const unstable">const: <a href="https://github.com/rust-lang/rust/issues/88674" title="Tracking issue for const_convert">unstable</a></span> · </span><h4 class="code-header">fn from(t: T) -&gt; T</h4></section></summary><div class="docblock">
+<p>Returns the argument unchanged.</p> </div>
 </div>
-<summary><div id="impl-Into%3CU%3E" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#537-544" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl&lt;T, U&gt; Into&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.from" title="trait std::convert::From">From</a>&lt;T&gt;, </span>
-</h3>
-</div></summary><div class="impl-items">
-<summary><div id="method.into" class="method trait-impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#541" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub fn into(self) -&gt; U</h4>
-</div></summary><div class="docblock">
-<p>Performs the conversion.</p> </div>
+<summary><section id="impl-Into%3CU%3E" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#541-552">source</a></span><h3 class="code-header in-band">impl&lt;T, U&gt; Into&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.from" title="trait std::convert::From">From</a>&lt;T&gt;, </span>
+</h3></section></summary><div class="impl-items">
+<summary><section id="method.into" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#549">source</a><span class="since" title="const unstable">const: <a href="https://github.com/rust-lang/rust/issues/88674" title="Tracking issue for const_convert">unstable</a></span> · </span><h4 class="code-header">fn into(self) -&gt; U</h4></section></summary><div class="docblock">
+<p>Calls <code>U::from(self)</code>.</p> <p>That is, this conversion is whatever the implementation of <code><a href="../convert/trait.from" title="From">From</a>&lt;T&gt; for U</code> chooses to do.</p> </div>
 </div>
-<summary><div id="impl-TryFrom%3CU%3E" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#587-596" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl&lt;T, U&gt; TryFrom&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.into" title="trait std::convert::Into">Into</a>&lt;T&gt;, </span>
-</h3>
-</div></summary><div class="impl-items">
-<summary><div id="associatedtype.Error" class="type trait-impl has-srclink">
-<h4 class="code-header">type Error = Infallible</h4>
-</div></summary><div class="docblock">
+<summary><section id="impl-TryFrom%3CU%3E" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#598-607">source</a></span><h3 class="code-header in-band">impl&lt;T, U&gt; TryFrom&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.into" title="trait std::convert::Into">Into</a>&lt;T&gt;, </span>
+</h3></section></summary><div class="impl-items">
+<summary><section id="associatedtype.Error-1" class="associatedtype trait-impl has-srclink"><h4 class="code-header">type Error = Infallible</h4></section></summary><div class="docblock">
 <p>The type returned in the event of a conversion error.</p> </div>
-<summary><div id="method.try_from" class="method trait-impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#593" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub fn try_from(value: U) -&gt; Result&lt;T, &lt;T as TryFrom&lt;U&gt;&gt;::Error&gt;</h4>
-</div></summary><div class="docblock">
+<summary><section id="method.try_from" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#604">source</a><span class="since" title="const unstable">const: <a href="https://github.com/rust-lang/rust/issues/88674" title="Tracking issue for const_convert">unstable</a></span> · </span><h4 class="code-header">fn try_from(value: U) -&gt; Result&lt;T, &lt;T as TryFrom&lt;U&gt;&gt;::Error&gt;</h4></section></summary><div class="docblock">
 <p>Performs the conversion.</p> </div>
 </div>
-<summary><div id="impl-TryInto%3CU%3E" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#573-582" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl&lt;T, U&gt; TryInto&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.tryfrom" title="trait std::convert::TryFrom">TryFrom</a>&lt;T&gt;, </span>
-</h3>
-</div></summary><div class="impl-items">
-<summary><div id="associatedtype.Error-1" class="type trait-impl has-srclink">
-<h4 class="code-header">type Error = &lt;U as TryFrom&lt;T&gt;&gt;::Error</h4>
-</div></summary><div class="docblock">
+<summary><section id="impl-TryInto%3CU%3E" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#583-592">source</a></span><h3 class="code-header in-band">impl&lt;T, U&gt; TryInto&lt;U&gt; for T <span class="where fmt-newline">where<br> U: <a class="trait" href="../convert/trait.tryfrom" title="trait std::convert::TryFrom">TryFrom</a>&lt;T&gt;, </span>
+</h3></section></summary><div class="impl-items">
+<summary><section id="associatedtype.Error" class="associatedtype trait-impl has-srclink"><h4 class="code-header">type Error = &lt;U as TryFrom&lt;T&gt;&gt;::Error</h4></section></summary><div class="docblock">
 <p>The type returned in the event of a conversion error.</p> </div>
-<summary><div id="method.try_into" class="method trait-impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#579" title="goto source code">[src]</a></div>
-<h4 class="code-header">pub fn try_into(self) -&gt; Result&lt;U, &lt;U as TryFrom&lt;T&gt;&gt;::Error&gt;</h4>
-</div></summary><div class="docblock">
+<summary><section id="method.try_into" class="method trait-impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/core/convert/mod.rs.html#589">source</a><span class="since" title="const unstable">const: <a href="https://github.com/rust-lang/rust/issues/88674" title="Tracking issue for const_convert">unstable</a></span> · </span><h4 class="code-header">fn try_into(self) -&gt; Result&lt;U, &lt;U as TryFrom&lt;T&gt;&gt;::Error&gt;</h4></section></summary><div class="docblock">
 <p>Performs the conversion.</p> </div>
 </div>
 </div><div class="_attribution">

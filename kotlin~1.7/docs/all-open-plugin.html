@@ -1,0 +1,118 @@
+<h1 data-toc="all-open-plugin" id="all-open-plugin.md">All-open compiler plugin</h1>
+<p id="4bdcc5f1">Kotlin has classes and their members <code class="code ">final</code> by default, which makes it inconvenient to use frameworks and libraries such as Spring AOP that require classes to be <code class="code ">open</code>. The <em id="2248076b" class="">all-open</em> compiler plugin adapts Kotlin to the requirements of those frameworks and makes classes annotated with a specific annotation and their members open without the explicit <code class="code ">open</code> keyword.</p>
+<p id="76a1429c">For instance, when you use Spring, you don't need all the classes to be open, but only classes annotated with specific annotations like <code class="code ">@Configuration</code> or <code class="code ">@Service</code>. <em id="53e33780" class="">All-open</em> allows to specify such annotations.</p>
+<p id="5f3a4235">We provide <em id="4e119198" class="">all-open</em> plugin support both for Gradle and Maven with the complete IDE integration.</p>
+<aside data-type="note" class="prompt" data-title="" id="27e8f350"><p id="309a1c4a">For Spring, you can use the <code class="code ">kotlin-spring</code> compiler plugin (<a href="#spring-support" id="564d1748">see below</a>).</p></aside><section class="chapter"><h2 id="gradle" data-toc="all-open-plugin#gradle">Gradle</h2>
+<p id="90deddca">Add the plugin artifact to the build script dependencies and apply the plugin:</p>
+<pre class="code" data-language="groovy">buildscript {
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-allopen:$kotlin_version"
+    }
+}
+
+apply plugin: "kotlin-allopen"
+</pre>
+<p id="4a379ac6">As an alternative, you can enable it using the <code class="code ">plugins</code> block:</p>
+<pre class="code" data-language="groovy">plugins {
+  id "org.jetbrains.kotlin.plugin.allopen" version "1.7.10"
+}
+</pre>
+<p id="a5b5f789">Then specify the list of annotations that will make classes open:</p>
+<pre class="code" data-language="groovy">allOpen {
+    annotation("com.my.Annotation")
+    // annotations("com.another.Annotation", "com.third.Annotation")
+}
+</pre>
+<p id="636a0f86">If the class (or any of its superclasses) is annotated with <code class="code ">com.my.Annotation</code>, the class itself and all its members will become open.</p>
+<p id="173e9769">It also works with meta-annotations:</p>
+<pre class="code" data-language="kotlin">@com.my.Annotation
+annotation class MyFrameworkAnnotation
+
+@MyFrameworkAnnotation
+class MyClass // will be all-open
+</pre>
+<p id="606a743c"><code class="code ">MyFrameworkAnnotation</code> is annotated with the all-open meta-annotation <code class="code ">com.my.Annotation</code>, so it becomes an all-open annotation as well.</p></section><section class="chapter"><h2 id="maven" data-toc="all-open-plugin#maven">Maven</h2>
+<p id="83bac37c">Here's how to use all-open with Maven:</p>
+<pre class="code" data-language="markup">&lt;plugin&gt;
+    &lt;artifactId&gt;kotlin-maven-plugin&lt;/artifactId&gt;
+    &lt;groupId&gt;org.jetbrains.kotlin&lt;/groupId&gt;
+    &lt;version&gt;${kotlin.version}&lt;/version&gt;
+
+    &lt;configuration&gt;
+        &lt;compilerPlugins&gt;
+            &lt;!-- Or "spring" for the Spring support --&gt;
+            &lt;plugin&gt;all-open&lt;/plugin&gt;
+        &lt;/compilerPlugins&gt;
+
+        &lt;pluginOptions&gt;
+            &lt;!-- Each annotation is placed on its own line --&gt;
+            &lt;option&gt;all-open:annotation=com.my.Annotation&lt;/option&gt;
+            &lt;option&gt;all-open:annotation=com.their.AnotherAnnotation&lt;/option&gt;
+        &lt;/pluginOptions&gt;
+    &lt;/configuration&gt;
+
+    &lt;dependencies&gt;
+        &lt;dependency&gt;
+            &lt;groupId&gt;org.jetbrains.kotlin&lt;/groupId&gt;
+            &lt;artifactId&gt;kotlin-maven-allopen&lt;/artifactId&gt;
+            &lt;version&gt;${kotlin.version}&lt;/version&gt;
+        &lt;/dependency&gt;
+    &lt;/dependencies&gt;
+&lt;/plugin&gt;
+</pre>
+<p id="596b82a6">Please refer to the <a href="#gradle" id="c3c00315">Gradle</a> section for the detailed information about how all-open annotations work.</p></section><section class="chapter"><h2 id="spring-support" data-toc="all-open-plugin#spring-support">Spring support</h2>
+<p id="2b5efbfc">If you use Spring, you can enable the <em id="e777d37" class="">kotlin-spring</em> compiler plugin instead of specifying Spring annotations manually. The kotlin-spring is a wrapper on top of all-open, and it behaves exactly the same way.</p>
+<p id="f2b59755">As with all-open, add the plugin to the build script dependencies:</p>
+<pre class="code" data-language="groovy">buildscript {
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-allopen:$kotlin_version"
+    }
+}
+
+apply plugin: "kotlin-spring" // instead of "kotlin-allopen"
+</pre>
+<p id="15cadacf">Or using the Gradle plugins DSL:</p>
+<pre class="code" data-language="groovy">plugins {
+  id "org.jetbrains.kotlin.plugin.spring" version "1.6.21"
+}
+</pre>
+<p id="68b83b79">In Maven, the <code class="code ">spring</code> plugin is provided by the <code class="code ">kotlin-maven-allopen</code> plugin dependency, so to enable it:</p>
+<pre class="code" data-language="markup">&lt;compilerPlugins&gt;
+    &lt;plugin&gt;spring&lt;/plugin&gt;
+&lt;/compilerPlugins&gt;
+
+&lt;dependencies&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;org.jetbrains.kotlin&lt;/groupId&gt;
+        &lt;artifactId&gt;kotlin-maven-allopen&lt;/artifactId&gt;
+        &lt;version&gt;${kotlin.version}&lt;/version&gt;
+    &lt;/dependency&gt;
+&lt;/dependencies&gt;
+</pre>
+<p id="d35d3d9d">The plugin specifies the following annotations:</p>
+<ul class="list _ul" id="a929dcdd">
+<li class="list__item" id="4097df94"><p><a href="https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/stereotype/Component.html" id="c842bb2" data-external="true" rel="noopener noreferrer"><code class="code ">@Component</code></a></p></li>
+<li class="list__item" id="81d910c1"><p><a href="https://docs.spring.io/spring/docs/current/javadoc-api/org/springframework/scheduling/annotation/Async.html" id="322f5535" data-external="true" rel="noopener noreferrer"><code class="code ">@Async</code></a></p></li>
+<li class="list__item" id="fe1605be"><p><a href="https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/transaction/annotation/Transactional.html" id="be8dc1aa" data-external="true" rel="noopener noreferrer"><code class="code ">@Transactional</code></a></p></li>
+<li class="list__item" id="fac48fdc"><p><a href="https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/cache/annotation/Cacheable.html" id="81c672a7" data-external="true" rel="noopener noreferrer"><code class="code ">@Cacheable</code></a></p></li>
+<li class="list__item" id="a9555589"><p><a href="https://docs.spring.io/spring-boot/docs/current/api/org/springframework/boot/test/context/SpringBootTest.html" id="7eba7ea4" data-external="true" rel="noopener noreferrer"><code class="code ">@SpringBootTest</code></a></p></li>
+</ul>
+<p id="9a632c38">Thanks to meta-annotations support, classes annotated with <a href="https://docs.spring.io/spring/docs/current/javadoc-api/org/springframework/context/annotation/Configuration.html" id="81e8d674" data-external="true" rel="noopener noreferrer"><code class="code ">@Configuration</code></a>, <a href="https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/stereotype/Controller.html" id="a999e56b" data-external="true" rel="noopener noreferrer"><code class="code ">@Controller</code></a>, <a href="https://docs.spring.io/spring/docs/current/javadoc-api/org/springframework/web/bind/annotation/RestController.html" id="1a4e3f0" data-external="true" rel="noopener noreferrer"><code class="code ">@RestController</code></a>, <a href="https://docs.spring.io/spring/docs/current/javadoc-api/org/springframework/stereotype/Service.html" id="16e4616a" data-external="true" rel="noopener noreferrer"><code class="code ">@Service</code></a> or <a href="https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/stereotype/Repository.html" id="158522e9" data-external="true" rel="noopener noreferrer"><code class="code ">@Repository</code></a> are automatically opened since these annotations are meta-annotated with <a href="https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/stereotype/Component.html" id="c48e2168" data-external="true" rel="noopener noreferrer"><code class="code ">@Component</code></a>.</p>
+<p id="c6a4cc20">Of course, you can use both <code class="code ">kotlin-allopen</code> and <code class="code ">kotlin-spring</code> in the same project.</p>
+<p id="23d45468">Note that if you use the project template generated by the <a href="https://start.spring.io/#!language=kotlin" id="7f0f44a8" data-external="true" rel="noopener noreferrer">start.spring.io</a> service, the <code class="code ">kotlin-spring</code> plugin will be enabled by default.</p></section><section class="chapter"><h2 id="command-line-compiler" data-toc="all-open-plugin#command-line-compiler">Command-line compiler</h2>
+<p id="bda19e1e">All-open compiler plugin JAR is available in the binary distribution of the Kotlin compiler. You can attach the plugin by providing the path to its JAR file using the <code class="code ">Xplugin</code> kotlinc option:</p>
+<pre class="code" data-language="bash">-Xplugin=$KOTLIN_HOME/lib/allopen-compiler-plugin.jar
+</pre>
+<p id="3d386ed8">You can specify all-open annotations directly, using the <code class="code ">annotation</code> plugin option, or enable the "preset". The presets available now for all-open are <code class="code ">spring</code>, <code class="code ">micronaut</code>, and <code class="code ">quarkus</code>.</p>
+<pre class="code" data-language="bash"># The plugin option format is: "-P plugin:&lt;plugin id&gt;:&lt;key&gt;=&lt;value&gt;". 
+# Options can be repeated.
+
+-P plugin:org.jetbrains.kotlin.allopen:annotation=com.my.Annotation
+-P plugin:org.jetbrains.kotlin.allopen:preset=spring
+</pre></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="compiler-reference">Kotlin compiler options</a> <a class="navigation-links__next" href="no-arg-plugin">No-arg compiler plugin</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/all-open-plugin.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/all-open-plugin.html</a>
+  </p>
+</div>

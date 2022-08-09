@@ -1,0 +1,46 @@
+<h1>get_pending_comments_num( int|int[] $post_id )</h1>  <section> <p>Get the number of pending comments on a post or posts</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$post_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>|<span class="int[]">int[]</span>)</span> <span class="required">(Required)</span> <span class="description">Either a single Post ID or an array of Post IDs</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(int|int[])</span> Either a single Posts pending comments as an int or an array of ints keyed on the Post IDs</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/comment.php/">wp-admin/includes/comment.php</a> </p> <pre data-language="php">function get_pending_comments_num( $post_id ) {
+	global $wpdb;
+
+	$single = false;
+	if ( ! is_array( $post_id ) ) {
+		$post_id_array = (array) $post_id;
+		$single        = true;
+	} else {
+		$post_id_array = $post_id;
+	}
+	$post_id_array = array_map( 'intval', $post_id_array );
+	$post_id_in    = "'" . implode( "', '", $post_id_array ) . "'";
+
+	$pending = $wpdb-&gt;get_results( "SELECT comment_post_ID, COUNT(comment_ID) as num_comments FROM $wpdb-&gt;comments WHERE comment_post_ID IN ( $post_id_in ) AND comment_approved = '0' GROUP BY comment_post_ID", ARRAY_A );
+
+	if ( $single ) {
+		if ( empty( $pending ) ) {
+			return 0;
+		} else {
+			return absint( $pending[0]['num_comments'] );
+		}
+	}
+
+	$pending_keyed = array();
+
+	// Default to zero pending for all posts in request.
+	foreach ( $post_id_array as $id ) {
+		$pending_keyed[ $id ] = 0;
+	}
+
+	if ( ! empty( $pending ) ) {
+		foreach ( $pending as $pend ) {
+			$pending_keyed[ $pend['comment_post_ID'] ] = absint( $pend['num_comments'] );
+		}
+	}
+
+	return $pending_keyed;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/functions.php:</span> <a href="absint">absint()</a> </td> <td class="related-desc"> <p>Convert a value to non-negative integer.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/get_results">wpdb::get_results()</a> </td> <td class="related-desc"> <p>Retrieves an entire SQL result set from the database (i.e., many rows).</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-media-list-table.php:</span> <a href="../classes/wp_media_list_table/column_comments">WP_Media_List_Table::column_comments()</a> </td> <td class="related-desc"> <p>Handles the comments column output.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-media-list-table.php:</span> <a href="../classes/wp_media_list_table/display_rows">WP_Media_List_Table::display_rows()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-comments-list-table.php:</span> <a href="../classes/wp_comments_list_table/column_response">WP_Comments_List_Table::column_response()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-comments-list-table.php:</span> <a href="../classes/wp_comments_list_table/prepare_items">WP_Comments_List_Table::prepare_items()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-posts-list-table.php:</span> <a href="../classes/wp_posts_list_table/_display_rows">WP_Posts_List_Table::_display_rows()</a> </td> <td class="related-desc"> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.3.0/" alt="WordPress 2.3.0">2.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/get_pending_comments_num" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/get_pending_comments_num</a>
+  </p>
+</div>

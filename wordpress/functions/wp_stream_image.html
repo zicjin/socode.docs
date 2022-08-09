@@ -1,0 +1,62 @@
+<h1>wp_stream_image( WP_Image_Editor $image, string $mime_type, int $attachment_id )</h1>  <section> <p>Streams image in <a href="../classes/wp_image_editor">WP_Image_Editor</a> to browser.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$image</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Image_Editor"><a href="../classes/wp_image_editor">WP_Image_Editor</a></span>)</span> <span class="required">(Required)</span> <span class="description">The image editor instance.</span> </p> </dd> <dt>$mime_type</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The mime type of the image.</span> </p> </dd> <dt>$attachment_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">The image's attachment post ID.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> True on success, false on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/image-edit.php/">wp-admin/includes/image-edit.php</a> </p> <pre data-language="php">function wp_stream_image( $image, $mime_type, $attachment_id ) {
+	if ( $image instanceof WP_Image_Editor ) {
+
+		/**
+		 * Filters the WP_Image_Editor instance for the image to be streamed to the browser.
+		 *
+		 * @since 3.5.0
+		 *
+		 * @param WP_Image_Editor $image         The image editor instance.
+		 * @param int             $attachment_id The attachment post ID.
+		 */
+		$image = apply_filters( 'image_editor_save_pre', $image, $attachment_id );
+
+		if ( is_wp_error( $image-&gt;stream( $mime_type ) ) ) {
+			return false;
+		}
+
+		return true;
+	} else {
+		/* translators: 1: $image, 2: WP_Image_Editor */
+		_deprecated_argument( __FUNCTION__, '3.5.0', sprintf( __( '%1$s needs to be a %2$s object.' ), '$image', 'WP_Image_Editor' ) );
+
+		/**
+		 * Filters the GD image resource to be streamed to the browser.
+		 *
+		 * @since 2.9.0
+		 * @deprecated 3.5.0 Use {@see 'image_editor_save_pre'} instead.
+		 *
+		 * @param resource|GdImage $image         Image resource to be streamed.
+		 * @param int              $attachment_id The attachment post ID.
+		 */
+		$image = apply_filters_deprecated( 'image_save_pre', array( $image, $attachment_id ), '3.5.0', 'image_editor_save_pre' );
+
+		switch ( $mime_type ) {
+			case 'image/jpeg':
+				header( 'Content-Type: image/jpeg' );
+				return imagejpeg( $image, null, 90 );
+			case 'image/png':
+				header( 'Content-Type: image/png' );
+				return imagepng( $image );
+			case 'image/gif':
+				header( 'Content-Type: image/gif' );
+				return imagegif( $image );
+			case 'image/webp':
+				if ( function_exists( 'imagewebp' ) ) {
+					header( 'Content-Type: image/webp' );
+					return imagewebp( $image, null, 90 );
+				}
+				return false;
+			default:
+				return false;
+		}
+	}
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters_deprecated">apply_filters_deprecated()</a> </td> <td class="related-desc"> <p>Fires functions attached to a deprecated filter hook.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/image-edit.php:</span> <a href="../hooks/image_editor_save_pre">image_editor_save_pre</a> </td> <td class="related-desc"> <p>Filters the <a href="../classes/wp_image_editor">WP_Image_Editor</a> instance for the image to be streamed to the browser.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/image-edit.php:</span> <a href="../hooks/image_save_pre">image_save_pre</a> </td> <td class="related-desc"> <p>Filters the GD image resource to be streamed to the browser.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="_deprecated_argument">_deprecated_argument()</a> </td> <td class="related-desc"> <p>Mark a function argument as deprecated and inform when it has been used.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/image-edit.php:</span> <a href="stream_preview_image">stream_preview_image()</a> </td> <td class="related-desc"> <p>Streams image in post to browser, along with enqueued changes in <code>$_REQUEST['history']</code>.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.9.0/" alt="WordPress 2.9.0">2.9.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_stream_image" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_stream_image</a>
+  </p>
+</div>

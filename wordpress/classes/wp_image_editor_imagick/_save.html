@@ -1,0 +1,51 @@
+<h1>WP_Image_Editor_Imagick::_save( Imagick $image, string $filename = null, string $mime_type = null )</h1>   <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$image</dt> <dd> <p class="desc"> <span class="type">(<span class="Imagick">Imagick</span>)</span> <span class="required">(Required)</span> </p> </dd> <dt>$filename</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> </p> <p class="default">Default value: null</p> </dd> <dt>$mime_type</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> </p> <p class="default">Default value: null</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array|<a href="../wp_error">WP_Error</a>)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-image-editor-imagick.php/">wp-includes/class-wp-image-editor-imagick.php</a> </p> <pre data-language="php">protected function _save( $image, $filename = null, $mime_type = null ) {
+		list( $filename, $extension, $mime_type ) = $this-&gt;get_output_format( $filename, $mime_type );
+
+		if ( ! $filename ) {
+			$filename = $this-&gt;generate_filename( null, null, $extension );
+		}
+
+		try {
+			// Store initial format.
+			$orig_format = $this-&gt;image-&gt;getImageFormat();
+
+			$this-&gt;image-&gt;setImageFormat( strtoupper( $this-&gt;get_extension( $mime_type ) ) );
+		} catch ( Exception $e ) {
+			return new WP_Error( 'image_save_error', $e-&gt;getMessage(), $filename );
+		}
+
+		$write_image_result = $this-&gt;write_image( $this-&gt;image, $filename );
+		if ( is_wp_error( $write_image_result ) ) {
+			return $write_image_result;
+		}
+
+		try {
+			// Reset original format.
+			$this-&gt;image-&gt;setImageFormat( $orig_format );
+		} catch ( Exception $e ) {
+			return new WP_Error( 'image_save_error', $e-&gt;getMessage(), $filename );
+		}
+
+		// Set correct file permissions.
+		$stat  = stat( dirname( $filename ) );
+		$perms = $stat['mode'] &amp; 0000666; // Same permissions as parent folder, strip off the executable bits.
+		chmod( $filename, $perms );
+
+		return array(
+			'path'      =&gt; $filename,
+			/** This filter is documented in wp-includes/class-wp-image-editor-gd.php */
+			'file'      =&gt; wp_basename( apply_filters( 'image_make_intermediate_size', $filename ) ),
+			'width'     =&gt; $this-&gt;size['width'],
+			'height'    =&gt; $this-&gt;size['height'],
+			'mime-type' =&gt; $mime_type,
+			'filesize'  =&gt; wp_filesize( $filename ),
+		);
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_filesize">wp_filesize()</a> </td> <td class="related-desc"> <p>Wrapper for PHP filesize with filters and casting the result as an integer.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-image-editor-imagick.php:</span> <a href="write_image">WP_Image_Editor_Imagick::write_image()</a> </td> <td class="related-desc"> <p>Writes an image to a file or stream.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/wp_basename">wp_basename()</a> </td> <td class="related-desc"> <p>i18n-friendly version of basename().</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-image-editor-gd.php:</span> <a href="../../hooks/image_make_intermediate_size">image_make_intermediate_size</a> </td> <td class="related-desc"> <p>Filters the name of the saved image file.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-image-editor-imagick.php:</span> <a href="make_subsize">WP_Image_Editor_Imagick::make_subsize()</a> </td> <td class="related-desc"> <p>Create an image sub-size and return the image meta data value for it.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-image-editor-imagick.php:</span> <a href="save">WP_Image_Editor_Imagick::save()</a> </td> <td class="related-desc"> <p>Saves current image to file.</p> </td> </tr> </tbody>
+
+</table> </article> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_image_editor_imagick/_save" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_image_editor_imagick/_save</a>
+  </p>
+</div>

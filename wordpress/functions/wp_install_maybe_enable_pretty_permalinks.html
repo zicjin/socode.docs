@@ -1,0 +1,71 @@
+<h1>wp_install_maybe_enable_pretty_permalinks()</h1>  <section> <p>Maybe enable pretty permalinks on installation.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>If after enabling pretty permalinks don’t work, fallback to query-string permalinks.</p> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> Whether pretty permalinks are enabled. False otherwise.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/upgrade.php/">wp-admin/includes/upgrade.php</a> </p> <pre data-language="php">function wp_install_maybe_enable_pretty_permalinks() {
+	global $wp_rewrite;
+
+	// Bail if a permalink structure is already enabled.
+	if ( get_option( 'permalink_structure' ) ) {
+		return true;
+	}
+
+	/*
+	 * The Permalink structures to attempt.
+	 *
+	 * The first is designed for mod_rewrite or nginx rewriting.
+	 *
+	 * The second is PATHINFO-based permalinks for web server configurations
+	 * without a true rewrite module enabled.
+	 */
+	$permalink_structures = array(
+		'/%year%/%monthnum%/%day%/%postname%/',
+		'/index.php/%year%/%monthnum%/%day%/%postname%/',
+	);
+
+	foreach ( (array) $permalink_structures as $permalink_structure ) {
+		$wp_rewrite-&gt;set_permalink_structure( $permalink_structure );
+
+		/*
+		 * Flush rules with the hard option to force refresh of the web-server's
+		 * rewrite config file (e.g. .htaccess or web.config).
+		 */
+		$wp_rewrite-&gt;flush_rules( true );
+
+		$test_url = '';
+
+		// Test against a real WordPress post.
+		$first_post = get_page_by_path( sanitize_title( _x( 'hello-world', 'Default post slug' ) ), OBJECT, 'post' );
+		if ( $first_post ) {
+			$test_url = get_permalink( $first_post-&gt;ID );
+		}
+
+		/*
+		 * Send a request to the site, and check whether
+		 * the 'x-pingback' header is returned as expected.
+		 *
+		 * Uses wp_remote_get() instead of wp_remote_head() because web servers
+		 * can block head requests.
+		 */
+		$response          = wp_remote_get( $test_url, array( 'timeout' =&gt; 5 ) );
+		$x_pingback_header = wp_remote_retrieve_header( $response, 'x-pingback' );
+		$pretty_permalinks = $x_pingback_header &amp;&amp; get_bloginfo( 'pingback_url' ) === $x_pingback_header;
+
+		if ( $pretty_permalinks ) {
+			return true;
+		}
+	}
+
+	/*
+	 * If it makes it this far, pretty permalinks failed.
+	 * Fallback to query-string permalinks.
+	 */
+	$wp_rewrite-&gt;set_permalink_structure( '' );
+	$wp_rewrite-&gt;flush_rules( true );
+
+	return false;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="_x">_x()</a> </td> <td class="related-desc"> <p>Retrieve translated string with gettext context.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="sanitize_title">sanitize_title()</a> </td> <td class="related-desc"> <p>Sanitizes a string into a slug, which can be used in URLs or HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="get_bloginfo">get_bloginfo()</a> </td> <td class="related-desc"> <p>Retrieves information about the current site.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="get_permalink">get_permalink()</a> </td> <td class="related-desc"> <p>Retrieves the full permalink for the current post or post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_remote_get">wp_remote_get()</a> </td> <td class="related-desc"> <p>Performs an HTTP request using the GET method and returns its response.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_remote_retrieve_header">wp_remote_retrieve_header()</a> </td> <td class="related-desc"> <p>Retrieve a single header by name from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_page_by_path">get_page_by_path()</a> </td> <td class="related-desc"> <p>Retrieves a page given its path.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-rewrite.php:</span> <a href="../classes/wp_rewrite/set_permalink_structure">WP_Rewrite::set_permalink_structure()</a> </td> <td class="related-desc"> <p>Sets the main permalink structure for the site.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-rewrite.php:</span> <a href="../classes/wp_rewrite/flush_rules">WP_Rewrite::flush_rules()</a> </td> <td class="related-desc"> <p>Removes rewrite rules and then recreate rewrite rules.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/upgrade.php:</span> <a href="wp_install">wp_install()</a> </td> <td class="related-desc"> <p>Installs the site.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.2.0/" alt="WordPress 4.2.0">4.2.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_install_maybe_enable_pretty_permalinks" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_install_maybe_enable_pretty_permalinks</a>
+  </p>
+</div>

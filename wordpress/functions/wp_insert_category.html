@@ -1,0 +1,70 @@
+<h1>wp_insert_category( array $catarr, bool $wp_error = false )</h1>  <section> <p>Updates an existing Category or creates a new Category.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$catarr</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Array of arguments for inserting a new category. <ul class="param-hash">
+<li>
+<b>'cat_ID'</b><br><i><span class="type">(int)</span></i> Category ID. A non-zero value updates an existing category. Default 0.</li> <li>
+<b>'taxonomy'</b><br><i><span class="type">(string)</span></i> Taxonomy slug. Default 'category'.</li> <li>
+<b>'cat_name'</b><br><i><span class="type">(string)</span></i> Category name. Default empty.</li> <li>
+<b>'category_description'</b><br><i><span class="type">(string)</span></i> Category description. Default empty.</li> <li>
+<b>'category_nicename'</b><br><i><span class="type">(string)</span></i> Category nice (display) name. Default empty.</li> <li>
+<b>'category_parent'</b><br><i><span class="type">(int|string)</span></i> Category parent ID. Default empty.</li> </ul> </span> </p> </dd> <dt>$wp_error</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span>  </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(int|<a href="../classes/wp_error">WP_Error</a>)</span> The ID number of the new or updated Category on success. Zero or a <a href="../classes/wp_error">WP_Error</a> on failure, depending on param <code>$wp_error</code>.</p> </section>  <section> <h2 id="more-information">More Information</h2> <p>Not all possible members of the <tt>$catarr</tt> array are listed here.</p> <p>The value of <tt>category_nicename</tt> will set the slug. (In WordPress terminology, a “nice” name is one that is sanitized for use in places like URLs. It is not meant for displaying to humans, as you might assume.)</p> <p>See <tt><a title="Function Reference/wp create category" href="https://codex.wordpress.org/Function_Reference/wp_create_category">wp_create_category()</a></tt> for a simpler version which takes just a string instead of an array</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/taxonomy.php/">wp-admin/includes/taxonomy.php</a> </p> <pre data-language="php">function wp_insert_category( $catarr, $wp_error = false ) {
+	$cat_defaults = array(
+		'cat_ID'               =&gt; 0,
+		'taxonomy'             =&gt; 'category',
+		'cat_name'             =&gt; '',
+		'category_description' =&gt; '',
+		'category_nicename'    =&gt; '',
+		'category_parent'      =&gt; '',
+	);
+	$catarr       = wp_parse_args( $catarr, $cat_defaults );
+
+	if ( '' === trim( $catarr['cat_name'] ) ) {
+		if ( ! $wp_error ) {
+			return 0;
+		} else {
+			return new WP_Error( 'cat_name', __( 'You did not enter a category name.' ) );
+		}
+	}
+
+	$catarr['cat_ID'] = (int) $catarr['cat_ID'];
+
+	// Are we updating or creating?
+	$update = ! empty( $catarr['cat_ID'] );
+
+	$name        = $catarr['cat_name'];
+	$description = $catarr['category_description'];
+	$slug        = $catarr['category_nicename'];
+	$parent      = (int) $catarr['category_parent'];
+	if ( $parent &lt; 0 ) {
+		$parent = 0;
+	}
+
+	if ( empty( $parent )
+		|| ! term_exists( $parent, $catarr['taxonomy'] )
+		|| ( $catarr['cat_ID'] &amp;&amp; term_is_ancestor_of( $catarr['cat_ID'], $parent, $catarr['taxonomy'] ) ) ) {
+		$parent = 0;
+	}
+
+	$args = compact( 'name', 'slug', 'parent', 'description' );
+
+	if ( $update ) {
+		$catarr['cat_ID'] = wp_update_term( $catarr['cat_ID'], $catarr['taxonomy'], $args );
+	} else {
+		$catarr['cat_ID'] = wp_insert_term( $catarr['cat_name'], $catarr['taxonomy'], $args );
+	}
+
+	if ( is_wp_error( $catarr['cat_ID'] ) ) {
+		if ( $wp_error ) {
+			return $catarr['cat_ID'];
+		} else {
+			return 0;
+		}
+	}
+	return $catarr['cat_ID']['term_id'];
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_parse_args">wp_parse_args()</a> </td> <td class="related-desc"> <p>Merges user defined arguments into defaults array.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="wp_update_term">wp_update_term()</a> </td> <td class="related-desc"> <p>Updates term based on arguments provided.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="wp_insert_term">wp_insert_term()</a> </td> <td class="related-desc"> <p>Adds a new term to the database.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="term_exists">term_exists()</a> </td> <td class="related-desc"> <p>Determines whether a taxonomy term exists.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="term_is_ancestor_of">term_is_ancestor_of()</a> </td> <td class="related-desc"> <p>Checks if a term is an ancestor of another term.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../classes/wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/taxonomy.php:</span> <a href="wp_create_category">wp_create_category()</a> </td> <td class="related-desc"> <p>Add a new category to the database if it does not already exist.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/taxonomy.php:</span> <a href="wp_update_category">wp_update_category()</a> </td> <td class="related-desc"> <p>Aliases <a href="wp_insert_category">wp_insert_category()</a> with minimal args.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="../classes/wp_xmlrpc_server/wp_newcategory">wp_xmlrpc_server::wp_newCategory()</a> </td> <td class="related-desc"> <p>Create new category.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.0.0/" alt="WordPress 3.0.0">3.0.0</a></td> <td><span class="since-description">The 'taxonomy' argument was added.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.5.0/" alt="WordPress 2.5.0">2.5.0</a></td> <td><span class="since-description">$wp_error parameter was added.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.0.0/" alt="WordPress 2.0.0">2.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_insert_category" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_insert_category</a>
+  </p>
+</div>

@@ -1,0 +1,43 @@
+<h1 id="module-ErrorHighlight::CoreExt" class="module"> module ErrorHighlight::CoreExt </h1>  <section id="5Buntitled-5D" class="documentation-section"> <section class="constants-list"> <header> <h3>Constants</h3> </header> <dl> <dt id="SKIP_TO_S_FOR_SUPER_LOOKUP">SKIP_TO_S_FOR_SUPER_LOOKUP </dt>
+<dd>
+<p>This is a marker to let ‘DidYouMean::Correctable#original_message` skip the following method definition of `to_s`. See <a href="https://github.com/ruby/did_you_mean/pull/152">github.com/ruby/did_you_mean/pull/152</a></p> </dd>
+</dl> </section> <section id="public-instance-5Buntitled-5D-method-details" class="method-section"> <header> <h3>Public Instance Methods</h3> </header> <div class="method-detail "> <div class="method-heading" id="method-i-to_s"> <span class="method-name">to_s</span><span class="method-args">()</span> <a class="method-click-advice">Show source</a> </div> <div class="method-description">
+<div class="method-source-code" id="to_s-source"> <pre class="ruby" data-language="ruby"># File lib/error_highlight/core_ext.rb, line 11
+def to_s
+  msg = super.dup
+
+  locs = backtrace_locations
+  return msg unless locs
+
+  loc = locs.first
+  begin
+    node = RubyVM::AbstractSyntaxTree.of(loc, keep_script_lines: true)
+    opts = {}
+
+    case self
+    when NoMethodError, NameError
+      opts[:point_type] = :name
+      opts[:name] = name
+    when TypeError, ArgumentError
+      opts[:point_type] = :args
+    end
+
+    spot = ErrorHighlight.spot(node, **opts)
+
+  rescue SyntaxError
+  rescue SystemCallError # file not found or something
+  rescue ArgumentError   # eval'ed code
+  end
+
+  if spot
+    points = ErrorHighlight.formatter.message_for(spot)
+    msg &lt;&lt; points if !msg.include?(points)
+  end
+
+  msg
+end</pre> </div> <div class="method-calls-super"> Calls superclass method </div>  </div> </div> </section> </section><div class="_attribution">
+  <p class="_attribution-p">
+    Ruby Core &copy; 1993&ndash;2022 Yukihiro Matsumoto<br>Licensed under the Ruby License.<br>Ruby Standard Library &copy; contributors<br>Licensed under their own licenses.<br>
+    
+  </p>
+</div>

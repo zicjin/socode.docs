@@ -1,0 +1,44 @@
+<h1>revoke_super_admin( int $user_id )</h1>  <section> <p>Revokes Super Admin privileges.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$user_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">ID of the user Super Admin privileges to be revoked from.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> True on success, false on failure. This can fail when the user's email is the network admin email or when the <code>$super_admins</code> global is defined.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/capabilities.php/">wp-includes/capabilities.php</a> </p> <pre data-language="php">function revoke_super_admin( $user_id ) {
+	// If global super_admins override is defined, there is nothing to do here.
+	if ( isset( $GLOBALS['super_admins'] ) || ! is_multisite() ) {
+		return false;
+	}
+
+	/**
+	 * Fires before the user's Super Admin privileges are revoked.
+	 *
+	 * @since 3.0.0
+	 *
+	 * @param int $user_id ID of the user Super Admin privileges are being revoked from.
+	 */
+	do_action( 'revoke_super_admin', $user_id );
+
+	// Directly fetch site_admins instead of using get_super_admins().
+	$super_admins = get_site_option( 'site_admins', array( 'admin' ) );
+
+	$user = get_userdata( $user_id );
+	if ( $user &amp;&amp; 0 !== strcasecmp( $user-&gt;user_email, get_site_option( 'admin_email' ) ) ) {
+		$key = array_search( $user-&gt;user_login, $super_admins, true );
+		if ( false !== $key ) {
+			unset( $super_admins[ $key ] );
+			update_site_option( 'site_admins', $super_admins );
+
+			/**
+			 * Fires after the user's Super Admin privileges are revoked.
+			 *
+			 * @since 3.0.0
+			 *
+			 * @param int $user_id ID of the user Super Admin privileges were revoked from.
+			 */
+			do_action( 'revoked_super_admin', $user_id );
+			return true;
+		}
+	}
+	return false;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="../hooks/revoke_super_admin">revoke_super_admin</a> </td> <td class="related-desc"> <p>Fires before the user’s Super Admin privileges are revoked.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="../hooks/revoked_super_admin">revoked_super_admin</a> </td> <td class="related-desc"> <p>Fires after the user’s Super Admin privileges are revoked.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="get_userdata">get_userdata()</a> </td> <td class="related-desc"> <p>Retrieve user info by user ID.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_multisite">is_multisite()</a> </td> <td class="related-desc"> <p>If Multisite is enabled.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="update_site_option">update_site_option()</a> </td> <td class="related-desc"> <p>Updates the value of an option that was already added for the current network.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_site_option">get_site_option()</a> </td> <td class="related-desc"> <p>Retrieve an option value for the current network based on name of option.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.0.0/" alt="WordPress 3.0.0">3.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/revoke_super_admin" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/revoke_super_admin</a>
+  </p>
+</div>

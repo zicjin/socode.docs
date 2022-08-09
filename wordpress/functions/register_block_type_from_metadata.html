@@ -1,0 +1,130 @@
+<h1>register_block_type_from_metadata( string $file_or_folder, array $args = array() )</h1>  <section> <p>Registers a block type from the metadata stored in the <code>block.json</code> file.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$file_or_folder</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Path to the JSON file with metadata definition for the block or path to the folder where the <code>block.json</code> file is located. If providing the path to a JSON file, the filename must end with <code>block.json</code>.</span> </p> </dd> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description"> Array of block type arguments. Accepts any public property of <code>WP_Block_Type</code>. See <a href="../classes/wp_block_type/__construct">WP_Block_Type::__construct()</a> for information on accepted arguments. </span> </p> <p class="default">Default value: array()</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../classes/wp_block_type">WP_Block_Type</a>|false)</span> The registered block type on success, or false on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/blocks.php/">wp-includes/blocks.php</a> </p> <pre data-language="php">function register_block_type_from_metadata( $file_or_folder, $args = array() ) {
+	$filename      = 'block.json';
+	$metadata_file = ( substr( $file_or_folder, -strlen( $filename ) ) !== $filename ) ?
+		trailingslashit( $file_or_folder ) . $filename :
+		$file_or_folder;
+	if ( ! file_exists( $metadata_file ) ) {
+		return false;
+	}
+
+	$metadata = wp_json_file_decode( $metadata_file, array( 'associative' =&gt; true ) );
+	if ( ! is_array( $metadata ) || empty( $metadata['name'] ) ) {
+		return false;
+	}
+	$metadata['file'] = wp_normalize_path( realpath( $metadata_file ) );
+
+	/**
+	 * Filters the metadata provided for registering a block type.
+	 *
+	 * @since 5.7.0
+	 *
+	 * @param array $metadata Metadata for registering a block type.
+	 */
+	$metadata = apply_filters( 'block_type_metadata', $metadata );
+
+	// Add `style` and `editor_style` for core blocks if missing.
+	if ( ! empty( $metadata['name'] ) &amp;&amp; 0 === strpos( $metadata['name'], 'core/' ) ) {
+		$block_name = str_replace( 'core/', '', $metadata['name'] );
+
+		if ( ! isset( $metadata['style'] ) ) {
+			$metadata['style'] = "wp-block-$block_name";
+		}
+		if ( ! isset( $metadata['editorStyle'] ) ) {
+			$metadata['editorStyle'] = "wp-block-{$block_name}-editor";
+		}
+	}
+
+	$settings          = array();
+	$property_mappings = array(
+		'apiVersion'      =&gt; 'api_version',
+		'title'           =&gt; 'title',
+		'category'        =&gt; 'category',
+		'parent'          =&gt; 'parent',
+		'icon'            =&gt; 'icon',
+		'description'     =&gt; 'description',
+		'keywords'        =&gt; 'keywords',
+		'attributes'      =&gt; 'attributes',
+		'providesContext' =&gt; 'provides_context',
+		'usesContext'     =&gt; 'uses_context',
+		'supports'        =&gt; 'supports',
+		'styles'          =&gt; 'styles',
+		'variations'      =&gt; 'variations',
+		'example'         =&gt; 'example',
+	);
+	$textdomain        = ! empty( $metadata['textdomain'] ) ? $metadata['textdomain'] : null;
+	$i18n_schema       = get_block_metadata_i18n_schema();
+
+	foreach ( $property_mappings as $key =&gt; $mapped_key ) {
+		if ( isset( $metadata[ $key ] ) ) {
+			$settings[ $mapped_key ] = $metadata[ $key ];
+			if ( $textdomain &amp;&amp; isset( $i18n_schema-&gt;$key ) ) {
+				$settings[ $mapped_key ] = translate_settings_using_i18n_schema( $i18n_schema-&gt;$key, $settings[ $key ], $textdomain );
+			}
+		}
+	}
+
+	if ( ! empty( $metadata['editorScript'] ) ) {
+		$settings['editor_script'] = register_block_script_handle(
+			$metadata,
+			'editorScript'
+		);
+	}
+
+	if ( ! empty( $metadata['script'] ) ) {
+		$settings['script'] = register_block_script_handle(
+			$metadata,
+			'script'
+		);
+	}
+
+	if ( ! empty( $metadata['viewScript'] ) ) {
+		$settings['view_script'] = register_block_script_handle(
+			$metadata,
+			'viewScript'
+		);
+	}
+
+	if ( ! empty( $metadata['editorStyle'] ) ) {
+		$settings['editor_style'] = register_block_style_handle(
+			$metadata,
+			'editorStyle'
+		);
+	}
+
+	if ( ! empty( $metadata['style'] ) ) {
+		$settings['style'] = register_block_style_handle(
+			$metadata,
+			'style'
+		);
+	}
+
+	/**
+	 * Filters the settings determined from the block type metadata.
+	 *
+	 * @since 5.7.0
+	 *
+	 * @param array $settings Array of determined settings for registering a block type.
+	 * @param array $metadata Metadata provided for registering a block type.
+	 */
+	$settings = apply_filters(
+		'block_type_metadata_settings',
+		array_merge(
+			$settings,
+			$args
+		),
+		$metadata
+	);
+
+	return WP_Block_Type_Registry::get_instance()-&gt;register(
+		$metadata['name'],
+		$settings
+	);
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="translate_settings_using_i18n_schema">translate_settings_using_i18n_schema()</a> </td> <td class="related-desc"> <p>Translates the provided settings value using its i18n schema.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_json_file_decode">wp_json_file_decode()</a> </td> <td class="related-desc"> <p>Reads and decodes a JSON file.</p> </td> </tr> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="get_block_metadata_i18n_schema">get_block_metadata_i18n_schema()</a> </td> <td class="related-desc"> <p>Gets i18n schema for block’s metadata read from <code>block.json</code> file.</p> </td> </tr> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="../hooks/block_type_metadata">block_type_metadata</a> </td> <td class="related-desc"> <p>Filters the metadata provided for registering a block type.</p> </td> </tr> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="../hooks/block_type_metadata_settings">block_type_metadata_settings</a> </td> <td class="related-desc"> <p>Filters the settings determined from the block type metadata.</p> </td> </tr> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="register_block_script_handle">register_block_script_handle()</a> </td> <td class="related-desc"> <p>Finds a script handle for the selected block metadata field. It detects when a path to file was provided and finds a corresponding asset file with details necessary to register the script under automatically generated handle name. It returns unprocessed script handle otherwise.</p> </td> </tr> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="register_block_style_handle">register_block_style_handle()</a> </td> <td class="related-desc"> <p>Finds a style handle for the block metadata field. It detects when a path to file was provided and registers the style under automatically generated handle name. It returns unprocessed style handle otherwise.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-block-type-registry.php:</span> <a href="../classes/wp_block_type_registry/get_instance">WP_Block_Type_Registry::get_instance()</a> </td> <td class="related-desc"> <p>Utility method to retrieve the main instance of the class.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="trailingslashit">trailingslashit()</a> </td> <td class="related-desc"> <p>Appends a trailing slash.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_normalize_path">wp_normalize_path()</a> </td> <td class="related-desc"> <p>Normalize a filesystem path.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/blocks.php:</span> <a href="register_block_type">register_block_type()</a> </td> <td class="related-desc"> <p>Registers a block type. The recommended way is to register a block type using the metadata stored in the <code>block.json</code> file.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.9.0/" alt="WordPress 5.9.0">5.9.0</a></td> <td><span class="since-description">Added support for <code>variations</code> and <code>viewScript</code> fields.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.7.0/" alt="WordPress 5.7.0">5.7.0</a></td> <td><span class="since-description">Added support for <code>textdomain</code> field and i18n handling for all translatable fields.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.0/" alt="WordPress 5.5.0">5.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/register_block_type_from_metadata" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/register_block_type_from_metadata</a>
+  </p>
+</div>

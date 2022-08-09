@@ -1,0 +1,45 @@
+<h1>WP_Block_Type::prepare_attributes_for_render( array $attributes )</h1>  <section> <p>Validates attributes against the current block schema, populating defaulted and missing values.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$attributes</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Original block attributes.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> Prepared block attributes.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-block-type.php/">wp-includes/class-wp-block-type.php</a> </p> <pre data-language="php">public function prepare_attributes_for_render( $attributes ) {
+		// If there are no attribute definitions for the block type, skip
+		// processing and return verbatim.
+		if ( ! isset( $this-&gt;attributes ) ) {
+			return $attributes;
+		}
+
+		foreach ( $attributes as $attribute_name =&gt; $value ) {
+			// If the attribute is not defined by the block type, it cannot be
+			// validated.
+			if ( ! isset( $this-&gt;attributes[ $attribute_name ] ) ) {
+				continue;
+			}
+
+			$schema = $this-&gt;attributes[ $attribute_name ];
+
+			// Validate value by JSON schema. An invalid value should revert to
+			// its default, if one exists. This occurs by virtue of the missing
+			// attributes loop immediately following. If there is not a default
+			// assigned, the attribute value should remain unset.
+			$is_valid = rest_validate_value_from_schema( $value, $schema, $attribute_name );
+			if ( is_wp_error( $is_valid ) ) {
+				unset( $attributes[ $attribute_name ] );
+			}
+		}
+
+		// Populate values of any missing attributes for which the block type
+		// defines a default.
+		$missing_schema_attributes = array_diff_key( $this-&gt;attributes, $attributes );
+		foreach ( $missing_schema_attributes as $attribute_name =&gt; $schema ) {
+			if ( isset( $schema['default'] ) ) {
+				$attributes[ $attribute_name ] = $schema['default'];
+			}
+		}
+
+		return $attributes;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="../../functions/rest_validate_value_from_schema">rest_validate_value_from_schema()</a> </td> <td class="related-desc"> <p>Validate a value based on a schema.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-block-type.php:</span> <a href="render">WP_Block_Type::render()</a> </td> <td class="related-desc"> <p>Renders the block type output for given attributes.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.0.0/" alt="WordPress 5.0.0">5.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_block_type/prepare_attributes_for_render" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_block_type/prepare_attributes_for_render</a>
+  </p>
+</div>

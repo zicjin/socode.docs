@@ -1,0 +1,75 @@
+<h1>auth_redirect()</h1>  <section> <p>Checks if a user is logged in, if not it redirects them to the login page.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>When this code is called from a page, it checks to see if the user viewing the page is logged in. If the user is not logged in, they are redirected to the login page. The user is redirected in such a way that, upon logging in, they will be sent directly to the page they were originally trying to access.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/pluggable.php/">wp-includes/pluggable.php</a> </p> <pre data-language="php">function auth_redirect() {
+		$secure = ( is_ssl() || force_ssl_admin() );
+
+		/**
+		 * Filters whether to use a secure authentication redirect.
+		 *
+		 * @since 3.1.0
+		 *
+		 * @param bool $secure Whether to use a secure authentication redirect. Default false.
+		 */
+		$secure = apply_filters( 'secure_auth_redirect', $secure );
+
+		// If https is required and request is http, redirect.
+		if ( $secure &amp;&amp; ! is_ssl() &amp;&amp; false !== strpos( $_SERVER['REQUEST_URI'], 'wp-admin' ) ) {
+			if ( 0 === strpos( $_SERVER['REQUEST_URI'], 'http' ) ) {
+				wp_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
+				exit;
+			} else {
+				wp_redirect( 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
+				exit;
+			}
+		}
+
+		/**
+		 * Filters the authentication redirect scheme.
+		 *
+		 * @since 2.9.0
+		 *
+		 * @param string $scheme Authentication redirect scheme. Default empty.
+		 */
+		$scheme = apply_filters( 'auth_redirect_scheme', '' );
+
+		$user_id = wp_validate_auth_cookie( '', $scheme );
+		if ( $user_id ) {
+			/**
+			 * Fires before the authentication redirect.
+			 *
+			 * @since 2.8.0
+			 *
+			 * @param int $user_id User ID.
+			 */
+			do_action( 'auth_redirect', $user_id );
+
+			// If the user wants ssl but the session is not ssl, redirect.
+			if ( ! $secure &amp;&amp; get_user_option( 'use_ssl', $user_id ) &amp;&amp; false !== strpos( $_SERVER['REQUEST_URI'], 'wp-admin' ) ) {
+				if ( 0 === strpos( $_SERVER['REQUEST_URI'], 'http' ) ) {
+					wp_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
+					exit;
+				} else {
+					wp_redirect( 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
+					exit;
+				}
+			}
+
+			return; // The cookie is good, so we're done.
+		}
+
+		// The cookie is no good, so force login.
+		nocache_headers();
+
+		$redirect = ( strpos( $_SERVER['REQUEST_URI'], '/options.php' ) &amp;&amp; wp_get_referer() ) ? wp_get_referer() : set_url_scheme( 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
+
+		$login_url = wp_login_url( $redirect, true );
+
+		wp_redirect( $login_url );
+		exit;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_redirect">wp_redirect()</a> </td> <td class="related-desc"> <p>Redirects to another page.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../hooks/secure_auth_redirect">secure_auth_redirect</a> </td> <td class="related-desc"> <p>Filters whether to use a secure authentication redirect.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../hooks/auth_redirect_scheme">auth_redirect_scheme</a> </td> <td class="related-desc"> <p>Filters the authentication redirect scheme.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../hooks/auth_redirect">auth_redirect</a> </td> <td class="related-desc"> <p>Fires before the authentication redirect.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_validate_auth_cookie">wp_validate_auth_cookie()</a> </td> <td class="related-desc"> <p>Validates authentication cookie.</p> </td> </tr> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="wp_login_url">wp_login_url()</a> </td> <td class="related-desc"> <p>Retrieves the login URL.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_ssl">is_ssl()</a> </td> <td class="related-desc"> <p>Determines if SSL is used.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="force_ssl_admin">force_ssl_admin()</a> </td> <td class="related-desc"> <p>Whether to force SSL used for the Administration Screens.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_get_referer">wp_get_referer()</a> </td> <td class="related-desc"> <p>Retrieve referer from ‘_wp_http_referer’ or HTTP referer.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="nocache_headers">nocache_headers()</a> </td> <td class="related-desc"> <p>Set the headers to prevent caching for the different browsers.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="set_url_scheme">set_url_scheme()</a> </td> <td class="related-desc"> <p>Sets the scheme for a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="get_user_option">get_user_option()</a> </td> <td class="related-desc"> <p>Retrieves user option that can be either per Site or per Network.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="../classes/wp_customize_manager/setup_theme">WP_Customize_Manager::setup_theme()</a> </td> <td class="related-desc"> <p>Starts preview and customize theme.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/1.5.0/" alt="WordPress 1.5.0">1.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/auth_redirect" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/auth_redirect</a>
+  </p>
+</div>

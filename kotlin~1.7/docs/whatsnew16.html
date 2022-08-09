@@ -1,0 +1,441 @@
+<h1 data-toc="whatsnew16" id="whatsnew16.md">What's new in Kotlin 1.6.0</h1>
+<p id="8d866fa2"><em id="f1d6ea2a" class=""><a href="releases#release-details" id="8e30264d">Release date: 16 November 2021</a></em></p>
+<p id="76799ba6">Kotlin 1.6.0 introduces new language features, optimizations and improvements to existing features, and a lot of improvements to the Kotlin standard library.</p>
+<p id="2fa20f38">You can also find an overview of the changes in the <a href="https://blog.jetbrains.com/kotlin/2021/11/kotlin-1-6-0-is-released/" id="26da16c3" data-external="true" rel="noopener noreferrer">release blog post</a>.</p>
+<section class="chapter"><h2 id="language" data-toc="whatsnew16#language">Language</h2>
+<p id="168ab8f1">Kotlin 1.6.0 brings stabilization to several language features introduced for preview in the previous 1.5.30 release:</p>
+<ul class="list _ul" id="2055977b">
+<li class="list__item" id="97851294"><p><a href="#stable-exhaustive-when-statements-for-enum-sealed-and-boolean-subjects" id="efaa5e82">Stable exhaustive when statements for enum, sealed and Boolean subjects</a></p></li>
+<li class="list__item" id="de8930b2"><p><a href="#stable-suspending-functions-as-supertypes" id="198089c9">Stable suspending functions as supertypes</a></p></li>
+<li class="list__item" id="80747a39"><p><a href="#stable-suspend-conversions" id="245da017">Stable suspend conversions</a></p></li>
+<li class="list__item" id="aa495617"><p><a href="#stable-instantiation-of-annotation-classes" id="981806fc">Stable instantiation of annotation classes</a></p></li>
+</ul>
+<p id="f78abd8c">It also includes various type inference improvements and support for annotations on class type parameters:</p>
+<ul class="list _ul" id="4169444e">
+<li class="list__item" id="ae38b0b1"><p><a href="#improved-type-inference-for-recursive-generic-types" id="f269c55b">Improved type inference for recursive generic types</a></p></li>
+<li class="list__item" id="7d646dec"><p><a href="#changes-to-builder-inference" id="702eb720">Changes to builder inference</a></p></li>
+<li class="list__item" id="33505b4f"><p><a href="#support-for-annotations-on-class-type-parameters" id="e178f504">Support for annotations on class type parameters</a></p></li>
+</ul>
+<section class="chapter"><h3 id="stable-exhaustive-when-statements-for-enum-sealed-and-boolean-subjects" data-toc="whatsnew16#stable-exhaustive-when-statements-for-enum-sealed-and-boolean-subjects">Stable exhaustive when statements for enum, sealed, and Boolean subjects</h3>
+<p id="f346f9b2">An <em id="f66917ab" class="">exhaustive</em> <a href="control-flow#when-expression" id="108d081f"><code class="code ">when</code></a> statement contains branches for all possible types or values of its subject, or for some types plus an <code class="code ">else</code> branch. It covers all possible cases, making your code safer.</p>
+<p id="12bf4ac3">We will soon prohibit non-exhaustive <code class="code ">when</code> statements to make the behavior consistent with <code class="code ">when</code> expressions. To ensure smooth migration, Kotlin 1.6.0 reports warnings about non-exhaustive <code class="code ">when</code> statements with an enum, sealed, or Boolean subject. These warnings will become errors in future releases.</p>
+<pre class="code" data-language="kotlin">sealed class Contact {
+    data class PhoneCall(val number: String) : Contact()
+    data class TextMessage(val number: String) : Contact()
+}
+
+fun Contact.messageCost(): Int =
+    when(this) { // Error: 'when' expression must be exhaustive
+        is Contact.PhoneCall -&gt; 42
+    }
+
+fun sendMessage(contact: Contact, message: String) {
+    // Starting with 1.6.0
+
+    // Warning: Non exhaustive 'when' statements on Boolean will be
+    // prohibited in 1.7, add 'false' branch or 'else' branch instead 
+    when(message.isEmpty()) {
+        true -&gt; return
+    }
+    // Warning: Non exhaustive 'when' statements on sealed class/interface will be
+    // prohibited in 1.7, add 'is TextMessage' branch or 'else' branch instead
+    when(contact) {
+        is Contact.PhoneCall -&gt; TODO()
+    }
+}
+</pre>
+<p id="d28d6c0">See <a href="https://youtrack.jetbrains.com/issue/KT-47709" id="64a0d83b" data-external="true" rel="noopener noreferrer">this YouTrack ticket</a> for a more detailed explanation of the change and its effects.</p></section><section class="chapter"><h3 id="stable-suspending-functions-as-supertypes" data-toc="whatsnew16#stable-suspending-functions-as-supertypes">Stable suspending functions as supertypes</h3>
+<p id="fd613f4a">Implementation of suspending functional types has become <a href="components-stability" id="a2ece615">Stable</a> in Kotlin 1.6.0. A preview was available <a href="whatsnew1530#suspending-functions-as-supertypes" id="b6eff410">in 1.5.30</a>.</p>
+<p id="a0dd29cb">The feature can be useful when designing APIs that use Kotlin coroutines and accept suspending functional types. You can now streamline your code by enclosing the desired behavior in a separate class that implements a suspending functional type.</p>
+<pre class="code" data-language="kotlin">class MyClickAction : suspend () -&gt; Unit {
+    override suspend fun invoke() { TODO() }
+}
+
+fun launchOnClick(action: suspend () -&gt; Unit) {}
+</pre>
+<p id="493a1399">You can use an instance of this class where only lambdas and suspending function references were allowed previously: <code class="code ">launchOnClick(MyClickAction())</code>.</p>
+<p id="18a0a5a6">There are currently two limitations coming from implementation details:</p>
+<ul class="list _ul" id="7377362f">
+<li class="list__item" id="3a5879e9"><p>You can't mix ordinary functional types and suspending ones in the list of supertypes.</p></li>
+<li class="list__item" id="c9a3c3e7"><p>You can't use multiple suspending functional supertypes.</p></li>
+</ul></section><section class="chapter"><h3 id="stable-suspend-conversions" data-toc="whatsnew16#stable-suspend-conversions">Stable suspend conversions</h3>
+<p id="546315fd">Kotlin 1.6.0 introduces <a href="components-stability" id="5c7165f9">Stable</a> conversions from regular to suspending functional types. Starting from 1.4.0, the feature supported functional literals and callable references. With 1.6.0, it works with any form of expression. As a call argument, you can now pass any expression of a suitable regular functional type where suspending is expected. The compiler will perform an implicit conversion automatically.</p>
+<pre class="code" data-language="kotlin">fun getSuspending(suspending: suspend () -&gt; Unit) {}
+
+fun suspending() {}
+
+fun test(regular: () -&gt; Unit) {
+    getSuspending { }           // OK
+    getSuspending(::suspending) // OK
+    getSuspending(regular)      // OK
+}
+</pre></section><section class="chapter"><h3 id="stable-instantiation-of-annotation-classes" data-toc="whatsnew16#stable-instantiation-of-annotation-classes">Stable instantiation of annotation classes</h3>
+<p id="f674f856">Kotlin 1.5.30 <a href="whatsnew1530#instantiation-of-annotation-classes" id="8072be06">introduced</a> experimental support for instantiation of annotation classes on the JVM platform. With 1.6.0, the feature is available by default both for Kotlin/JVM and Kotlin/JS.</p>
+<p id="8e610f80">Learn more about instantiation of annotation classes in <a href="https://github.com/Kotlin/KEEP/blob/master/proposals/annotation-instantiation.md" id="fa704109" data-external="true" rel="noopener noreferrer">this KEEP</a>.</p></section><section class="chapter"><h3 id="improved-type-inference-for-recursive-generic-types" data-toc="whatsnew16#improved-type-inference-for-recursive-generic-types">Improved type inference for recursive generic types</h3>
+<p id="faf00dfc">Kotlin 1.5.30 introduced an improvement to type inference for recursive generic types, which allowed their type arguments to be inferred based only on the upper bounds of the corresponding type parameters. The improvement was available with the compiler option. In version 1.6.0 and later, it is enabled by default.</p>
+<pre class="code" data-language="kotlin">// Before 1.5.30
+val containerA = PostgreSQLContainer&lt;Nothing&gt;(DockerImageName.parse("postgres:13-alpine")).apply {
+  withDatabaseName("db")
+  withUsername("user")
+  withPassword("password")
+  withInitScript("sql/schema.sql")
+}
+
+// With compiler option in 1.5.30 or by default starting with 1.6.0
+val containerB = PostgreSQLContainer(DockerImageName.parse("postgres:13-alpine"))
+  .withDatabaseName("db")
+  .withUsername("user")
+  .withPassword("password")
+  .withInitScript("sql/schema.sql")
+</pre></section><section class="chapter"><h3 id="changes-to-builder-inference" data-toc="whatsnew16#changes-to-builder-inference">Changes to builder inference</h3>
+<p id="a35989d3">Builder inference is a type inference flavor which is useful when calling generic builder functions. It can infer the type arguments of a call with the help of type information from calls inside its lambda argument.</p>
+<p id="69e9703e">We're making multiple changes that are bringing us closer to fully stable builder inference. Starting with 1.6.0:</p>
+<ul class="list _ul" id="8d6bdfc5">
+<li class="list__item" id="463ccedf"><p id="d4256e09">You can make calls returning an instance of a not yet inferred type inside a builder lambda without specifying the <code class="code ">-Xunrestricted-builder-inference</code> compiler option <a href="whatsnew1530#eliminating-builder-inference-restrictions" id="649586de">introduced in 1.5.30</a>.</p></li>
+<li class="list__item" id="8a5b5d2a">
+<p id="f7b54b3c">With <code class="code ">-Xenable-builder-inference</code>, you can write your own builders without applying the <a href="../api/latest/jvm/stdlib/kotlin/-builder-inference/index" id="a0605856" data-external="true" rel="noopener noreferrer"><code class="code ">@BuilderInference</code></a> annotation.</p>
+<aside data-type="warning" class="prompt" data-title="" id="5af716d8"><p id="d455510">Note that clients of these builders will need to specify the same <code class="code ">-Xenable-builder-inference</code> compiler option.</p></aside>
+</li>
+<li class="list__item" id="a4adbe76"><p id="f07ddd15">With the <code class="code ">-Xenable-builder-inference</code>, builder inference automatically activates if a regular type inference cannot get enough information about a type.</p></li>
+</ul>
+<p id="36710ba2"><a href="using-builders-with-builder-inference" id="245c2aae">Learn how to write custom generic builders</a>.</p></section><section class="chapter"><h3 id="support-for-annotations-on-class-type-parameters" data-toc="whatsnew16#support-for-annotations-on-class-type-parameters">Support for annotations on class type parameters</h3>
+<p id="67d575c1">Support for annotations on class type parameters looks like this:</p>
+<pre class="code" data-language="kotlin">@Target(AnnotationTarget.TYPE_PARAMETER)
+annotation class BoxContent
+
+class Box&lt;@BoxContent T&gt; {}
+</pre>
+<p id="e5a5bd41">Annotations on all type parameters are emitted into JVM bytecode so annotation processors are able to use them.</p>
+<p id="f9e721bc">For the motivating use case, read this <a href="https://youtrack.jetbrains.com/issue/KT-43714" id="f7d64142" data-external="true" rel="noopener noreferrer">YouTrack ticket</a>.</p>
+<p id="205ada8a">Learn more about <a href="annotations" id="678b3e1">annotations</a>.</p></section></section><section class="chapter"><h2 id="supporting-previous-api-versions-for-a-longer-period" data-toc="whatsnew16#supporting-previous-api-versions-for-a-longer-period">Supporting previous API versions for a longer period</h2>
+<p id="eb999b93">Starting with Kotlin 1.6.0, we will support development for three previous API versions instead of two, along with the current stable one. Currently, we support versions 1.3, 1.4, 1.5, and 1.6.</p></section><section class="chapter"><h2 id="kotlin-jvm" data-toc="whatsnew16#kotlin-jvm">Kotlin/JVM</h2>
+<p id="c15a9169">For Kotlin/JVM, starting with 1.6.0, the compiler can generate classes with a bytecode version corresponding to JVM 17. The new language version also includes optimized delegated properties and repeatable annotations, which we had on the roadmap:</p>
+<ul class="list _ul" id="4cd9810a">
+<li class="list__item" id="b090ed0"><p><a href="#repeatable-annotations-with-runtime-retention-for-1-8-jvm-target" id="3a0931db">Repeatable annotations with runtime retention for 1.8 JVM target</a></p></li>
+<li class="list__item" id="fbba1e81"><p><a href="#optimize-delegated-properties-which-call-get-set-on-the-given-kproperty-instance" id="dc356356">Optimize delegated properties which call get/set on the given KProperty instance</a></p></li>
+</ul>
+<section class="chapter"><h3 id="repeatable-annotations-with-runtime-retention-for-1-8-jvm-target" data-toc="whatsnew16#repeatable-annotations-with-runtime-retention-for-1-8-jvm-target">Repeatable annotations with runtime retention for 1.8 JVM target</h3>
+<p id="81da9ed4">Java 8 introduced <a href="https://docs.oracle.com/javase/tutorial/java/annotations/repeating.html" id="f6ca52e" data-external="true" rel="noopener noreferrer">repeatable annotations</a>, which can be applied multiple times to a single code element. The feature requires two declarations to be present in the Java code: the repeatable annotation itself marked with <a href="https://docs.oracle.com/javase/8/docs/api/java/lang/annotation/Repeatable.html" id="8b35147c" data-external="true" rel="noopener noreferrer"><code class="code ">@java.lang.annotation.Repeatable</code></a> and the containing annotation to hold its values.</p>
+<p id="35b19ac0">Kotlin also has repeatable annotations, but requires only <a href="../api/latest/jvm/stdlib/kotlin.annotation/-repeatable/index" id="9ceed201" data-external="true" rel="noopener noreferrer"><code class="code ">@kotlin.annotation.Repeatable</code></a> to be present on an annotation declaration to make it repeatable. Before 1.6.0, the feature supported only <code class="code ">SOURCE</code> retention and was incompatible with Java's repeatable annotations. Kotlin 1.6.0 removes these limitations. <code class="code ">@kotlin.annotation.Repeatable</code> now accepts any retention and makes the annotation repeatable both in Kotlin and Java. Java's repeatable annotations are now also supported from the Kotlin side.</p>
+<p id="77face44">While you can declare a containing annotation, it's not necessary. For example:</p>
+<ul class="list _ul" id="7c249f0b">
+<li class="list__item" id="36295257">
+<p id="e9b93128">If an annotation <code class="code ">@Tag</code> is marked with <code class="code ">@kotlin.annotation.Repeatable</code>, the Kotlin compiler automatically generates a containing annotation class under the name of <code class="code ">@Tag.Container</code>:</p>
+<pre class="code" data-language="kotlin">@Repeatable 
+annotation class Tag(val name: String)
+
+// The compiler generates @Tag.Container containing annotation
+</pre>
+</li>
+<li class="list__item" id="3ab79677">
+<p id="cb5c68a1">To set a custom name for a containing annotation, apply the <a href="../api/latest/jvm/stdlib/kotlin.jvm/-jvmrepeatable/index" id="581554b6" data-external="true" rel="noopener noreferrer"><code class="code ">@kotlin.jvm.JvmRepeatable</code></a> meta-annotation and pass the explicitly declared containing annotation class as an argument:</p>
+<pre class="code" data-language="kotlin">@JvmRepeatable(Tags::class)
+annotation class Tag(val name: String)
+
+annotation class Tags(val value: Array&lt;Tag&gt;)
+</pre>
+</li>
+</ul>
+<p id="50a5161f">Kotlin reflection now supports both Kotlin's and Java's repeatable annotations via a new function, <a href="../api/latest/jvm/stdlib/kotlin.reflect.full/find-annotations" id="dfed07d1" data-external="true" rel="noopener noreferrer"><code class="code ">KAnnotatedElement.findAnnotations()</code></a>.</p>
+<p id="dbcb78bb">Learn more about Kotlin repeatable annotations in <a href="https://github.com/Kotlin/KEEP/blob/master/proposals/repeatable-annotations.md" id="a84a865c" data-external="true" rel="noopener noreferrer">this KEEP</a>.</p></section><section class="chapter"><h3 id="optimize-delegated-properties-which-call-get-set-on-the-given-kproperty-instance" data-toc="whatsnew16#optimize-delegated-properties-which-call-get-set-on-the-given-kproperty-instance">Optimize delegated properties which call get/set on the given KProperty instance</h3>
+<p id="26321559">We optimized the generated JVM bytecode by omitting the <code class="code ">$delegate</code> field and generating immediate access to the referenced property.</p>
+<p id="b203aa47">For example, in the following code</p>
+<pre class="code" data-language="kotlin">class Box&lt;T&gt; {
+    private var impl: T = ...
+
+    var content: T by ::impl
+}
+</pre>
+<p id="53e2a5e8">Kotlin no longer generates the field <code class="code ">content$delegate</code>. Property accessors of the <code class="code ">content</code> variable invoke the <code class="code ">impl</code> variable directly, skipping the delegated property's <code class="code ">getValue</code>/<code class="code ">setValue</code> operators and thus avoiding the need for the property reference object of the <a href="../api/latest/jvm/stdlib/kotlin.reflect/-k-property/index" id="ca0b97fc" data-external="true" rel="noopener noreferrer"><code class="code ">KProperty</code></a> type.</p>
+<p id="9f28955e">Thanks to our Google colleagues for the implementation!</p>
+<p id="e44c48e5">Learn more about <a href="delegated-properties" id="10f3575f">delegated properties</a>.</p></section></section><section class="chapter"><h2 id="kotlin-native" data-toc="whatsnew16#kotlin-native">Kotlin/Native</h2>
+<p id="eedf198d">Kotlin/Native is receiving multiple improvements and component updates, some of them in the preview state:</p>
+<ul class="list _ul" id="d4d2e62c">
+<li class="list__item" id="ed9b7341"><p><a href="#preview-of-the-new-memory-manager" id="9a0288c9">Preview of the new memory manager</a></p></li>
+<li class="list__item" id="9635cf82"><p><a href="#support-for-xcode-13" id="fb670601">Support for Xcode 13</a></p></li>
+<li class="list__item" id="5e6cab58"><p><a href="#compilation-of-windows-targets-on-any-host" id="cbc1a1c8">Compilation of Windows targets on any host</a></p></li>
+<li class="list__item" id="683652a"><p><a href="#llvm-and-linker-updates" id="1c7c3f3e">LLVM and linker updates</a></p></li>
+<li class="list__item" id="123cf4ac"><p><a href="#performance-improvements" id="e435c0de">Performance improvements</a></p></li>
+<li class="list__item" id="3a8aa40b"><p><a href="#unified-compiler-plugin-abi-with-jvm-and-js-ir-backends" id="95b8b849">Unified compiler plugin ABI with JVM and JS IR backends</a></p></li>
+<li class="list__item" id="759ddb85"><p><a href="#detailed-error-messages-for-klib-linkage-failures" id="4cc3a91c">Detailed error messages for klib linkage failures</a></p></li>
+<li class="list__item" id="76346a66"><p><a href="#reworked-unhandled-exception-handling-api" id="71e4a12b">Reworked unhandled exception handling API</a></p></li>
+</ul>
+<section class="chapter"><h3 id="preview-of-the-new-memory-manager" data-toc="whatsnew16#preview-of-the-new-memory-manager">Preview of the new memory manager</h3>
+<aside data-type="warning" class="prompt" data-title="" id="7a883bf"><p id="d1f8f2c7">The new Kotlin/Native memory manager is <a href="components-stability" id="432a825d">Experimental</a>. It may be dropped or changed at any time. Opt-in is required (see details below), and you should use it only for evaluation purposes. We would appreciate your feedback on it in <a href="https://youtrack.jetbrains.com/issue/KT-48525" id="47b3920a" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="13c5c6bd">With Kotlin 1.6.0, you can try the development preview of the new Kotlin/Native memory manager. It moves us closer to eliminating the differences between the JVM and Native platforms to provide a consistent developer experience in multiplatform projects.</p>
+<p id="bd9a0438">One of the notable changes is the lazy initialization of top-level properties, like in Kotlin/JVM. A top-level property gets initialized when a top-level property or function from the same file is accessed for the first time. This mode also includes global interprocedural optimization (enabled only for release binaries), which removes redundant initialization checks.</p>
+<p id="40977311">We've recently published a <a href="https://blog.jetbrains.com/kotlin/2021/08/try-the-new-kotlin-native-memory-manager-development-preview/" id="1ab888ae" data-external="true" rel="noopener noreferrer">blog post</a> about the new memory manager. Read it to learn about the current state of the new memory manager and find some demo projects, or jump right to the <a href="https://github.com/JetBrains/kotlin/blob/master/kotlin-native/NEW_MM.md" id="dd05bc9d" data-external="true" rel="noopener noreferrer">migration instructions</a> to try it yourself. Please check how the new memory manager works on your projects and share feedback in our issue tracker, <a href="https://youtrack.jetbrains.com/issue/KT-48525" id="841c3503" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></section><section class="chapter"><h3 id="support-for-xcode-13" data-toc="whatsnew16#support-for-xcode-13">Support for Xcode 13</h3>
+<p id="58e9ceec">Kotlin/Native 1.6.0 supports Xcode 13 – the latest version of Xcode. Feel free to update your Xcode and continue working on your Kotlin projects for Apple operating systems.</p>
+<aside data-type="note" class="prompt" data-title="" id="c55dba41"><p id="bbca24ac">New libraries added in Xcode 13 aren't available for use in Kotlin 1.6.0, but we're going to add support for them in upcoming versions.</p></aside></section><section class="chapter"><h3 id="compilation-of-windows-targets-on-any-host" data-toc="whatsnew16#compilation-of-windows-targets-on-any-host">Compilation of Windows targets on any host</h3>
+<p id="62fc7f5b">Starting from 1.6.0, you don't need a Windows host to compile the Windows targets <code class="code ">mingwX64</code> and <code class="code ">mingwX86</code>. They can be compiled on any host that supports Kotlin/Native.</p></section><section class="chapter"><h3 id="llvm-and-linker-updates" data-toc="whatsnew16#llvm-and-linker-updates">LLVM and linker updates</h3>
+<p id="32ca611c">We've reworked the LLVM dependency that Kotlin/Native uses under the hood. This brings various benefits, including:</p>
+<ul class="list _ul" id="98563b4">
+<li class="list__item" id="7ea36cfe"><p>Updated LLVM version to 11.1.0.</p></li>
+<li class="list__item" id="b0e3d02b"><p>Decreased dependency size. For example, on macOS it's now about 300 MB instead of 1200 MB in the previous version.</p></li>
+<li class="list__item" id="bdaef9f4"><p><a href="https://youtrack.jetbrains.com/issue/KT-42693" id="999ce2aa" data-external="true" rel="noopener noreferrer">Excluded dependency on the <code class="code ">ncurses5</code> library</a> that isn't available in modern Linux distributions.</p></li>
+</ul>
+<p id="f5273f32">In addition to the LLVM update, Kotlin/Native now uses the <a href="https://lld.llvm.org/" id="2ceddb47" data-external="true" rel="noopener noreferrer">LLD</a> linker (a linker from the LLVM project) for MingGW targets. It provides various benefits over the previously used ld.bfd linker, and will allow us to improve runtime performance of produced binaries and support compiler caches for MinGW targets. Note that LLD <a href="whatsnew1530#deprecation-of-linkage-against-dlls-without-import-libraries-for-mingw-targets" id="145db121">requires import libraries for DLL linkage</a>. Learn more in <a href="https://stackoverflow.com/questions/3573475/how-does-the-import-library-work-details/3573527/#3573527" id="5b724531" data-external="true" rel="noopener noreferrer">this Stack Overflow thread</a>.</p></section><section class="chapter"><h3 id="performance-improvements" data-toc="whatsnew16#performance-improvements">Performance improvements</h3>
+<p id="e1ee2fcd">Kotlin/Native 1.6.0 delivers the following performance improvements:</p>
+<ul class="list _ul" id="576fc2a8">
+<li class="list__item" id="1ccd0aac"><p>Compilation time: compiler caches are enabled by default for <code class="code ">linuxX64</code> and <code class="code ">iosArm64</code> targets. This speeds up most compilations in debug mode (except the first one). Measurements showed about a 200% speed increase on our test projects. The compiler caches have been available for these targets since Kotlin 1.5.0 with <a href="whatsnew15#performance-improvements" id="61a8fdd">additional Gradle properties</a>; you can remove them now.</p></li>
+<li class="list__item" id="430c632"><p>Runtime: iterating over arrays with <code class="code ">for</code> loops is now up to 12% faster thanks to optimizations in the produced LLVM code.</p></li>
+</ul></section><section class="chapter"><h3 id="unified-compiler-plugin-abi-with-jvm-and-js-ir-backends" data-toc="whatsnew16#unified-compiler-plugin-abi-with-jvm-and-js-ir-backends">Unified compiler plugin ABI with JVM and JS IR backends</h3>
+<aside data-type="warning" class="prompt" data-title="" id="f3aa466e"><p id="76e36cd1">The option to use the common IR compiler plugin ABI for Kotlin/Native is <a href="components-stability" id="559f90cf">Experimental</a>. It may be dropped or changed at any time. Opt-in is required (see details below), and you should use it only for evaluation purposes. We would appreciate your feedback on it in <a href="https://youtrack.jetbrains.com/issue/KT-48595" id="22a3995d" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="abeca064">In previous versions, authors of compiler plugins had to provide separate artifacts for Kotlin/Native because of the differences in the ABI.</p>
+<p id="17c700cf">Starting from 1.6.0, the Kotlin Multiplatform Gradle plugin is able to use the embeddable compiler jar – the one used for the JVM and JS IR backends – for Kotlin/Native. This is a step toward unification of the compiler plugin development experience, as you can now use the same compiler plugin artifacts for Native and other supported platforms.</p>
+<p id="bb9f72f7">This is a preview version of such support, and it requires an opt-in. To start using generic compiler plugin artifacts for Kotlin/Native, add the following line to <code class="code ">gradle.properties</code>: <code class="code ">kotlin.native.useEmbeddableCompilerJar=true</code>.</p>
+<p id="53522ed">We're planning to use the embeddable compiler jar for Kotlin/Native by default in the future, so it's vital for us to hear how the preview works for you.</p>
+<p id="b14503e1">If you are an author of a compiler plugin, please try this mode and check if it works for your plugin. Note that depending on your plugin's structure, migration steps may be required. See <a href="https://youtrack.jetbrains.com/issue/KT-48595" id="25901b15" data-external="true" rel="noopener noreferrer">this YouTrack issue</a> for migration instructions and leave your feedback in the comments.</p></section><section class="chapter"><h3 id="detailed-error-messages-for-klib-linkage-failures" data-toc="whatsnew16#detailed-error-messages-for-klib-linkage-failures">Detailed error messages for klib linkage failures</h3>
+<p id="8521daef">The Kotlin/Native compiler now provides detailed error messages for klib linkage errors. The messages now have clear error descriptions, and they also include information about possible causes and ways to fix them.</p>
+<p id="fe60bfc5">For example:</p>
+<ul class="list _ul" id="2a87ef22">
+<li class="list__item" id="95545905">
+<p id="7a7b0f1a">1.5.30:</p>
+<pre class="code" data-language="plaintext">e: java.lang.IllegalStateException: IrTypeAliasSymbol expected: Unbound public symbol for public kotlinx.coroutines/CancellationException|null[0]
+&lt;stack trace&gt;
+</pre>
+</li>
+<li class="list__item" id="53a7b097">
+<p id="d8ddd3bb">1.6.0:</p>
+<pre class="code" data-language="plaintext">e: The symbol of unexpected type encountered during IR deserialization: IrClassPublicSymbolImpl, kotlinx.coroutines/CancellationException|null[0].
+IrTypeAliasSymbol is expected.
+
+This could happen if there are two libraries, where one library was compiled against the different version of the other library than the one currently used in the project.
+Please check that the project configuration is correct and has consistent versions of dependencies.
+
+The list of libraries that depend on "org.jetbrains.kotlinx:kotlinx-coroutines-core (org.jetbrains.kotlinx:kotlinx-coroutines-core-macosx64)" and may lead to conflicts:
+&lt;list of libraries and potential version mismatches&gt;
+
+Project dependencies:
+&lt;dependencies tree&gt;
+</pre>
+</li>
+</ul></section><section class="chapter"><h3 id="reworked-unhandled-exception-handling-api" data-toc="whatsnew16#reworked-unhandled-exception-handling-api">Reworked unhandled exception handling API</h3>
+<p id="7bf3309a">We've unified the processing of unhandled exceptions throughout the Kotlin/Native runtime and exposed the default processing as the function <code class="code ">processUnhandledException(throwable: Throwable)</code> for use by custom execution environments, like <code class="code ">kotlinx.coroutines</code>. This processing is also applied to exceptions that escape operation in <code class="code ">Worker.executeAfter()</code>, but only for the new <a href="#preview-of-the-new-memory-manager" id="713afa30">memory manager</a>.</p>
+<p id="5987fa09">API improvements also affected the hooks that have been set by <code class="code ">setUnhandledExceptionHook()</code>. Previously such hooks were reset after the Kotlin/Native runtime called the hook with an unhandled exception, and the program would always terminate right after. Now these hooks may be used more than once, and if you want the program to always terminate on an unhandled exception, either do not set an unhandled exception hook (<code class="code ">setUnhandledExceptionHook()</code>), or make sure to call <code class="code ">terminateWithUnhandledException()</code> at the end of your hook. This will help you send exceptions to a third-party crash reporting service (like Firebase Crashlytics) and then terminate the program. Exceptions that escape <code class="code ">main()</code> and exceptions that cross the interop boundary will always terminate the program, even if the hook did not call <code class="code ">terminateWithUnhandledException()</code>.</p></section></section><section class="chapter"><h2 id="kotlin-js" data-toc="whatsnew16#kotlin-js">Kotlin/JS</h2>
+<p id="163991b2">We're continuing to work on stabilizing the IR backend for the Kotlin/JS compiler. Kotlin/JS now has an <a href="#option-to-use-pre-installed-node-js-and-yarn" id="7e1968b9">option to disable downloading of Node.js and Yarn</a>.</p>
+<section class="chapter"><h3 id="option-to-use-pre-installed-node-js-and-yarn" data-toc="whatsnew16#option-to-use-pre-installed-node-js-and-yarn">Option to use pre-installed Node.js and Yarn</h3>
+<p id="a5d51d15">You can now disable downloading Node.js and Yarn when building Kotlin/JS projects and use the instances already installed on the host. This is useful for building on servers without internet connectivity, such as CI servers.</p>
+<p id="439b4234">To disable downloading external components, add the following lines to your <code class="code ">build.gradle(.kts)</code>:</p>
+<ul class="list _ul" id="273be272">
+<li class="list__item" id="fe20114d">
+<p id="88948a13">Yarn:</p>
+<div class="tabs" id="d0cf6259" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="64d9d0c8" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">rootProject.plugins.withType&lt;org.jetbrains.kotlin.gradle.targets.js.yarn.YarnPlugin&gt; {
+    rootProject.the&lt;org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootExtension&gt;().download = false // or true for default behavior
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="126f6277" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">rootProject.plugins.withType(org.jetbrains.kotlin.gradle.targets.js.yarn.YarnPlugin) {
+    rootProject.extensions.getByType(org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootExtension).download = false
+}
+</pre></div>
+</div>
+</li>
+<li class="list__item" id="e3ff8ef3">
+<p id="4d909a64">Node.js:</p>
+<div class="tabs" id="ba3edb18" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="f73eb6fe" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">rootProject.plugins.withType&lt;org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin&gt; {
+    rootProject.the&lt;org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootExtension&gt;().download = false // or true for default behavior
+}
+
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="4dea0664" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">rootProject.plugins.withType(org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin) {
+    rootProject.extensions.getByType(org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootExtension).download = false
+}
+</pre></div>
+</div>
+</li>
+</ul></section></section><section class="chapter"><h2 id="kotlin-gradle-plugin" data-toc="whatsnew16#kotlin-gradle-plugin">Kotlin Gradle plugin</h2>
+<p id="49ce589e">In Kotlin 1.6.0, we changed the deprecation level of the <code class="code ">KotlinGradleSubplugin</code> class to 'ERROR'. This class was used for writing compiler plugins. In the following releases, we'll remove this class. Use the class <code class="code ">KotlinCompilerPluginSupportPlugin</code> instead.</p>
+<p id="144a1631">We removed the <code class="code ">kotlin.useFallbackCompilerSearch</code> build option and the <code class="code ">noReflect</code> and <code class="code ">includeRuntime</code> compiler options. The <code class="code ">useIR</code> compiler option has been hidden and will be removed in upcoming releases.</p>
+<p id="4ed4e249">Learn more about the <a href="gradle#compiler-options" id="136424c4">currently supported compiler options</a> in the Kotlin Gradle plugin.</p></section><section class="chapter"><h2 id="standard-library" data-toc="whatsnew16#standard-library">Standard library</h2>
+<p id="70cd6174">The new 1.6.0 version of the standard library stabilizes experimental features, introduces new ones, and unifies its behavior across the platforms:</p>
+<ul class="list _ul" id="7c7a8f35">
+<li class="list__item" id="4ad0a8ba"><p><a href="#new-readline-functions" id="b96f21ea">New readline functions</a></p></li>
+<li class="list__item" id="fc45cc14"><p><a href="#stable-typeof" id="4e204ce5">Stable typeOf()</a></p></li>
+<li class="list__item" id="e4876b22"><p><a href="#stable-collection-builders" id="4020edbe">Stable collection builders</a></p></li>
+<li class="list__item" id="c844de35"><p><a href="#stable-duration-api" id="58e2272f">Stable Duration API</a></p></li>
+<li class="list__item" id="2e5af2ef"><p><a href="#splitting-regex-into-a-sequence" id="1e9c25d6">Splitting Regex into a sequence</a></p></li>
+<li class="list__item" id="949e40a2"><p><a href="#bit-rotation-operations-on-integers" id="c3c903f">Bit rotation operations on integers</a></p></li>
+<li class="list__item" id="2a1f755e"><p><a href="#changes-for-replace-and-replacefirst-in-js" id="f4dee04c">Changes for replace() and replaceFirst() in JS</a></p></li>
+<li class="list__item" id="c28d8d9b"><p><a href="#improvements-to-the-existing-api" id="8cd315c0">Improvements to the existing API</a></p></li>
+<li class="list__item" id="ef673ea5"><p><a href="#deprecations" id="5b626afa">Deprecations</a></p></li>
+</ul>
+<section class="chapter"><h3 id="new-readline-functions" data-toc="whatsnew16#new-readline-functions">New readline functions</h3>
+<p id="6f83bc2a">Kotlin 1.6.0 offers new functions for handling standard input: <a href="../api/latest/jvm/stdlib/kotlin.io/readln" id="8378b021" data-external="true" rel="noopener noreferrer"><code class="code ">readln()</code></a> and <a href="../api/latest/jvm/stdlib/kotlin.io/readln-or-null" id="4e767e51" data-external="true" rel="noopener noreferrer"><code class="code ">readlnOrNull()</code></a>.</p>
+<aside data-type="note" class="prompt" data-title="" id="d513e389"><p id="cd7d79b0">For now, new functions are available for the JVM and Native target platforms only.</p></aside><div class="table-wrapper"><table class=" wide" id="6f9c4969">
+<thead><tr class="ijRowHead" id="410d13ed">
+<th id="96ef7c07"><p><b id="4ae580e0" class="">Earlier versions</b></p></th>
+<th id="857dab5a"><p><b id="a697bec0" class="">1.6.0 alternative</b></p></th>
+<th id="c2de590e"><p><b id="8562ac48" class="">Usage</b></p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="a00e2dc9">
+<td id="b3e8d82f"><p><code class="code ">readLine()!!</code></p></td>
+<td id="325964b6"><p><code class="code ">readln()</code></p></td>
+<td id="b6f4d029"><p>Reads a line from stdin and returns it, or throws a <code class="code ">RuntimeException</code> if EOF has been reached.</p></td>
+</tr>
+<tr class="" id="d894618a">
+<td id="5bd517d3"><p><code class="code ">readLine()</code></p></td>
+<td id="ebcc53cc"><p><code class="code ">readlnOrNull()</code></p></td>
+<td id="ca919847"><p>Reads a line from stdin and returns it, or returns <code class="code ">null</code> if EOF has been reached.</p></td>
+</tr>
+</tbody>
+</table></div>
+<p id="9dfeb7a3">We believe that eliminating the need to use <code class="code ">!!</code> when reading a line will improve the experience for newcomers and simplify teaching Kotlin. To make the read-line operation name consistent with its <code class="code ">println()</code> counterpart, we've decided to shorten the names of new functions to 'ln'.</p>
+<pre class="code" data-language="kotlin">println("What is your nickname?")
+val nickname = readln()
+println("Hello, $nickname!")
+</pre>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    var sum = 0
+    while (true) {
+        val nextLine = readlnOrNull().takeUnless { 
+            it.isNullOrEmpty() 
+        } ?: break
+        sum += nextLine.toInt()
+    }
+    println(sum)
+//sampleEnd
+}
+</pre>
+<p id="b941c8c2">The existing <code class="code ">readLine()</code> function will get a lower priority than <code class="code ">readln()</code> and <code class="code ">readlnOrNull()</code> in your IDE code completion. IDE inspections will also recommend using new functions instead of the legacy <code class="code ">readLine()</code>.</p>
+<p id="632b0230">We're planning to gradually deprecate the <code class="code ">readLine()</code> function in future releases.</p></section><section class="chapter"><h3 id="stable-typeof" data-toc="whatsnew16#stable-typeof">Stable typeOf()</h3>
+<p id="3ad09e72">Version 1.6.0 brings a <a href="components-stability" id="56e21be1">Stable</a> <a href="../api/latest/jvm/stdlib/kotlin.reflect/type-of" id="f43bed00" data-external="true" rel="noopener noreferrer"><code class="code ">typeOf()</code></a> function, closing one of the <a href="https://youtrack.jetbrains.com/issue/KT-45396" id="57521b4" data-external="true" rel="noopener noreferrer">major roadmap items</a>.</p>
+<p id="625afe3b"><a href="https://blog.jetbrains.com/kotlin/2019/06/kotlin-1-3-40-released/" id="e03fb3d9" data-external="true" rel="noopener noreferrer">Since 1.3.40</a>, <code class="code ">typeOf()</code> was available on the JVM platform as an experimental API. Now you can use it in any Kotlin platform and get <a href="../api/latest/jvm/stdlib/kotlin.reflect/-k-type/index#kotlin.reflect.KType" id="5a8fb6b4" data-external="true" rel="noopener noreferrer"><code class="code ">KType</code></a> representation of any Kotlin type that the compiler can infer:</p>
+<pre class="code" data-language="kotlin">inline fun &lt;reified T&gt; renderType(): String {
+    val type = typeOf&lt;T&gt;()
+    return type.toString()
+}
+
+fun main() {
+    val fromExplicitType = typeOf&lt;Int&gt;()
+    val fromReifiedType = renderType&lt;List&lt;Int&gt;&gt;()
+}
+</pre></section><section class="chapter"><h3 id="stable-collection-builders" data-toc="whatsnew16#stable-collection-builders">Stable collection builders</h3>
+<p id="3de7abdd">In Kotlin 1.6.0, collection builder functions have been promoted to <a href="components-stability" id="8e024b87">Stable</a>. Collections returned by collection builders are now serializable in their read-only state.</p>
+<p id="46a7308b">You can now use <a href="../api/latest/jvm/stdlib/kotlin.collections/build-map" id="e8a4fadc" data-external="true" rel="noopener noreferrer"><code class="code ">buildMap()</code></a>, <a href="../api/latest/jvm/stdlib/kotlin.collections/build-list" id="ae2d661d" data-external="true" rel="noopener noreferrer"><code class="code ">buildList()</code></a>, and <a href="../api/latest/jvm/stdlib/kotlin.collections/build-set" id="cdf44b2" data-external="true" rel="noopener noreferrer"><code class="code ">buildSet()</code></a> without the opt-in annotation:</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val x = listOf('b', 'c')
+    val y = buildList {
+        add('a')
+        addAll(x)
+        add('d')
+    }
+    println(y)  // [a, b, c, d]
+//sampleEnd
+}
+</pre></section><section class="chapter"><h3 id="stable-duration-api" data-toc="whatsnew16#stable-duration-api">Stable Duration API</h3>
+<p id="fdf1f1ec">The <a href="../api/latest/jvm/stdlib/kotlin.time/-duration/index" id="75880fd5" data-external="true" rel="noopener noreferrer">Duration</a> class for representing duration amounts in different time units has been promoted to <a href="components-stability" id="af4c2152">Stable</a>. In 1.6.0, the Duration API has received the following changes:</p>
+<ul class="list _ul" id="3d080d95">
+<li class="list__item" id="5e025e86"><p id="788f4aa6">The first component of the <a href="../api/latest/jvm/stdlib/kotlin.time/-duration/to-components" id="16cfd81d" data-external="true" rel="noopener noreferrer"><code class="code ">toComponents()</code></a> function that decomposes the duration into days, hours, minutes, seconds, and nanoseconds now has the <code class="code ">Long</code> type instead of <code class="code ">Int</code>. Before, if the value didn't fit into the <code class="code ">Int</code> range, it was coerced into that range. With the <code class="code ">Long</code> type, you can decompose any value in the duration range without cutting off the values that don't fit into <code class="code ">Int</code>.</p></li>
+<li class="list__item" id="ad1f5fcb"><p id="2053e730">The <code class="code ">DurationUnit</code> enum is now standalone and not a type alias of <code class="code ">java.util.concurrent.TimeUnit</code> on the JVM. We haven't found any convincing cases in which having <code class="code ">typealias DurationUnit = TimeUnit</code> could be useful. Also, exposing the <code class="code ">TimeUnit</code> API through a type alias might confuse <code class="code ">DurationUnit</code> users.</p></li>
+<li class="list__item" id="126ad83e">
+<p id="70f0aa1f">In response to community feedback, we're bringing back extension properties like <code class="code ">Int.seconds</code>. But we'd like to limit their applicability, so we put them into the companion of the <code class="code ">Duration</code> class. While the IDE can still propose extensions in completion and automatically insert an import from the companion, in the future we plan to limit this behavior to cases when the <code class="code ">Duration</code> type is expected.</p>
+<pre class="code" data-language="kotlin">import kotlin.time.Duration.Companion.seconds
+
+fun main() {
+//sampleStart
+    val duration = 10000
+    println("There are ${duration.seconds.inWholeMinutes} minutes in $duration seconds")
+    // There are 166 minutes in 10000 seconds
+//sampleEnd
+}
+</pre>
+<p id="fc9731c8">We suggest replacing previously introduced companion functions, such as <code class="code ">Duration.seconds(Int)</code>, and deprecated top-level extensions like <code class="code ">Int.seconds</code> with new extensions in <code class="code ">Duration.Companion</code>.</p>
+<aside data-type="note" class="prompt" data-title="" id="bfb251b1"><p id="ee4ae3a3">Such a replacement may cause ambiguity between old top-level extensions and new companion extensions. Be sure to use the wildcard import of the kotlin.time package – <code class="code ">import kotlin.time.*</code> – before doing automated migration.</p></aside>
+</li>
+</ul></section><section class="chapter"><h3 id="splitting-regex-into-a-sequence" data-toc="whatsnew16#splitting-regex-into-a-sequence">Splitting Regex into a sequence</h3>
+<p id="8a8dece2">The <code class="code ">Regex.splitToSequence(CharSequence)</code> and <code class="code ">CharSequence.splitToSequence(Regex)</code> functions are promoted to <a href="components-stability" id="49a47cf3">Stable</a>. They split the string around matches of the given regex, but return the result as a <a href="sequences" id="9d776279">Sequence</a> so that all operations on this result are executed lazily:</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val colorsText = "green, red, brown&amp;blue, orange, pink&amp;green"
+    val regex = "[,\\s]+".toRegex()
+    val mixedColor = regex.splitToSequence(colorsText)
+    // or
+    // val mixedColor = colorsText.splitToSequence(regex)
+        .onEach { println(it) }
+        .firstOrNull { it.contains('&amp;') }
+    println(mixedColor) // "brown&amp;blue"
+//sampleEnd
+}
+</pre></section><section class="chapter"><h3 id="bit-rotation-operations-on-integers" data-toc="whatsnew16#bit-rotation-operations-on-integers">Bit rotation operations on integers</h3>
+<p id="928e9687">In Kotlin 1.6.0, the <code class="code ">rotateLeft()</code> and <code class="code ">rotateRight()</code> functions for bit manipulations became <a href="components-stability" id="c6bc115d">Stable</a>. The functions rotate the binary representation of the number left or right by a specified number of bits:</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val number: Short = 0b10001
+    println(number
+        .rotateRight(2)
+        .toString(radix = 2)) // 100000000000100
+    println(number
+        .rotateLeft(2)
+        .toString(radix = 2))  // 1000100
+//sampleEnd
+}
+</pre></section><section class="chapter"><h3 id="changes-for-replace-and-replacefirst-in-js" data-toc="whatsnew16#changes-for-replace-and-replacefirst-in-js">Changes for replace() and replaceFirst() in JS</h3>
+<p id="fddc1ab7">Before Kotlin 1.6.0, the <a href="../api/latest/jvm/stdlib/kotlin.text/-regex/replace" id="b0557c22" data-external="true" rel="noopener noreferrer"><code class="code ">replace()</code></a> and <a href="../api/latest/jvm/stdlib/kotlin.text/-regex/replace-first" id="241cdeb7" data-external="true" rel="noopener noreferrer"><code class="code ">replaceFirst()</code></a> Regex functions behaved differently in Java and JS when the replacement string contained a group reference. To make the behavior consistent across all target platforms, we've changed their implementation in JS.</p>
+<p id="c49dce2e">Occurrences of <code class="code ">${name}</code> or <code class="code ">$index</code> in the replacement string are substituted with the subsequences corresponding to the captured groups with the specified index or a name:</p>
+<ul class="list _ul" id="e1b95243">
+<li class="list__item" id="57e27f41"><p id="5a0b29a5"><code class="code ">$index</code> – the first digit after '$' is always treated as a part of the group reference. Subsequent digits are incorporated into the <code class="code ">index</code> only if they form a valid group reference.Only digits '0'–'9' are considered potential components of the group reference. Note that indexes of captured groups start from '1'. The group with index '0' stands for the whole match.</p></li>
+<li class="list__item" id="a30587af">
+<p id="34ddc24c"><code class="code ">${name}</code> – the <code class="code ">name</code> can consist of Latin letters 'a'–'z', 'A'–'Z', or digits '0'–'9'. The first character must be a letter.</p>
+<aside data-type="note" class="prompt" data-title="" id="67ef087a"><p id="d575a9dc">Named groups in replacement patterns are currently supported only on the JVM.</p></aside>
+</li>
+<li class="list__item" id="88f2d310">
+<p id="c16e09f5">To include the succeeding character as a literal in the replacement string, use the backslash character <code class="code ">\</code>:</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    println(Regex("(.+)").replace("Kotlin", """\$ $1""")) // $ Kotlin
+    println(Regex("(.+)").replaceFirst("1.6.0", """\\ $1""")) // \ 1.6.0
+//sampleEnd
+}
+</pre>
+<p id="f3ee15f">You can use <a href="../api/latest/jvm/stdlib/kotlin.text/-regex/escape-replacement" id="3c340811" data-external="true" rel="noopener noreferrer"><code class="code ">Regex.escapeReplacement()</code></a> if the replacement string has to be treated as a literal string.</p>
+</li>
+</ul></section><section class="chapter"><h3 id="improvements-to-the-existing-api" data-toc="whatsnew16#improvements-to-the-existing-api">Improvements to the existing API</h3>
+<ul class="list _ul" id="e336c87">
+<li class="list__item" id="4dddd8e7">
+<p id="59764bc2">Version 1.6.0 added the infix extension function for <code class="code ">Comparable.compareTo()</code>. You can now use the infix form for comparing two objects for order:</p>
+<pre class="code" data-language="kotlin"> class WrappedText(val text: String) : Comparable&lt;WrappedText&gt; {
+     override fun compareTo(other: WrappedText): Int =
+         this.text compareTo other.text
+}
+</pre>
+</li>
+<li class="list__item" id="92e04660"><p id="8e83149b"><code class="code ">Regex.replace()</code> in JS is now also not inline to unify its implementation across all platforms.</p></li>
+<li class="list__item" id="18a7d619"><p id="34992c63">The <code class="code ">compareTo()</code> and <code class="code ">equals()</code> String functions, as well as the <code class="code ">isBlank()</code> CharSequence function now behave in JS exactly the same way they do on the JVM. Previously there were deviations when it came to non-ASCII characters.</p></li>
+</ul></section><section class="chapter"><h3 id="deprecations" data-toc="whatsnew16#deprecations">Deprecations</h3>
+<p id="88a23a1d">In Kotlin 1.6.0, we're starting the deprecation cycle with a warning for some JS-only stdlib API.</p>
+<section class="chapter"><h4 id="concat-match-and-matches-string-functions" data-toc="whatsnew16#concat-match-and-matches-string-functions">concat(), match(), and matches() string functions</h4>
+<ul class="list _ul" id="449f087d">
+<li class="list__item" id="ba91d692"><p>To concatenate the string with the string representation of a given other object, use <code class="code ">plus()</code> instead of <code class="code ">concat()</code>.</p></li>
+<li class="list__item" id="41929544"><p>To find all occurrences of a regular expression within the input, use <code class="code ">findAll()</code> of the Regex class instead of <code class="code ">String.match(regex: String)</code>.</p></li>
+<li class="list__item" id="f88be738"><p>To check if the regular expression matches the entire input, use <code class="code ">matches()</code> of the Regex class instead of <code class="code ">String.matches(regex: String)</code>.</p></li>
+</ul></section><section class="chapter"><h4 id="sort-on-arrays-taking-comparison-functions" data-toc="whatsnew16#sort-on-arrays-taking-comparison-functions">sort() on arrays taking comparison functions</h4>
+<p id="ac09c091">We've deprecated the <code class="code ">Array&lt;out T&gt;.sort()</code> function and the inline functions <code class="code ">ByteArray.sort()</code>, <code class="code ">ShortArray.sort()</code>, <code class="code ">IntArray.sort()</code>, <code class="code ">LongArray.sort()</code>, <code class="code ">FloatArray.sort()</code>, <code class="code ">DoubleArray.sort()</code>, and <code class="code ">CharArray.sort()</code>, which sorted arrays following the order passed by the comparison function. Use other standard library functions for array sorting.</p>
+<p id="9686d4b9">See the <a href="collection-ordering" id="38e643d9">collection ordering</a> section for reference.</p></section></section></section><section class="chapter"><h2 id="tools" data-toc="whatsnew16#tools">Tools</h2>
+<section class="chapter"><h3 id="kover-a-code-coverage-tool-for-kotlin" data-toc="whatsnew16#kover-a-code-coverage-tool-for-kotlin">Kover – a code coverage tool for Kotlin</h3>
+<aside data-type="warning" class="prompt" data-title="" id="f2ed4551"><p id="99484ee9">The Kover Gradle plugin is Experimental. We would appreciate your feedback on it in <a href="https://github.com/Kotlin/kotlinx-kover/issues" id="e287e71a" data-external="true" rel="noopener noreferrer">GitHub</a>.</p></aside><p id="7e0daadb">With Kotlin 1.6.0, we're introducing Kover – a Gradle plugin for the <a href="https://github.com/JetBrains/intellij-coverage" id="e5473714" data-external="true" rel="noopener noreferrer">IntelliJ</a> and <a href="https://github.com/jacoco/jacoco" id="877f3f2e" data-external="true" rel="noopener noreferrer">JaCoCo</a> Kotlin code coverage agents. It works with all language constructs, including inline functions.</p>
+<p id="d49cc10d">Learn more about Kover on its <a href="https://github.com/Kotlin/kotlinx-kover" id="963f8092" data-external="true" rel="noopener noreferrer">GitHub repository</a> or in this video:</p>
+
+</section></section><section class="chapter"><h2 id="coroutines-1-6-0-rc" data-toc="whatsnew16#coroutines-1-6-0-rc">Coroutines 1.6.0-RC</h2>
+<p id="78d94f85"><code class="code ">kotlinx.coroutines</code> <a href="https://github.com/Kotlin/kotlinx.coroutines/releases/tag/1.6.0-RC" id="38a494f5" data-external="true" rel="noopener noreferrer">1.6.0-RC</a> is out with multiple features and improvements:</p>
+<ul class="list _ul" id="31260817">
+<li class="list__item" id="35eb7578"><p>Support for the <a href="#preview-of-the-new-memory-manager" id="b7cc11cd">new Kotlin/Native memory manager</a></p></li>
+<li class="list__item" id="4e9c472a"><p>Introduction of dispatcher <em id="2d930f30" class="">views</em> API, which allows limiting parallelism without creating additional threads</p></li>
+<li class="list__item" id="7e267b90"><p>Migrating from Java 6 to Java 8 target</p></li>
+<li class="list__item" id="7acfa037"><p><code class="code ">kotlinx-coroutines-test</code> with the new reworked API and multiplatform support</p></li>
+<li class="list__item" id="29d402c7"><p>Introduction of <a href="https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/-copyable-thread-context-element/index.html" id="f50a8ee3" data-external="true" rel="noopener noreferrer"><code class="code ">CopyableThreadContextElement</code></a>, which gives coroutines a thread-safe write access to <a href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/lang/ThreadLocal.html" id="8127c80d" data-external="true" rel="noopener noreferrer"><code class="code ">ThreadLocal</code></a> variables</p></li>
+</ul>
+<p id="6b5e36f6">Learn more in the <a href="https://github.com/Kotlin/kotlinx.coroutines/releases/tag/1.6.0-RC" id="860ef569" data-external="true" rel="noopener noreferrer">changelog</a>.</p></section><section class="chapter"><h2 id="migrating-to-kotlin-1-6-0" data-toc="whatsnew16#migrating-to-kotlin-1-6-0">Migrating to Kotlin 1.6.0</h2>
+<p id="bcd4937e">IntelliJ IDEA and Android Studio will suggest updating the Kotlin plugin to 1.6.0 once it is available.</p>
+<p id="a0d966e6">To migrate existing projects to Kotlin 1.6.0, change the Kotlin version to <code class="code ">1.6.0</code> and reimport your Gradle or Maven project. <a href="releases#update-to-a-new-release" id="1f9874c1">Learn how to update to Kotlin 1.6.0</a>.</p>
+<p id="fc4625bc">To start a new project with Kotlin 1.6.0, update the Kotlin plugin and run the Project Wizard from <b id="d0422883" class="">File</b> | <b id="9843456d" class="">New</b> | <b id="b500c3e1" class="">Project</b>.</p>
+<p id="97835343">The new command-line compiler is available for download on the <a href="https://github.com/JetBrains/kotlin/releases/tag/v1.6.0" id="434dcba6" data-external="true" rel="noopener noreferrer">GitHub release page</a>.</p>
+<p id="f2cb07f4">Kotlin 1.6.0 is a <a href="kotlin-evolution#feature-releases-and-incremental-releases" id="75cbfd3a">feature release</a> and can, therefore, bring changes that are incompatible with your code written for earlier versions of the language. Find the detailed list of such changes in the <a href="compatibility-guide-16" id="7d0b0da4">Compatibility Guide for Kotlin 1.6</a>.</p></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="whatsnew1620">What's new in Kotlin 1.6.20</a> <a class="navigation-links__next" href="whatsnew1530">What's new in Kotlin 1.5.30</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/whatsnew16.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/whatsnew16.html</a>
+  </p>
+</div>

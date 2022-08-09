@@ -1,0 +1,455 @@
+<h1 data-toc="scope-functions" id="scope-functions.md">Scope functions</h1>
+<p id="c9b003bd">The Kotlin standard library contains several functions whose sole purpose is to execute a block of code within the context of an object. When you call such a function on an object with a <a href="lambdas" id="3405c529">lambda expression</a> provided, it forms a temporary scope. In this scope, you can access the object without its name. Such functions are called <em id="3a72d432" class="">scope functions</em>. There are five of them: <code class="code ">let</code>, <code class="code ">run</code>, <code class="code ">with</code>, <code class="code ">apply</code>, and <code class="code ">also</code>.</p>
+<p id="91faae43">Basically, these functions do the same: execute a block of code on an object. What's different is how this object becomes available inside the block and what is the result of the whole expression.</p>
+<p id="b14560a9">Here's a typical usage of a scope function:</p>
+<pre class="code" data-language="kotlin">data class Person(var name: String, var age: Int, var city: String) {
+    fun moveTo(newCity: String) { city = newCity }
+    fun incrementAge() { age++ }
+}
+
+fun main() {
+//sampleStart
+    Person("Alice", 20, "Amsterdam").let {
+        println(it)
+        it.moveTo("London")
+        it.incrementAge()
+        println(it)
+    }
+//sampleEnd
+}
+</pre>
+<p id="66bfbe44">If you write the same without <code class="code ">let</code>, you'll have to introduce a new variable and repeat its name whenever you use it.</p>
+<pre class="code" data-language="kotlin">data class Person(var name: String, var age: Int, var city: String) {
+    fun moveTo(newCity: String) { city = newCity }
+    fun incrementAge() { age++ }
+}
+
+fun main() {
+//sampleStart
+    val alice = Person("Alice", 20, "Amsterdam")
+    println(alice)
+    alice.moveTo("London")
+    alice.incrementAge()
+    println(alice)
+//sampleEnd
+}
+</pre>
+<p id="e7988aa7">The scope functions do not introduce any new technical capabilities, but they can make your code more concise and readable.</p>
+<p id="e0aee69b">Due to the similar nature of scope functions, choosing the right one for your case can be a bit tricky. The choice mainly depends on your intent and the consistency of use in your project. Below we'll provide detailed descriptions of the distinctions between scope functions and the conventions on their usage.</p>
+<section class="chapter"><h2 id="function-selection" data-toc="scope-functions#function-selection">Function selection</h2>
+<p id="940474d1">To help you choose the right scope function for your purpose, we provide the table of key differences between them.</p>
+<div class="table-wrapper"><table class=" wide" id="6665220a">
+<thead><tr class="ijRowHead" id="6ad5ff29">
+<th id="146a1249"><p>Function</p></th>
+<th id="15cc745d"><p>Object reference</p></th>
+<th id="192aba1e"><p>Return value</p></th>
+<th id="7c2b5862"><p>Is extension function</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="b146fca8">
+<td id="25e813c9"><p><code class="code ">let</code></p></td>
+<td id="b4656c33"><p><code class="code ">it</code></p></td>
+<td id="b7f62b5"><p>Lambda result</p></td>
+<td id="97ed5421"><p>Yes</p></td>
+</tr>
+<tr class="" id="87457367">
+<td id="1776a75d"><p><code class="code ">run</code></p></td>
+<td id="9c89ad6"><p><code class="code ">this</code></p></td>
+<td id="d4f34407"><p>Lambda result</p></td>
+<td id="ef09538d"><p>Yes</p></td>
+</tr>
+<tr class="" id="35f2bef">
+<td id="befe6fec"><p><code class="code ">run</code></p></td>
+<td id="88d68341"><p>-</p></td>
+<td id="fdad9eb2"><p>Lambda result</p></td>
+<td id="87c65b4"><p>No: called without the context object</p></td>
+</tr>
+<tr class="" id="a143dc21">
+<td id="fde10370"><p><code class="code ">with</code></p></td>
+<td id="dd431776"><p><code class="code ">this</code></p></td>
+<td id="1ff315df"><p>Lambda result</p></td>
+<td id="5ca480f6"><p>No: takes the context object as an argument.</p></td>
+</tr>
+<tr class="" id="aec0cbd5">
+<td id="907b1afa"><p><code class="code ">apply</code></p></td>
+<td id="852f00f7"><p><code class="code ">this</code></p></td>
+<td id="e8482f2f"><p>Context object</p></td>
+<td id="f2b25fb0"><p>Yes</p></td>
+</tr>
+<tr class="" id="9dbbe6a">
+<td id="af762a51"><p><code class="code ">also</code></p></td>
+<td id="1d428a29"><p><code class="code ">it</code></p></td>
+<td id="c0e987eb"><p>Context object</p></td>
+<td id="29597d39"><p>Yes</p></td>
+</tr>
+</tbody>
+</table></div>
+<p id="e03563a">The detailed information about the differences is provided in the dedicated sections below.</p>
+<p id="39821a3c">Here is a short guide for choosing scope functions depending on the intended purpose:</p>
+<ul class="list _ul" id="aa26476c">
+<li class="list__item" id="27b6aff"><p>Executing a lambda on non-null objects: <code class="code ">let</code></p></li>
+<li class="list__item" id="15e2c342"><p>Introducing an expression as a variable in local scope: <code class="code ">let</code></p></li>
+<li class="list__item" id="d111d53b"><p>Object configuration: <code class="code ">apply</code></p></li>
+<li class="list__item" id="738a4da5"><p>Object configuration and computing the result: <code class="code ">run</code></p></li>
+<li class="list__item" id="3094e231"><p>Running statements where an expression is required: non-extension <code class="code ">run</code></p></li>
+<li class="list__item" id="93c648f0"><p>Additional effects: <code class="code ">also</code></p></li>
+<li class="list__item" id="b07e84cf"><p>Grouping function calls on an object: <code class="code ">with</code></p></li>
+</ul>
+<p id="de7a3f57">The use cases of different functions overlap, so that you can choose the functions based on the specific conventions used in your project or team.</p>
+<p id="d9911777">Although the scope functions are a way of making the code more concise, avoid overusing them: it can decrease your code readability and lead to errors. Avoid nesting scope functions and be careful when chaining them: it's easy to get confused about the current context object and the value of <code class="code ">this</code> or <code class="code ">it</code>.</p></section><section class="chapter"><h2 id="distinctions" data-toc="scope-functions#distinctions">Distinctions</h2>
+<p id="230fcd11">Because the scope functions are all quite similar in nature, it's important to understand the differences between them. There are two main differences between each scope function:</p>
+<ul class="list _ul" id="68bb56e5">
+<li class="list__item" id="ad697e39"><p>The way to refer to the context object.</p></li>
+<li class="list__item" id="7d319105"><p>The return value.</p></li>
+</ul>
+<section class="chapter"><h3 id="context-object-this-or-it" data-toc="scope-functions#context-object-this-or-it">Context object: this or it</h3>
+<p id="40bc305a">Inside the lambda of a scope function, the context object is available by a short reference instead of its actual name. Each scope function uses one of two ways to access the context object: as a lambda <a href="lambdas#function-literals-with-receiver" id="21363c49">receiver</a> (<code class="code ">this</code>) or as a lambda argument (<code class="code ">it</code>). Both provide the same capabilities, so we'll describe the pros and cons of each for different cases and provide recommendations on their use.</p>
+<pre class="code" data-language="kotlin">fun main() {
+    val str = "Hello"
+    // this
+    str.run {
+        println("The string's length: $length")
+        //println("The string's length: ${this.length}") // does the same
+    }
+
+    // it
+    str.let {
+        println("The string's length is ${it.length}")
+    }
+}
+</pre>
+<section class="chapter"><h4 id="this" data-toc="scope-functions#this">this</h4>
+<p id="46bc3c9d"><code class="code ">run</code>, <code class="code ">with</code>, and <code class="code ">apply</code> refer to the context object as a lambda receiver - by keyword <code class="code ">this</code>. Hence, in their lambdas, the object is available as it would be in ordinary class functions. In most cases, you can omit <code class="code ">this</code> when accessing the members of the receiver object, making the code shorter. On the other hand, if <code class="code ">this</code> is omitted, it can be hard to distinguish between the receiver members and external objects or functions. So, having the context object as a receiver (<code class="code ">this</code>) is recommended for lambdas that mainly operate on the object members: call its functions or assign properties.</p>
+<pre class="code" data-language="kotlin">data class Person(var name: String, var age: Int = 0, var city: String = "")
+
+fun main() {
+//sampleStart
+    val adam = Person("Adam").apply { 
+        age = 20                       // same as this.age = 20
+        city = "London"
+    }
+    println(adam)
+//sampleEnd
+}
+</pre></section><section class="chapter"><h4 id="it" data-toc="scope-functions#it">it</h4>
+<p id="50a31888">In turn, <code class="code ">let</code> and <code class="code ">also</code> have the context object as a lambda argument. If the argument name is not specified, the object is accessed by the implicit default name <code class="code ">it</code>. <code class="code ">it</code> is shorter than <code class="code ">this</code> and expressions with <code class="code ">it</code> are usually easier for reading. However, when calling the object functions or properties you don't have the object available implicitly like <code class="code ">this</code>. Hence, having the context object as <code class="code ">it</code> is better when the object is mostly used as an argument in function calls. <code class="code ">it</code> is also better if you use multiple variables in the code block.</p>
+<pre class="code" data-language="kotlin">import kotlin.random.Random
+
+fun writeToLog(message: String) {
+    println("INFO: $message")
+}
+
+fun main() {
+//sampleStart
+    fun getRandomInt(): Int {
+        return Random.nextInt(100).also {
+            writeToLog("getRandomInt() generated value $it")
+        }
+    }
+    
+    val i = getRandomInt()
+    println(i)
+//sampleEnd
+}
+</pre>
+<p id="dc6297e2">Additionally, when you pass the context object as an argument, you can provide a custom name for the context object inside the scope.</p>
+<pre class="code" data-language="kotlin">import kotlin.random.Random
+
+fun writeToLog(message: String) {
+    println("INFO: $message")
+}
+
+fun main() {
+//sampleStart
+    fun getRandomInt(): Int {
+        return Random.nextInt(100).also { value -&gt;
+            writeToLog("getRandomInt() generated value $value")
+        }
+    }
+    
+    val i = getRandomInt()
+    println(i)
+//sampleEnd
+}
+</pre></section></section><section class="chapter"><h3 id="return-value" data-toc="scope-functions#return-value">Return value</h3>
+<p id="aec49933">The scope functions differ by the result they return:</p>
+<ul class="list _ul" id="a314fa09">
+<li class="list__item" id="f19cd7e2"><p><code class="code ">apply</code> and <code class="code ">also</code> return the context object.</p></li>
+<li class="list__item" id="c7b6ade2"><p><code class="code ">let</code>, <code class="code ">run</code>, and <code class="code ">with</code> return the lambda result.</p></li>
+</ul>
+<p id="8af2624c">These two options let you choose the proper function depending on what you do next in your code.</p>
+<section class="chapter"><h4 id="context-object" data-toc="scope-functions#context-object">Context object</h4>
+<p id="743deb79">The return value of <code class="code ">apply</code> and <code class="code ">also</code> is the context object itself. Hence, they can be included into call chains as <em id="1ab2e682" class="">side steps</em>: you can continue chaining function calls on the same object after them.</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val numberList = mutableListOf&lt;Double&gt;()
+    numberList.also { println("Populating the list") }
+        .apply {
+            add(2.71)
+            add(3.14)
+            add(1.0)
+        }
+        .also { println("Sorting the list") }
+        .sort()
+//sampleEnd
+    println(numberList)
+}
+</pre>
+<p id="7f7f964b">They also can be used in return statements of functions returning the context object.</p>
+<pre class="code" data-language="kotlin">import kotlin.random.Random
+
+fun writeToLog(message: String) {
+    println("INFO: $message")
+}
+
+fun main() {
+//sampleStart
+    fun getRandomInt(): Int {
+        return Random.nextInt(100).also {
+            writeToLog("getRandomInt() generated value $it")
+        }
+    }
+    
+    val i = getRandomInt()
+//sampleEnd
+}
+</pre></section><section class="chapter"><h4 id="lambda-result" data-toc="scope-functions#lambda-result">Lambda result</h4>
+<p id="ea386ad"><code class="code ">let</code>, <code class="code ">run</code>, and <code class="code ">with</code> return the lambda result. So, you can use them when assigning the result to a variable, chaining operations on the result, and so on.</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val numbers = mutableListOf("one", "two", "three")
+    val countEndsWithE = numbers.run { 
+        add("four")
+        add("five")
+        count { it.endsWith("e") }
+    }
+    println("There are $countEndsWithE elements that end with e.")
+//sampleEnd
+}
+</pre>
+<p id="566c0df0">Additionally, you can ignore the return value and use a scope function to create a temporary scope for variables.</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val numbers = mutableListOf("one", "two", "three")
+    with(numbers) {
+        val firstItem = first()
+        val lastItem = last()        
+        println("First item: $firstItem, last item: $lastItem")
+    }
+//sampleEnd
+}
+</pre></section></section></section><section class="chapter"><h2 id="functions" data-toc="scope-functions#functions">Functions</h2>
+<p id="ab38892e">To help you choose the right scope function for your case, we'll describe them in detail and provide usage recommendations. Technically, functions are interchangeable in many cases, so the examples show the conventions that define the common usage style.</p>
+<section class="chapter"><h3 id="let" data-toc="scope-functions#let">let</h3>
+<p id="dfc27b92"><b id="e88f91ae" class="">The context object</b> is available as an argument (<code class="code ">it</code>). <b id="13be9af5" class="">The return value</b> is the lambda result.</p>
+<p id="66a43801"><code class="code ">let</code> can be used to invoke one or more functions on results of call chains. For example, the following code prints the results of two operations on a collection:</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val numbers = mutableListOf("one", "two", "three", "four", "five")
+    val resultList = numbers.map { it.length }.filter { it &gt; 3 }
+    println(resultList)    
+//sampleEnd
+}
+</pre>
+<p id="6766c4e3">With <code class="code ">let</code>, you can rewrite it:</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val numbers = mutableListOf("one", "two", "three", "four", "five")
+    numbers.map { it.length }.filter { it &gt; 3 }.let { 
+        println(it)
+        // and more function calls if needed
+    } 
+//sampleEnd
+}
+</pre>
+<p id="32770a02">If the code block contains a single function with <code class="code ">it</code> as an argument, you can use the method reference (<code class="code ">::</code>) instead of the lambda:</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val numbers = mutableListOf("one", "two", "three", "four", "five")
+    numbers.map { it.length }.filter { it &gt; 3 }.let(::println)
+//sampleEnd
+}
+</pre>
+<p id="25fe24df"><code class="code ">let</code> is often used for executing a code block only with non-null values. To perform actions on a non-null object, use the <a href="null-safety#safe-calls" id="b8676021">safe call operator <code class="code ">?.</code></a> on it and call <code class="code ">let</code> with the actions in its lambda.</p>
+<pre class="code" data-language="kotlin">fun processNonNullString(str: String) {}
+
+fun main() {
+//sampleStart
+    val str: String? = "Hello"   
+    //processNonNullString(str)       // compilation error: str can be null
+    val length = str?.let { 
+        println("let() called on $it")        
+        processNonNullString(it)      // OK: 'it' is not null inside '?.let { }'
+        it.length
+    }
+//sampleEnd
+}
+</pre>
+<p id="c71ba19a">Another case for using <code class="code ">let</code> is introducing local variables with a limited scope for improving code readability. To define a new variable for the context object, provide its name as the lambda argument so that it can be used instead of the default <code class="code ">it</code>.</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val numbers = listOf("one", "two", "three", "four")
+    val modifiedFirstItem = numbers.first().let { firstItem -&gt;
+        println("The first item of the list is '$firstItem'")
+        if (firstItem.length &gt;= 5) firstItem else "!" + firstItem + "!"
+    }.uppercase()
+    println("First item after modifications: '$modifiedFirstItem'")
+//sampleEnd
+}
+</pre></section><section class="chapter"><h3 id="with" data-toc="scope-functions#with">with</h3>
+<p id="ecbd0976">A non-extension function: <b id="1cf9563b" class="">the context object</b> is passed as an argument, but inside the lambda, it's available as a receiver (<code class="code ">this</code>). <b id="5cd602a" class="">The return value</b> is the lambda result.</p>
+<p id="79c2e5a6">We recommend <code class="code ">with</code> for calling functions on the context object without providing the lambda result. In the code, <code class="code ">with</code> can be read as “<em id="b87777e5" class="">with this object, do the following.</em>”</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val numbers = mutableListOf("one", "two", "three")
+    with(numbers) {
+        println("'with' is called with argument $this")
+        println("It contains $size elements")
+    }
+//sampleEnd
+}
+</pre>
+<p id="6f42374e">Another use case for <code class="code ">with</code> is introducing a helper object whose properties or functions will be used for calculating a value.</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val numbers = mutableListOf("one", "two", "three")
+    val firstAndLast = with(numbers) {
+        "The first element is ${first()}," +
+        " the last element is ${last()}"
+    }
+    println(firstAndLast)
+//sampleEnd
+}
+</pre></section><section class="chapter"><h3 id="run" data-toc="scope-functions#run">run</h3>
+<p id="807b3506"><b id="dd239e51" class="">The context object</b> is available as a receiver (<code class="code ">this</code>). <b id="cf7d4867" class="">The return value</b> is the lambda result.</p>
+<p id="140b9825"><code class="code ">run</code> does the same as <code class="code ">with</code> but invokes as <code class="code ">let</code> - as an extension function of the context object.</p>
+<p id="f89c293f"><code class="code ">run</code> is useful when your lambda contains both the object initialization and the computation of the return value.</p>
+<pre class="code" data-language="kotlin">class MultiportService(var url: String, var port: Int) {
+    fun prepareRequest(): String = "Default request"
+    fun query(request: String): String = "Result for query '$request'"
+}
+
+fun main() {
+//sampleStart
+    val service = MultiportService("https://example.kotlinlang.org", 80)
+
+    val result = service.run {
+        port = 8080
+        query(prepareRequest() + " to port $port")
+    }
+    
+    // the same code written with let() function:
+    val letResult = service.let {
+        it.port = 8080
+        it.query(it.prepareRequest() + " to port ${it.port}")
+    }
+//sampleEnd
+    println(result)
+    println(letResult)
+}
+</pre>
+<p id="8b8594ee">Besides calling <code class="code ">run</code> on a receiver object, you can use it as a non-extension function. Non-extension <code class="code ">run</code> lets you execute a block of several statements where an expression is required.</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val hexNumberRegex = run {
+        val digits = "0-9"
+        val hexDigits = "A-Fa-f"
+        val sign = "+-"
+        
+        Regex("[$sign]?[$digits$hexDigits]+")
+    }
+    
+    for (match in hexNumberRegex.findAll("+123 -FFFF !%*&amp; 88 XYZ")) {
+        println(match.value)
+    }
+//sampleEnd
+}
+</pre></section><section class="chapter"><h3 id="apply" data-toc="scope-functions#apply">apply</h3>
+<p id="cb6621cb"><b id="f1e7db5c" class="">The context object</b> is available as a receiver (<code class="code ">this</code>). <b id="88350d1b" class="">The return value</b> is the object itself.</p>
+<p id="62f24d6d">Use <code class="code ">apply</code> for code blocks that don't return a value and mainly operate on the members of the receiver object. The common case for <code class="code ">apply</code> is the object configuration. Such calls can be read as “<em id="d809b38f" class="">apply the following assignments to the object.</em>”</p>
+<pre class="code" data-language="kotlin">data class Person(var name: String, var age: Int = 0, var city: String = "")
+
+fun main() {
+//sampleStart
+    val adam = Person("Adam").apply {
+        age = 32
+        city = "London"        
+    }
+    println(adam)
+//sampleEnd
+}
+</pre>
+<p id="4b21d069">Having the receiver as the return value, you can easily include <code class="code ">apply</code> into call chains for more complex processing.</p></section><section class="chapter"><h3 id="also" data-toc="scope-functions#also">also</h3>
+<p id="67b99b20"><b id="6b01d0ad" class="">The context object</b> is available as an argument (<code class="code ">it</code>). <b id="25ee4ae2" class="">The return value</b> is the object itself.</p>
+<p id="edfc3b18"><code class="code ">also</code> is good for performing some actions that take the context object as an argument. Use <code class="code ">also</code> for actions that need a reference to the object rather than its properties and functions, or when you don't want to shadow the <code class="code ">this</code> reference from an outer scope.</p>
+<p id="3f207a0d">When you see <code class="code ">also</code> in the code, you can read it as “<em id="d9bdf300" class="">and also do the following with the object.</em>”</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val numbers = mutableListOf("one", "two", "three")
+    numbers
+        .also { println("The list elements before adding new one: $it") }
+        .add("four")
+//sampleEnd
+}
+</pre></section></section><section class="chapter"><h2 id="takeif-and-takeunless" data-toc="scope-functions#takeif-and-takeunless">takeIf and takeUnless</h2>
+<p id="40471101">In addition to scope functions, the standard library contains the functions <code class="code ">takeIf</code> and <code class="code ">takeUnless</code>. These functions let you embed checks of the object state in call chains.</p>
+<p id="3b55e74d">When called on an object with a predicate provided, <code class="code ">takeIf</code> returns this object if it matches the predicate. Otherwise, it returns <code class="code ">null</code>. So, <code class="code ">takeIf</code> is a filtering function for a single object. In turn, <code class="code ">takeUnless</code> returns the object if it doesn't match the predicate and <code class="code ">null</code> if it does. The object is available as a lambda argument (<code class="code ">it</code>).</p>
+<pre class="code" data-language="kotlin">import kotlin.random.*
+
+fun main() {
+//sampleStart
+    val number = Random.nextInt(100)
+
+    val evenOrNull = number.takeIf { it % 2 == 0 }
+    val oddOrNull = number.takeUnless { it % 2 == 0 }
+    println("even: $evenOrNull, odd: $oddOrNull")
+//sampleEnd
+}
+</pre>
+<p id="20dbb4b">When chaining other functions after <code class="code ">takeIf</code> and <code class="code ">takeUnless</code>, don't forget to perform the null check or the safe call (<code class="code ">?.</code>) because their return value is nullable.</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val str = "Hello"
+    val caps = str.takeIf { it.isNotEmpty() }?.uppercase()
+   //val caps = str.takeIf { it.isNotEmpty() }.uppercase() //compilation error
+    println(caps)
+//sampleEnd
+}
+</pre>
+<p id="3c6f38c0"><code class="code ">takeIf</code> and <code class="code ">takeUnless</code> are especially useful together with scope functions. A good case is chaining them with <code class="code ">let</code> for running a code block on objects that match the given predicate. To do this, call <code class="code ">takeIf</code> on the object and then call <code class="code ">let</code> with a safe call (<code class="code ">?</code>). For objects that don't match the predicate, <code class="code ">takeIf</code> returns <code class="code ">null</code> and <code class="code ">let</code> isn't invoked.</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    fun displaySubstringPosition(input: String, sub: String) {
+        input.indexOf(sub).takeIf { it &gt;= 0 }?.let {
+            println("The substring $sub is found in $input.")
+            println("Its start position is $it.")
+        }
+    }
+
+    displaySubstringPosition("010000011", "11")
+    displaySubstringPosition("010000011", "12")
+//sampleEnd
+}
+</pre>
+<p id="2d46b568">This is how the same function looks without the standard library functions:</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    fun displaySubstringPosition(input: String, sub: String) {
+        val index = input.indexOf(sub)
+        if (index &gt;= 0) {
+            println("The substring $sub is found in $input.")
+            println("Its start position is $index.")
+        }
+    }
+
+    displaySubstringPosition("010000011", "11")
+    displaySubstringPosition("010000011", "12")
+//sampleEnd
+}
+</pre></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="map-operations">Map-specific operations</a> <a class="navigation-links__next" href="opt-in-requirements">Opt-in requirements</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/scope-functions.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/scope-functions.html</a>
+  </p>
+</div>

@@ -1,0 +1,62 @@
+<h1>wpdb::set_sql_mode( array $modes = array() )</h1>  <section> <p>Changes the current SQL mode, and ensures its WordPress compatibility.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>If no modes are passed, it will ensure the current MySQL server modes are compatible.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$modes</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description"> A list of SQL modes to set. </span> </p> <p class="default">Default value: array()</p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/wp-db.php/">wp-includes/wp-db.php</a> </p> <pre data-language="php">public function set_sql_mode( $modes = array() ) {
+		if ( empty( $modes ) ) {
+			if ( $this-&gt;use_mysqli ) {
+				$res = mysqli_query( $this-&gt;dbh, 'SELECT @@SESSION.sql_mode' );
+			} else {
+				$res = mysql_query( 'SELECT @@SESSION.sql_mode', $this-&gt;dbh );
+			}
+
+			if ( empty( $res ) ) {
+				return;
+			}
+
+			if ( $this-&gt;use_mysqli ) {
+				$modes_array = mysqli_fetch_array( $res );
+				if ( empty( $modes_array[0] ) ) {
+					return;
+				}
+				$modes_str = $modes_array[0];
+			} else {
+				$modes_str = mysql_result( $res, 0 );
+			}
+
+			if ( empty( $modes_str ) ) {
+				return;
+			}
+
+			$modes = explode( ',', $modes_str );
+		}
+
+		$modes = array_change_key_case( $modes, CASE_UPPER );
+
+		/**
+		 * Filters the list of incompatible SQL modes to exclude.
+		 *
+		 * @since 3.9.0
+		 *
+		 * @param array $incompatible_modes An array of incompatible modes.
+		 */
+		$incompatible_modes = (array) apply_filters( 'incompatible_sql_modes', $this-&gt;incompatible_modes );
+
+		foreach ( $modes as $i =&gt; $mode ) {
+			if ( in_array( $mode, $incompatible_modes, true ) ) {
+				unset( $modes[ $i ] );
+			}
+		}
+
+		$modes_str = implode( ',', $modes );
+
+		if ( $this-&gt;use_mysqli ) {
+			mysqli_query( $this-&gt;dbh, "SET SESSION sql_mode='$modes_str'" );
+		} else {
+			mysql_query( "SET SESSION sql_mode='$modes_str'", $this-&gt;dbh );
+		}
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../../hooks/incompatible_sql_modes">incompatible_sql_modes</a> </td> <td class="related-desc"> <p>Filters the list of incompatible SQL modes to exclude.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="db_connect">wpdb::db_connect()</a> </td> <td class="related-desc"> <p>Connects to and selects database.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.9.0/" alt="WordPress 3.9.0">3.9.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wpdb/set_sql_mode" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wpdb/set_sql_mode</a>
+  </p>
+</div>

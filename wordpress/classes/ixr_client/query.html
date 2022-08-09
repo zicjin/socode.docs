@@ -1,0 +1,91 @@
+<h1>IXR_Client::query( $args )</h1>   <div class="content-toc">  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/ixr/class-ixr-client.php/">wp-includes/IXR/class-IXR-client.php</a> </p> <pre data-language="php">function query( ...$args )
+    {
+        $method = array_shift($args);
+        $request = new IXR_Request($method, $args);
+        $length = $request-&gt;getLength();
+        $xml = $request-&gt;getXml();
+        $r = "\r\n";
+        $request  = "POST {$this-&gt;path} HTTP/1.0$r";
+
+        // Merged from WP #8145 - allow custom headers
+        $this-&gt;headers['Host']          = $this-&gt;server;
+        $this-&gt;headers['Content-Type']  = 'text/xml';
+        $this-&gt;headers['User-Agent']    = $this-&gt;useragent;
+        $this-&gt;headers['Content-Length']= $length;
+
+        foreach( $this-&gt;headers as $header =&gt; $value ) {
+            $request .= "{$header}: {$value}{$r}";
+        }
+        $request .= $r;
+
+        $request .= $xml;
+
+        // Now send the request
+        if ($this-&gt;debug) {
+            echo '&lt;pre class="ixr_request"&gt;'.htmlspecialchars($request)."\n&lt;/pre&gt;\n\n";
+        }
+
+        if ($this-&gt;timeout) {
+            $fp = @fsockopen($this-&gt;server, $this-&gt;port, $errno, $errstr, $this-&gt;timeout);
+        } else {
+            $fp = @fsockopen($this-&gt;server, $this-&gt;port, $errno, $errstr);
+        }
+        if (!$fp) {
+            $this-&gt;error = new IXR_Error(-32300, 'transport error - could not open socket');
+            return false;
+        }
+        fputs($fp, $request);
+        $contents = '';
+        $debugContents = '';
+        $gotFirstLine = false;
+        $gettingHeaders = true;
+        while (!feof($fp)) {
+            $line = fgets($fp, 4096);
+            if (!$gotFirstLine) {
+                // Check line for '200'
+                if (strstr($line, '200') === false) {
+                    $this-&gt;error = new IXR_Error(-32300, 'transport error - HTTP status code was not 200');
+                    return false;
+                }
+                $gotFirstLine = true;
+            }
+            if (trim($line) == '') {
+                $gettingHeaders = false;
+            }
+            if (!$gettingHeaders) {
+            	// merged from WP #12559 - remove trim
+                $contents .= $line;
+            }
+            if ($this-&gt;debug) {
+            	$debugContents .= $line;
+            }
+        }
+        if ($this-&gt;debug) {
+            echo '&lt;pre class="ixr_response"&gt;'.htmlspecialchars($debugContents)."\n&lt;/pre&gt;\n\n";
+        }
+
+        // Now parse what we've got back
+        $this-&gt;message = new IXR_Message($contents);
+        if (!$this-&gt;message-&gt;parse()) {
+            // XML error
+            $this-&gt;error = new IXR_Error(-32700, 'parse error. not well formed');
+            return false;
+        }
+
+        // Is the message a fault?
+        if ($this-&gt;message-&gt;messageType == 'fault') {
+            $this-&gt;error = new IXR_Error($this-&gt;message-&gt;faultCode, $this-&gt;message-&gt;faultString);
+            return false;
+        }
+
+        // Message must be OK
+        return true;
+    }</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/IXR/class-IXR-error.php:</span> <a href="../ixr_error/__construct">IXR_Error::__construct()</a> </td> <td class="related-desc"> <p>PHP5 constructor.</p> </td> </tr> <tr> <td> <span>wp-includes/IXR/class-IXR-request.php:</span> <a href="../ixr_request/__construct">IXR_Request::__construct()</a> </td> <td class="related-desc"> <p>PHP5 constructor.</p> </td> </tr> <tr> <td> <span>wp-includes/IXR/class-IXR-message.php:</span> <a href="../ixr_message/__construct">IXR_Message::__construct()</a> </td> <td class="related-desc"> <p>PHP5 constructor.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/IXR/class-IXR-clientmulticall.php:</span> <a href="../ixr_clientmulticall/query">IXR_ClientMulticall::query()</a> </td> <td class="related-desc"> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.0/" alt="WordPress 5.5.0">5.5.0</a></td> <td><span class="since-description">Formalized the existing <code>...$args</code> parameter by adding it to the function signature.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/1.5.0/" alt="WordPress 1.5.0">1.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/ixr_client/query" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/ixr_client/query</a>
+  </p>
+</div>

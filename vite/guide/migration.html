@@ -1,0 +1,153 @@
+<h1 id="migration-from-v2" tabindex="-1">Migration from v2 </h1>
+<h2 id="node-js-support" tabindex="-1">Node.js Support </h2>
+<p>Vite no longer supports Node.js 12 / 13 / 15, which reached its EOL. Node.js 14.18+ / 16+ is now required.</p>
+<h2 id="modern-browser-baseline-change" tabindex="-1">Modern Browser Baseline change </h2>
+<p>The production bundle assumes support for modern JavaScript. By default, Vite targets browsers which support the <a href="https://caniuse.com/es6-module" target="_blank" rel="noopener noreferrer">native ES Modules</a>, <a href="https://caniuse.com/es6-module-dynamic-import" target="_blank" rel="noopener noreferrer">native ESM dynamic import</a>, and <a href="https://caniuse.com/mdn-javascript_operators_import_meta" target="_blank" rel="noopener noreferrer"><code>import.<wbr>meta</wbr></code></a>:</p>
+<ul>
+<li>Chrome &gt;=87</li>
+<li>Firefox &gt;=78</li>
+<li>Safari &gt;=13</li>
+<li>Edge &gt;=88</li>
+</ul>
+<p>A small fraction of users will now require using <a href="https://github.com/vitejs/vite/tree/main/packages/plugin-legacy" target="_blank" rel="noopener noreferrer">@vitejs/plugin-legacy</a>, which will automatically generate legacy chunks and corresponding ES language feature polyfills.</p>
+<h2 id="config-options-changes" tabindex="-1">Config Options Changes </h2>
+<p>The following options that were already deprecated in v2 have been removed:</p>
+<ul>
+<li>
+<code>alias</code> (switch to <a href="../config/shared-options#resolve-alias"><code>resolve.alias</code></a>)</li>
+<li>
+<code>dedupe</code> (switch to <a href="../config/shared-options#resolve-dedupe"><code>resolve.dedupe</code></a>)</li>
+<li>
+<code>build.base</code> (switch to <a href="../config/shared-options#base"><code>base</code></a>)</li>
+<li>
+<code>build.brotliSize</code> (switch to <a href="../config/build-options#build-reportcompressedsize"><code>build.reportCompressedSize</code></a>)</li>
+<li>
+<code>build.cleanCssOptions</code> (Vite now uses esbuild for CSS minification)</li>
+<li>
+<code>build.polyfillDynamicImport</code> (use <a href="https://github.com/vitejs/vite/tree/main/packages/plugin-legacy" target="_blank" rel="noopener noreferrer"><code>@vitejs/plugin-legacy</code></a> for browsers without dynamic import support)</li>
+<li>
+<code>optimizeDeps.keepNames</code> (switch to <a href="../config/dep-optimization-options#optimizedeps-esbuildoptions"><code>optimizeDeps.esbuildOptions.keepNames</code></a>)</li>
+</ul>
+<h2 id="architecture-changes-and-legacy-options" tabindex="-1">Architecture Changes and Legacy Options </h2>
+<p>This section describes the biggest architecture changes in Vite v3. To allow projects to migrate from v2 in case of a compat issue, legacy options have been added to revert to the Vite v2 strategies.</p>
+<h3 id="dev-server-changes" tabindex="-1">Dev Server Changes </h3>
+<p>Vite's default dev server port is now 5173. You can use <a href="../config/server-options#server-port"><code>server.port</code></a> to set it to 3000.</p>
+<p>Vite's default dev server host is now <code>localhost</code>. In Vite v2, Vite was listening to <code>127.0.0.1</code> by default. Node.js under v17 normally resolves <code>localhost</code> to <code>127.0.0.1</code>, so for those versions, the host won't change. For Node.js 17+, you can use <a href="../config/server-options#server-host"><code>server.host</code></a> to set it to <code>127.0.0.1</code> to keep the same host as Vite v2.</p>
+<p>Note that Vite v3 now prints the correct host. This means Vite may print <code>127.0.0.1</code> as the listening host when <code>localhost</code> is used. You can set <a href="https://nodejs.org/api/dns.html#dns_dns_setdefaultresultorder_order" target="_blank" rel="noopener noreferrer"><code>dns.setDefaultResultOrder('verbatim')</code></a> to prevent this. See <a href="../config/server-options#server-host"><code>server.host</code></a> for more details.</p>
+<h3 id="ssr-changes" tabindex="-1">SSR Changes </h3>
+<p>Vite v3 uses ESM for the SSR build by default. When using ESM, the <a href="ssr#ssr-externals" target="_blank" rel="noopener noreferrer">SSR externalization heuristics</a> are no longer needed. By default, all dependencies are externalized. You can use <a href="../config/ssr-options#ssr-noexternal"><code>ssr.noExternal</code></a> to control what dependencies to include in the SSR bundle.</p>
+<p>If using ESM for SSR isn't possible in your project, you can set <code>legacy.buildSsrCjsExternalHeuristics</code> to generate a CJS bundle using the same externalization strategy of Vite v2.</p>
+<p>Also <a href="https://rollupjs.org/guide/en/#outputinlinedynamicimports" target="_blank" rel="noopener noreferrer"><code>build.rollupOptions.output.inlineDynamicImports</code></a> now defaults to <code>false</code> when <code>ssr.target</code> is <code>'node'</code>. <code>inlineDynamicImports</code> changes execution order and bundling to a single file is not needed for node builds.</p>
+<h2 id="general-changes" tabindex="-1">General Changes </h2>
+<ul>
+<li>JS file extensions in SSR and lib mode now use a valid extension (<code>js</code>, <code>mjs</code>, or <code>cjs</code>) for output JS entries and chunks based on their format and the package type.</li>
+<li>Terser is now an optional dependency. If you are using <code>build.minify: 'terser'</code>, you need to install it.<div class="language-shell">
+<pre data-language="javascript">npm add -D terser</pre>
+</div>
+</li>
+</ul>
+<h3 id="import-meta-glob" tabindex="-1">
+<code>import.<wbr>meta.glob</wbr></code> </h3>
+<ul>
+<li><p><a href="features#glob-import-as">Raw <code>import.<wbr>meta.glob</wbr></code></a> switched from <code>{ assert: { type: 'raw' }}</code> to <code>{ as: 'raw' }</code></p></li>
+<li>
+<p>Keys of <code>import.<wbr>meta.glob</wbr></code> are now relative to the current module.</p>
+<div class="language-diff">
+<pre data-language="javascript">// file: /foo/index.js
+const modules = import.meta.glob('../foo/*.js')
+
+// transformed:
+const modules = {
+-  '../foo/bar.js': () =&gt; {}
++  './bar.js': () =&gt; {}
+}</pre>
+</div>
+</li>
+<li><p>When using an alias with <code>import.<wbr>meta.glob</wbr></code>, the keys are always absolute.</p></li>
+<li><p><code>import.<wbr>meta.globEager</wbr></code> is now deprecated. Use <code>import.<wbr>meta.glob('*', { eager: true })</wbr></code> instead.</p></li>
+</ul>
+<h3 id="webassembly-support" tabindex="-1">WebAssembly Support </h3>
+<p><code>import init from 'example.wasm'</code> syntax is dropped to prevent future collision with <a href="https://github.com/WebAssembly/esm-integration" target="_blank" rel="noopener noreferrer">"ESM integration for Wasm"</a>. You can use <code>?init</code> which is similar to the previous behavior.</p>
+<div class="language-diff">
+<pre data-language="javascript">-import init from 'example.wasm'
++import init from 'example.wasm?init'
+
+-init().then((exports) =&gt; {
++init().then(({ exports }) =&gt; {
+  exports.test()
+})</pre>
+</div>
+<h3 id="automatic-https-certificate-generation" tabindex="-1">Automatic https Certificate Generation </h3>
+<p>A valid certificate is needed when using <code>https</code>. In Vite v2, if no certificate was configured, a self-signed certificate was automatically created and cached. Since Vite v3, we recommend manually creating your certificates. If you still want to use the automatic generation from v2, this feature can be enabled back by adding <a href="https://github.com/vitejs/vite-plugin-basic-ssl" target="_blank" rel="noopener noreferrer">@vitejs/plugin-basic-ssl</a> to the project plugins.</p>
+<div class="language-js">
+<pre data-language="javascript">import basicSsl from '@vitejs/plugin-basic-ssl'
+
+export default {
+  plugins: [basicSsl()]
+}</pre>
+</div>
+<h2 id="experimental" tabindex="-1">Experimental </h2>
+<h3 id="using-esbuild-deps-optimization-at-build-time" tabindex="-1">Using esbuild deps optimization at build time </h3>
+<p>In v3, Vite allows the use of esbuild to optimize dependencies during build time. If enabled, it removes one of the most significant differences between dev and prod present in v2. <a href="https://github.com/rollup/plugins/tree/master/packages/commonjs" target="_blank" rel="noopener noreferrer"><code>@rollup/plugin-commonjs</code></a> is no longer needed in this case since esbuild converts CJS-only dependencies to ESM.</p>
+<p>If you want to try this build strategy, you can use <code>optimizeDeps.disabled: false</code> (the default in v3 is <code>disabled: 'build'</code>). <code>@rollup/plugin-commonjs</code> can be removed by passing <code>build.commonjsOptions: { include: [] }</code></p>
+<h2 id="advanced" tabindex="-1">Advanced </h2>
+<p>There are some changes which only affects plugin/tool creators.</p>
+<ul>
+<li>
+<a href="https://github.com/vitejs/vite/pull/5868" target="_blank" rel="noopener noreferrer">[#5868] refactor: remove deprecated api for 3.0</a><ul>
+<li>
+<code>printHttpServerUrls</code> is removed</li>
+<li>
+<code>server.app</code>, <code>server.transformWithEsbuild</code> are removed</li>
+<li>
+<code>import.<wbr>meta.hot.acceptDeps</wbr></code> is removed</li>
+</ul>
+</li>
+<li>
+<a href="https://github.com/vitejs/vite/pull/6901" target="_blank" rel="noopener noreferrer">[#6901] fix: sequential injection of tags in transformIndexHtml</a><ul><li>
+<code>transformIndexHtml</code> now gets the correct content modified by earlier plugins, so the order of the injected tags now works as expected.</li></ul>
+</li>
+<li>
+<a href="https://github.com/vitejs/vite/pull/7995" target="_blank" rel="noopener noreferrer">[#7995] chore: do not fixStacktrace</a><ul><li>
+<code>ssrLoadModule</code>'s <code>fixStacktrace</code> option's default is now <code>false</code>
+</li></ul>
+</li>
+<li>
+<a href="https://github.com/vitejs/vite/pull/8178" target="_blank" rel="noopener noreferrer">[#8178] feat!: migrate to ESM</a><ul>
+<li>
+<code>formatPostcssSourceMap</code> is now async</li>
+<li>
+<code>resolvePackageEntry</code>, <code>resolvePackageData</code> are no longer available from CJS build (dynamic import is needed to use in CJS)</li>
+</ul>
+</li>
+<li>
+<a href="https://github.com/vitejs/vite/pull/8626" target="_blank" rel="noopener noreferrer">[#8626] refactor: type client maps</a><ul><li>Type of callback of <code>import.<wbr>meta.hot.accept</wbr></code> is now stricter. It is now <code>(mod: (Record&lt;string, any&gt; &amp; { [Symbol.toStringTag]: 'Module' }) | undefined) =&gt; void</code> (was <code>(mod: any) =&gt; void</code>).</li></ul>
+</li>
+</ul>
+<p>Also there are other breaking changes which only affect few users.</p>
+<ul>
+<li>
+<a href="https://github.com/vitejs/vite/pull/5018" target="_blank" rel="noopener noreferrer">[#5018] feat: enable <code>generatedCode: 'es2015'</code> for rollup build</a><ul><li>Transpile to ES5 is now necessary even if the user code only includes ES5.</li></ul>
+</li>
+<li>
+<a href="https://github.com/vitejs/vite/pull/7877" target="_blank" rel="noopener noreferrer">[#7877] fix: vite client types</a><ul><li>
+<code>/// &lt;reference lib="dom" /&gt;</code> is removed from <code>vite/client.d.ts</code>. <code>{ "lib": ["dom"] }</code> or <code>{ "lib": ["webworker"] }</code> is necessary in <code>tsconfig.json</code>.</li></ul>
+</li>
+<li>
+<a href="https://github.com/vitejs/vite/pull/8090" target="_blank" rel="noopener noreferrer">[#8090] feat: preserve process env vars in lib build</a><ul><li>
+<code>process.<wbr>env.*</wbr></code> is now preserved in library mode</li></ul>
+</li>
+<li>
+<a href="https://github.com/vitejs/vite/pull/8280" target="_blank" rel="noopener noreferrer">[#8280] feat: non-blocking esbuild optimization at build time</a><ul><li>
+<code>server.force</code> option was removed in favor of <code>optimizeDeps.force</code> option.</li></ul>
+</li>
+<li>
+<a href="https://github.com/vitejs/vite/pull/8550" target="_blank" rel="noopener noreferrer">[#8550] fix: dont handle sigterm in middleware mode</a><ul><li>When running in middleware mode, Vite no longer kills process on <code>SIGTERM</code>.</li></ul>
+</li>
+</ul>
+<h2 id="migration-from-v1" tabindex="-1">Migration from v1 </h2>
+<p>Check the <a href="https://v2.vitejs.dev/guide/migration.html" target="_blank" rel="noopener noreferrer">Migration from v1 Guide</a> in the Vite v2 docs first to see the needed changes to port your app to Vite v2, and then proceed with the changes on this page.</p><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://vitejs.dev/guide/migration.html" class="_attribution-link" target="_blank">https://vitejs.dev/guide/migration.html</a>
+  </p>
+</div>

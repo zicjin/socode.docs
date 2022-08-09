@@ -1,0 +1,47 @@
+<h1>wp_check_invalid_utf8( string $string, bool $strip = false )</h1>  <section> <p>Checks for invalid UTF8 in a string.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$string</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The text which is to be checked.</span> </p> </dd> <dt>$strip</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> Whether to attempt to strip out invalid UTF8. </span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> The checked text.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/formatting.php/">wp-includes/formatting.php</a> </p> <pre data-language="php">function wp_check_invalid_utf8( $string, $strip = false ) {
+	$string = (string) $string;
+
+	if ( 0 === strlen( $string ) ) {
+		return '';
+	}
+
+	// Store the site charset as a static to avoid multiple calls to get_option().
+	static $is_utf8 = null;
+	if ( ! isset( $is_utf8 ) ) {
+		$is_utf8 = in_array( get_option( 'blog_charset' ), array( 'utf8', 'utf-8', 'UTF8', 'UTF-8' ), true );
+	}
+	if ( ! $is_utf8 ) {
+		return $string;
+	}
+
+	// Check for support for utf8 in the installed PCRE library once and store the result in a static.
+	static $utf8_pcre = null;
+	if ( ! isset( $utf8_pcre ) ) {
+		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		$utf8_pcre = @preg_match( '/^./u', 'a' );
+	}
+	// We can't demand utf8 in the PCRE installation, so just return the string in those cases.
+	if ( ! $utf8_pcre ) {
+		return $string;
+	}
+
+	// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- preg_match fails when it encounters invalid UTF8 in $string.
+	if ( 1 === @preg_match( '/^./us', $string ) ) {
+		return $string;
+	}
+
+	// Attempt to strip the bad chars if requested (not recommended).
+	if ( $strip &amp;&amp; function_exists( 'iconv' ) ) {
+		return iconv( 'utf-8', 'utf-8', $string );
+	}
+
+	return '';
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_xml">esc_xml()</a> </td> <td class="related-desc"> <p>Escaping for XML blocks.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="_sanitize_text_fields">_sanitize_text_fields()</a> </td> <td class="related-desc"> <p>Internal helper function to sanitize a string from user input or from the database.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_js">esc_js()</a> </td> <td class="related-desc"> <p>Escapes single quotes, <code>"</code>, , <code>&amp;amp;</code>, and fixes line endings.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_html">esc_html()</a> </td> <td class="related-desc"> <p>Escaping for HTML blocks.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.8.0/" alt="WordPress 2.8.0">2.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_check_invalid_utf8" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_check_invalid_utf8</a>
+  </p>
+</div>

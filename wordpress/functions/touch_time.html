@@ -1,0 +1,88 @@
+<h1>touch_time( int|bool $edit = 1, int|bool $for_post = 1, int $tab_index, int|bool $multi )</h1>  <section> <p>Prints out HTML form date elements for editing post or comment publish date.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$edit</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>|<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description">Accepts 1|true for editing the date, 0|false for adding the date.</span> </p> <p class="default">Default value: 1</p> </dd> <dt>$for_post</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>|<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description">Accepts 1|true for applying the date to a post, 0|false for a comment.</span> </p> <p class="default">Default value: 1</p> </dd> <dt>$tab_index</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">The tabindex attribute to add. Default 0.</span> </p> </dd> <dt>$multi</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>|<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> Whether the additional fields and buttons should be added. Default 0|false.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/template.php/">wp-admin/includes/template.php</a> </p> <pre data-language="php">function touch_time( $edit = 1, $for_post = 1, $tab_index = 0, $multi = 0 ) {
+	global $wp_locale;
+	$post = get_post();
+
+	if ( $for_post ) {
+		$edit = ! ( in_array( $post-&gt;post_status, array( 'draft', 'pending' ), true ) &amp;&amp; ( ! $post-&gt;post_date_gmt || '0000-00-00 00:00:00' === $post-&gt;post_date_gmt ) );
+	}
+
+	$tab_index_attribute = '';
+	if ( (int) $tab_index &gt; 0 ) {
+		$tab_index_attribute = " tabindex=\"$tab_index\"";
+	}
+
+	// @todo Remove this?
+	// echo '&lt;label for="timestamp" style="display: block;"&gt;&lt;input type="checkbox" class="checkbox" name="edit_date" value="1" id="timestamp"'.$tab_index_attribute.' /&gt; '.__( 'Edit timestamp' ).'&lt;/label&gt;&lt;br /&gt;';
+
+	$post_date = ( $for_post ) ? $post-&gt;post_date : get_comment()-&gt;comment_date;
+	$jj        = ( $edit ) ? mysql2date( 'd', $post_date, false ) : current_time( 'd' );
+	$mm        = ( $edit ) ? mysql2date( 'm', $post_date, false ) : current_time( 'm' );
+	$aa        = ( $edit ) ? mysql2date( 'Y', $post_date, false ) : current_time( 'Y' );
+	$hh        = ( $edit ) ? mysql2date( 'H', $post_date, false ) : current_time( 'H' );
+	$mn        = ( $edit ) ? mysql2date( 'i', $post_date, false ) : current_time( 'i' );
+	$ss        = ( $edit ) ? mysql2date( 's', $post_date, false ) : current_time( 's' );
+
+	$cur_jj = current_time( 'd' );
+	$cur_mm = current_time( 'm' );
+	$cur_aa = current_time( 'Y' );
+	$cur_hh = current_time( 'H' );
+	$cur_mn = current_time( 'i' );
+
+	$month = '&lt;label&gt;&lt;span class="screen-reader-text"&gt;' . __( 'Month' ) . '&lt;/span&gt;&lt;select class="form-required" ' . ( $multi ? '' : 'id="mm" ' ) . 'name="mm"' . $tab_index_attribute . "&gt;\n";
+	for ( $i = 1; $i &lt; 13; $i = $i + 1 ) {
+		$monthnum  = zeroise( $i, 2 );
+		$monthtext = $wp_locale-&gt;get_month_abbrev( $wp_locale-&gt;get_month( $i ) );
+		$month    .= "\t\t\t" . '&lt;option value="' . $monthnum . '" data-text="' . $monthtext . '" ' . selected( $monthnum, $mm, false ) . '&gt;';
+		/* translators: 1: Month number (01, 02, etc.), 2: Month abbreviation. */
+		$month .= sprintf( __( '%1$s-%2$s' ), $monthnum, $monthtext ) . "&lt;/option&gt;\n";
+	}
+	$month .= '&lt;/select&gt;&lt;/label&gt;';
+
+	$day    = '&lt;label&gt;&lt;span class="screen-reader-text"&gt;' . __( 'Day' ) . '&lt;/span&gt;&lt;input type="text" ' . ( $multi ? '' : 'id="jj" ' ) . 'name="jj" value="' . $jj . '" size="2" maxlength="2"' . $tab_index_attribute . ' autocomplete="off" class="form-required" /&gt;&lt;/label&gt;';
+	$year   = '&lt;label&gt;&lt;span class="screen-reader-text"&gt;' . __( 'Year' ) . '&lt;/span&gt;&lt;input type="text" ' . ( $multi ? '' : 'id="aa" ' ) . 'name="aa" value="' . $aa . '" size="4" maxlength="4"' . $tab_index_attribute . ' autocomplete="off" class="form-required" /&gt;&lt;/label&gt;';
+	$hour   = '&lt;label&gt;&lt;span class="screen-reader-text"&gt;' . __( 'Hour' ) . '&lt;/span&gt;&lt;input type="text" ' . ( $multi ? '' : 'id="hh" ' ) . 'name="hh" value="' . $hh . '" size="2" maxlength="2"' . $tab_index_attribute . ' autocomplete="off" class="form-required" /&gt;&lt;/label&gt;';
+	$minute = '&lt;label&gt;&lt;span class="screen-reader-text"&gt;' . __( 'Minute' ) . '&lt;/span&gt;&lt;input type="text" ' . ( $multi ? '' : 'id="mn" ' ) . 'name="mn" value="' . $mn . '" size="2" maxlength="2"' . $tab_index_attribute . ' autocomplete="off" class="form-required" /&gt;&lt;/label&gt;';
+
+	echo '&lt;div class="timestamp-wrap"&gt;';
+	/* translators: 1: Month, 2: Day, 3: Year, 4: Hour, 5: Minute. */
+	printf( __( '%1$s %2$s, %3$s at %4$s:%5$s' ), $month, $day, $year, $hour, $minute );
+
+	echo '&lt;/div&gt;&lt;input type="hidden" id="ss" name="ss" value="' . $ss . '" /&gt;';
+
+	if ( $multi ) {
+		return;
+	}
+
+	echo "\n\n";
+
+	$map = array(
+		'mm' =&gt; array( $mm, $cur_mm ),
+		'jj' =&gt; array( $jj, $cur_jj ),
+		'aa' =&gt; array( $aa, $cur_aa ),
+		'hh' =&gt; array( $hh, $cur_hh ),
+		'mn' =&gt; array( $mn, $cur_mn ),
+	);
+
+	foreach ( $map as $timeunit =&gt; $value ) {
+		list( $unit, $curr ) = $value;
+
+		echo '&lt;input type="hidden" id="hidden_' . $timeunit . '" name="hidden_' . $timeunit . '" value="' . $unit . '" /&gt;' . "\n";
+		$cur_timeunit = 'cur_' . $timeunit;
+		echo '&lt;input type="hidden" id="' . $cur_timeunit . '" name="' . $cur_timeunit . '" value="' . $curr . '" /&gt;' . "\n";
+	}
+	?&gt;
+
+&lt;p&gt;
+&lt;a href="#edit_timestamp" class="save-timestamp hide-if-no-js button"&gt;&lt;?php _e( 'OK' ); ?&gt;&lt;/a&gt;
+&lt;a href="#edit_timestamp" class="cancel-timestamp hide-if-no-js button-cancel"&gt;&lt;?php _e( 'Cancel' ); ?&gt;&lt;/a&gt;
+&lt;/p&gt;
+	&lt;?php
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="_e">_e()</a> </td> <td class="related-desc"> <p>Display translated text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="zeroise">zeroise()</a> </td> <td class="related-desc"> <p>Add leading zeros when necessary.</p> </td> </tr> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="selected">selected()</a> </td> <td class="related-desc"> <p>Outputs the HTML selected attribute.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="mysql2date">mysql2date()</a> </td> <td class="related-desc"> <p>Convert given MySQL date string into a different format.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="current_time">current_time()</a> </td> <td class="related-desc"> <p>Retrieves the current time based on specified type.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-locale.php:</span> <a href="../classes/wp_locale/get_month_abbrev">WP_Locale::get_month_abbrev()</a> </td> <td class="related-desc"> <p>Retrieves translated version of month abbreviation string.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-locale.php:</span> <a href="../classes/wp_locale/get_month">WP_Locale::get_month()</a> </td> <td class="related-desc"> <p>Retrieves the full translated month by month number.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="get_comment">get_comment()</a> </td> <td class="related-desc"> <p>Retrieves comment data given a comment ID or comment object.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/meta-boxes.php:</span> <a href="post_submit_meta_box">post_submit_meta_box()</a> </td> <td class="related-desc"> <p>Displays post submit form fields.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-posts-list-table.php:</span> <a href="../classes/wp_posts_list_table/inline_edit">WP_Posts_List_Table::inline_edit()</a> </td> <td class="related-desc"> <p>Outputs the hidden row displayed when inline editing</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.4.0/" alt="WordPress 4.4.0">4.4.0</a></td> <td><span class="since-description">Converted to use <a href="get_comment">get_comment()</a> instead of the global <code>$comment</code>.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/0.71/" alt="WordPress 0.71">0.71</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/touch_time" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/touch_time</a>
+  </p>
+</div>

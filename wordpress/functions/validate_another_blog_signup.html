@@ -1,0 +1,83 @@
+<h1>validate_another_blog_signup()</h1>  <section> <p>Validates a new site sign-up for an existing user.</p> </section> <div class="content-toc">  <section> <h2 id="return">Return</h2> <p><span class="return-type">(null|bool)</span> True if site signup was validated, false on error. The function halts all execution if the user is not logged in.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-signup.php/">wp-signup.php</a> </p> <pre data-language="php">function validate_another_blog_signup() {
+	global $blogname, $blog_title, $errors, $domain, $path;
+	$current_user = wp_get_current_user();
+	if ( ! is_user_logged_in() ) {
+		die();
+	}
+
+	$result = validate_blog_form();
+
+	// Extracted values set/overwrite globals.
+	$domain     = $result['domain'];
+	$path       = $result['path'];
+	$blogname   = $result['blogname'];
+	$blog_title = $result['blog_title'];
+	$errors     = $result['errors'];
+
+	if ( $errors-&gt;has_errors() ) {
+		signup_another_blog( $blogname, $blog_title, $errors );
+		return false;
+	}
+
+	$public = (int) $_POST['blog_public'];
+
+	$blog_meta_defaults = array(
+		'lang_id' =&gt; 1,
+		'public'  =&gt; $public,
+	);
+
+	// Handle the language setting for the new site.
+	if ( ! empty( $_POST['WPLANG'] ) ) {
+
+		$languages = signup_get_available_languages();
+
+		if ( in_array( $_POST['WPLANG'], $languages, true ) ) {
+			$language = wp_unslash( sanitize_text_field( $_POST['WPLANG'] ) );
+
+			if ( $language ) {
+				$blog_meta_defaults['WPLANG'] = $language;
+			}
+		}
+	}
+
+	/**
+	 * Filters the new site meta variables.
+	 *
+	 * Use the {@see 'add_signup_meta'} filter instead.
+	 *
+	 * @since MU (3.0.0)
+	 * @deprecated 3.0.0 Use the {@see 'add_signup_meta'} filter instead.
+	 *
+	 * @param array $blog_meta_defaults An array of default blog meta variables.
+	 */
+	$meta_defaults = apply_filters_deprecated( 'signup_create_blog_meta', array( $blog_meta_defaults ), '3.0.0', 'add_signup_meta' );
+
+	/**
+	 * Filters the new default site meta variables.
+	 *
+	 * @since 3.0.0
+	 *
+	 * @param array $meta {
+	 *     An array of default site meta variables.
+	 *
+	 *     @type int $lang_id     The language ID.
+	 *     @type int $blog_public Whether search engines should be discouraged from indexing the site. 1 for true, 0 for false.
+	 * }
+	 */
+	$meta = apply_filters( 'add_signup_meta', $meta_defaults );
+
+	$blog_id = wpmu_create_blog( $domain, $path, $blog_title, $current_user-&gt;ID, $meta, get_current_network_id() );
+
+	if ( is_wp_error( $blog_id ) ) {
+		return false;
+	}
+
+	confirm_another_blog_signup( $domain, $path, $blog_title, $current_user-&gt;user_login, $current_user-&gt;user_email, $meta, $blog_id );
+	return true;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/load.php:</span> <a href="get_current_network_id">get_current_network_id()</a> </td> <td class="related-desc"> <p>Retrieves the current network ID.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters_deprecated">apply_filters_deprecated()</a> </td> <td class="related-desc"> <p>Fires functions attached to a deprecated filter hook.</p> </td> </tr> <tr> <td> <span>wp-signup.php:</span> <a href="signup_get_available_languages">signup_get_available_languages()</a> </td> <td class="related-desc"> <p>Retrieves languages available during the site/user sign-up process.</p> </td> </tr> <tr> <td> <span>wp-signup.php:</span> <a href="signup_another_blog">signup_another_blog()</a> </td> <td class="related-desc"> <p>Shows a form for returning users to sign up for another site.</p> </td> </tr> <tr> <td> <span>wp-signup.php:</span> <a href="confirm_another_blog_signup">confirm_another_blog_signup()</a> </td> <td class="related-desc"> <p>Shows a message confirming that the new site has been created.</p> </td> </tr> <tr> <td> <span>wp-signup.php:</span> <a href="../hooks/signup_create_blog_meta">signup_create_blog_meta</a> </td> <td class="related-desc"> <p>Filters the new site meta variables.</p> </td> </tr> <tr> <td> <span>wp-signup.php:</span> <a href="../hooks/add_signup_meta">add_signup_meta</a> </td> <td class="related-desc"> <p>Filters the new default site meta variables.</p> </td> </tr> <tr> <td> <span>wp-signup.php:</span> <a href="validate_blog_form">validate_blog_form()</a> </td> <td class="related-desc"> <p>Validates the new site sign-up.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_unslash">wp_unslash()</a> </td> <td class="related-desc"> <p>Removes slashes from a string or recursively removes slashes from strings within an array.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="sanitize_text_field">sanitize_text_field()</a> </td> <td class="related-desc"> <p>Sanitizes a string from user input or from the database.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="is_user_logged_in">is_user_logged_in()</a> </td> <td class="related-desc"> <p>Determines whether the current visitor is a logged in user.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_get_current_user">wp_get_current_user()</a> </td> <td class="related-desc"> <p>Retrieve the current user object.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="wpmu_create_blog">wpmu_create_blog()</a> </td> <td class="related-desc"> <p>Creates a site.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/mu.3.0.0/" alt="WordPress MU (3.0.0)">MU (3.0.0)</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/validate_another_blog_signup" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/validate_another_blog_signup</a>
+  </p>
+</div>

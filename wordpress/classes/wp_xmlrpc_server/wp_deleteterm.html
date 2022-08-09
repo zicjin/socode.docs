@@ -1,0 +1,63 @@
+<h1>wp_xmlrpc_server::wp_deleteTerm( array $args )</h1>  <section> <p>Delete a term.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <h3 id="see-also">See also</h3> <ul> <li><a href="../../functions/wp_delete_term">wp_delete_term()</a></li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Method arguments. Note: arguments must be ordered as documented. <ul class="param-hash">
+<li>
+<b>'blog_id'</b><br><i><span class="type">(int)</span></i> Blog ID (unused).</li> <li>
+<b>'username'</b><br><i><span class="type">(string)</span></i> Username.</li> <li>
+<b>'password'</b><br><i><span class="type">(string)</span></i> Password.</li> <li>
+<b>'taxonomy_name'</b><br><i><span class="type">(string)</span></i> Taxonomy name.</li> <li>
+<b>'term_id'</b><br><i><span class="type">(int)</span></i> Term ID.</li> </ul> </span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(true|<a href="../ixr_error">IXR_Error</a>)</span> True on success, <a href="../ixr_error">IXR_Error</a> instance on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-xmlrpc-server.php/">wp-includes/class-wp-xmlrpc-server.php</a> </p> <pre data-language="php">public function wp_deleteTerm( $args ) {
+		if ( ! $this-&gt;minimum_args( $args, 5 ) ) {
+			return $this-&gt;error;
+		}
+
+		$this-&gt;escape( $args );
+
+		$username = $args[1];
+		$password = $args[2];
+		$taxonomy = $args[3];
+		$term_id  = (int) $args[4];
+
+		$user = $this-&gt;login( $username, $password );
+		if ( ! $user ) {
+			return $this-&gt;error;
+		}
+
+		/** This action is documented in wp-includes/class-wp-xmlrpc-server.php */
+		do_action( 'xmlrpc_call', 'wp.deleteTerm', $args, $this );
+
+		if ( ! taxonomy_exists( $taxonomy ) ) {
+			return new IXR_Error( 403, __( 'Invalid taxonomy.' ) );
+		}
+
+		$taxonomy = get_taxonomy( $taxonomy );
+		$term     = get_term( $term_id, $taxonomy-&gt;name );
+
+		if ( is_wp_error( $term ) ) {
+			return new IXR_Error( 500, $term-&gt;get_error_message() );
+		}
+
+		if ( ! $term ) {
+			return new IXR_Error( 404, __( 'Invalid term ID.' ) );
+		}
+
+		if ( ! current_user_can( 'delete_term', $term_id ) ) {
+			return new IXR_Error( 401, __( 'Sorry, you are not allowed to delete this term.' ) );
+		}
+
+		$result = wp_delete_term( $term_id, $taxonomy-&gt;name );
+
+		if ( is_wp_error( $result ) ) {
+			return new IXR_Error( 500, $term-&gt;get_error_message() );
+		}
+
+		if ( ! $result ) {
+			return new IXR_Error( 500, __( 'Sorry, deleting the term failed.' ) );
+		}
+
+		return $result;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/IXR/class-IXR-error.php:</span> <a href="../ixr_error/__construct">IXR_Error::__construct()</a> </td> <td class="related-desc"> <p>PHP5 constructor.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="../../functions/current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="../../functions/wp_delete_term">wp_delete_term()</a> </td> <td class="related-desc"> <p>Removes a term from the database.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="../../functions/taxonomy_exists">taxonomy_exists()</a> </td> <td class="related-desc"> <p>Determines whether the taxonomy name exists.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="../../functions/get_taxonomy">get_taxonomy()</a> </td> <td class="related-desc"> <p>Retrieves the taxonomy object of $taxonomy.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="../../functions/get_term">get_term()</a> </td> <td class="related-desc"> <p>Gets all term data from database by term ID.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="minimum_args">wp_xmlrpc_server::minimum_args()</a> </td> <td class="related-desc"> <p>Checks if the method received at least the minimum number of arguments.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="../../hooks/xmlrpc_call">xmlrpc_call</a> </td> <td class="related-desc"> <p>Fires after the XML-RPC user has been authenticated but before the rest of the method logic begins.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="escape">wp_xmlrpc_server::escape()</a> </td> <td class="related-desc"> <p>Escape string or array of strings for database.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="login">wp_xmlrpc_server::login()</a> </td> <td class="related-desc"> <p>Log user in.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.4.0/" alt="WordPress 3.4.0">3.4.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_xmlrpc_server/wp_deleteterm" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_xmlrpc_server/wp_deleteterm</a>
+  </p>
+</div>

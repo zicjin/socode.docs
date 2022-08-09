@@ -1,0 +1,56 @@
+<h1>esc_xml( string $text )</h1>  <section> <p>Escaping for XML blocks.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$text</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Text to escape.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> Escaped text.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/formatting.php/">wp-includes/formatting.php</a> </p> <pre data-language="php">function esc_xml( $text ) {
+	$safe_text = wp_check_invalid_utf8( $text );
+
+	$cdata_regex = '\&lt;\!\[CDATA\[.*?\]\]\&gt;';
+	$regex       = &lt;&lt;&lt;EOF
+/
+	(?=.*?{$cdata_regex})                 # lookahead that will match anything followed by a CDATA Section
+	(?&lt;non_cdata_followed_by_cdata&gt;(.*?)) # the "anything" matched by the lookahead
+	(?&lt;cdata&gt;({$cdata_regex}))            # the CDATA Section matched by the lookahead
+
+|	                                      # alternative
+
+	(?&lt;non_cdata&gt;(.*))                    # non-CDATA Section
+/sx
+EOF;
+
+	$safe_text = (string) preg_replace_callback(
+		$regex,
+		static function( $matches ) {
+			if ( ! isset( $matches[0] ) ) {
+				return '';
+			}
+
+			if ( isset( $matches['non_cdata'] ) ) {
+				// escape HTML entities in the non-CDATA Section.
+				return _wp_specialchars( $matches['non_cdata'], ENT_XML1 );
+			}
+
+			// Return the CDATA Section unchanged, escape HTML entities in the rest.
+			return _wp_specialchars( $matches['non_cdata_followed_by_cdata'], ENT_XML1 ) . $matches['cdata'];
+		},
+		$safe_text
+	);
+
+	/**
+	 * Filters a string cleaned and escaped for output in XML.
+	 *
+	 * Text passed to esc_xml() is stripped of invalid or special characters
+	 * before output. HTML named character references are converted to their
+	 * equivalent code points.
+	 *
+	 * @since 5.5.0
+	 *
+	 * @param string $safe_text The text after it has been escaped.
+	 * @param string $text      The text prior to being escaped.
+	 */
+	return apply_filters( 'esc_xml', $safe_text, $text );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../hooks/esc_xml">esc_xml</a> </td> <td class="related-desc"> <p>Filters a string cleaned and escaped for output in XML.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_check_invalid_utf8">wp_check_invalid_utf8()</a> </td> <td class="related-desc"> <p>Checks for invalid UTF8 in a string.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="_wp_specialchars">_wp_specialchars()</a> </td> <td class="related-desc"> <p>Converts a number of special characters into their HTML entities.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/sitemaps/class-wp-sitemaps-renderer.php:</span> <a href="../classes/wp_sitemaps_renderer/get_sitemap_index_xml">WP_Sitemaps_Renderer::get_sitemap_index_xml()</a> </td> <td class="related-desc"> <p>Gets XML for a sitemap index.</p> </td> </tr> <tr> <td> <span>wp-includes/sitemaps/class-wp-sitemaps-renderer.php:</span> <a href="../classes/wp_sitemaps_renderer/get_sitemap_xml">WP_Sitemaps_Renderer::get_sitemap_xml()</a> </td> <td class="related-desc"> <p>Gets XML for a sitemap.</p> </td> </tr> <tr> <td> <span>wp-includes/sitemaps/class-wp-sitemaps-renderer.php:</span> <a href="../classes/wp_sitemaps_renderer/check_for_simple_xml_availability">WP_Sitemaps_Renderer::check_for_simple_xml_availability()</a> </td> <td class="related-desc"> <p>Checks for the availability of the SimpleXML extension and errors if missing.</p> </td> </tr> <tr> <td> <span>wp-includes/sitemaps/class-wp-sitemaps-stylesheet.php:</span> <a href="../classes/wp_sitemaps_stylesheet/get_sitemap_stylesheet">WP_Sitemaps_Stylesheet::get_sitemap_stylesheet()</a> </td> <td class="related-desc"> <p>Returns the escaped XSL for all sitemaps, except index.</p> </td> </tr> <tr> <td> <span>wp-includes/sitemaps/class-wp-sitemaps-stylesheet.php:</span> <a href="../classes/wp_sitemaps_stylesheet/get_sitemap_index_stylesheet">WP_Sitemaps_Stylesheet::get_sitemap_index_stylesheet()</a> </td> <td class="related-desc"> <p>Returns the escaped XSL for the index sitemaps.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.0/" alt="WordPress 5.5.0">5.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/esc_xml" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/esc_xml</a>
+  </p>
+</div>

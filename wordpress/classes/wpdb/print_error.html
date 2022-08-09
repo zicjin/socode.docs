@@ -1,0 +1,72 @@
+<h1>wpdb::print_error( string $str = '' )</h1>  <section> <p>Prints SQL/DB error.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$str</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description">The error to display.</span> </p> <p class="default">Default value: ''</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(void|false)</span> Void if the showing of errors is enabled, false if disabled.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/wp-db.php/">wp-includes/wp-db.php</a> </p> <pre data-language="php">public function print_error( $str = '' ) {
+		global $EZSQL_ERROR;
+
+		if ( ! $str ) {
+			if ( $this-&gt;use_mysqli ) {
+				$str = mysqli_error( $this-&gt;dbh );
+			} else {
+				$str = mysql_error( $this-&gt;dbh );
+			}
+		}
+		$EZSQL_ERROR[] = array(
+			'query'     =&gt; $this-&gt;last_query,
+			'error_str' =&gt; $str,
+		);
+
+		if ( $this-&gt;suppress_errors ) {
+			return false;
+		}
+
+		wp_load_translations_early();
+
+		$caller = $this-&gt;get_caller();
+		if ( $caller ) {
+			/* translators: 1: Database error message, 2: SQL query, 3: Name of the calling function. */
+			$error_str = sprintf( __( 'WordPress database error %1$s for query %2$s made by %3$s' ), $str, $this-&gt;last_query, $caller );
+		} else {
+			/* translators: 1: Database error message, 2: SQL query. */
+			$error_str = sprintf( __( 'WordPress database error %1$s for query %2$s' ), $str, $this-&gt;last_query );
+		}
+
+		error_log( $error_str );
+
+		// Are we showing errors?
+		if ( ! $this-&gt;show_errors ) {
+			return false;
+		}
+
+		// If there is an error then take note of it.
+		if ( is_multisite() ) {
+			$msg = sprintf(
+				"%s [%s]\n%s\n",
+				__( 'WordPress database error:' ),
+				$str,
+				$this-&gt;last_query
+			);
+
+			if ( defined( 'ERRORLOGFILE' ) ) {
+				error_log( $msg, 3, ERRORLOGFILE );
+			}
+			if ( defined( 'DIEONDBERROR' ) ) {
+				wp_die( $msg );
+			}
+		} else {
+			$str   = htmlspecialchars( $str, ENT_QUOTES );
+			$query = htmlspecialchars( $this-&gt;last_query, ENT_QUOTES );
+
+			printf(
+				'&lt;div id="error"&gt;&lt;p class="wpdberror"&gt;&lt;strong&gt;%s&lt;/strong&gt; [%s]&lt;br /&gt;&lt;code&gt;%s&lt;/code&gt;&lt;/p&gt;&lt;/div&gt;',
+				__( 'WordPress database error:' ),
+				$str,
+				$query
+			);
+		}
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/wp_load_translations_early">wp_load_translations_early()</a> </td> <td class="related-desc"> <p>Attempt an early load of translations.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_multisite">is_multisite()</a> </td> <td class="related-desc"> <p>If Multisite is enabled.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_die">wp_die()</a> </td> <td class="related-desc"> <p>Kills WordPress execution and displays HTML page with an error message.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="get_caller">wpdb::get_caller()</a> </td> <td class="related-desc"> <p>Retrieves a comma-separated list of the names of the functions that called <a href="../wpdb">wpdb</a>.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="query">wpdb::query()</a> </td> <td class="related-desc"> <p>Performs a database query, using current database connection.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="get_row">wpdb::get_row()</a> </td> <td class="related-desc"> <p>Retrieves one row from the database.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/0.71/" alt="WordPress 0.71">0.71</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wpdb/print_error" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wpdb/print_error</a>
+  </p>
+</div>

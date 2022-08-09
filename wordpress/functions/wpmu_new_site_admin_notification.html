@@ -1,0 +1,106 @@
+<h1>wpmu_new_site_admin_notification( int $site_id, int $user_id )</h1>  <section> <p>Notifies the Multisite network administrator that a new site was created.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Filter <a href="../hooks/send_new_site_email">‘send_new_site_email’</a> to disable or bypass.</p> <p>Filter <a href="../hooks/new_site_email">‘new_site_email’</a> to filter the contents.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$site_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">Site ID of the new site.</span> </p> </dd> <dt>$user_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">User ID of the administrator of the new site.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> Whether the email notification was sent.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/ms-functions.php/">wp-includes/ms-functions.php</a> </p> <pre data-language="php">function wpmu_new_site_admin_notification( $site_id, $user_id ) {
+	$site  = get_site( $site_id );
+	$user  = get_userdata( $user_id );
+	$email = get_site_option( 'admin_email' );
+
+	if ( ! $site || ! $user || ! $email ) {
+		return false;
+	}
+
+	/**
+	 * Filters whether to send an email to the Multisite network administrator when a new site is created.
+	 *
+	 * Return false to disable sending the email.
+	 *
+	 * @since 5.6.0
+	 *
+	 * @param bool    $send Whether to send the email.
+	 * @param WP_Site $site Site object of the new site.
+	 * @param WP_User $user User object of the administrator of the new site.
+	 */
+	if ( ! apply_filters( 'send_new_site_email', true, $site, $user ) ) {
+		return false;
+	}
+
+	$switched_locale = false;
+	$network_admin   = get_user_by( 'email', $email );
+
+	if ( $network_admin ) {
+		// If the network admin email address corresponds to a user, switch to their locale.
+		$switched_locale = switch_to_locale( get_user_locale( $network_admin ) );
+	} else {
+		// Otherwise switch to the locale of the current site.
+		$switched_locale = switch_to_locale( get_locale() );
+	}
+
+	$subject = sprintf(
+		/* translators: New site notification email subject. %s: Network title. */
+		__( '[%s] New Site Created' ),
+		get_network()-&gt;site_name
+	);
+
+	$message = sprintf(
+		/* translators: New site notification email. 1: User login, 2: Site URL, 3: Site title. */
+		__(
+			'New site created by %1$s
+
+Address: %2$s
+Name: %3$s'
+		),
+		$user-&gt;user_login,
+		get_site_url( $site-&gt;id ),
+		get_blog_option( $site-&gt;id, 'blogname' )
+	);
+
+	$header = sprintf(
+		'From: "%1$s" &lt;%2$s&gt;',
+		_x( 'Site Admin', 'email "From" field' ),
+		$email
+	);
+
+	$new_site_email = array(
+		'to'      =&gt; $email,
+		'subject' =&gt; $subject,
+		'message' =&gt; $message,
+		'headers' =&gt; $header,
+	);
+
+	/**
+	 * Filters the content of the email sent to the Multisite network administrator when a new site is created.
+	 *
+	 * Content should be formatted for transmission via wp_mail().
+	 *
+	 * @since 5.6.0
+	 *
+	 * @param array $new_site_email {
+	 *     Used to build wp_mail().
+	 *
+	 *     @type string $to      The email address of the recipient.
+	 *     @type string $subject The subject of the email.
+	 *     @type string $message The content of the email.
+	 *     @type string $headers Headers.
+	 * }
+	 * @param WP_Site $site         Site object of the new site.
+	 * @param WP_User $user         User object of the administrator of the new site.
+	 */
+	$new_site_email = apply_filters( 'new_site_email', $new_site_email, $site, $user );
+
+	wp_mail(
+		$new_site_email['to'],
+		wp_specialchars_decode( $new_site_email['subject'] ),
+		$new_site_email['message'],
+		$new_site_email['headers']
+	);
+
+	if ( $switched_locale ) {
+		restore_previous_locale();
+	}
+
+	return true;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="../hooks/send_new_site_email">send_new_site_email</a> </td> <td class="related-desc"> <p>Filters whether to send an email to the Multisite network administrator when a new site is created.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="../hooks/new_site_email">new_site_email</a> </td> <td class="related-desc"> <p>Filters the content of the email sent to the Multisite network administrator when a new site is created.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="restore_previous_locale">restore_previous_locale()</a> </td> <td class="related-desc"> <p>Restores the translations according to the previous locale.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="switch_to_locale">switch_to_locale()</a> </td> <td class="related-desc"> <p>Switches the translations according to the given locale.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="get_user_locale">get_user_locale()</a> </td> <td class="related-desc"> <p>Retrieves the locale of a user.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-network.php:</span> <a href="get_network">get_network()</a> </td> <td class="related-desc"> <p>Retrieves network data given a network ID or network object.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-site.php:</span> <a href="get_site">get_site()</a> </td> <td class="related-desc"> <p>Retrieves site data given a site ID or site object.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="_x">_x()</a> </td> <td class="related-desc"> <p>Retrieve translated string with gettext context.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="get_locale">get_locale()</a> </td> <td class="related-desc"> <p>Retrieves the current locale.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_specialchars_decode">wp_specialchars_decode()</a> </td> <td class="related-desc"> <p>Converts a number of HTML entities into their special characters.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="get_userdata">get_userdata()</a> </td> <td class="related-desc"> <p>Retrieve user info by user ID.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="get_user_by">get_user_by()</a> </td> <td class="related-desc"> <p>Retrieve user info by a given field</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_mail">wp_mail()</a> </td> <td class="related-desc"> <p>Sends an email, similar to PHP’s mail function.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="get_site_url">get_site_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL for a given site where WordPress application files (e.g. wp-blog-header.php or the wp-admin/ folder) are accessible.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_site_option">get_site_option()</a> </td> <td class="related-desc"> <p>Retrieve an option value for the current network based on name of option.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-blogs.php:</span> <a href="get_blog_option">get_blog_option()</a> </td> <td class="related-desc"> <p>Retrieve option value for a given blog id based on name of option.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.6.0/" alt="WordPress 5.6.0">5.6.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wpmu_new_site_admin_notification" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wpmu_new_site_admin_notification</a>
+  </p>
+</div>

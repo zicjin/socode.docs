@@ -1,0 +1,244 @@
+<h1 data-toc="multiplatform-mobile-ios-dependencies" id="multiplatform-mobile-ios-dependencies.md">Adding iOS dependencies</h1>
+<p id="4535021b">Apple SDK dependencies (such as Foundation or Core Bluetooth) are available as a set of prebuilt libraries in Kotlin Multiplatform Mobile projects. They do not require any additional configuration.</p>
+<p id="7c8ea94b">You can also reuse other libraries and frameworks from the iOS ecosystem in your iOS source sets. Kotlin supports interoperability with Objective-C dependencies and Swift dependencies if their APIs are exported to Objective-C with the <code class="code ">@objc</code> attribute. Pure Swift dependencies are not yet supported.</p>
+<p id="204e191d">Integration with the CocoaPods dependency manager is also supported with the same limitation – you cannot use pure Swift pods.</p>
+<p id="de77c4b1">We recommend <a href="#with-cocoapods" id="7487113f">using CocoaPods</a> to handle iOS dependencies in Kotlin Multiplatform Mobile projects. <a href="#without-cocoapods" id="ca1e35b4">Manage dependencies manually</a> only if you want to tune the interop process specifically or if you have some other strong reason to do so.</p>
+<aside data-type="note" class="prompt" data-title="" id="8ff48889"><p id="4701f37b">When using third-party iOS libraries in multiplatform projects with <a href="multiplatform-share-on-platforms#share-code-on-similar-platforms" id="5518f26d">hierarchical structure support</a>, for example with the <code class="code ">ios()</code> <a href="multiplatform-share-on-platforms#use-target-shortcuts" id="e6b13ed0">target shortcut</a>, you won't be able to use IDE features, such as code completion and highlighting, for the shared iOS source set.</p>
+<p id="1af62912">This is a <a href="https://youtrack.jetbrains.com/issue/KT-40975" id="467dc48f" data-external="true" rel="noopener noreferrer">known issue</a>, and we are working on resolving it. In the meantime, you can use <a href="#workaround-to-enable-ide-support-for-the-shared-ios-source-set" id="68152cea">this workaround</a>.</p>
+<p id="355d46d0">This issue doesn't apply to <a href="native-platform-libs" id="d38f6381">platform libraries</a> supported out of the box.</p></aside><section class="chapter"><h2 id="with-cocoapods" data-toc="multiplatform-mobile-ios-dependencies#with-cocoapods">With CocoaPods</h2>
+<ol class="list _decimal" id="a5b2f61a">
+<li class="list__item" id="39521de7"><p id="9d24ab3c">Perform <a href="native-cocoapods#set-up-the-environment-to-work-with-cocoapods" id="846598f">initial CocoaPods integration setup</a>.</p></li>
+<li class="list__item" id="94d8665f">
+<p id="7c305913">Add a dependency on a Pod library from the CocoaPods repository that you want to use by including the <code class="code ">pod()</code> function call in <code class="code ">build.gradle.kts</code> (<code class="code ">build.gradle</code>) of your project.</p>
+<div class="tabs" id="3496d378" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="a8417055" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">kotlin {
+    cocoapods {
+        //..
+        pod("AFNetworking") {
+            version = "~&gt; 4.0.1"
+        }
+    }
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="5dff8642" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">    kotlin {
+   cocoapods {
+      //..
+      pod('AFNetworking') {
+         version = '~&gt; 4.0.1'
+      }
+   }
+}
+</pre></div>
+</div>
+<p id="8dd15983">You can add the following dependencies on a Pod library:</p>
+<ul class="list _ul" id="e77817b7">
+<li class="list__item" id="b8baab94"><p><a href="native-cocoapods-libraries#from-the-cocoapods-repository" id="20b81ebe">From the CocoaPods repository</a></p></li>
+<li class="list__item" id="a46f0c68"><p><a href="native-cocoapods-libraries#on-a-locally-stored-library" id="d8b7751b">On a locally stored library</a></p></li>
+<li class="list__item" id="efec0174"><p><a href="native-cocoapods-libraries#from-a-custom-git-repository" id="fc5ca846">From a custom Git repository</a></p></li>
+<li class="list__item" id="573549a6"><p><a href="native-cocoapods-libraries#from-a-zip-tar-or-jar-archive" id="c18b17d2">From an archive</a></p></li>
+<li class="list__item" id="6f906a34"><p><a href="native-cocoapods-libraries#from-a-custom-podspec-repository" id="2814d9fe">From a custom Podspec repository</a></p></li>
+<li class="list__item" id="ae2d966f"><p><a href="native-cocoapods-libraries#with-custom-cinterop-options" id="2deb45bc">With custom cinterop options</a></p></li>
+<li class="list__item" id="f98f4fd"><p><a href="native-cocoapods-libraries#on-a-static-pod-library" id="a7579861">On a static Pod library</a></p></li>
+</ul>
+</li>
+<li class="list__item" id="60604f26"><p id="577c0a9d">Re-import the project.</p></li>
+</ol>
+<p id="8209bcf">To use the dependency in your Kotlin code, import the package <code class="code ">cocoapods.&lt;library-name&gt;</code>. For the example above, it's:</p>
+<pre class="code" data-language="kotlin">import cocoapods.AFNetworking.*
+</pre></section><section class="chapter"><h2 id="without-cocoapods" data-toc="multiplatform-mobile-ios-dependencies#without-cocoapods">Without CocoaPods</h2>
+<p id="96f98ad0">If you don't want to use CocoaPods, you can use the cinterop tool to create Kotlin bindings for Objective-C or Swift declarations. This will allow you to call them from the Kotlin code.</p>
+<p id="d7926b71">The steps differ a bit for <a href="#add-a-library-without-cocoapods" id="d5c2e772">libraries</a> and <a href="#add-a-framework-without-cocoapods" id="6e00c045">frameworks</a>, but the idea remains the same.</p>
+<ol class="list _decimal" id="e89aba84">
+<li class="list__item" id="12e0a935"><p>Download your dependency.</p></li>
+<li class="list__item" id="7908ed65"><p>Build it to get its binaries.</p></li>
+<li class="list__item" id="784013ee"><p>Create a special <code class="code ">.def</code> file that describes this dependency to cinterop.</p></li>
+<li class="list__item" id="44ac898d"><p>Adjust your build script to generate bindings during the build.</p></li>
+</ol>
+<section class="chapter"><h3 id="add-a-library-without-cocoapods" data-toc="multiplatform-mobile-ios-dependencies#add-a-library-without-cocoapods">Add a library without CocoaPods</h3>
+<ol class="list _decimal" id="5e03e635">
+<li class="list__item" id="8ca4bbc4"><p id="d50acf2b">Download the library source code and place it somewhere where you can reference it from your project.</p></li>
+<li class="list__item" id="10443893"><p id="788ad339">Build a library (library authors usually provide a guide on how to do this) and get a path to the binaries.</p></li>
+<li class="list__item" id="357769c4"><p id="497dd8">In your project, create a <code class="code ">.def</code> file, for example <code class="code ">DateTools.def</code>.</p></li>
+<li class="list__item" id="c6b5b897"><p id="17de2444">Add a first string to this file: <code class="code ">language = Objective-C</code>. If you want to use a pure C dependency, omit the language property.</p></li>
+<li class="list__item" id="29ffe78a">
+<p id="93e530ef">Provide values for two mandatory properties:</p>
+<ul class="list _ul" id="14c0e773">
+<li class="list__item" id="6c18b24c"><p><code class="code ">headers</code> describes which headers will be processed by cinterop.</p></li>
+<li class="list__item" id="3e9756fe"><p><code class="code ">package</code> sets the name of the package these declarations should be put into.</p></li>
+</ul>
+<p id="4b7d461c">For example:</p>
+<pre class="code" data-language="none">headers = DateTools.h
+package = DateTools
+</pre>
+</li>
+<li class="list__item" id="2a1c9b2b">
+<p id="e106983a">Add information about interoperability with this library to the build script:</p>
+<ul class="list _ul" id="34009327">
+<li class="list__item" id="85fa7bcb"><p>Pass the path to the <code class="code ">.def</code> file. This path can be omitted if your <code class="code ">.def</code> file has the same name as cinterop and is placed in the <code class="code ">src/nativeInterop/cinterop/</code> directory.</p></li>
+<li class="list__item" id="3e9fb57c"><p>Tell cinterop where to look for header files using the <code class="code ">includeDirs</code> option.</p></li>
+<li class="list__item" id="e508c93d"><p>Configure linking to library binaries.</p></li>
+</ul>
+<div class="tabs" id="7d446b3c" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="304dd87d" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">kotlin {
+    iosX64() {
+        compilations.getByName("main") {
+            val DateTools by cinterops.creating {
+                // Path to .def file
+                defFile("src/nativeInterop/cinterop/DateTools.def")
+
+                // Directories for header search (an analogue of the -I&lt;path&gt; compiler option)
+                includeDirs("include/this/directory", "path/to/another/directory")
+            }
+            val anotherInterop by cinterops.creating { /* ... */ }
+        }
+
+        binaries.all {
+            // Linker options required to link to the library.
+            linkerOpts("-L/path/to/library/binaries", "-lbinaryname")
+        }
+    }
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="9b092909" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">kotlin {
+    iosX64 {
+        compilations.main {
+            cinterops {
+                DateTools {
+                    // Path to .def file
+                    defFile("src/nativeInterop/cinterop/DateTools.def")
+
+                    // Directories for header search (an analogue of the -I&lt;path&gt; compiler option)
+                    includeDirs("include/this/directory", "path/to/another/directory")
+                }
+                anotherInterop { /* ... */ }
+            }
+        }
+
+        binaries.all {
+            // Linker options required to link to the library.
+            linkerOpts "-L/path/to/library/binaries", "-lbinaryname"
+        }
+    }
+}
+</pre></div>
+</div>
+</li>
+<li class="list__item" id="a4156c53"><p id="e66fc45b">Build the project.</p></li>
+</ol>
+<p id="98d73b2e">Now you can use this dependency in your Kotlin code. To do that, import the package you’ve set up in the <code class="code ">package</code> property in the <code class="code ">.def</code> file. For the example above, this will be:</p>
+<pre class="code" data-language="kotlin">import DateTools.*
+</pre></section><section class="chapter"><h3 id="add-a-framework-without-cocoapods" data-toc="multiplatform-mobile-ios-dependencies#add-a-framework-without-cocoapods">Add a framework without CocoaPods</h3>
+<ol class="list _decimal" id="4cb8b9a9">
+<li class="list__item" id="e2eec636"><p id="6d47b514">Download the framework source code and place it somewhere that you can reference it from your project.</p></li>
+<li class="list__item" id="ec4532cf"><p id="bac706e2">Build the framework (framework authors usually provide a guide on how to do this) and get a path to the binaries.</p></li>
+<li class="list__item" id="4cf132cb"><p id="5df3f756">In your project, create a <code class="code ">.def</code> file, for example <code class="code ">MyFramework.def</code>.</p></li>
+<li class="list__item" id="c951e675"><p id="341e86e4">Add the first string to this file: <code class="code ">language = Objective-C</code>. If you want to use a pure C dependency, omit the language property.</p></li>
+<li class="list__item" id="430ffdd4">
+<p id="158ffee">Provide values for these two mandatory properties:</p>
+<ul class="list _ul" id="8d51f6e7">
+<li class="list__item" id="d9006943"><p><code class="code ">modules</code> – the name of the framework that should be processed by the cinterop.</p></li>
+<li class="list__item" id="c4879029"><p><code class="code ">package</code> – the name of the package these declarations should be put into. For example:</p></li>
+</ul>
+<pre class="code" data-language="none">modules = MyFramework
+package = MyFramework
+</pre>
+</li>
+<li class="list__item" id="fc859aa2">
+<p id="8ca0fca4">Add information about interoperability with the framework to the build script:</p>
+<ul class="list _ul" id="8d7ff41f">
+<li class="list__item" id="76ad8c38"><p>Pass the path to the .def file. This path can be omitted if your <code class="code ">.def</code> file has the same name as the cinterop and is placed in the <code class="code ">src/nativeInterop/cinterop/</code> directory.</p></li>
+<li class="list__item" id="d94df058"><p>Pass the framework name to the compiler and linker using the <code class="code ">-framework</code> option. Pass the path to the framework sources and binaries to the compiler and linker using the <code class="code ">-F</code> option.</p></li>
+</ul>
+<div class="tabs" id="9e1901d2" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="b2a4e35b" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">kotlin {
+    iosX64() {
+        compilations.getByName("main") {
+            val DateTools by cinterops.creating {
+                // Path to .def file
+                defFile("src/nativeInterop/cinterop/DateTools.def")
+
+               compilerOpts("-framework", "MyFramework", "-F/path/to/framework/")
+           }
+           val anotherInterop by cinterops.creating { /* ... */ }
+        }
+
+        binaries.all {
+            // Tell the linker where the framework is located.
+            linkerOpts("-framework", "MyFramework", "-F/path/to/framework/")
+        }
+   }
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="4d73b522" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">kotlin {
+    iosX64 {
+        compilations.main {
+            cinterops {
+                DateTools {
+                    // Path to .def file
+                    defFile("src/nativeInterop/cinterop/MyFramework.def")
+
+                    compilerOpts("-framework", "MyFramework", "-F/path/to/framework/")
+                }
+                anotherInterop { /* ... */ }
+            }
+        }
+
+        binaries.all {
+            // Tell the linker where the framework is located.
+            linkerOpts("-framework", "MyFramework", "-F/path/to/framework/")
+        }
+    }
+}
+</pre></div>
+</div>
+</li>
+<li class="list__item" id="67cc19db"><p id="697d360e">Build the project.</p></li>
+</ol>
+<p id="8cb590fe">Now you can use this dependency in your Kotlin code. To do this, import the package you’ve set up in the package property in the <code class="code ">.def</code> file. For the example above, this will be:</p>
+<pre class="code" data-language="kotlin">import MyFramework.*
+</pre>
+<p id="b3c3bc55">Learn more about <a href="native-objc-interop" id="5026ed8">Objective-C and Swift interop</a> and <a href="multiplatform-dsl-reference#cinterops" id="b027adb0">configuring cinterop from Gradle</a>.</p></section></section><section class="chapter"><div class="collapse">
+<div class="collapse__title"><h2 id="workaround-to-enable-ide-support-for-the-shared-ios-source-set" data-toc="multiplatform-mobile-ios-dependencies#workaround-to-enable-ide-support-for-the-shared-ios-source-set">Workaround to enable IDE support for the shared iOS source set</h2></div>
+<div class="collapse__content">
+<p id="c3239d16">Due to a <a href="https://youtrack.jetbrains.com/issue/KT-40975" id="da89f929" data-external="true" rel="noopener noreferrer">known issue</a>, you won't be able to use IDE features, such as code completion and highlighting, for the shared iOS source set in a multiplatform project with <a href="multiplatform-share-on-platforms#share-code-on-similar-platforms" id="c05150d">hierarchical structure support</a> if your project depends on:</p>
+<ul class="list _ul" id="6cf8977e">
+<li class="list__item" id="218b81fc"><p>Multiplatform libraries that don't support the hierarchical structure.</p></li>
+<li class="list__item" id="101c5e5d"><p>Third-party iOS libraries, with the exception of <a href="native-platform-libs" id="12ff81b4">platform libraries</a> supported out of the box. This issue applies only to the shared iOS source set. The IDE will correctly support the rest of the code.</p></li>
+</ul>
+<aside data-type="note" class="prompt" data-title="" id="357dbd98"><p id="a6434cda">All projects created with the Kotlin Multiplatform Mobile Project Wizard support the hierarchical structure, which means this issue affects them.</p></aside><p id="3282ac4">To enable IDE support in these cases, you can work around the issue by adding the following code to <code class="code ">build.gradle.(kts)</code> in the <code class="code ">shared</code> directory of your project:</p>
+<div class="tabs" id="fe5dfbbd" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="a11943fc" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">val iosTarget: (String, KotlinNativeTarget.() -&gt; Unit) -&gt; KotlinNativeTarget =
+    if (System.getenv("SDK_NAME")?.startsWith("iphoneos") == true)
+        ::iosArm64
+    else
+        ::iosX64
+
+iosTarget("ios")
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="d69818b6" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">def iosTarget
+if (System.getenv("SDK_NAME")?.startsWith("iphoneos")) {
+    iosTarget = kotlin.&amp;iosArm64
+} else {
+    iosTarget = kotlin.&amp;iosX64
+}
+</pre></div>
+</div>
+<p id="5cd2881c">In this code sample, the configuration of iOS targets depends on the environment variable <code class="code ">SDK_NAME</code>, which is managed by Xcode. For each build, you'll have only one iOS target, named <code class="code ">ios</code>, that uses the <code class="code ">iosMain</code> source set. There will be no hierarchy of the <code class="code ">iosMain</code>, <code class="code ">iosArm64</code>, and <code class="code ">iosX64</code> source sets.</p>
+<p id="327ab8d9">Alternatively, you can enable the support of platform-dependent interop libraries in shared source sets. In addition to <a href="native-platform-libs" id="9b1fe4ff">platform libraries</a> shipped with Kotlin/Native, this approach can also handle custom <a href="native-c-interop" id="e1ea1c5a"><code class="code ">cinterop</code> libraries</a> making them available in shared source sets. To enable this feature, add the <code class="code ">kotlin.mpp.enableCInteropCommonization=true</code> property in your <code class="code ">gradle.properties</code>:</p>
+<pre class="code" data-language="none">kotlin.mpp.enableCInteropCommonization=true
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="53571ff8"><p id="4260b86e">This is a temporary workaround. If you are a library author, we recommend that you <a href="multiplatform-hierarchy" id="5d149a7">enable the hierarchical structure</a>.</p>
+<p id="177cf6d6">With this workaround, Kotlin Multiplatform tooling analyzes your code against only the one native target that is active during the current build. This might lead to various errors during the complete build with all targets, and errors are more likely if your project contains other native targets in addition to the iOS ones.</p></aside>
+</div>
+</div></section><section class="chapter"><h2 id="what-s-next" data-toc="multiplatform-mobile-ios-dependencies#what-s-next">What's next?</h2>
+<p id="49609596">Check out other resources on adding dependencies in multiplatform projects and learn more about:</p>
+<ul class="list _ul" id="bfefa6ee">
+<li class="list__item" id="278b92cc"><p><a href="multiplatform-add-dependencies" id="4cccdb74">Adding dependencies on multiplatform libraries or other multiplatform projects</a></p></li>
+<li class="list__item" id="14991870"><p><a href="multiplatform-mobile-android-dependencies" id="987bddfb">Adding Android dependencies</a></p></li>
+</ul></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="multiplatform-mobile-android-dependencies">Adding Android dependencies</a> <a class="navigation-links__next" href="multiplatform-run-tests">Run tests with Kotlin Multiplatform</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/multiplatform-mobile-ios-dependencies.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/multiplatform-mobile-ios-dependencies.html</a>
+  </p>
+</div>

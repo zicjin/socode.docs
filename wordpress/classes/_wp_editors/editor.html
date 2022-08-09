@@ -1,0 +1,161 @@
+<h1>_WP_Editors::editor( string $content, string $editor_id, array $settings = array() )</h1>  <section> <p>Outputs the HTML for a single instance of the editor.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$content</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Initial content for the editor.</span> </p> </dd> <dt>$editor_id</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">HTML ID for the textarea and TinyMCE and Quicktags instances. Should not contain square brackets.</span> </p> </dd> <dt>$settings</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description">See <a href="parse_settings">_WP_Editors::parse_settings()</a> for description.</span> </p> <p class="default">Default value: array()</p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-editor.php/">wp-includes/class-wp-editor.php</a> </p> <pre data-language="php">public static function editor( $content, $editor_id, $settings = array() ) {
+		$set            = self::parse_settings( $editor_id, $settings );
+		$editor_class   = ' class="' . trim( esc_attr( $set['editor_class'] ) . ' wp-editor-area' ) . '"';
+		$tabindex       = $set['tabindex'] ? ' tabindex="' . (int) $set['tabindex'] . '"' : '';
+		$default_editor = 'html';
+		$buttons        = '';
+		$autocomplete   = '';
+		$editor_id_attr = esc_attr( $editor_id );
+
+		if ( $set['drag_drop_upload'] ) {
+			self::$drag_drop_upload = true;
+		}
+
+		if ( ! empty( $set['editor_height'] ) ) {
+			$height = ' style="height: ' . (int) $set['editor_height'] . 'px"';
+		} else {
+			$height = ' rows="' . (int) $set['textarea_rows'] . '"';
+		}
+
+		if ( ! current_user_can( 'upload_files' ) ) {
+			$set['media_buttons'] = false;
+		}
+
+		if ( self::$this_tinymce ) {
+			$autocomplete = ' autocomplete="off"';
+
+			if ( self::$this_quicktags ) {
+				$default_editor = $set['default_editor'] ? $set['default_editor'] : wp_default_editor();
+				// 'html' is used for the "Text" editor tab.
+				if ( 'html' !== $default_editor ) {
+					$default_editor = 'tinymce';
+				}
+
+				$buttons .= '&lt;button type="button" id="' . $editor_id_attr . '-tmce" class="wp-switch-editor switch-tmce"' .
+					' data-wp-editor-id="' . $editor_id_attr . '"&gt;' . _x( 'Visual', 'Name for the Visual editor tab' ) . "&lt;/button&gt;\n";
+				$buttons .= '&lt;button type="button" id="' . $editor_id_attr . '-html" class="wp-switch-editor switch-html"' .
+					' data-wp-editor-id="' . $editor_id_attr . '"&gt;' . _x( 'Text', 'Name for the Text editor tab (formerly HTML)' ) . "&lt;/button&gt;\n";
+			} else {
+				$default_editor = 'tinymce';
+			}
+		}
+
+		$switch_class = 'html' === $default_editor ? 'html-active' : 'tmce-active';
+		$wrap_class   = 'wp-core-ui wp-editor-wrap ' . $switch_class;
+
+		if ( $set['_content_editor_dfw'] ) {
+			$wrap_class .= ' has-dfw';
+		}
+
+		echo '&lt;div id="wp-' . $editor_id_attr . '-wrap" class="' . $wrap_class . '"&gt;';
+
+		if ( self::$editor_buttons_css ) {
+			wp_print_styles( 'editor-buttons' );
+			self::$editor_buttons_css = false;
+		}
+
+		if ( ! empty( $set['editor_css'] ) ) {
+			echo $set['editor_css'] . "\n";
+		}
+
+		if ( ! empty( $buttons ) || $set['media_buttons'] ) {
+			echo '&lt;div id="wp-' . $editor_id_attr . '-editor-tools" class="wp-editor-tools hide-if-no-js"&gt;';
+
+			if ( $set['media_buttons'] ) {
+				self::$has_medialib = true;
+
+				if ( ! function_exists( 'media_buttons' ) ) {
+					require ABSPATH . 'wp-admin/includes/media.php';
+				}
+
+				echo '&lt;div id="wp-' . $editor_id_attr . '-media-buttons" class="wp-media-buttons"&gt;';
+
+				/**
+				 * Fires after the default media button(s) are displayed.
+				 *
+				 * @since 2.5.0
+				 *
+				 * @param string $editor_id Unique editor identifier, e.g. 'content'.
+				 */
+				do_action( 'media_buttons', $editor_id );
+				echo "&lt;/div&gt;\n";
+			}
+
+			echo '&lt;div class="wp-editor-tabs"&gt;' . $buttons . "&lt;/div&gt;\n";
+			echo "&lt;/div&gt;\n";
+		}
+
+		$quicktags_toolbar = '';
+
+		if ( self::$this_quicktags ) {
+			if ( 'content' === $editor_id &amp;&amp; ! empty( $GLOBALS['current_screen'] ) &amp;&amp; 'post' === $GLOBALS['current_screen']-&gt;base ) {
+				$toolbar_id = 'ed_toolbar';
+			} else {
+				$toolbar_id = 'qt_' . $editor_id_attr . '_toolbar';
+			}
+
+			$quicktags_toolbar = '&lt;div id="' . $toolbar_id . '" class="quicktags-toolbar hide-if-no-js"&gt;&lt;/div&gt;';
+		}
+
+		/**
+		 * Filters the HTML markup output that displays the editor.
+		 *
+		 * @since 2.1.0
+		 *
+		 * @param string $output Editor's HTML markup.
+		 */
+		$the_editor = apply_filters(
+			'the_editor',
+			'&lt;div id="wp-' . $editor_id_attr . '-editor-container" class="wp-editor-container"&gt;' .
+			$quicktags_toolbar .
+			'&lt;textarea' . $editor_class . $height . $tabindex . $autocomplete . ' cols="40" name="' . esc_attr( $set['textarea_name'] ) . '" ' .
+			'id="' . $editor_id_attr . '"&gt;%s&lt;/textarea&gt;&lt;/div&gt;'
+		);
+
+		// Prepare the content for the Visual or Text editor, only when TinyMCE is used (back-compat).
+		if ( self::$this_tinymce ) {
+			add_filter( 'the_editor_content', 'format_for_editor', 10, 2 );
+		}
+
+		/**
+		 * Filters the default editor content.
+		 *
+		 * @since 2.1.0
+		 *
+		 * @param string $content        Default editor content.
+		 * @param string $default_editor The default editor for the current user.
+		 *                               Either 'html' or 'tinymce'.
+		 */
+		$content = apply_filters( 'the_editor_content', $content, $default_editor );
+
+		// Remove the filter as the next editor on the same page may not need it.
+		if ( self::$this_tinymce ) {
+			remove_filter( 'the_editor_content', 'format_for_editor' );
+		}
+
+		// Back-compat for the `htmledit_pre` and `richedit_pre` filters.
+		if ( 'html' === $default_editor &amp;&amp; has_filter( 'htmledit_pre' ) ) {
+			/** This filter is documented in wp-includes/deprecated.php */
+			$content = apply_filters_deprecated( 'htmledit_pre', array( $content ), '4.3.0', 'format_for_editor' );
+		} elseif ( 'tinymce' === $default_editor &amp;&amp; has_filter( 'richedit_pre' ) ) {
+			/** This filter is documented in wp-includes/deprecated.php */
+			$content = apply_filters_deprecated( 'richedit_pre', array( $content ), '4.3.0', 'format_for_editor' );
+		}
+
+		if ( false !== stripos( $content, 'textarea' ) ) {
+			$content = preg_replace( '%&lt;/textarea%i', '&amp;lt;/textarea', $content );
+		}
+
+		printf( $the_editor, $content );
+		echo "\n&lt;/div&gt;\n\n";
+
+		self::editor_settings( $editor_id, $set );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-pop3.php:</span> <a href="../../functions/stripos">stripos()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters_deprecated">apply_filters_deprecated()</a> </td> <td class="related-desc"> <p>Fires functions attached to a deprecated filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="../../functions/current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/_x">_x()</a> </td> <td class="related-desc"> <p>Retrieve translated string with gettext context.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/deprecated.php:</span> <a href="../../hooks/htmledit_pre">htmledit_pre</a> </td> <td class="related-desc"> <p>Filters the text before it is formatted for the HTML editor.</p> </td> </tr> <tr> <td> <span>wp-includes/deprecated.php:</span> <a href="../../hooks/richedit_pre">richedit_pre</a> </td> <td class="related-desc"> <p>Filters text returned for the rich text editor.</p> </td> </tr> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="../../functions/wp_default_editor">wp_default_editor()</a> </td> <td class="related-desc"> <p>Find out which editor should be displayed by default.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.wp-styles.php:</span> <a href="../../functions/wp_print_styles">wp_print_styles()</a> </td> <td class="related-desc"> <p>Display styles that are in the $handles queue.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/remove_filter">remove_filter()</a> </td> <td class="related-desc"> <p>Removes a callback function from a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/has_filter">has_filter()</a> </td> <td class="related-desc"> <p>Checks if any filter has been registered for a hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/add_filter">add_filter()</a> </td> <td class="related-desc"> <p>Adds a callback function to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-editor.php:</span> <a href="editor_settings">_WP_Editors::editor_settings()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-includes/class-wp-editor.php:</span> <a href="../../hooks/the_editor_content">the_editor_content</a> </td> <td class="related-desc"> <p>Filters the default editor content.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-editor.php:</span> <a href="parse_settings">_WP_Editors::parse_settings()</a> </td> <td class="related-desc"> <p>Parse default arguments for the editor instance.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-editor.php:</span> <a href="../../hooks/media_buttons">media_buttons</a> </td> <td class="related-desc"> <p>Fires after the default media button(s) are displayed.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-editor.php:</span> <a href="../../hooks/the_editor">the_editor</a> </td> <td class="related-desc"> <p>Filters the HTML markup output that displays the editor.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="../../functions/wp_editor">wp_editor()</a> </td> <td class="related-desc"> <p>Renders an editor.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.3.0/" alt="WordPress 3.3.0">3.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/_wp_editors/editor" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/_wp_editors/editor</a>
+  </p>
+</div>

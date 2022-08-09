@@ -1,0 +1,48 @@
+<h1>wp_user_settings()</h1>  <section> <p>Saves and restores user interface settings stored in a cookie.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Checks if the current user-settings cookie is updated and stores it. When no cookie exists (different browser used), adds the last saved cookie restoring the settings.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/option.php/">wp-includes/option.php</a> </p> <pre data-language="php">function wp_user_settings() {
+
+	if ( ! is_admin() || wp_doing_ajax() ) {
+		return;
+	}
+
+	$user_id = get_current_user_id();
+	if ( ! $user_id ) {
+		return;
+	}
+
+	if ( ! is_user_member_of_blog() ) {
+		return;
+	}
+
+	$settings = (string) get_user_option( 'user-settings', $user_id );
+
+	if ( isset( $_COOKIE[ 'wp-settings-' . $user_id ] ) ) {
+		$cookie = preg_replace( '/[^A-Za-z0-9=&amp;_]/', '', $_COOKIE[ 'wp-settings-' . $user_id ] );
+
+		// No change or both empty.
+		if ( $cookie == $settings ) {
+			return;
+		}
+
+		$last_saved = (int) get_user_option( 'user-settings-time', $user_id );
+		$current    = isset( $_COOKIE[ 'wp-settings-time-' . $user_id ] ) ? preg_replace( '/[^0-9]/', '', $_COOKIE[ 'wp-settings-time-' . $user_id ] ) : 0;
+
+		// The cookie is newer than the saved value. Update the user_option and leave the cookie as-is.
+		if ( $current &gt; $last_saved ) {
+			update_user_option( $user_id, 'user-settings', $cookie, false );
+			update_user_option( $user_id, 'user-settings-time', time() - 5, false );
+			return;
+		}
+	}
+
+	// The cookie is not set in the current browser or the saved value is newer.
+	$secure = ( 'https' === parse_url( admin_url(), PHP_URL_SCHEME ) );
+	setcookie( 'wp-settings-' . $user_id, $settings, time() + YEAR_IN_SECONDS, SITECOOKIEPATH, null, $secure );
+	setcookie( 'wp-settings-time-' . $user_id, time(), time() + YEAR_IN_SECONDS, SITECOOKIEPATH, null, $secure );
+	$_COOKIE[ 'wp-settings-' . $user_id ] = $settings;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_doing_ajax">wp_doing_ajax()</a> </td> <td class="related-desc"> <p>Determines whether the current request is a WordPress Ajax request.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_admin">is_admin()</a> </td> <td class="related-desc"> <p>Determines whether the current request is for an administrative interface page.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="admin_url">admin_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the admin area for the current site.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="is_user_member_of_blog">is_user_member_of_blog()</a> </td> <td class="related-desc"> <p>Finds out whether a user is a member of a given blog.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="update_user_option">update_user_option()</a> </td> <td class="related-desc"> <p>Updates user option with global blog capability.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="get_current_user_id">get_current_user_id()</a> </td> <td class="related-desc"> <p>Gets the current user’s ID.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="get_user_option">get_user_option()</a> </td> <td class="related-desc"> <p>Retrieves user option that can be either per Site or per Network.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.7.0/" alt="WordPress 2.7.0">2.7.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_user_settings" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_user_settings</a>
+  </p>
+</div>

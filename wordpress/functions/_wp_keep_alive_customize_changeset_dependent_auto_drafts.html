@@ -1,0 +1,70 @@
+<h1>_wp_keep_alive_customize_changeset_dependent_auto_drafts( string $new_status, string $old_status, WP_Post $post )</h1> <div class="callout callout-alert">
+<p> This function’s access is marked private. This means it is not intended for use by plugin or theme developers, only in other core functions. It is listed here for completeness. Use <a href="wp_delete_auto_drafts">wp_delete_auto_drafts()</a> instead.</p> </div>  <section> <p>Makes sure that auto-draft posts get their post_date bumped or status changed to draft to prevent premature garbage-collection.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>When a changeset is updated but remains an auto-draft, ensure the post_date for the auto-draft posts remains the same so that it will be garbage-collected at the same time by <code>wp_delete_auto_drafts()</code>. Otherwise, if the changeset is updated to be a draft then update the posts to have a far-future post_date so that they will never be garbage collected unless the changeset post itself is deleted.</p> <p>When a changeset is updated to be a persistent draft or to be scheduled for publishing, then transition any dependent auto-drafts to a draft status so that they likewise will not be garbage-collected but also so that they can be edited in the admin before publishing since there is not yet a post/page editing flow in the Customizer. See #39752.</p> <h3 id="see-also">See also</h3> <ul> <li><a href="wp_delete_auto_drafts">wp_delete_auto_drafts()</a></li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$new_status</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Transition to this post status.</span> </p> </dd> <dt>$old_status</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Previous post status.</span> </p> </dd> <dt>$post</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Post"><a href="../classes/wp_post">WP_Post</a></span>)</span> <span class="required">(Required)</span> <span class="description">Post data.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/theme.php/">wp-includes/theme.php</a> </p> <pre data-language="php">function _wp_keep_alive_customize_changeset_dependent_auto_drafts( $new_status, $old_status, $post ) {
+	global $wpdb;
+	unset( $old_status );
+
+	// Short-circuit if not a changeset or if the changeset was published.
+	if ( 'customize_changeset' !== $post-&gt;post_type || 'publish' === $new_status ) {
+		return;
+	}
+
+	$data = json_decode( $post-&gt;post_content, true );
+	if ( empty( $data['nav_menus_created_posts']['value'] ) ) {
+		return;
+	}
+
+	/*
+	 * Actually, in lieu of keeping alive, trash any customization drafts here if the changeset itself is
+	 * getting trashed. This is needed because when a changeset transitions to a draft, then any of the
+	 * dependent auto-draft post/page stubs will also get transitioned to customization drafts which
+	 * are then visible in the WP Admin. We cannot wait for the deletion of the changeset in which
+	 * _wp_delete_customize_changeset_dependent_auto_drafts() will be called, since they need to be
+	 * trashed to remove from visibility immediately.
+	 */
+	if ( 'trash' === $new_status ) {
+		foreach ( $data['nav_menus_created_posts']['value'] as $post_id ) {
+			if ( ! empty( $post_id ) &amp;&amp; 'draft' === get_post_status( $post_id ) ) {
+				wp_trash_post( $post_id );
+			}
+		}
+		return;
+	}
+
+	$post_args = array();
+	if ( 'auto-draft' === $new_status ) {
+		/*
+		 * Keep the post date for the post matching the changeset
+		 * so that it will not be garbage-collected before the changeset.
+		 */
+		$post_args['post_date'] = $post-&gt;post_date; // Note wp_delete_auto_drafts() only looks at this date.
+	} else {
+		/*
+		 * Since the changeset no longer has an auto-draft (and it is not published)
+		 * it is now a persistent changeset, a long-lived draft, and so any
+		 * associated auto-draft posts should likewise transition into having a draft
+		 * status. These drafts will be treated differently than regular drafts in
+		 * that they will be tied to the given changeset. The publish meta box is
+		 * replaced with a notice about how the post is part of a set of customized changes
+		 * which will be published when the changeset is published.
+		 */
+		$post_args['post_status'] = 'draft';
+	}
+
+	foreach ( $data['nav_menus_created_posts']['value'] as $post_id ) {
+		if ( empty( $post_id ) || 'auto-draft' !== get_post_status( $post_id ) ) {
+			continue;
+		}
+		$wpdb-&gt;update(
+			$wpdb-&gt;posts,
+			$post_args,
+			array( 'ID' =&gt; $post_id )
+		);
+		clean_post_cache( $post_id );
+	}
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/post.php:</span> <a href="clean_post_cache">clean_post_cache()</a> </td> <td class="related-desc"> <p>Will clean the post in the cache.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_trash_post">wp_trash_post()</a> </td> <td class="related-desc"> <p>Move a post or page to the Trash</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post_status">get_post_status()</a> </td> <td class="related-desc"> <p>Retrieve the post status based on the post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/update">wpdb::update()</a> </td> <td class="related-desc"> <p>Updates a row in the table.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.8.0/" alt="WordPress 4.8.0">4.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/_wp_keep_alive_customize_changeset_dependent_auto_drafts" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/_wp_keep_alive_customize_changeset_dependent_auto_drafts</a>
+  </p>
+</div>

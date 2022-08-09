@@ -1,0 +1,58 @@
+<h1>delete_expired_transients( bool $force_db = false )</h1>  <section> <p>Deletes all expired transients.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>The multi-table delete syntax is used to delete the transient record from table a, and the corresponding transient_timeout record from table b.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$force_db</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> Force cleanup to run against the database even when an external object cache is used.</span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/option.php/">wp-includes/option.php</a> </p> <pre data-language="php">function delete_expired_transients( $force_db = false ) {
+	global $wpdb;
+
+	if ( ! $force_db &amp;&amp; wp_using_ext_object_cache() ) {
+		return;
+	}
+
+	$wpdb-&gt;query(
+		$wpdb-&gt;prepare(
+			"DELETE a, b FROM {$wpdb-&gt;options} a, {$wpdb-&gt;options} b
+			WHERE a.option_name LIKE %s
+			AND a.option_name NOT LIKE %s
+			AND b.option_name = CONCAT( '_transient_timeout_', SUBSTRING( a.option_name, 12 ) )
+			AND b.option_value &lt; %d",
+			$wpdb-&gt;esc_like( '_transient_' ) . '%',
+			$wpdb-&gt;esc_like( '_transient_timeout_' ) . '%',
+			time()
+		)
+	);
+
+	if ( ! is_multisite() ) {
+		// Single site stores site transients in the options table.
+		$wpdb-&gt;query(
+			$wpdb-&gt;prepare(
+				"DELETE a, b FROM {$wpdb-&gt;options} a, {$wpdb-&gt;options} b
+				WHERE a.option_name LIKE %s
+				AND a.option_name NOT LIKE %s
+				AND b.option_name = CONCAT( '_site_transient_timeout_', SUBSTRING( a.option_name, 17 ) )
+				AND b.option_value &lt; %d",
+				$wpdb-&gt;esc_like( '_site_transient_' ) . '%',
+				$wpdb-&gt;esc_like( '_site_transient_timeout_' ) . '%',
+				time()
+			)
+		);
+	} elseif ( is_multisite() &amp;&amp; is_main_site() &amp;&amp; is_main_network() ) {
+		// Multisite stores site transients in the sitemeta table.
+		$wpdb-&gt;query(
+			$wpdb-&gt;prepare(
+				"DELETE a, b FROM {$wpdb-&gt;sitemeta} a, {$wpdb-&gt;sitemeta} b
+				WHERE a.meta_key LIKE %s
+				AND a.meta_key NOT LIKE %s
+				AND b.meta_key = CONCAT( '_site_transient_timeout_', SUBSTRING( a.meta_key, 17 ) )
+				AND b.meta_value &lt; %d",
+				$wpdb-&gt;esc_like( '_site_transient_' ) . '%',
+				$wpdb-&gt;esc_like( '_site_transient_timeout_' ) . '%',
+				time()
+			)
+		);
+	}
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/esc_like">wpdb::esc_like()</a> </td> <td class="related-desc"> <p>First half of escaping for <code>LIKE</code> special characters <code>%</code> and <code>_</code> before preparing for SQL.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_multisite">is_multisite()</a> </td> <td class="related-desc"> <p>If Multisite is enabled.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_using_ext_object_cache">wp_using_ext_object_cache()</a> </td> <td class="related-desc"> <p>Toggle <code>$_wp_using_ext_object_cache</code> on and off without directly touching global.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="is_main_site">is_main_site()</a> </td> <td class="related-desc"> <p>Determine whether a site is the main site of the current network.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="is_main_network">is_main_network()</a> </td> <td class="related-desc"> <p>Determine whether a network is the main network of the Multisite installation.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/query">wpdb::query()</a> </td> <td class="related-desc"> <p>Performs a database query, using current database connection.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/prepare">wpdb::prepare()</a> </td> <td class="related-desc"> <p>Prepares a SQL query for safe execution.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/schema.php:</span> <a href="populate_options">populate_options()</a> </td> <td class="related-desc"> <p>Create WordPress options and set the default values.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/upgrade.php:</span> <a href="upgrade_network">upgrade_network()</a> </td> <td class="related-desc"> <p>Executes network-level upgrade routines.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.9.0/" alt="WordPress 4.9.0">4.9.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/delete_expired_transients" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/delete_expired_transients</a>
+  </p>
+</div>

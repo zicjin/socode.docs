@@ -1,0 +1,130 @@
+<h1>_wp_ajax_add_hierarchical_term()</h1> <div class="callout callout-alert">
+<p> This function’s access is marked private. This means it is not intended for use by plugin or theme developers, only in other core functions. It is listed here for completeness.</p> </div>  <section> <p>Ajax handler for adding a hierarchical term.</p> </section> <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/ajax-actions.php/">wp-admin/includes/ajax-actions.php</a> </p> <pre data-language="php">function _wp_ajax_add_hierarchical_term() {
+	$action   = $_POST['action'];
+	$taxonomy = get_taxonomy( substr( $action, 4 ) );
+	check_ajax_referer( $action, '_ajax_nonce-add-' . $taxonomy-&gt;name );
+
+	if ( ! current_user_can( $taxonomy-&gt;cap-&gt;edit_terms ) ) {
+		wp_die( -1 );
+	}
+
+	$names  = explode( ',', $_POST[ 'new' . $taxonomy-&gt;name ] );
+	$parent = isset( $_POST[ 'new' . $taxonomy-&gt;name . '_parent' ] ) ? (int) $_POST[ 'new' . $taxonomy-&gt;name . '_parent' ] : 0;
+
+	if ( 0 &gt; $parent ) {
+		$parent = 0;
+	}
+
+	if ( 'category' === $taxonomy-&gt;name ) {
+		$post_category = isset( $_POST['post_category'] ) ? (array) $_POST['post_category'] : array();
+	} else {
+		$post_category = ( isset( $_POST['tax_input'] ) &amp;&amp; isset( $_POST['tax_input'][ $taxonomy-&gt;name ] ) ) ? (array) $_POST['tax_input'][ $taxonomy-&gt;name ] : array();
+	}
+
+	$checked_categories = array_map( 'absint', (array) $post_category );
+	$popular_ids        = wp_popular_terms_checklist( $taxonomy-&gt;name, 0, 10, false );
+
+	foreach ( $names as $cat_name ) {
+		$cat_name          = trim( $cat_name );
+		$category_nicename = sanitize_title( $cat_name );
+
+		if ( '' === $category_nicename ) {
+			continue;
+		}
+
+		$cat_id = wp_insert_term( $cat_name, $taxonomy-&gt;name, array( 'parent' =&gt; $parent ) );
+
+		if ( ! $cat_id || is_wp_error( $cat_id ) ) {
+			continue;
+		} else {
+			$cat_id = $cat_id['term_id'];
+		}
+
+		$checked_categories[] = $cat_id;
+
+		if ( $parent ) { // Do these all at once in a second.
+			continue;
+		}
+
+		ob_start();
+
+		wp_terms_checklist(
+			0,
+			array(
+				'taxonomy'             =&gt; $taxonomy-&gt;name,
+				'descendants_and_self' =&gt; $cat_id,
+				'selected_cats'        =&gt; $checked_categories,
+				'popular_cats'         =&gt; $popular_ids,
+			)
+		);
+
+		$data = ob_get_clean();
+
+		$add = array(
+			'what'     =&gt; $taxonomy-&gt;name,
+			'id'       =&gt; $cat_id,
+			'data'     =&gt; str_replace( array( "\n", "\t" ), '', $data ),
+			'position' =&gt; -1,
+		);
+	}
+
+	if ( $parent ) { // Foncy - replace the parent and all its children.
+		$parent  = get_term( $parent, $taxonomy-&gt;name );
+		$term_id = $parent-&gt;term_id;
+
+		while ( $parent-&gt;parent ) { // Get the top parent.
+			$parent = get_term( $parent-&gt;parent, $taxonomy-&gt;name );
+			if ( is_wp_error( $parent ) ) {
+				break;
+			}
+			$term_id = $parent-&gt;term_id;
+		}
+
+		ob_start();
+
+		wp_terms_checklist(
+			0,
+			array(
+				'taxonomy'             =&gt; $taxonomy-&gt;name,
+				'descendants_and_self' =&gt; $term_id,
+				'selected_cats'        =&gt; $checked_categories,
+				'popular_cats'         =&gt; $popular_ids,
+			)
+		);
+
+		$data = ob_get_clean();
+
+		$add = array(
+			'what'     =&gt; $taxonomy-&gt;name,
+			'id'       =&gt; $term_id,
+			'data'     =&gt; str_replace( array( "\n", "\t" ), '', $data ),
+			'position' =&gt; -1,
+		);
+	}
+
+	ob_start();
+
+	wp_dropdown_categories(
+		array(
+			'taxonomy'         =&gt; $taxonomy-&gt;name,
+			'hide_empty'       =&gt; 0,
+			'name'             =&gt; 'new' . $taxonomy-&gt;name . '_parent',
+			'orderby'          =&gt; 'name',
+			'hierarchical'     =&gt; 1,
+			'show_option_none' =&gt; '&amp;mdash; ' . $taxonomy-&gt;labels-&gt;parent_item . ' &amp;mdash;',
+		)
+	);
+
+	$sup = ob_get_clean();
+
+	$add['supplemental'] = array( 'newcat_parent' =&gt; $sup );
+
+	$x = new WP_Ajax_Response( $add );
+	$x-&gt;send();
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/template.php:</span> <a href="wp_popular_terms_checklist">wp_popular_terms_checklist()</a> </td> <td class="related-desc"> <p>Retrieves a list of the most popular terms from the specified taxonomy.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/template.php:</span> <a href="wp_terms_checklist">wp_terms_checklist()</a> </td> <td class="related-desc"> <p>Outputs an unordered list of checkbox input elements labelled with term names.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/category-template.php:</span> <a href="wp_dropdown_categories">wp_dropdown_categories()</a> </td> <td class="related-desc"> <p>Displays or retrieves the HTML dropdown list of categories.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="sanitize_title">sanitize_title()</a> </td> <td class="related-desc"> <p>Sanitizes a string into a slug, which can be used in URLs or HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="check_ajax_referer">check_ajax_referer()</a> </td> <td class="related-desc"> <p>Verifies the Ajax request to prevent processing requests external of the blog.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_die">wp_die()</a> </td> <td class="related-desc"> <p>Kills WordPress execution and displays HTML page with an error message.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="wp_insert_term">wp_insert_term()</a> </td> <td class="related-desc"> <p>Adds a new term to the database.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="get_taxonomy">get_taxonomy()</a> </td> <td class="related-desc"> <p>Retrieves the taxonomy object of $taxonomy.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="get_term">get_term()</a> </td> <td class="related-desc"> <p>Gets all term data from database by term ID.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-ajax-response.php:</span> <a href="../classes/wp_ajax_response/__construct">WP_Ajax_Response::__construct()</a> </td> <td class="related-desc"> <p>Constructor – Passes args to <a href="../classes/wp_ajax_response/add">WP_Ajax_Response::add()</a>.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.1.0/" alt="WordPress 3.1.0">3.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/_wp_ajax_add_hierarchical_term" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/_wp_ajax_add_hierarchical_term</a>
+  </p>
+</div>

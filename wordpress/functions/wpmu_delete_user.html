@@ -1,0 +1,76 @@
+<h1>wpmu_delete_user( int $id )</h1>  <section> <p>Delete a user from the network and remove from all sites.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">The user ID.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> True if the user was deleted, otherwise false.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/ms.php/">wp-admin/includes/ms.php</a> </p> <pre data-language="php">function wpmu_delete_user( $id ) {
+	global $wpdb;
+
+	if ( ! is_numeric( $id ) ) {
+		return false;
+	}
+
+	$id   = (int) $id;
+	$user = new WP_User( $id );
+
+	if ( ! $user-&gt;exists() ) {
+		return false;
+	}
+
+	// Global super-administrators are protected, and cannot be deleted.
+	$_super_admins = get_super_admins();
+	if ( in_array( $user-&gt;user_login, $_super_admins, true ) ) {
+		return false;
+	}
+
+	/**
+	 * Fires before a user is deleted from the network.
+	 *
+	 * @since MU (3.0.0)
+	 * @since 5.5.0 Added the `$user` parameter.
+	 *
+	 * @param int     $id   ID of the user about to be deleted from the network.
+	 * @param WP_User $user WP_User object of the user about to be deleted from the network.
+	 */
+	do_action( 'wpmu_delete_user', $id, $user );
+
+	$blogs = get_blogs_of_user( $id );
+
+	if ( ! empty( $blogs ) ) {
+		foreach ( $blogs as $blog ) {
+			switch_to_blog( $blog-&gt;userblog_id );
+			remove_user_from_blog( $id, $blog-&gt;userblog_id );
+
+			$post_ids = $wpdb-&gt;get_col( $wpdb-&gt;prepare( "SELECT ID FROM $wpdb-&gt;posts WHERE post_author = %d", $id ) );
+			foreach ( (array) $post_ids as $post_id ) {
+				wp_delete_post( $post_id );
+			}
+
+			// Clean links.
+			$link_ids = $wpdb-&gt;get_col( $wpdb-&gt;prepare( "SELECT link_id FROM $wpdb-&gt;links WHERE link_owner = %d", $id ) );
+
+			if ( $link_ids ) {
+				foreach ( $link_ids as $link_id ) {
+					wp_delete_link( $link_id );
+				}
+			}
+
+			restore_current_blog();
+		}
+	}
+
+	$meta = $wpdb-&gt;get_col( $wpdb-&gt;prepare( "SELECT umeta_id FROM $wpdb-&gt;usermeta WHERE user_id = %d", $id ) );
+	foreach ( $meta as $mid ) {
+		delete_metadata_by_mid( 'user', $mid );
+	}
+
+	$wpdb-&gt;delete( $wpdb-&gt;users, array( 'ID' =&gt; $id ) );
+
+	clean_user_cache( $user );
+
+	/** This action is documented in wp-admin/includes/user.php */
+	do_action( 'deleted_user', $id, null, $user );
+
+	return true;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/ms.php:</span> <a href="../hooks/wpmu_delete_user">wpmu_delete_user</a> </td> <td class="related-desc"> <p>Fires before a user is deleted from the network.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/user.php:</span> <a href="../hooks/deleted_user">deleted_user</a> </td> <td class="related-desc"> <p>Fires immediately after a user is deleted from the database.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/bookmark.php:</span> <a href="wp_delete_link">wp_delete_link()</a> </td> <td class="related-desc"> <p>Deletes a specified link from the database.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-user.php:</span> <a href="../classes/wp_user/__construct">WP_User::__construct()</a> </td> <td class="related-desc"> <p>Constructor.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="get_super_admins">get_super_admins()</a> </td> <td class="related-desc"> <p>Retrieves a list of super admins.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="clean_user_cache">clean_user_cache()</a> </td> <td class="related-desc"> <p>Cleans all user caches.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="get_blogs_of_user">get_blogs_of_user()</a> </td> <td class="related-desc"> <p>Gets the sites a user belongs to.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_delete_post">wp_delete_post()</a> </td> <td class="related-desc"> <p>Trash or delete a post or page.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="remove_user_from_blog">remove_user_from_blog()</a> </td> <td class="related-desc"> <p>Removes a user from a blog.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-blogs.php:</span> <a href="switch_to_blog">switch_to_blog()</a> </td> <td class="related-desc"> <p>Switch the current blog.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-blogs.php:</span> <a href="restore_current_blog">restore_current_blog()</a> </td> <td class="related-desc"> <p>Restore the current blog, after calling <a href="switch_to_blog">switch_to_blog()</a>.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/get_col">wpdb::get_col()</a> </td> <td class="related-desc"> <p>Retrieves one column from the database.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/delete">wpdb::delete()</a> </td> <td class="related-desc"> <p>Deletes a row in the table.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/prepare">wpdb::prepare()</a> </td> <td class="related-desc"> <p>Prepares a SQL query for safe execution.</p> </td> </tr> <tr> <td> <span>wp-includes/meta.php:</span> <a href="delete_metadata_by_mid">delete_metadata_by_mid()</a> </td> <td class="related-desc"> <p>Deletes metadata by meta ID.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.0.0/" alt="WordPress 3.0.0">3.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wpmu_delete_user" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wpmu_delete_user</a>
+  </p>
+</div>

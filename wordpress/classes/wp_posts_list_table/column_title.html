@@ -1,0 +1,95 @@
+<h1>WP_Posts_List_Table::column_title( WP_Post $post )</h1>  <section> <p>Handles the title column output.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$post</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Post"><a href="../wp_post">WP_Post</a></span>)</span> <span class="required">(Required)</span> <span class="description">The current <a href="../wp_post">WP_Post</a> object.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-posts-list-table.php/">wp-admin/includes/class-wp-posts-list-table.php</a> </p> <pre data-language="php">public function column_title( $post ) {
+		global $mode;
+
+		if ( $this-&gt;hierarchical_display ) {
+			if ( 0 === $this-&gt;current_level &amp;&amp; (int) $post-&gt;post_parent &gt; 0 ) {
+				// Sent level 0 by accident, by default, or because we don't know the actual level.
+				$find_main_page = (int) $post-&gt;post_parent;
+
+				while ( $find_main_page &gt; 0 ) {
+					$parent = get_post( $find_main_page );
+
+					if ( is_null( $parent ) ) {
+						break;
+					}
+
+					$this-&gt;current_level++;
+					$find_main_page = (int) $parent-&gt;post_parent;
+
+					if ( ! isset( $parent_name ) ) {
+						/** This filter is documented in wp-includes/post-template.php */
+						$parent_name = apply_filters( 'the_title', $parent-&gt;post_title, $parent-&gt;ID );
+					}
+				}
+			}
+		}
+
+		$can_edit_post = current_user_can( 'edit_post', $post-&gt;ID );
+
+		if ( $can_edit_post &amp;&amp; 'trash' !== $post-&gt;post_status ) {
+			$lock_holder = wp_check_post_lock( $post-&gt;ID );
+
+			if ( $lock_holder ) {
+				$lock_holder   = get_userdata( $lock_holder );
+				$locked_avatar = get_avatar( $lock_holder-&gt;ID, 18 );
+				/* translators: %s: User's display name. */
+				$locked_text = esc_html( sprintf( __( '%s is currently editing' ), $lock_holder-&gt;display_name ) );
+			} else {
+				$locked_avatar = '';
+				$locked_text   = '';
+			}
+
+			echo '&lt;div class="locked-info"&gt;&lt;span class="locked-avatar"&gt;' . $locked_avatar . '&lt;/span&gt; &lt;span class="locked-text"&gt;' . $locked_text . "&lt;/span&gt;&lt;/div&gt;\n";
+		}
+
+		$pad = str_repeat( '&amp;#8212; ', $this-&gt;current_level );
+		echo '&lt;strong&gt;';
+
+		$title = _draft_or_post_title();
+
+		if ( $can_edit_post &amp;&amp; 'trash' !== $post-&gt;post_status ) {
+			printf(
+				'&lt;a class="row-title" href="%s" aria-label="%s"&gt;%s%s&lt;/a&gt;',
+				get_edit_post_link( $post-&gt;ID ),
+				/* translators: %s: Post title. */
+				esc_attr( sprintf( __( '&amp;#8220;%s&amp;#8221; (Edit)' ), $title ) ),
+				$pad,
+				$title
+			);
+		} else {
+			printf(
+				'&lt;span&gt;%s%s&lt;/span&gt;',
+				$pad,
+				$title
+			);
+		}
+		_post_states( $post );
+
+		if ( isset( $parent_name ) ) {
+			$post_type_object = get_post_type_object( $post-&gt;post_type );
+			echo ' | ' . $post_type_object-&gt;labels-&gt;parent_item_colon . ' ' . esc_html( $parent_name );
+		}
+
+		echo "&lt;/strong&gt;\n";
+
+		if ( 'excerpt' === $mode
+			&amp;&amp; ! is_post_type_hierarchical( $this-&gt;screen-&gt;post_type )
+			&amp;&amp; current_user_can( 'read_post', $post-&gt;ID )
+		) {
+			if ( post_password_required( $post ) ) {
+				echo '&lt;span class="protected-post-excerpt"&gt;' . esc_html( get_the_excerpt() ) . '&lt;/span&gt;';
+			} else {
+				echo esc_html( get_the_excerpt() );
+			}
+		}
+
+		get_inline_data( $post );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/template.php:</span> <a href="../../functions/_draft_or_post_title">_draft_or_post_title()</a> </td> <td class="related-desc"> <p>Gets the post title.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/template.php:</span> <a href="../../functions/_post_states">_post_states()</a> </td> <td class="related-desc"> <p>Echoes or returns the post states as HTML.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/template.php:</span> <a href="../../functions/get_inline_data">get_inline_data()</a> </td> <td class="related-desc"> <p>Adds hidden fields with the data for use in the inline editor for posts and pages.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/post.php:</span> <a href="../../functions/wp_check_post_lock">wp_check_post_lock()</a> </td> <td class="related-desc"> <p>Determines whether the post is currently being edited by another user.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="../../functions/current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_html">esc_html()</a> </td> <td class="related-desc"> <p>Escaping for HTML blocks.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../../functions/get_avatar">get_avatar()</a> </td> <td class="related-desc"> <p>Retrieve the avatar <code>&lt;img&gt;</code> tag for a user, email address, MD5 hash, comment, or post.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../../functions/get_userdata">get_userdata()</a> </td> <td class="related-desc"> <p>Retrieve user info by user ID.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="../../functions/get_edit_post_link">get_edit_post_link()</a> </td> <td class="related-desc"> <p>Retrieves the edit post link for post.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/post-template.php:</span> <a href="../../functions/post_password_required">post_password_required()</a> </td> <td class="related-desc"> <p>Determines whether the post requires password and whether a correct password has been provided.</p> </td> </tr> <tr> <td> <span>wp-includes/post-template.php:</span> <a href="../../functions/get_the_excerpt">get_the_excerpt()</a> </td> <td class="related-desc"> <p>Retrieves the post excerpt.</p> </td> </tr> <tr> <td> <span>wp-includes/post-template.php:</span> <a href="../../hooks/the_title">the_title</a> </td> <td class="related-desc"> <p>Filters the post title.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/get_post_type_object">get_post_type_object()</a> </td> <td class="related-desc"> <p>Retrieves a post type object by name.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/is_post_type_hierarchical">is_post_type_hierarchical()</a> </td> <td class="related-desc"> <p>Whether the post type is hierarchical.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-posts-list-table.php:</span> <a href="_column_title">WP_Posts_List_Table::_column_title()</a> </td> <td class="related-desc"> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.3.0/" alt="WordPress 4.3.0">4.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_posts_list_table/column_title" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_posts_list_table/column_title</a>
+  </p>
+</div>

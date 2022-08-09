@@ -1,0 +1,91 @@
+<h1 data-toc="native-immutability" id="native-immutability.md">Immutability and concurrency in Kotlin/Native</h1>
+<p id="e7d889f7">Kotlin/Native implements strict mutability checks, ensuring the important invariant that the object is either immutable or accessible from the single thread at that moment in time (<code class="code ">mutable XOR global</code>).</p>
+<p id="e60791c1">Immutability is a runtime property in Kotlin/Native, and can be applied to an arbitrary object subgraph using the <code class="code ">kotlin.native.concurrent.freeze</code> function. It makes all the objects reachable from the given one immutable. Such a transition is a one-way operation. For example, objects cannot be unfrozen later. Some naturally immutable objects such as <code class="code ">kotlin.String</code>, <code class="code ">kotlin.Int</code>, and other primitive types, along with <code class="code ">AtomicInt</code> and <code class="code ">AtomicReference</code>, are frozen by default. If a mutating operation is applied to a frozen object, an <code class="code ">InvalidMutabilityException</code> is thrown.</p>
+<p id="b37551cf">To achieve <code class="code ">mutable XOR global</code> invariant, all globally visible states (currently, <code class="code ">object</code> singletons and enums) are automatically frozen. If object freezing is not desired, a <code class="code ">kotlin.native.ThreadLocal</code> annotation can be used, which will make the object state thread-local, and so, mutable (but the changed state is not visible to other threads).</p>
+<p id="b420616a">Top-level/global variables of non-primitive types are by default accessible in the main thread (i.e., the thread which initialized <em id="c780ed59" class="">Kotlin/Native</em> runtime first) only. Access from another thread will lead to an <code class="code ">IncorrectDereferenceException</code> being thrown. To make such variables accessible in other threads, you can use either the <code class="code ">@ThreadLocal</code> annotation and mark the value thread-local or <code class="code ">@SharedImmutable</code>, which will make the value frozen and accessible from other threads. See <a href="#global-variables-and-singletons" id="c1be020b">Global variables and singletons</a>.</p>
+<p id="97f138a3">Class <code class="code ">AtomicReference</code> can be used to publish the changed frozen state to other threads and build patterns like shared caches. See <a href="#atomic-primitives-and-references" id="bcc9f616">Atomic primitives and references</a>.</p>
+<section class="chapter"><h2 id="concurrency-in-kotlin-native" data-toc="native-immutability#concurrency-in-kotlin-native">Concurrency in Kotlin/Native</h2>
+<p id="93d3355c">Kotlin/Native runtime doesn't encourage a classical thread-oriented concurrency model with mutually exclusive code blocks and conditional variables, as this model is known to be error-prone and unreliable. Instead, we suggest a collection of alternative approaches, allowing you to use hardware concurrency and implement blocking IO. Those approaches are as follows, and they will be elaborated on in further sections:</p>
+<section class="chapter"><h3 id="workers" data-toc="native-immutability#workers">Workers</h3>
+<p id="58c7c117">Instead of threads, Kotlin/Native runtime offers the concept of workers: concurrently executed control flow streams with an associated request queue. Workers are very similar to the actors in the Actor Model. A worker can exchange Kotlin objects with another worker so that at any moment, each mutable object is owned by a single worker, but ownership can be transferred. See section <a href="#object-transfer-and-freezing" id="410af4c8">Object transfer and freezing</a>.</p>
+<p id="286a6cb9">Once a worker is started with the <code class="code ">Worker.start</code> function call, it can be addressed with its own unique integer worker id. Other workers, or non-worker concurrency primitives, such as OS threads, can send a message to the worker with the <code class="code ">execute</code> call.</p>
+<pre class="code" data-language="kotlin">val future = execute(TransferMode.SAFE, { SomeDataForWorker() }) {
+   // data returned by the second function argument comes to the
+   // worker routine as 'input' parameter.
+   input -&gt;
+   // Here we create an instance to be returned when someone consumes result future.
+   WorkerResult(input.stringParam + " result")
+}
+
+future.consume {
+  // Here we see result returned from routine above. Note that future object or
+  // id could be transferred to another worker, so we don't have to consume future
+  // in same execution context it was obtained.
+  result -&gt; println("result is $result")
+}
+</pre>
+<p id="63b2a236">The call to <code class="code ">execute</code> uses a function passed as its second parameter to produce an object subgraph (for example, a set of mutually referring objects) which is then passed as a whole to that worker. It is then no longer available to the thread that initiated the request. This property is checked if the first parameter is <code class="code ">TransferMode.SAFE</code> by graph traversal and is just assumed to be true if it is <code class="code ">TransferMode.UNSAFE</code>. The last parameter to <code class="code ">execute</code> is a special Kotlin lambda, which is not allowed to capture any state and is actually invoked in the target worker's context. Once processed, the result is transferred to whatever consumes it in the future, and it is attached to the object graph of that worker/thread.</p>
+<p id="6914a700">If an object is transferred in <code class="code ">UNSAFE</code> mode and is still accessible from multiple concurrent executors, the program will likely crash unexpectedly, so consider that last resort in optimizing, not a general-purpose mechanism.</p></section><section class="chapter"><h3 id="object-transfer-and-freezing" data-toc="native-immutability#object-transfer-and-freezing">Object transfer and freezing</h3>
+<p id="3568152">An important invariant that Kotlin/Native runtime maintains is that the object is either owned by a single thread/worker, or it is immutable (<em id="a67b7c1c" class="">shared XOR mutable</em>). This ensures that the same data has a single mutator, and so there is no need for locking to exist. To achieve such an invariant, we use the concept of not externally referred object subgraphs. This is a subgraph without external references from outside of the subgraph, which could be checked algorithmically with O(N) complexity (in ARC systems), where N is the number of elements in such a subgraph. Such subgraphs are usually produced as a result of a lambda expression, for example, some builder, and may not contain objects referred to externally.</p>
+<p id="f727b920">Freezing is a runtime operation making a given object subgraph immutable by modifying the object header so that future mutation attempts throw an <code class="code ">InvalidMutabilityException</code>. It is deep, so if an object has a pointer to other objects, the transitive closure of such objects will be frozen. Freezing is a one-way transformation; frozen objects cannot be unfrozen. Frozen objects have a nice property that, due to their immutability, they can be freely shared between multiple workers/threads without breaking the "mutable XOR shared" invariant.</p>
+<p id="500409a8">If an object is frozen, it can be checked with an extension property <code class="code ">isFrozen</code>, and if it is, object sharing is allowed. Currently, Kotlin/Native runtime only freezes the enum objects after creation, although additional auto-freezing of certain provably immutable objects could be implemented in the future.</p></section><section class="chapter"><h3 id="object-subgraph-detachment" data-toc="native-immutability#object-subgraph-detachment">Object subgraph detachment</h3>
+<p id="13986450">An object subgraph without external references can be disconnected using <code class="code ">DetachedObjectGraph&lt;T&gt;</code> to a <code class="code ">COpaquePointer</code> value, which could be stored in <code class="code ">void*</code> data, so the disconnected object subgraphs can be stored in a C data structure, and later attached back with <code class="code ">DetachedObjectGraph&lt;T&gt;.attach()</code> in an arbitrary thread or a worker. Together with <a href="#raw-shared-memory" id="f027c76d">raw memory sharing</a>, it allows side-channel object transfer between concurrent threads if the worker mechanisms are insufficient for a particular task. Note that object detachment may require an explicit leaving function holding object references and then performing cyclic garbage collection. For example, code like:</p>
+<pre class="code" data-language="kotlin">val graph = DetachedObjectGraph {
+    val map = mutableMapOf&lt;String, String&gt;()
+    for (entry in map.entries) {
+        // ...
+    }
+    map
+}
+</pre>
+<p id="217fa62e">will not work as expected and will throw runtime exception, as there are uncollected cycles in the detached graph, while:</p>
+<pre class="code" data-language="kotlin">val graph = DetachedObjectGraph {
+    {
+     val map = mutableMapOf&lt;String, String&gt;()
+     for (entry in map.entries) {
+         // ...
+     }
+     map
+    }().also {
+      kotlin.native.internal.GC.collect()
+    }
+ }
+</pre>
+<p id="9874d943">will work properly, as holding references will be released, and then cyclic garbage affecting the reference counter is collected.</p></section><section class="chapter"><h3 id="raw-shared-memory" data-toc="native-immutability#raw-shared-memory">Raw shared memory</h3>
+<p id="ce92572c">Considering the strong ties between Kotlin/Native and C via interoperability, in conjunction with the other mechanisms mentioned above, it is possible to build popular data structures, like concurrent hashmap or shared cache, with Kotlin/Native. It is possible to rely upon shared C data and store references to detached object subgraphs in it. Consider the following .def file:</p>
+<pre class="code" data-language="c">package = global
+
+---
+typedef struct {
+  int version;
+  void* kotlinObject;
+} SharedData;
+
+SharedData sharedData;
+</pre>
+<p id="fe04cfc3">After running the cinterop tool, it can share Kotlin data in a versionized global structure, and interact with it from Kotlin transparently via autogenerated Kotlin like this:</p>
+<pre class="code" data-language="kotlin">class SharedData(rawPtr: NativePtr) : CStructVar(rawPtr) {
+    var version: Int
+    var kotlinObject: COpaquePointer?
+}
+</pre>
+<p id="8beac0a9">So in combination with the top-level variable declared above, it can allow looking at the same memory from different threads and building traditional concurrent structures with platform-specific synchronization primitives.</p></section><section class="chapter"><h3 id="global-variables-and-singletons" data-toc="native-immutability#global-variables-and-singletons">Global variables and singletons</h3>
+<p id="cf8debcd">Frequently, global variables are a source of unintended concurrency issues, so <em id="70373980" class="">Kotlin/Native</em> implements the following mechanisms to prevent the unintended sharing of state via global objects:</p>
+<ul class="list _ul" id="18f23d8d">
+<li class="list__item" id="96c82d9a"><p>global variables, unless specially marked, can be only accessed from the main thread (that is, the thread <em id="3a883791" class="">Kotlin/Native</em> runtime was first initialized), if other thread access such a global, <code class="code ">IncorrectDereferenceException</code> is thrown</p></li>
+<li class="list__item" id="d0510c77"><p>for global variables marked with the <code class="code ">@kotlin.native.ThreadLocal</code> annotation, each thread keeps a thread-local copy, so changes are not visible between threads</p></li>
+<li class="list__item" id="2b200ab8"><p>for global variables marked with the <code class="code ">@kotlin.native.SharedImmutable</code> annotation value is shared, but frozen before publishing, so each thread sees the same value</p></li>
+<li class="list__item" id="f29219b9"><p>singleton objects unless marked with <code class="code ">@kotlin.native.ThreadLocal</code> are frozen and shared, lazy values allowed, unless cyclic frozen structures were attempted to be created</p></li>
+<li class="list__item" id="3ae8239"><p>enums are always frozen</p></li>
+</ul>
+<p id="81b6c3dd">These mechanisms combined allow natural race-free programming with code reuse across platforms in Multiplatform projects.</p></section><section class="chapter"><h3 id="atomic-primitives-and-references" data-toc="native-immutability#atomic-primitives-and-references">Atomic primitives and references</h3>
+<p id="46496b81">Kotlin/Native standard library provides primitives for safe working with concurrently mutable data, namely <code class="code ">AtomicInt</code>, <code class="code ">AtomicLong</code>, <code class="code ">AtomicNativePtr</code>, <code class="code ">AtomicReference</code> and <code class="code ">FreezableAtomicReference</code> in the package <code class="code ">kotlin.native.concurrent</code>. Atomic primitives allow concurrency-safe update operations, such as increment, decrement, and compare-and-swap, along with value setters and getters. Atomic primitives are always considered frozen by the runtime, and while their fields can be updated with the regular <code class="code ">field.value += 1</code>, it is not concurrency safe. The value must be changed using dedicated operations so it is possible to perform concurrent-safe global counters and similar data structures.</p>
+<p id="d22a7fd5">Some algorithms require shared mutable references across multiple workers. For example, the global mutable configuration could be implemented as an immutable instance of properties list atomically replaced with the new version on configuration update as the whole in a single transaction. This way, no inconsistent configuration could be seen, and at the same time, the configuration could be updated as needed. To achieve such functionality, Kotlin/Native runtime provides two related classes: <code class="code ">kotlin.native.concurrent.AtomicReference</code> and <code class="code ">kotlin.native.concurrent.FreezableAtomicReference</code>. Atomic reference holds a reference to a frozen or immutable object, and its value could be updated by set or compare-and-swap operation. Thus, a dedicated set of objects could be used to create mutable shared object graphs (of immutable objects). Cycles in the shared memory could be created using atomic references. Kotlin/Native runtime doesn't support garbage collecting cyclic data when the reference cycle goes through <code class="code ">AtomicReference</code> or frozen <code class="code ">FreezableAtomicReference</code>. So to avoid memory leaks, atomic references that are potentially parts of shared cyclic data should be zeroed out once no longer needed.</p>
+<p id="b34e00ce">If atomic reference value is attempted to be set to a non-frozen value, a runtime exception is thrown.</p>
+<p id="a0a6ec64">Freezable atomic reference is similar to the regular atomic reference until frozen behaves like a regular box for a reference. After freezing, it behaves like an atomic reference and can only hold a reference to a frozen object.</p></section></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="native-dynamic-libraries">Kotlin/Native as a dynamic library – tutorial</a> <a class="navigation-links__next" href="multiplatform-mobile-concurrency-overview">Concurrency overview</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/native-immutability.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/native-immutability.html</a>
+  </p>
+</div>

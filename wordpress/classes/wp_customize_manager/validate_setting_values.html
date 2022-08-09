@@ -1,0 +1,59 @@
+<h1>WP_Customize_Manager::validate_setting_values( array $setting_values, array $options = array() )</h1>  <section> <p>Validates setting values.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Validation is skipped for unregistered settings or for values that are already null since they will be skipped anyway. Sanitization is applied to values that pass validation, and values that become null or <code>WP_Error</code> after sanitizing are marked invalid.</p> <h3 id="see-also">See also</h3> <ul> <li><a href="../wp_rest_request/has_valid_params">WP_REST_Request::has_valid_params()</a></li> <li><a href="../wp_customize_setting/validate">WP_Customize_Setting::validate()</a></li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$setting_values</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Mapping of setting IDs to values to validate and sanitize.</span> </p> </dd> <dt>$options</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description">Options. <ul class="param-hash">
+<li>
+<b>'validate_existence'</b><br><i><span class="type">(bool)</span></i> Whether a setting's existence will be checked.</li> <li>
+<b>'validate_capability'</b><br><i><span class="type">(bool)</span></i> Whether the setting capability will be checked.</li> </ul> </span> </p> <p class="default">Default value: array()</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> Mapping of setting IDs to return value of validate method calls, either <code>true</code> or <code>WP_Error</code>.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-customize-manager.php/">wp-includes/class-wp-customize-manager.php</a> </p> <pre data-language="php">public function validate_setting_values( $setting_values, $options = array() ) {
+		$options = wp_parse_args(
+			$options,
+			array(
+				'validate_capability' =&gt; false,
+				'validate_existence'  =&gt; false,
+			)
+		);
+
+		$validities = array();
+		foreach ( $setting_values as $setting_id =&gt; $unsanitized_value ) {
+			$setting = $this-&gt;get_setting( $setting_id );
+			if ( ! $setting ) {
+				if ( $options['validate_existence'] ) {
+					$validities[ $setting_id ] = new WP_Error( 'unrecognized', __( 'Setting does not exist or is unrecognized.' ) );
+				}
+				continue;
+			}
+			if ( $options['validate_capability'] &amp;&amp; ! current_user_can( $setting-&gt;capability ) ) {
+				$validity = new WP_Error( 'unauthorized', __( 'Unauthorized to modify setting due to capability.' ) );
+			} else {
+				if ( is_null( $unsanitized_value ) ) {
+					continue;
+				}
+				$validity = $setting-&gt;validate( $unsanitized_value );
+			}
+			if ( ! is_wp_error( $validity ) ) {
+				/** This filter is documented in wp-includes/class-wp-customize-setting.php */
+				$late_validity = apply_filters( "customize_validate_{$setting-&gt;id}", new WP_Error(), $unsanitized_value, $setting );
+				if ( is_wp_error( $late_validity ) &amp;&amp; $late_validity-&gt;has_errors() ) {
+					$validity = $late_validity;
+				}
+			}
+			if ( ! is_wp_error( $validity ) ) {
+				$value = $setting-&gt;sanitize( $unsanitized_value );
+				if ( is_null( $value ) ) {
+					$validity = false;
+				} elseif ( is_wp_error( $value ) ) {
+					$validity = $value;
+				}
+			}
+			if ( false === $validity ) {
+				$validity = new WP_Error( 'invalid_value', __( 'Invalid value.' ) );
+			}
+			$validities[ $setting_id ] = $validity;
+		}
+		return $validities;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="../../functions/current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="get_setting">WP_Customize_Manager::get_setting()</a> </td> <td class="related-desc"> <p>Retrieves a customize setting.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_parse_args">wp_parse_args()</a> </td> <td class="related-desc"> <p>Merges user defined arguments into defaults array.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="save_changeset_post">WP_Customize_Manager::save_changeset_post()</a> </td> <td class="related-desc"> <p>Saves the post for the loaded changeset.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="customize_preview_settings">WP_Customize_Manager::customize_preview_settings()</a> </td> <td class="related-desc"> <p>Prints JavaScript settings for preview frame.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.6.0/" alt="WordPress 4.6.0">4.6.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_customize_manager/validate_setting_values" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_customize_manager/validate_setting_values</a>
+  </p>
+</div>

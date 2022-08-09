@@ -1,0 +1,552 @@
+<h1 data-toc="java-interop" id="java-interop.md">Calling Java from Kotlin</h1>
+<p id="cd5dfbc3">Kotlin is designed with Java interoperability in mind. Existing Java code can be called from Kotlin in a natural way, and Kotlin code can be used from Java rather smoothly as well. In this section, we describe some details about calling Java code from Kotlin.</p>
+<p id="a065b179">Pretty much all Java code can be used without any issues:</p>
+<pre class="code" data-language="kotlin">import java.util.*
+
+fun demo(source: List&lt;Int&gt;) {
+    val list = ArrayList&lt;Int&gt;()
+    // 'for'-loops work for Java collections:
+    for (item in source) {
+        list.add(item)
+    }
+    // Operator conventions work as well:
+    for (i in 0..source.size - 1) {
+        list[i] = source[i] // get and set are called
+    }
+}
+</pre>
+<section class="chapter"><h2 id="getters-and-setters" data-toc="java-interop#getters-and-setters">Getters and setters</h2>
+<p id="ebd9b1d3">Methods that follow the Java conventions for getters and setters (no-argument methods with names starting with <code class="code ">get</code> and single-argument methods with names starting with <code class="code ">set</code>) are represented as properties in Kotlin. <code class="code ">Boolean</code> accessor methods (where the name of the getter starts with <code class="code ">is</code> and the name of the setter starts with <code class="code ">set</code>) are represented as properties which have the same name as the getter method.</p>
+<pre class="code" data-language="kotlin">import java.util.Calendar
+
+fun calendarDemo() {
+    val calendar = Calendar.getInstance()
+    if (calendar.firstDayOfWeek == Calendar.SUNDAY) { // call getFirstDayOfWeek()
+        calendar.firstDayOfWeek = Calendar.MONDAY // call setFirstDayOfWeek()
+    }
+    if (!calendar.isLenient) { // call isLenient()
+        calendar.isLenient = true // call setLenient()
+    }
+}
+</pre>
+<p id="ac636ea0">Note that, if the Java class only has a setter, it isn't visible as a property in Kotlin because Kotlin doesn't support set-only properties.</p></section><section class="chapter"><h2 id="methods-returning-void" data-toc="java-interop#methods-returning-void">Methods returning void</h2>
+<p id="886c9ae">If a Java method returns <code class="code ">void</code>, it will return <code class="code ">Unit</code> when called from Kotlin. If by any chance someone uses that return value, it will be assigned at the call site by the Kotlin compiler since the value itself is known in advance (being <code class="code ">Unit</code>).</p></section><section class="chapter"><h2 id="escaping-for-java-identifiers-that-are-keywords-in-kotlin" data-toc="java-interop#escaping-for-java-identifiers-that-are-keywords-in-kotlin">Escaping for Java identifiers that are keywords in Kotlin</h2>
+<p id="92fe2c9b">Some of the Kotlin keywords are valid identifiers in Java: <code class="code ">in</code>, <code class="code ">object</code>, <code class="code ">is</code>, and other. If a Java library uses a Kotlin keyword for a method, you can still call the method escaping it with the backtick (`) character:</p>
+<pre class="code" data-language="kotlin">foo.`is`(bar)
+</pre></section><section class="chapter"><h2 id="null-safety-and-platform-types" data-toc="java-interop#null-safety-and-platform-types">Null-safety and platform types</h2>
+<p id="f050ee40">Any reference in Java may be <code class="code ">null</code>, which makes Kotlin's requirements of strict null-safety impractical for objects coming from Java. Types of Java declarations are treated in Kotlin in a specific manner and called <em id="887702cc" class="">platform types</em>. Null-checks are relaxed for such types, so that safety guarantees for them are the same as in Java (see more <a href="#mapped-types" id="b3bf847b">below</a>).</p>
+<p id="40435126">Consider the following examples:</p>
+<pre class="code" data-language="kotlin">val list = ArrayList&lt;String&gt;() // non-null (constructor result)
+list.add("Item")
+val size = list.size // non-null (primitive int)
+val item = list[0] // platform type inferred (ordinary Java object)
+</pre>
+<p id="296fe04e">When you call methods on variables of platform types, Kotlin does not issue nullability errors at compile time, but the call may fail at runtime, because of a null-pointer exception or an assertion that Kotlin generates to prevent nulls from propagating:</p>
+<pre class="code" data-language="kotlin">item.substring(1) // allowed, may throw an exception if item == null
+</pre>
+<p id="4053025a">Platform types are <em id="7c2aef01" class="">non-denotable</em>, meaning that you can't write them down explicitly in the language. When a platform value is assigned to a Kotlin variable, you can rely on the type inference (the variable will have an inferred platform type then, as <code class="code ">item</code> has in the example above), or you can choose the type you expect (both nullable and non-null types are allowed):</p>
+<pre class="code" data-language="kotlin">val nullable: String? = item // allowed, always works
+val notNull: String = item // allowed, may fail at runtime
+</pre>
+<p id="a344d99f">If you choose a non-null type, the compiler will emit an assertion upon assignment. This prevents Kotlin's non-null variables from holding nulls. Assertions are also emitted when you pass platform values to Kotlin functions expecting non-null values and in other cases. Overall, the compiler does its best to prevent nulls from propagating far through the program although sometimes this is impossible to eliminate entirely, because of generics.</p>
+<section class="chapter"><h3 id="notation-for-platform-types" data-toc="java-interop#notation-for-platform-types">Notation for platform types</h3>
+<p id="8a53be66">As mentioned above, platform types can't be mentioned explicitly in the program, so there's no syntax for them in the language. Nevertheless, the compiler and IDE need to display them sometimes (for example, in error messages or parameter info), so there is a mnemonic notation for them:</p>
+<ul class="list _ul" id="cda69c2d">
+<li class="list__item" id="65f78dc9"><p><code class="code ">T!</code> means "<code class="code ">T</code> or <code class="code ">T?</code>",</p></li>
+<li class="list__item" id="d75fd7b4"><p><code class="code ">(Mutable)Collection&lt;T&gt;!</code> means "Java collection of <code class="code ">T</code> may be mutable or not, may be nullable or not",</p></li>
+<li class="list__item" id="b799ab63"><p><code class="code ">Array&lt;(out) T&gt;!</code> means "Java array of <code class="code ">T</code> (or a subtype of <code class="code ">T</code>), nullable or not"</p></li>
+</ul></section><section class="chapter"><h3 id="nullability-annotations" data-toc="java-interop#nullability-annotations">Nullability annotations</h3>
+<p id="56b21873">Java types that have nullability annotations are represented not as platform types, but as actual nullable or non-null Kotlin types. The compiler supports several flavors of nullability annotations, including:</p>
+<ul class="list _ul" id="18a584bd">
+<li class="list__item" id="a5a57e21"><p><a href="https://www.jetbrains.com/idea/help/nullable-and-notnull-annotations.html" id="eae1a2cf" data-external="true" rel="noopener noreferrer">JetBrains</a> (<code class="code ">@Nullable</code> and <code class="code ">@NotNull</code> from the <code class="code ">org.jetbrains.annotations</code> package)</p></li>
+<li class="list__item" id="d0b1beff"><p><a href="https://jspecify.dev/" id="2514fe85" data-external="true" rel="noopener noreferrer">JSpecify</a> (<code class="code ">org.jspecify.nullness</code>)</p></li>
+<li class="list__item" id="e443e13e"><p>Android (<code class="code ">com.android.annotations</code> and <code class="code ">android.support.annotations</code>)</p></li>
+<li class="list__item" id="2f5426e0"><p>JSR-305 (<code class="code ">javax.annotation</code>, more details below)</p></li>
+<li class="list__item" id="450f39a4"><p>FindBugs (<code class="code ">edu.umd.cs.findbugs.annotations</code>)</p></li>
+<li class="list__item" id="e5fdcbec"><p>Eclipse (<code class="code ">org.eclipse.jdt.annotation</code>)</p></li>
+<li class="list__item" id="2ce15175"><p>Lombok (<code class="code ">lombok.NonNull</code>)</p></li>
+<li class="list__item" id="d39a1d7c"><p>RxJava 3 (<code class="code ">io.reactivex.rxjava3.annotations</code>)</p></li>
+</ul>
+<p id="75cab038">You can specify whether the compiler reports a nullability mismatch based on the information from specific types of nullability annotations. Use the compiler option <code class="code ">-Xnullability-annotations=@&lt;package-name&gt;:&lt;report-level&gt;</code>. In the argument, specify the fully qualified nullability annotations package and one of these report levels:</p>
+<ul class="list _ul" id="bbd51ebb">
+<li class="list__item" id="fdfd19c7"><p><code class="code ">ignore</code> to ignore nullability mismatches</p></li>
+<li class="list__item" id="bcc68efb"><p><code class="code ">warn</code> to report warnings</p></li>
+<li class="list__item" id="641dd632"><p><code class="code ">strict</code> to report errors.</p></li>
+</ul>
+<p id="63760ec0">See the full list of supported nullability annotations in the <a href="https://github.com/JetBrains/kotlin/blob/master/core/compiler.common.jvm/src/org/jetbrains/kotlin/load/java/JvmAnnotationNames.kt" id="4ccc582f" data-external="true" rel="noopener noreferrer">Kotlin compiler source code</a>.</p></section><section class="chapter"><h3 id="annotating-type-arguments-and-type-parameters" data-toc="java-interop#annotating-type-arguments-and-type-parameters">Annotating type arguments and type parameters</h3>
+<p id="3abb017e">You can annotate the type arguments and type parameters of generic types to provide nullability information for them as well.</p>
+<aside data-type="note" class="prompt" data-title="" id="bd0ba15f"><p id="eeacc676">All examples in the section use JetBrains nullability annotations from the <code class="code ">org.jetbrains.annotations</code> package.</p></aside><section class="chapter"><h4 id="type-arguments" data-toc="java-interop#type-arguments">Type arguments</h4>
+<p id="ac7b4817">Consider these annotations on a Java declaration:</p>
+<pre class="code" data-language="java">@NotNull
+Set&lt;@NotNull String&gt; toSet(@NotNull Collection&lt;@NotNull String&gt; elements) { ... }
+</pre>
+<p id="861b273b">They result in the following signature in Kotlin:</p>
+<pre class="code" data-language="kotlin">fun toSet(elements: (Mutable)Collection&lt;String&gt;) : (Mutable)Set&lt;String&gt; { ... }
+</pre>
+<p id="a44ba895">When the <code class="code ">@NotNull</code> annotation is missing from a type argument, you get a platform type instead:</p>
+<pre class="code" data-language="kotlin">fun toSet(elements: (Mutable)Collection&lt;String!&gt;) : (Mutable)Set&lt;String!&gt; { ... }
+</pre>
+<p id="1cf076c2">Kotlin also takes into account nullability annotations on type arguments of base classes and interfaces. For example, there are two Java classes with the signatures provided below:</p>
+<pre class="code" data-language="java">public class Base&lt;T&gt; {}
+</pre>
+<pre class="code" data-language="java">public class Derived extends Base&lt;@Nullable String&gt; {}
+</pre>
+<p id="3c1f3f5f">In the Kotlin code, passing the instance of <code class="code ">Derived</code> where the <code class="code ">Base&lt;String&gt;</code> is assumed produces the warning.</p>
+<pre class="code" data-language="kotlin">fun takeBaseOfNotNullStrings(x: Base&lt;String&gt;) {}
+
+fun main() {
+    takeBaseOfNotNullStrings(Derived()) // warning: nullability mismatch
+}
+</pre>
+<p id="1a4b8453">The upper bound of <code class="code ">Derived</code> is set to <code class="code ">Base&lt;String?&gt;</code>, which is different from <code class="code ">Base&lt;String&gt;</code>.</p>
+<p id="daf26aa6">Learn more about <a href="#java-generics-in-kotlin" id="86e1aef4">Java generics in Kotlin</a>.</p></section><section class="chapter"><h4 id="type-parameters" data-toc="java-interop#type-parameters">Type parameters</h4>
+<p id="4dfeb915">By default, the nullability of plain type parameters in both Kotlin and Java is undefined. In Java, you can specify it using nullability annotations. Let's annotate the type parameter of the <code class="code ">Base</code> class:</p>
+<pre class="code" data-language="java">public class Base&lt;@NotNull T&gt; {}
+</pre>
+<p id="d3e045ff">When inheriting from <code class="code ">Base</code>, Kotlin expects a non-nullable type argument or type parameter. Thus, the following Kotlin code produces a warning:</p>
+<pre class="code" data-language="kotlin">class Derived&lt;K&gt; : Base&lt;K&gt; {} // warning: K has undefined nullability
+</pre>
+<p id="fc39753f">You can fix it by specifying the upper bound <code class="code ">K : Any</code>.</p>
+<p id="4ee57b6a">Kotlin also supports nullability annotations on the bounds of Java type parameters. Let's add bounds to <code class="code ">Base</code>:</p>
+<pre class="code" data-language="java">public class BaseWithBound&lt;T extends @NotNull Number&gt; {}
+</pre>
+<p id="328ebbfe">Kotlin translates this just as follows:</p>
+<pre class="code" data-language="kotlin">class BaseWithBound&lt;T : Number&gt; {}
+</pre>
+<p id="43f6d3ef">So passing nullable type as a type argument or type parameter produces a warning.</p>
+<p id="4120c68c">Annotating type arguments and type parameters works with the Java 8 target or higher. The feature requires that the nullability annotations support the <code class="code ">TYPE_USE</code> target (<code class="code ">org.jetbrains.annotations</code> supports this in version 15 and above). Pass the <code class="code ">-Xtype-enhancement-improvements-strict-mode</code> compiler option to report errors in Kotlin code that uses nullability which deviates from the nullability annotations from Java.</p>
+<aside data-type="note" class="prompt" data-title="" id="d1b41120"><p id="d3ae35c6">Note: If a nullability annotation supports other targets that are applicable to a type in addition to the <code class="code ">TYPE_USE</code> target, then <code class="code ">TYPE_USE</code> takes priority. For example, if <code class="code ">@Nullable</code> has both <code class="code ">TYPE_USE</code> and <code class="code ">METHOD</code> targets, the Java method signature <code class="code ">@Nullable String[] f()</code> becomes <code class="code ">fun f(): Array&lt;String?&gt;!</code> in Kotlin.</p></aside></section></section><section class="chapter"><h3 id="jsr-305-support" data-toc="java-interop#jsr-305-support">JSR-305 support</h3>
+<p id="630c71bb">The <a href="https://www.javadoc.io/doc/com.google.code.findbugs/jsr305/latest/javax/annotation/Nonnull.html" id="1e8304e7" data-external="true" rel="noopener noreferrer"><code class="code ">@Nonnull</code></a> annotation defined in <a href="https://jcp.org/en/jsr/detail?id=305" id="3847e1d4" data-external="true" rel="noopener noreferrer">JSR-305</a> is supported for denoting nullability of Java types.</p>
+<p id="2a3e796a">If the <code class="code ">@Nonnull(when = ...)</code> value is <code class="code ">When.ALWAYS</code>, the annotated type is treated as non-null; <code class="code ">When.MAYBE</code> and <code class="code ">When.NEVER</code> denote a nullable type; and <code class="code ">When.UNKNOWN</code> forces the type to be <a href="#null-safety-and-platform-types" id="177300ae">platform one</a>.</p>
+<p id="21b5d917">A library can be compiled against the JSR-305 annotations, but there's no need to make the annotations artifact (e.g. <code class="code ">jsr305.jar</code>) a compile dependency for the library consumers. The Kotlin compiler can read the JSR-305 annotations from a library without the annotations present on the classpath.</p>
+<p id="7cc3614b"><a href="https://github.com/Kotlin/KEEP/blob/master/proposals/jsr-305-custom-nullability-qualifiers.md" id="a23acf2f" data-external="true" rel="noopener noreferrer">Custom nullability qualifiers (KEEP-79)</a> are also supported (see below).</p>
+<section class="chapter"><h4 id="type-qualifier-nicknames" data-toc="java-interop#type-qualifier-nicknames">Type qualifier nicknames</h4>
+<p id="15d5cbd7">If an annotation type is annotated with both <a href="https://www.javadoc.io/doc/com.google.code.findbugs/jsr305/latest/javax/annotation/meta/TypeQualifierNickname.html" id="81f8e033" data-external="true" rel="noopener noreferrer"><code class="code ">@TypeQualifierNickname</code></a> and JSR-305 <code class="code ">@Nonnull</code> (or its another nickname, such as <code class="code ">@CheckForNull</code>), then the annotation type is itself used for retrieving precise nullability and has the same meaning as that nullability annotation:</p>
+<pre class="code" data-language="java">@TypeQualifierNickname
+@Nonnull(when = When.ALWAYS)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface MyNonnull {
+}
+
+@TypeQualifierNickname
+@CheckForNull // a nickname to another type qualifier nickname
+@Retention(RetentionPolicy.RUNTIME)
+public @interface MyNullable {
+}
+
+interface A {
+    @MyNullable String foo(@MyNonnull String x);
+    // in Kotlin (strict mode): `fun foo(x: String): String?`
+
+    String bar(List&lt;@MyNonnull String&gt; x);
+    // in Kotlin (strict mode): `fun bar(x: List&lt;String&gt;!): String!`
+}
+</pre></section><section class="chapter"><h4 id="type-qualifier-defaults" data-toc="java-interop#type-qualifier-defaults">Type qualifier defaults</h4>
+<p id="d50325c4"><a href="https://www.javadoc.io/doc/com.google.code.findbugs/jsr305/latest/javax/annotation/meta/TypeQualifierDefault.html" id="2765926e" data-external="true" rel="noopener noreferrer"><code class="code ">@TypeQualifierDefault</code></a> allows introducing annotations that, when being applied, define the default nullability within the scope of the annotated element.</p>
+<p id="73b8cf71">Such annotation type should itself be annotated with both <code class="code ">@Nonnull</code> (or its nickname) and <code class="code ">@TypeQualifierDefault(...)</code> with one or more <code class="code ">ElementType</code> values:</p>
+<ul class="list _ul" id="ace65e35">
+<li class="list__item" id="38f9d961"><p><code class="code ">ElementType.METHOD</code> for return types of methods</p></li>
+<li class="list__item" id="1d6f93c4"><p><code class="code ">ElementType.PARAMETER</code> for value parameters</p></li>
+<li class="list__item" id="38615850"><p><code class="code ">ElementType.FIELD</code> for fields</p></li>
+<li class="list__item" id="8057d25a"><p><code class="code ">ElementType.TYPE_USE</code> for any type including type arguments, upper bounds of type parameters and wildcard types</p></li>
+</ul>
+<p id="64ef484e">The default nullability is used when a type itself is not annotated by a nullability annotation, and the default is determined by the innermost enclosing element annotated with a type qualifier default annotation with the <code class="code ">ElementType</code> matching the type usage.</p>
+<pre class="code" data-language="java">@Nonnull
+@TypeQualifierDefault({ElementType.METHOD, ElementType.PARAMETER})
+public @interface NonNullApi {
+}
+
+@Nonnull(when = When.MAYBE)
+@TypeQualifierDefault({ElementType.METHOD, ElementType.PARAMETER, ElementType.TYPE_USE})
+public @interface NullableApi {
+}
+
+@NullableApi
+interface A {
+    String foo(String x); // fun foo(x: String?): String?
+
+    @NotNullApi // overriding default from the interface
+    String bar(String x, @Nullable String y); // fun bar(x: String, y: String?): String
+
+    // The List&lt;String&gt; type argument is seen as nullable because of `@NullableApi`
+    // having the `TYPE_USE` element type:
+    String baz(List&lt;String&gt; x); // fun baz(List&lt;String?&gt;?): String?
+
+    // The type of `x` parameter remains platform because there's an explicit
+    // UNKNOWN-marked nullability annotation:
+    String qux(@Nonnull(when = When.UNKNOWN) String x); // fun baz(x: String!): String?
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="74496539"><p id="ec7e5737">The types in this example only take place with the strict mode enabled; otherwise, the platform types remain. See the <a href="#undermigration-annotation" id="6ad3124"><code class="code ">@UnderMigration</code> annotation</a> and <a href="#compiler-configuration" id="ece64328">Compiler configuration</a> sections.</p></aside><p id="d0a1fc8b">Package-level default nullability is also supported:</p>
+<pre class="code" data-language="java">// FILE: test/package-info.java
+@NonNullApi // declaring all types in package 'test' as non-nullable by default
+package test;
+</pre></section><section class="chapter"><h4 id="undermigration-annotation" data-toc="java-interop#undermigration-annotation">@UnderMigration annotation</h4>
+<p id="b71ed4e9">The <code class="code ">@UnderMigration</code> annotation (provided in a separate artifact <code class="code ">kotlin-annotations-jvm</code>) can be used by library maintainers to define the migration status for the nullability type qualifiers.</p>
+<p id="c91983a4">The status value in <code class="code ">@UnderMigration(status = ...)</code> specifies how the compiler treats inappropriate usages of the annotated types in Kotlin (e.g. using a <code class="code ">@MyNullable</code>-annotated type value as non-null):</p>
+<ul class="list _ul" id="f9a9a46c">
+<li class="list__item" id="aef46bec"><p><code class="code ">MigrationStatus.STRICT</code> makes annotation work as any plain nullability annotation, i.e. report errors for the inappropriate usages and affect the types in the annotated declarations as they are seen in Kotlin</p></li>
+<li class="list__item" id="7440134e"><p><code class="code ">MigrationStatus.WARN</code>: the inappropriate usages are reported as compilation warnings instead of errors, but the types in the annotated declarations remain platform</p></li>
+<li class="list__item" id="30d7acd4"><p><code class="code ">MigrationStatus.IGNORE</code> makes the compiler ignore the nullability annotation completely</p></li>
+</ul>
+<p id="1ab09596">A library maintainer can add <code class="code ">@UnderMigration</code> status to both type qualifier nicknames and type qualifier defaults:</p>
+<pre class="code" data-language="java">@Nonnull(when = When.ALWAYS)
+@TypeQualifierDefault({ElementType.METHOD, ElementType.PARAMETER})
+@UnderMigration(status = MigrationStatus.WARN)
+public @interface NonNullApi {
+}
+
+// The types in the class are non-null, but only warnings are reported
+// because `@NonNullApi` is annotated `@UnderMigration(status = MigrationStatus.WARN)`
+@NonNullApi
+public class Test {}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="2c65dedd"><p id="c23a6ea4">The migration status of a nullability annotation is not inherited by its type qualifier nicknames but is applied to its usages in default type qualifiers.</p></aside><p id="12c85a21">If a default type qualifier uses a type qualifier nickname and they are both <code class="code ">@UnderMigration</code>, the status from the default type qualifier is used.</p></section><section class="chapter"><h4 id="compiler-configuration" data-toc="java-interop#compiler-configuration">Compiler configuration</h4>
+<p id="22455460">The JSR-305 checks can be configured by adding the <code class="code ">-Xjsr305</code> compiler flag with the following options (and their combination):</p>
+<ul class="list _ul" id="c958d509">
+<li class="list__item" id="8a8b60f6"><p id="aa6860fe"><code class="code ">-Xjsr305={strict|warn|ignore}</code> to set up the behavior for non-<code class="code ">@UnderMigration</code> annotations. Custom nullability qualifiers, especially <code class="code ">@TypeQualifierDefault</code>, are already spread among many well-known libraries, and users may need to migrate smoothly when updating to the Kotlin version containing JSR-305 support. Since Kotlin 1.1.60, this flag only affects non-<code class="code ">@UnderMigration</code> annotations.</p></li>
+<li class="list__item" id="e724fb21"><p id="8c776a92"><code class="code ">-Xjsr305=under-migration:{strict|warn|ignore}</code> to override the behavior for the <code class="code ">@UnderMigration</code> annotations. Users may have different view on the migration status for the libraries: they may want to have errors while the official migration status is <code class="code ">WARN</code>, or vice versa, they may wish to postpone errors reporting for some until they complete their migration.</p></li>
+<li class="list__item" id="1d4b6a80"><p id="940a827c"><code class="code ">-Xjsr305=@&lt;fq.name&gt;:{strict|warn|ignore}</code> to override the behavior for a single annotation, where <code class="code ">&lt;fq.name&gt;</code> is the fully qualified class name of the annotation. May appear several times for different annotations. This is useful for managing the migration state for a particular library.</p></li>
+</ul>
+<p id="f4640a54">The <code class="code ">strict</code>, <code class="code ">warn</code> and <code class="code ">ignore</code> values have the same meaning as those of <code class="code ">MigrationStatus</code>, and only the <code class="code ">strict</code> mode affects the types in the annotated declarations as they are seen in Kotlin.</p>
+<aside data-type="note" class="prompt" data-title="" id="7c825dac"><p id="674bc3a9">Note: the built-in JSR-305 annotations <a href="https://www.javadoc.io/doc/com.google.code.findbugs/jsr305/latest/javax/annotation/Nonnull.html" id="6ad309c8" data-external="true" rel="noopener noreferrer"><code class="code ">@Nonnull</code></a>, <a href="https://www.javadoc.io/doc/com.google.code.findbugs/jsr305/3.0.1/javax/annotation/Nullable.html" id="fc3a27c0" data-external="true" rel="noopener noreferrer"><code class="code ">@Nullable</code></a> and <a href="https://www.javadoc.io/doc/com.google.code.findbugs/jsr305/latest/javax/annotation/CheckForNull.html" id="7a746041" data-external="true" rel="noopener noreferrer"><code class="code ">@CheckForNull</code></a> are always enabled and affect the types of the annotated declarations in Kotlin, regardless of compiler configuration with the <code class="code ">-Xjsr305</code> flag.</p></aside><p id="6858bc80">For example, adding <code class="code ">-Xjsr305=ignore -Xjsr305=under-migration:ignore -Xjsr305=@org.library.MyNullable:warn</code> to the compiler arguments makes the compiler generate warnings for inappropriate usages of types annotated by <code class="code ">@org.library.MyNullable</code> and ignore all other JSR-305 annotations.</p>
+<p id="ec2a81ae">The default behavior is the same to <code class="code ">-Xjsr305=warn</code>. The <code class="code ">strict</code> value should be considered experimental (more checks may be added to it in the future).</p></section></section></section><section class="chapter"><h2 id="mapped-types" data-toc="java-interop#mapped-types">Mapped types</h2>
+<p id="29385f60">Kotlin treats some Java types specifically. Such types are not loaded from Java "as is", but are <em id="76c10c25" class="">mapped</em> to corresponding Kotlin types. The mapping only matters at compile time, the runtime representation remains unchanged. Java's primitive types are mapped to corresponding Kotlin types (keeping <a href="#null-safety-and-platform-types" id="abc2044c">platform types</a> in mind):</p>
+<div class="table-wrapper"><table class=" wide" id="ea07f1d">
+<thead><tr class="ijRowHead" id="94d4f94f">
+<th id="70dc9cc6"><p><b id="10d0f0d6" class="">Java type</b></p></th>
+<th id="e21c921b"><p><b id="aaa64089" class="">Kotlin type</b></p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="6e7653f">
+<td id="442bcc5d"><p><code class="code ">byte</code></p></td>
+<td id="cbba3115"><p><code class="code ">kotlin.Byte</code></p></td>
+</tr>
+<tr class="" id="c7ec33f4">
+<td id="78468b33"><p><code class="code ">short</code></p></td>
+<td id="fbd5bf52"><p><code class="code ">kotlin.Short</code></p></td>
+</tr>
+<tr class="" id="9cf9429a">
+<td id="2c7b7075"><p><code class="code ">int</code></p></td>
+<td id="cb03ee8a"><p><code class="code ">kotlin.Int</code></p></td>
+</tr>
+<tr class="" id="881d6877">
+<td id="e8cad498"><p><code class="code ">long</code></p></td>
+<td id="e43718c"><p><code class="code ">kotlin.Long</code></p></td>
+</tr>
+<tr class="" id="6e1676c4">
+<td id="90b6711b"><p><code class="code ">char</code></p></td>
+<td id="d1cd3bcd"><p><code class="code ">kotlin.Char</code></p></td>
+</tr>
+<tr class="" id="7fe2440">
+<td id="cbc9f11c"><p><code class="code ">float</code></p></td>
+<td id="b075891"><p><code class="code ">kotlin.Float</code></p></td>
+</tr>
+<tr class="" id="36be618a">
+<td id="ef86b7a8"><p><code class="code ">double</code></p></td>
+<td id="35836b0f"><p><code class="code ">kotlin.Double</code></p></td>
+</tr>
+<tr class="" id="fdc5a99a">
+<td id="eb2b985"><p><code class="code ">boolean</code></p></td>
+<td id="28fe939e"><p><code class="code ">kotlin.Boolean</code></p></td>
+</tr>
+</tbody>
+</table></div>
+<p id="47679084">Some non-primitive built-in classes are also mapped:</p>
+<div class="table-wrapper"><table class=" wide" id="ee8a5ef8">
+<thead><tr class="ijRowHead" id="e4071b9b">
+<th id="b316e6e4"><p><b id="dc411396" class="">Java type</b></p></th>
+<th id="6bcfc802"><p><b id="163bbfb7" class="">Kotlin type</b></p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="9c512bcd">
+<td id="e691dd88"><p><code class="code ">java.lang.Object</code></p></td>
+<td id="91f4350f"><p><code class="code ">kotlin.Any!</code></p></td>
+</tr>
+<tr class="" id="40964101">
+<td id="102a34b"><p><code class="code ">java.lang.Cloneable</code></p></td>
+<td id="4e43d03a"><p><code class="code ">kotlin.Cloneable!</code></p></td>
+</tr>
+<tr class="" id="1526a563">
+<td id="f255d38a"><p><code class="code ">java.lang.Comparable</code></p></td>
+<td id="24f8290e"><p><code class="code ">kotlin.Comparable!</code></p></td>
+</tr>
+<tr class="" id="87c4375a">
+<td id="a52c8c2f"><p><code class="code ">java.lang.Enum</code></p></td>
+<td id="e783c1d5"><p><code class="code ">kotlin.Enum!</code></p></td>
+</tr>
+<tr class="" id="1e07ec5b">
+<td id="914fadfd"><p><code class="code ">java.lang.annotation.Annotation</code></p></td>
+<td id="85886b9e"><p><code class="code ">kotlin.Annotation!</code></p></td>
+</tr>
+<tr class="" id="7bfbf681">
+<td id="fd01ab44"><p><code class="code ">java.lang.CharSequence</code></p></td>
+<td id="ef56d534"><p><code class="code ">kotlin.CharSequence!</code></p></td>
+</tr>
+<tr class="" id="45c79a5a">
+<td id="f4b8e7c7"><p><code class="code ">java.lang.String</code></p></td>
+<td id="3749c1bc"><p><code class="code ">kotlin.String!</code></p></td>
+</tr>
+<tr class="" id="87f6138d">
+<td id="5c0c8060"><p><code class="code ">java.lang.Number</code></p></td>
+<td id="2ad870cd"><p><code class="code ">kotlin.Number!</code></p></td>
+</tr>
+<tr class="" id="81c98318">
+<td id="f5ff284d"><p><code class="code ">java.lang.Throwable</code></p></td>
+<td id="af7fca6e"><p><code class="code ">kotlin.Throwable!</code></p></td>
+</tr>
+</tbody>
+</table></div>
+<p id="7a3aa515">Java's boxed primitive types are mapped to nullable Kotlin types:</p>
+<div class="table-wrapper"><table class=" wide" id="f534ebcf">
+<thead><tr class="ijRowHead" id="64be7149">
+<th id="bad16b"><p><b id="8b70a68a" class="">Java type</b></p></th>
+<th id="9686125f"><p><b id="d05ecc5c" class="">Kotlin type</b></p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="5e7f599a">
+<td id="53c4891f"><p><code class="code ">java.lang.Byte</code></p></td>
+<td id="ef7e07f2"><p><code class="code ">kotlin.Byte?</code></p></td>
+</tr>
+<tr class="" id="1668d697">
+<td id="99431adc"><p><code class="code ">java.lang.Short</code></p></td>
+<td id="cdeb170c"><p><code class="code ">kotlin.Short?</code></p></td>
+</tr>
+<tr class="" id="bbadcf8">
+<td id="1842da57"><p><code class="code ">java.lang.Integer</code></p></td>
+<td id="6186c670"><p><code class="code ">kotlin.Int?</code></p></td>
+</tr>
+<tr class="" id="85c925b">
+<td id="b6037337"><p><code class="code ">java.lang.Long</code></p></td>
+<td id="ffb0c28"><p><code class="code ">kotlin.Long?</code></p></td>
+</tr>
+<tr class="" id="344cffc4">
+<td id="6ba71021"><p><code class="code ">java.lang.Character</code></p></td>
+<td id="21ee54e1"><p><code class="code ">kotlin.Char?</code></p></td>
+</tr>
+<tr class="" id="b1bb95dc">
+<td id="85dafc5c"><p><code class="code ">java.lang.Float</code></p></td>
+<td id="871a54c0"><p><code class="code ">kotlin.Float?</code></p></td>
+</tr>
+<tr class="" id="40d50947">
+<td id="9dc63b0f"><p><code class="code ">java.lang.Double</code></p></td>
+<td id="ac442dfb"><p><code class="code ">kotlin.Double?</code></p></td>
+</tr>
+<tr class="" id="4779d9c2">
+<td id="b85827b5"><p><code class="code ">java.lang.Boolean</code></p></td>
+<td id="b0dc41e"><p><code class="code ">kotlin.Boolean?</code></p></td>
+</tr>
+</tbody>
+</table></div>
+<p id="d10ffcd5">Note that a boxed primitive type used as a type parameter is mapped to a platform type: for example, <code class="code ">List&lt;java.lang.Integer&gt;</code> becomes a <code class="code ">List&lt;Int!&gt;</code> in Kotlin.</p>
+<p id="ef3b94ba">Collection types may be read-only or mutable in Kotlin, so Java's collections are mapped as follows (all Kotlin types in this table reside in the package <code class="code ">kotlin.collections</code>):</p>
+<div class="table-wrapper"><table class=" wide" id="fd3ef238">
+<thead><tr class="ijRowHead" id="163e426c">
+<th id="40122385"><p><b id="8340c71c" class="">Java type</b></p></th>
+<th id="90fd2e7f"><p><b id="a8bb6d0d" class="">Kotlin read-only type</b></p></th>
+<th id="a36ee3dc"><p><b id="5d86f63f" class="">Kotlin mutable type</b></p></th>
+<th id="54af3e7d"><p><b id="590830c1" class="">Loaded platform type</b></p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="fb7a6136">
+<td id="5f28e2ae"><p><code class="code ">Iterator&lt;T&gt;</code></p></td>
+<td id="e4d48d12"><p><code class="code ">Iterator&lt;T&gt;</code></p></td>
+<td id="e2cd44ba"><p><code class="code ">MutableIterator&lt;T&gt;</code></p></td>
+<td id="f85ccb3d"><p><code class="code ">(Mutable)Iterator&lt;T&gt;!</code></p></td>
+</tr>
+<tr class="" id="41be0fbc">
+<td id="42a6fe2f"><p><code class="code ">Iterable&lt;T&gt;</code></p></td>
+<td id="e1139006"><p><code class="code ">Iterable&lt;T&gt;</code></p></td>
+<td id="945605a3"><p><code class="code ">MutableIterable&lt;T&gt;</code></p></td>
+<td id="a44e8007"><p><code class="code ">(Mutable)Iterable&lt;T&gt;!</code></p></td>
+</tr>
+<tr class="" id="606f8551">
+<td id="f5f7e091"><p><code class="code ">Collection&lt;T&gt;</code></p></td>
+<td id="965c1e95"><p><code class="code ">Collection&lt;T&gt;</code></p></td>
+<td id="33617b2f"><p><code class="code ">MutableCollection&lt;T&gt;</code></p></td>
+<td id="71e42933"><p><code class="code ">(Mutable)Collection&lt;T&gt;!</code></p></td>
+</tr>
+<tr class="" id="babf6379">
+<td id="eba8b9eb"><p><code class="code ">Set&lt;T&gt;</code></p></td>
+<td id="dd373327"><p><code class="code ">Set&lt;T&gt;</code></p></td>
+<td id="893fca2b"><p><code class="code ">MutableSet&lt;T&gt;</code></p></td>
+<td id="ad96b8f5"><p><code class="code ">(Mutable)Set&lt;T&gt;!</code></p></td>
+</tr>
+<tr class="" id="9d140ed5">
+<td id="3c7279f2"><p><code class="code ">List&lt;T&gt;</code></p></td>
+<td id="9b58eb46"><p><code class="code ">List&lt;T&gt;</code></p></td>
+<td id="70b8088e"><p><code class="code ">MutableList&lt;T&gt;</code></p></td>
+<td id="8e30c152"><p><code class="code ">(Mutable)List&lt;T&gt;!</code></p></td>
+</tr>
+<tr class="" id="e01e567d">
+<td id="36efeb22"><p><code class="code ">ListIterator&lt;T&gt;</code></p></td>
+<td id="a8b07e2"><p><code class="code ">ListIterator&lt;T&gt;</code></p></td>
+<td id="be8c10bf"><p><code class="code ">MutableListIterator&lt;T&gt;</code></p></td>
+<td id="664450c4"><p><code class="code ">(Mutable)ListIterator&lt;T&gt;!</code></p></td>
+</tr>
+<tr class="" id="34abe4c6">
+<td id="56ebffc8"><p><code class="code ">Map&lt;K, V&gt;</code></p></td>
+<td id="d04a001b"><p><code class="code ">Map&lt;K, V&gt;</code></p></td>
+<td id="eb337b49"><p><code class="code ">MutableMap&lt;K, V&gt;</code></p></td>
+<td id="afcb9bee"><p><code class="code ">(Mutable)Map&lt;K, V&gt;!</code></p></td>
+</tr>
+<tr class="" id="39c2354a">
+<td id="2ea393ac"><p><code class="code ">Map.Entry&lt;K, V&gt;</code></p></td>
+<td id="5e88b59a"><p><code class="code ">Map.Entry&lt;K, V&gt;</code></p></td>
+<td id="257753a1"><p><code class="code ">MutableMap.MutableEntry&lt;K,V&gt;</code></p></td>
+<td id="5b5a7a8f"><p><code class="code ">(Mutable)Map.(Mutable)Entry&lt;K, V&gt;!</code></p></td>
+</tr>
+</tbody>
+</table></div>
+<p id="ef9982f0">Java's arrays are mapped as mentioned <a href="#java-arrays" id="931dd0f">below</a>:</p>
+<div class="table-wrapper"><table class=" wide" id="da360e22">
+<thead><tr class="ijRowHead" id="f2478f67">
+<th id="93d56b20"><p><b id="a1cc6432" class="">Java type</b></p></th>
+<th id="b654ff2c"><p><b id="dd7b1df3" class="">Kotlin type</b></p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="c953423">
+<td id="88e7c7e9"><p><code class="code ">int[]</code></p></td>
+<td id="827c2760"><p><code class="code ">kotlin.IntArray!</code></p></td>
+</tr>
+<tr class="" id="b4b75900">
+<td id="62477f3e"><p><code class="code ">String[]</code></p></td>
+<td id="5813be26"><p><code class="code ">kotlin.Array&lt;(out) String&gt;!</code></p></td>
+</tr>
+</tbody>
+</table></div>
+<aside data-type="note" class="prompt" data-title="" id="531ff69"><p id="628630f5">The static members of these Java types are not directly accessible on the <a href="object-declarations#companion-objects" id="aaa1333e">companion objects</a> of the Kotlin types. To call them, use the full qualified names of the Java types, e.g. <code class="code ">java.lang.Integer.toHexString(foo)</code>.</p></aside></section><section class="chapter"><h2 id="java-generics-in-kotlin" data-toc="java-interop#java-generics-in-kotlin">Java generics in Kotlin</h2>
+<p id="b15fdd00">Kotlin's generics are a little different from Java's (see <a href="generics" id="f55eae23">Generics</a>). When importing Java types to Kotlin, the following conversions are done:</p>
+<ul class="list _ul" id="4d864df5">
+<li class="list__item" id="861fdc6a">
+<p id="78b13928">Java's wildcards are converted into type projections:</p>
+<ul class="list _ul" id="d7f4669a">
+<li class="list__item" id="4d9d97d6"><p><code class="code ">Foo&lt;? extends Bar&gt;</code> becomes <code class="code ">Foo&lt;out Bar!&gt;!</code></p></li>
+<li class="list__item" id="c4885766"><p><code class="code ">Foo&lt;? super Bar&gt;</code> becomes <code class="code ">Foo&lt;in Bar!&gt;!</code></p></li>
+</ul>
+</li>
+<li class="list__item" id="d769e70e">
+<p id="359b8e84">Java's raw types are converted into star projections:</p>
+<ul class="list _ul" id="8e9bfb3e"><li class="list__item" id="e6b860a"><p><code class="code ">List</code> becomes <code class="code ">List&lt;*&gt;!</code> that is <code class="code ">List&lt;out Any?&gt;!</code></p></li></ul>
+</li>
+</ul>
+<p id="b72d180e">Like Java's, Kotlin's generics are not retained at runtime: objects do not carry information about actual type arguments passed to their constructors. For example, <code class="code ">ArrayList&lt;Integer&gt;()</code> is indistinguishable from <code class="code ">ArrayList&lt;Character&gt;()</code>. This makes it impossible to perform <code class="code ">is</code>-checks that take generics into account. Kotlin only allows <code class="code ">is</code>-checks for star-projected generic types:</p>
+<pre class="code" data-language="kotlin">if (a is List&lt;Int&gt;) // Error: cannot check if it is really a List of Ints
+// but
+if (a is List&lt;*&gt;) // OK: no guarantees about the contents of the list
+</pre></section><section class="chapter"><h2 id="java-arrays" data-toc="java-interop#java-arrays">Java arrays</h2>
+<p id="1718940c">Arrays in Kotlin are invariant, unlike Java. This means that Kotlin won't let you assign an <code class="code ">Array&lt;String&gt;</code> to an <code class="code ">Array&lt;Any&gt;</code>, which prevents a possible runtime failure. Passing an array of a subclass as an array of superclass to a Kotlin method is also prohibited, but for Java methods this is allowed through <a href="#null-safety-and-platform-types" id="96602369">platform types</a> of the form <code class="code ">Array&lt;(out) String&gt;!</code>.</p>
+<p id="a783175e">Arrays are used with primitive datatypes on the Java platform to avoid the cost of boxing/unboxing operations. As Kotlin hides those implementation details, a workaround is required to interface with Java code. There are specialized classes for every type of primitive array (<code class="code ">IntArray</code>, <code class="code ">DoubleArray</code>, <code class="code ">CharArray</code>, and so on) to handle this case. They are not related to the <code class="code ">Array</code> class and are compiled down to Java's primitive arrays for maximum performance.</p>
+<p id="9e32eeae">Suppose there is a Java method that accepts an int array of indices:</p>
+<pre class="code" data-language="java">public class JavaArrayExample {
+    public void removeIndices(int[] indices) {
+        // code here...
+    }
+}
+</pre>
+<p id="982f5686">To pass an array of primitive values, you can do the following in Kotlin:</p>
+<pre class="code" data-language="kotlin">val javaObj = JavaArrayExample()
+val array = intArrayOf(0, 1, 2, 3)
+javaObj.removeIndices(array)  // passes int[] to method
+</pre>
+<p id="cccc9548">When compiling to the JVM bytecode, the compiler optimizes access to arrays so that there's no overhead introduced:</p>
+<pre class="code" data-language="kotlin">val array = arrayOf(1, 2, 3, 4)
+array[1] = array[1] * 2 // no actual calls to get() and set() generated
+for (x in array) { // no iterator created
+    print(x)
+}
+</pre>
+<p id="d30cca85">Even when you navigate with an index, it does not introduce any overhead:</p>
+<pre class="code" data-language="kotlin">for (i in array.indices) { // no iterator created
+    array[i] += 2
+}
+</pre>
+<p id="8d78955d">Finally, <code class="code ">in</code>-checks have no overhead either:</p>
+<pre class="code" data-language="kotlin">if (i in array.indices) { // same as (i &gt;= 0 &amp;&amp; i &lt; array.size)
+    print(array[i])
+}
+</pre></section><section class="chapter"><h2 id="java-varargs" data-toc="java-interop#java-varargs">Java varargs</h2>
+<p id="59c7d5b3">Java classes sometimes use a method declaration for the indices with a variable number of arguments (varargs):</p>
+<pre class="code" data-language="java">public class JavaArrayExample {
+
+    public void removeIndicesVarArg(int... indices) {
+        // code here...
+    }
+}
+</pre>
+<p id="978141e9">In that case you need to use the spread operator <code class="code ">*</code> to pass the <code class="code ">IntArray</code>:</p>
+<pre class="code" data-language="kotlin">val javaObj = JavaArrayExample()
+val array = intArrayOf(0, 1, 2, 3)
+javaObj.removeIndicesVarArg(*array)
+</pre></section><section class="chapter"><h2 id="operators" data-toc="java-interop#operators">Operators</h2>
+<p id="3f83dc2f">Since Java has no way of marking methods for which it makes sense to use the operator syntax, Kotlin allows using any Java methods with the right name and signature as operator overloads and other conventions (<code class="code ">invoke()</code> etc.) Calling Java methods using the infix call syntax is not allowed.</p></section><section class="chapter"><h2 id="checked-exceptions" data-toc="java-interop#checked-exceptions">Checked exceptions</h2>
+<p id="28b0c07b">In Kotlin, all <a href="exceptions" id="fe6885ea">exceptions are unchecked</a>, meaning that the compiler does not force you to catch any of them. So, when you call a Java method that declares a checked exception, Kotlin does not force you to do anything:</p>
+<pre class="code" data-language="kotlin">fun render(list: List&lt;*&gt;, to: Appendable) {
+    for (item in list) {
+        to.append(item.toString()) // Java would require us to catch IOException here
+    }
+}
+</pre></section><section class="chapter"><h2 id="object-methods" data-toc="java-interop#object-methods">Object methods</h2>
+<p id="8b85780e">When Java types are imported into Kotlin, all the references of the type <code class="code ">java.lang.Object</code> are turned into <code class="code ">Any</code>. Since <code class="code ">Any</code> is not platform-specific, it only declares <code class="code ">toString()</code>, <code class="code ">hashCode()</code> and <code class="code ">equals()</code> as its members, so to make other members of <code class="code ">java.lang.Object</code> available, Kotlin uses <a href="extensions" id="883b3277">extension functions</a>.</p>
+<section class="chapter"><h3 id="wait-notify" data-toc="java-interop#wait-notify">wait()/notify()</h3>
+<p id="684148c2">Methods <code class="code ">wait()</code> and <code class="code ">notify()</code> are not available on references of type <code class="code ">Any</code>. Their usage is generally discouraged in favor of <code class="code ">java.util.concurrent</code>. If you really need to call these methods, you can cast to <code class="code ">java.lang.Object</code>:</p>
+<pre class="code" data-language="kotlin">(foo as java.lang.Object).wait()
+</pre></section><section class="chapter"><h3 id="getclass" data-toc="java-interop#getclass">getClass()</h3>
+<p id="31338b4d">To retrieve the Java class of an object, use the <code class="code ">java</code> extension property on a <a href="reflection#class-references" id="683f0bc7">class reference</a>:</p>
+<pre class="code" data-language="kotlin">val fooClass = foo::class.java
+</pre>
+<p id="7b9d1eee">The code above uses a <a href="reflection#bound-class-references" id="9c16e196">bound class reference</a>. You can also use the <code class="code ">javaClass</code> extension property:</p>
+<pre class="code" data-language="kotlin">val fooClass = foo.javaClass
+</pre></section><section class="chapter"><h3 id="clone" data-toc="java-interop#clone">clone()</h3>
+<p id="483ebc3a">To override <code class="code ">clone()</code>, your class needs to extend <code class="code ">kotlin.Cloneable</code>:</p>
+<pre class="code" data-language="kotlin">class Example : Cloneable {
+    override fun clone(): Any { ... }
+}
+</pre>
+<p id="6a2a9368">Don't forget about <a href="https://www.oracle.com/technetwork/java/effectivejava-136174.html" id="2c686fd3" data-external="true" rel="noopener noreferrer">Effective Java, 3rd Edition</a>, Item 13: <em id="7e6ec38" class="">Override clone judiciously</em>.</p></section><section class="chapter"><h3 id="finalize" data-toc="java-interop#finalize">finalize()</h3>
+<p id="ff9e0f98">To override <code class="code ">finalize()</code>, all you need to do is simply declare it, without using the <code class="code ">override</code> keyword:</p>
+<pre class="code" data-language="kotlin">class C {
+    protected fun finalize() {
+        // finalization logic
+    }
+}
+</pre>
+<p id="c85cbe46">According to Java's rules, <code class="code ">finalize()</code> must not be <code class="code ">private</code>.</p></section></section><section class="chapter"><h2 id="inheritance-from-java-classes" data-toc="java-interop#inheritance-from-java-classes">Inheritance from Java classes</h2>
+<p id="403989b4">At most one Java class (and as many Java interfaces as you like) can be a supertype for a class in Kotlin.</p></section><section class="chapter"><h2 id="accessing-static-members" data-toc="java-interop#accessing-static-members">Accessing static members</h2>
+<p id="82170a86">Static members of Java classes form "companion objects" for these classes. You can't pass such a "companion object" around as a value but can access the members explicitly, for example:</p>
+<pre class="code" data-language="kotlin">if (Character.isLetter(a)) { ... }
+</pre>
+<p id="7afdae78">To access static members of a Java type that is <a href="#mapped-types" id="8b15bf90">mapped</a> to a Kotlin type, use the full qualified name of the Java type: <code class="code ">java.lang.Integer.bitCount(foo)</code>.</p></section><section class="chapter"><h2 id="java-reflection" data-toc="java-interop#java-reflection">Java reflection</h2>
+<p id="35e088fa">Java reflection works on Kotlin classes and vice versa. As mentioned above, you can use <code class="code ">instance::class.java</code>, <code class="code ">ClassName::class.java</code> or <code class="code ">instance.javaClass</code> to enter Java reflection through <code class="code ">java.lang.Class</code>. Do not use <code class="code ">ClassName.javaClass</code> for this purpose because it refers to <code class="code ">ClassName</code>'s companion object class, which is the same as <code class="code ">ClassName.Companion::class.java</code> and not <code class="code ">ClassName::class.java</code>.</p>
+<p id="5453991">For each primitive type, there are two different Java classes, and Kotlin provides ways to get both. For example, <code class="code ">Int::class.java</code> will return the class instance representing the primitive type itself, corresponding to <code class="code ">Integer.TYPE</code> in Java. To get the class of the corresponding wrapper type, use <code class="code ">Int::class.javaObjectType</code>, which is equivalent of Java's <code class="code ">Integer.class</code>.</p>
+<p id="a7218a0d">Other supported cases include acquiring a Java getter/setter method or a backing field for a Kotlin property, a <code class="code ">KProperty</code> for a Java field, a Java method or constructor for a <code class="code ">KFunction</code> and vice versa.</p></section><section class="chapter"><h2 id="sam-conversions" data-toc="java-interop#sam-conversions">SAM conversions</h2>
+<p id="8abc4fc9">Kotlin supports SAM conversions for both Java and <a href="fun-interfaces" id="3bd2de5a">Kotlin interfaces</a>. This support for Java means that Kotlin function literals can be automatically converted into implementations of Java interfaces with a single non-default method, as long as the parameter types of the interface method match the parameter types of the Kotlin function.</p>
+<p id="5c72cd5c">You can use this for creating instances of SAM interfaces:</p>
+<pre class="code" data-language="kotlin">val runnable = Runnable { println("This runs in a runnable") }
+</pre>
+<p id="c19b1451">...and in method calls:</p>
+<pre class="code" data-language="kotlin">val executor = ThreadPoolExecutor()
+// Java signature: void execute(Runnable command)
+executor.execute { println("This runs in a thread pool") }
+</pre>
+<p id="f2a852ba">If the Java class has multiple methods taking functional interfaces, you can choose the one you need to call by using an adapter function that converts a lambda to a specific SAM type. Those adapter functions are also generated by the compiler when needed:</p>
+<pre class="code" data-language="kotlin">executor.execute(Runnable { println("This runs in a thread pool") })
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="86f17c0d"><p id="dcf95d5c">SAM conversions only work for interfaces, not for abstract classes, even if those also have just a single abstract method.</p></aside></section><section class="chapter"><h2 id="using-jni-with-kotlin" data-toc="java-interop#using-jni-with-kotlin">Using JNI with Kotlin</h2>
+<p id="371195a8">To declare a function that is implemented in native (C or C++) code, you need to mark it with the <code class="code ">external</code> modifier:</p>
+<pre class="code" data-language="kotlin">external fun foo(x: Int): Double
+</pre>
+<p id="5e7d78b6">The rest of the procedure works in exactly the same way as in Java.</p>
+<p id="9d8577bb">You can also mark property getters and setters as <code class="code ">external</code>:</p>
+<pre class="code" data-language="kotlin">var myProperty: String
+    external get
+    external set
+</pre>
+<p id="b23c55a7">Behind the scenes, this will create two functions <code class="code ">getMyProperty</code> and <code class="code ">setMyProperty</code>, both marked as <code class="code ">external</code>.</p></section><section class="chapter"><h2 id="using-lombok-generated-declarations-in-kotlin" data-toc="java-interop#using-lombok-generated-declarations-in-kotlin">Using Lombok-generated declarations in Kotlin</h2>
+<p id="3f946fa2">You can use Java's Lombok-generated declarations in Kotlin code. If you need to generate and use these declarations in the same mixed Java/Kotlin module, you can learn how to do this on the <a href="lombok" id="932d6c15">Lombok compiler plugin's page</a>. If you call such declarations from another module, then you don't need to use this plugin to compile that module.</p></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="comparison-to-java">Comparison to Java</a> <a class="navigation-links__next" href="java-to-kotlin-interop">Calling Kotlin from Java</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/java-interop.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/java-interop.html</a>
+  </p>
+</div>

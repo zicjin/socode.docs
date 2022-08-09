@@ -1,0 +1,161 @@
+<h1>WP_Scripts::do_item( string $handle, int|false $group = false )</h1>  <section> <p>Processes a script dependency.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <h3 id="see-also">See also</h3> <ul> <li><a href="../wp_dependencies/do_item">WP_Dependencies::do_item()</a></li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$handle</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The script's registered handle.</span> </p> </dd> <dt>$group</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>|<span class="false">false</span>)</span> <span class="required">(Optional)</span> <span class="description"> Group level: level (int), no groups (false). </span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> True on success, false on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-scripts.php/">wp-includes/class.wp-scripts.php</a> </p> <pre data-language="php">public function do_item( $handle, $group = false ) {
+		if ( ! parent::do_item( $handle ) ) {
+			return false;
+		}
+
+		if ( 0 === $group &amp;&amp; $this-&gt;groups[ $handle ] &gt; 0 ) {
+			$this-&gt;in_footer[] = $handle;
+			return false;
+		}
+
+		if ( false === $group &amp;&amp; in_array( $handle, $this-&gt;in_footer, true ) ) {
+			$this-&gt;in_footer = array_diff( $this-&gt;in_footer, (array) $handle );
+		}
+
+		$obj = $this-&gt;registered[ $handle ];
+
+		if ( null === $obj-&gt;ver ) {
+			$ver = '';
+		} else {
+			$ver = $obj-&gt;ver ? $obj-&gt;ver : $this-&gt;default_version;
+		}
+
+		if ( isset( $this-&gt;args[ $handle ] ) ) {
+			$ver = $ver ? $ver . '&amp;amp;' . $this-&gt;args[ $handle ] : $this-&gt;args[ $handle ];
+		}
+
+		$src         = $obj-&gt;src;
+		$cond_before = '';
+		$cond_after  = '';
+		$conditional = isset( $obj-&gt;extra['conditional'] ) ? $obj-&gt;extra['conditional'] : '';
+
+		if ( $conditional ) {
+			$cond_before = "&lt;!--[if {$conditional}]&gt;\n";
+			$cond_after  = "&lt;![endif]--&gt;\n";
+		}
+
+		$before_handle = $this-&gt;print_inline_script( $handle, 'before', false );
+		$after_handle  = $this-&gt;print_inline_script( $handle, 'after', false );
+
+		if ( $before_handle ) {
+			$before_handle = sprintf( "&lt;script%s id='%s-js-before'&gt;\n%s\n&lt;/script&gt;\n", $this-&gt;type_attr, esc_attr( $handle ), $before_handle );
+		}
+
+		if ( $after_handle ) {
+			$after_handle = sprintf( "&lt;script%s id='%s-js-after'&gt;\n%s\n&lt;/script&gt;\n", $this-&gt;type_attr, esc_attr( $handle ), $after_handle );
+		}
+
+		if ( $before_handle || $after_handle ) {
+			$inline_script_tag = $cond_before . $before_handle . $after_handle . $cond_after;
+		} else {
+			$inline_script_tag = '';
+		}
+
+		/*
+		 * Prevent concatenation of scripts if the text domain is defined
+		 * to ensure the dependency order is respected.
+		 */
+		$translations_stop_concat = ! empty( $obj-&gt;textdomain );
+
+		$translations = $this-&gt;print_translations( $handle, false );
+		if ( $translations ) {
+			$translations = sprintf( "&lt;script%s id='%s-js-translations'&gt;\n%s\n&lt;/script&gt;\n", $this-&gt;type_attr, esc_attr( $handle ), $translations );
+		}
+
+		if ( $this-&gt;do_concat ) {
+			/**
+			 * Filters the script loader source.
+			 *
+			 * @since 2.2.0
+			 *
+			 * @param string $src    Script loader source path.
+			 * @param string $handle Script handle.
+			 */
+			$srce = apply_filters( 'script_loader_src', $src, $handle );
+
+			if ( $this-&gt;in_default_dir( $srce ) &amp;&amp; ( $before_handle || $after_handle || $translations_stop_concat ) ) {
+				$this-&gt;do_concat = false;
+
+				// Have to print the so-far concatenated scripts right away to maintain the right order.
+				_print_scripts();
+				$this-&gt;reset();
+			} elseif ( $this-&gt;in_default_dir( $srce ) &amp;&amp; ! $conditional ) {
+				$this-&gt;print_code     .= $this-&gt;print_extra_script( $handle, false );
+				$this-&gt;concat         .= "$handle,";
+				$this-&gt;concat_version .= "$handle$ver";
+				return true;
+			} else {
+				$this-&gt;ext_handles .= "$handle,";
+				$this-&gt;ext_version .= "$handle$ver";
+			}
+		}
+
+		$has_conditional_data = $conditional &amp;&amp; $this-&gt;get_data( $handle, 'data' );
+
+		if ( $has_conditional_data ) {
+			echo $cond_before;
+		}
+
+		$this-&gt;print_extra_script( $handle );
+
+		if ( $has_conditional_data ) {
+			echo $cond_after;
+		}
+
+		// A single item may alias a set of items, by having dependencies, but no source.
+		if ( ! $src ) {
+			if ( $inline_script_tag ) {
+				if ( $this-&gt;do_concat ) {
+					$this-&gt;print_html .= $inline_script_tag;
+				} else {
+					echo $inline_script_tag;
+				}
+			}
+
+			return true;
+		}
+
+		if ( ! preg_match( '|^(https?:)?//|', $src ) &amp;&amp; ! ( $this-&gt;content_url &amp;&amp; 0 === strpos( $src, $this-&gt;content_url ) ) ) {
+			$src = $this-&gt;base_url . $src;
+		}
+
+		if ( ! empty( $ver ) ) {
+			$src = add_query_arg( 'ver', $ver, $src );
+		}
+
+		/** This filter is documented in wp-includes/class.wp-scripts.php */
+		$src = esc_url( apply_filters( 'script_loader_src', $src, $handle ) );
+
+		if ( ! $src ) {
+			return true;
+		}
+
+		$tag  = $translations . $cond_before . $before_handle;
+		$tag .= sprintf( "&lt;script%s src='%s' id='%s-js'&gt;&lt;/script&gt;\n", $this-&gt;type_attr, $src, esc_attr( $handle ) );
+		$tag .= $after_handle . $cond_after;
+
+		/**
+		 * Filters the HTML script tag of an enqueued script.
+		 *
+		 * @since 4.1.0
+		 *
+		 * @param string $tag    The `&lt;script&gt;` tag for the enqueued script.
+		 * @param string $handle The script's registered handle.
+		 * @param string $src    The script's source URL.
+		 */
+		$tag = apply_filters( 'script_loader_tag', $tag, $handle, $src );
+
+		if ( $this-&gt;do_concat ) {
+			$this-&gt;print_html .= $tag;
+		} else {
+			echo $tag;
+		}
+
+		return true;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class.wp-scripts.php:</span> <a href="print_translations">WP_Scripts::print_translations()</a> </td> <td class="related-desc"> <p>Prints translations set for a specific handle.</p> </td> </tr> <tr> <td> <span>wp-includes/class.wp-scripts.php:</span> <a href="print_inline_script">WP_Scripts::print_inline_script()</a> </td> <td class="related-desc"> <p>Prints inline scripts registered for a specific handle.</p> </td> </tr> <tr> <td> <span>wp-includes/class.wp-scripts.php:</span> <a href="../../hooks/script_loader_tag">script_loader_tag</a> </td> <td class="related-desc"> <p>Filters the HTML script tag of an enqueued script.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/add_query_arg">add_query_arg()</a> </td> <td class="related-desc"> <p>Retrieves a modified URL query string.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/class.wp-dependencies.php:</span> <a href="../wp_dependencies/do_item">WP_Dependencies::do_item()</a> </td> <td class="related-desc"> <p>Processes a dependency.</p> </td> </tr> <tr> <td> <span>wp-includes/class.wp-scripts.php:</span> <a href="in_default_dir">WP_Scripts::in_default_dir()</a> </td> <td class="related-desc"> <p>Whether a handle’s source is in a default directory.</p> </td> </tr> <tr> <td> <span>wp-includes/class.wp-scripts.php:</span> <a href="reset">WP_Scripts::reset()</a> </td> <td class="related-desc"> <p>Resets class properties.</p> </td> </tr> <tr> <td> <span>wp-includes/class.wp-scripts.php:</span> <a href="print_extra_script">WP_Scripts::print_extra_script()</a> </td> <td class="related-desc"> <p>Prints extra scripts of a registered script.</p> </td> </tr> <tr> <td> <span>wp-includes/class.wp-scripts.php:</span> <a href="../../hooks/script_loader_src">script_loader_src</a> </td> <td class="related-desc"> <p>Filters the script loader source.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.8.0/" alt="WordPress 2.8.0">2.8.0</a></td> <td><span class="since-description">Added the <code>$group</code> parameter.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.6.0/" alt="WordPress 2.6.0">2.6.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_scripts/do_item" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_scripts/do_item</a>
+  </p>
+</div>

@@ -1,0 +1,459 @@
+<h1 data-toc="whatsnew1620" id="whatsnew1620.md">What's new in Kotlin 1.6.20</h1>
+<p id="24d9be43"><em id="dc6651ca" class=""><a href="releases#release-details" id="8cc68173">Release date: 4 April 2022</a></em></p>
+<p id="364fbb5c">Kotlin 1.6.20 reveals previews of the future language features, makes the hierarchical structure the default for multiplatform projects, and brings evolutionary improvements to other components.</p>
+<p id="7daedcd3">You can also find a short overview of the changes in this video:</p>
+
+
+<section class="chapter"><h2 id="language" data-toc="whatsnew1620#language">Language</h2>
+<p id="4e14a864">In Kotlin 1.6.20, you can try two new language features:</p>
+<ul class="list _ul" id="5562453d">
+<li class="list__item" id="3f09512e"><p><a href="#prototype-of-context-receivers-for-kotlin-jvm" id="25543017">Prototype of context receivers for Kotlin/JVM</a></p></li>
+<li class="list__item" id="dbaf69"><p><a href="#definitely-non-nullable-types" id="e39d3b14">Definitely non-nullable types</a></p></li>
+</ul>
+<section class="chapter"><h3 id="prototype-of-context-receivers-for-kotlin-jvm" data-toc="whatsnew1620#prototype-of-context-receivers-for-kotlin-jvm">Prototype of context receivers for Kotlin/JVM</h3>
+<aside data-type="warning" class="prompt" data-title="" id="66b328d"><p id="161c1a33">The feature is a prototype available only for Kotlin/JVM. With <code class="code ">-Xcontext-receivers</code> enabled, the compiler will produce pre-release binaries that cannot be used in production code. Use context receivers only in your toy projects. We appreciate your feedback in <a href="https://youtrack.jetbrains.com/issues/KT" id="129a5c1d" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="ebdc994e">With Kotlin 1.6.20, you are no longer limited to having one receiver. If you need more, you can make functions, properties, and classes context-dependent (or <em id="c75e6b71" class="">contextual</em>) by adding context receivers to their declaration. A contextual declaration does the following:</p>
+<ul class="list _ul" id="30d3df82">
+<li class="list__item" id="7bafd9f7"><p>It requires all declared context receivers to be present in a caller's scope as implicit receivers.</p></li>
+<li class="list__item" id="947934c9"><p>It brings declared context receivers into its body scope as implicit receivers.</p></li>
+</ul>
+<pre class="code" data-language="kotlin">interface LoggingContext {
+    val log: Logger // This context provides a reference to a logger 
+}
+
+context(LoggingContext)
+fun startBusinessOperation() {
+    // You can access the log property since LoggingContext is an implicit receiver
+    log.info("Operation has started")
+}
+
+fun test(loggingContext: LoggingContext) {
+    with(loggingContext) {
+        // You need to have LoggingContext in a scope as an implicit receiver
+        // to call startBusinessOperation()
+        startBusinessOperation()
+    }
+}
+</pre>
+<p id="6f2e048a">To enable context receivers in your project, use the <code class="code ">-Xcontext-receivers</code> compiler option. You can find a detailed description of the feature and its syntax in the <a href="https://github.com/Kotlin/KEEP/blob/master/proposals/context-receivers.md#detailed-design" id="6d526263" data-external="true" rel="noopener noreferrer">KEEP</a>.</p>
+<p id="fb84aa07">Please note that the implementation is a prototype:</p>
+<ul class="list _ul" id="21cceca3">
+<li class="list__item" id="ced8ffc8"><p>With <code class="code ">-Xcontext-receivers</code> enabled, the compiler will produce pre-release binaries that cannot be used in production code</p></li>
+<li class="list__item" id="50a75eb6"><p>The IDE support for context receivers is minimal for now</p></li>
+</ul>
+<p id="31fde2aa">Try the feature in your toy projects and share your thoughts and experience with us in <a href="https://youtrack.jetbrains.com/issue/KT-42435" id="7144d20f" data-external="true" rel="noopener noreferrer">this YouTrack issue</a>. If you run into any problems, please <a href="https://kotl.in/issue" id="c0529f22" data-external="true" rel="noopener noreferrer">file a new issue</a>.</p></section><section class="chapter"><h3 id="definitely-non-nullable-types" data-toc="whatsnew1620#definitely-non-nullable-types">Definitely non-nullable types</h3>
+<aside data-type="warning" class="prompt" data-title="" id="8777b0dd"><p id="94106186">Definitely non-nullable types are in <a href="components-stability" id="fc87a9ae">Beta</a>. They are almost stable, but migration steps may be required in the future. We'll do our best to minimize any changes you have to make.</p></aside><p id="98d37931">To provide better interoperability when extending generic Java classes and interfaces, Kotlin 1.6.20 allows you to mark a generic type parameter as definitely non-nullable on the use site with the new syntax <code class="code ">T &amp; Any</code>. The syntactic form comes from a notation of <a href="https://en.wikipedia.org/wiki/Intersection_type" id="69815ed4" data-external="true" rel="noopener noreferrer">intersection types</a> and is now limited to a type parameter with nullable upper bounds on the left side of <code class="code ">&amp;</code> and non-nullable <code class="code ">Any</code> on the right side:</p>
+<pre class="code" data-language="kotlin">fun &lt;T&gt; elvisLike(x: T, y: T &amp; Any): T &amp; Any = x ?: y
+
+fun main() {
+    // OK
+    elvisLike&lt;String&gt;("", "").length
+    // Error: 'null' cannot be a value of a non-null type
+    elvisLike&lt;String&gt;("", null).length
+
+    // OK
+    elvisLike&lt;String?&gt;(null, "").length
+    // Error: 'null' cannot be a value of a non-null type
+    elvisLike&lt;String?&gt;(null, null).length
+}
+</pre>
+<p id="66be1bc6">Set the language version to <code class="code ">1.7</code> to enable the feature:</p>
+<div class="tabs" id="ec06d06c" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="88893245" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">kotlin {
+    sourceSets.all {
+        languageSettings.apply {
+            languageVersion = "1.7"
+        }
+    }
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="a611eb71" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">kotlin {
+    sourceSets.all {
+        languageSettings {
+            languageVersion = '1.7'
+        }
+    }
+}
+</pre></div>
+</div>
+<p id="59dfd5a0">Learn more about definitely non-nullable types in <a href="https://github.com/Kotlin/KEEP/blob/c72601cf35c1e95a541bb4b230edb474a6d1d1a8/proposals/definitely-non-nullable-types.md" id="27064464" data-external="true" rel="noopener noreferrer">the KEEP</a>.</p></section></section><section class="chapter"><h2 id="kotlin-jvm" data-toc="whatsnew1620#kotlin-jvm">Kotlin/JVM</h2>
+<p id="9882fa2">Kotlin 1.6.20 introduces:</p>
+<ul class="list _ul" id="97f79cf8">
+<li class="list__item" id="a5b5fc32"><p>Compatibility improvements of default methods in JVM interfaces: <a href="#new-jvmdefaultwithcompatibility-annotation-for-interfaces" id="ecbc7211">new <code class="code ">@JvmDefaultWithCompatibility</code> annotation for interfaces</a> and <a href="#compatibility-changes-in-the-xjvm-default-modes" id="fb22ebe6">compatibility changes in the <code class="code ">-Xjvm-default</code> modes</a></p></li>
+<li class="list__item" id="335aae4c"><p><a href="#support-for-parallel-compilation-of-a-single-module-in-the-jvm-backend" id="8317975b">Support for parallel compilation of a single module in the JVM backend</a></p></li>
+<li class="list__item" id="f279d843"><p><a href="#support-for-callable-references-to-functional-interface-constructors" id="7b68d87f">Support for callable references to functional interface constructors</a></p></li>
+</ul>
+<section class="chapter"><h3 id="new-jvmdefaultwithcompatibility-annotation-for-interfaces" data-toc="whatsnew1620#new-jvmdefaultwithcompatibility-annotation-for-interfaces">New @JvmDefaultWithCompatibility annotation for interfaces</h3>
+<p id="a15900f2">Kotlin 1.6.20 introduces the new annotation <a href="../api/latest/jvm/stdlib/kotlin.jvm/-jvm-default-with-compatibility/index" id="f56dffc4" data-external="true" rel="noopener noreferrer"><code class="code ">@JvmDefaultWithCompatibility</code></a>: use it along with the <code class="code ">-Xjvm-default=all</code> compiler option <a href="java-to-kotlin-interop#default-methods-in-interfaces" id="deb097d">to create the default method in JVM interface</a> for any non-abstract member in any Kotlin interface.</p>
+<p id="bf10edf0">If there are clients that use your Kotlin interfaces compiled without the <code class="code ">-Xjvm-default=all</code> option, they may be binary-incompatible with the code compiled with this option. Before Kotlin 1.6.20, to avoid this compatibility issue, the <a href="https://blog.jetbrains.com/kotlin/2020/07/kotlin-1-4-m3-generating-default-methods-in-interfaces/#JvmDefaultWithoutCompatibility" id="c5f72d3f" data-external="true" rel="noopener noreferrer">recommended approach</a> was to use the <code class="code ">-Xjvm-default=all-compatibility</code> mode and also the <code class="code ">@JvmDefaultWithoutCompatibility</code> annotation for interfaces that didn't need this type of compatibility.</p>
+<p id="23de3c60">This approach had some disadvantages:</p>
+<ul class="list _ul" id="7ebd7549">
+<li class="list__item" id="ac199cd2"><p>You could easily forget to add the annotation when a new interface was added.</p></li>
+<li class="list__item" id="9e804728"><p>Usually there are more interfaces in non-public parts than in the public API, so you end up having this annotation in many places in your code.</p></li>
+</ul>
+<p id="fedc7bca">Now, you can use the <code class="code ">-Xjvm-default=all</code> mode and mark interfaces with the <code class="code ">@JvmDefaultWithCompatibility</code> annotation. This allows you to add this annotation to all interfaces in the public API once, and you won't need to use any annotations for new non-public code.</p>
+<p id="62b6b55a">Leave your feedback about this new annotation in <a href="https://youtrack.jetbrains.com/issue/KT-48217" id="575843b5" data-external="true" rel="noopener noreferrer">this YouTrack ticket</a>.</p></section><section class="chapter"><h3 id="compatibility-changes-in-the-xjvm-default-modes" data-toc="whatsnew1620#compatibility-changes-in-the-xjvm-default-modes">Compatibility changes in the -Xjvm-default modes</h3>
+<p id="1b518575">Kotlin 1.6.20 adds the option to compile modules in the default mode (the <code class="code ">-Xjvm-default=disable</code> compiler option) against modules compiled with the <code class="code ">-Xjvm-default=all</code> or <code class="code ">-Xjvm-default=all-compatibility</code> modes. As before, compilations will also be successful if all modules have the <code class="code ">-Xjvm-default=all</code> or <code class="code ">-Xjvm-default=all-compatibility</code> modes. You can leave your feedback in this <a href="https://youtrack.jetbrains.com/issue/KT-47000" id="567d992d" data-external="true" rel="noopener noreferrer">YouTrack issue</a>.</p>
+<p id="56784b24">Kotlin 1.6.20 deprecates the <code class="code ">compatibility</code> and <code class="code ">enable</code> modes of the compiler option <code class="code ">-Xjvm-default</code>. There are changes in other modes' descriptions regarding the compatibility, but the overall logic remains the same. You can check out the <a href="java-to-kotlin-interop#compatibility-modes-for-default-methods" id="f9c02e4c">updated descriptions</a>.</p>
+<p id="90037df5">For more information about default methods in the Java interop, see the <a href="java-to-kotlin-interop#default-methods-in-interfaces" id="c8c13726">interoperability documentation</a> and <a href="https://blog.jetbrains.com/kotlin/2020/07/kotlin-1-4-m3-generating-default-methods-in-interfaces/" id="fea0146b" data-external="true" rel="noopener noreferrer">this blog post</a>.</p></section><section class="chapter"><h3 id="support-for-parallel-compilation-of-a-single-module-in-the-jvm-backend" data-toc="whatsnew1620#support-for-parallel-compilation-of-a-single-module-in-the-jvm-backend">Support for parallel compilation of a single module in the JVM backend</h3>
+<aside data-type="warning" class="prompt" data-title="" id="cc2ee345"><p id="c20c69b1">Support for parallel compilation of a single module in the JVM backend is <a href="components-stability" id="b87a896f">Experimental</a>. It may be dropped or changed at any time. Opt-in is required (see details below), and you should use it only for evaluation purposes. We would appreciate your feedback on it in <a href="https://youtrack.jetbrains.com/issue/KT-46085" id="e179ee47" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="950cd6fd">We are continuing our work to <a href="https://youtrack.jetbrains.com/issue/KT-46768" id="984c7829" data-external="true" rel="noopener noreferrer">improve the new JVM IR backend compilation time</a>. In Kotlin 1.6.20, we added the experimental JVM IR backend mode to compile all the files in a module in parallel. Parallel compilation can reduce the total compilation time by up to 15%.</p>
+<p id="fdf05f7b">Enable the experimental parallel backend mode with the <a href="compiler-reference#compiler-options" id="2209d365">compiler option</a> <code class="code ">-Xbackend-threads</code>. Use the following arguments for this option:</p>
+<ul class="list _ul" id="820deced">
+<li class="list__item" id="b9d10c6d"><p><code class="code ">N</code> is the number of threads you want to use. It should not be greater than your number of CPU cores; otherwise, parallelization stops being effective because of switching context between threads</p></li>
+<li class="list__item" id="f50cf5fb"><p><code class="code ">0</code> to use a separate thread for each CPU core</p></li>
+</ul>
+<p id="6c097cc6"><a href="gradle" id="81de019c">Gradle</a> can run tasks in parallel, but this type of parallelization doesn't help a lot when a project (or a major part of a project) is just one big task from Gradle's perspective. If you have a very big monolithic module, use parallel compilation to compile more quickly. If your project consists of lots of small modules and has a build parallelized by Gradle, adding another layer of parallelization may hurt performance because of context switching.</p>
+<aside data-type="note" class="prompt" data-title="" id="36c3aba9"><p id="db8e5891">Parallel compilation has some constraints:</p>
+<ul class="list _ul" id="fce4842e">
+<li class="list__item" id="720292f9"><p>It doesn't work with <a href="kapt" id="67518169">kapt</a> because kapt disables the IR backend</p></li>
+<li class="list__item" id="659c97c0"><p>It requires more JVM heap by design. The amount of heap is proportional to the number of threads</p></li>
+</ul></aside></section><section class="chapter"><h3 id="support-for-callable-references-to-functional-interface-constructors" data-toc="whatsnew1620#support-for-callable-references-to-functional-interface-constructors">Support for callable references to functional interface constructors</h3>
+<aside data-type="warning" class="prompt" data-title="" id="6faac374"><p id="46ec7c47">Support for callable references to functional interface constructors is <a href="components-stability" id="123a024c">Experimental</a>. It may be dropped or changed at any time. Opt-in is required (see details below), and you should use it only for evaluation purposes. We would appreciate your feedback on it in <a href="https://youtrack.jetbrains.com/issue/KT-47939" id="76f8a43" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="7a4c6ad3">Support for <a href="reflection#callable-references" id="72d035da">callable references</a> to functional interface constructors adds a source-compatible way to migrate from an interface with a constructor function to a <a href="fun-interfaces" id="7aecc748">functional interface</a>.</p>
+<p id="4c4b5212">Consider the following code:</p>
+<pre class="code" data-language="kotlin">interface Printer {
+    fun print()
+}
+
+fun Printer(block: () -&gt; Unit): Printer = object : Printer { override fun print() = block() }
+</pre>
+<p id="b4aad4d2">With callable references to functional interface constructors enabled, this code can be replaced with just a functional interface declaration:</p>
+<pre class="code" data-language="kotlin">fun interface Printer {
+    fun print()
+}
+</pre>
+<p id="c9145101">Its constructor will be created implicitly, and any code using the <code class="code ">::Printer</code> function reference will compile. For example:</p>
+<pre class="code" data-language="kotlin">documentsStorage.addPrinter(::Printer)
+</pre>
+<p id="d6280603">Preserve the binary compatibility by marking the legacy function <code class="code ">Printer</code> with the <a href="../api/latest/jvm/stdlib/kotlin/-deprecated/index" id="8e5af1c2" data-external="true" rel="noopener noreferrer"><code class="code ">@Deprecated</code></a> annotation with <code class="code ">DeprecationLevel.HIDDEN</code>:</p>
+<pre class="code" data-language="kotlin">@Deprecated(message = "Your message about the deprecation", level = DeprecationLevel.HIDDEN)
+fun Printer(...) {...}
+</pre>
+<p id="6dd5d97">Use the compiler option <code class="code ">-XXLanguage:+KotlinFunInterfaceConstructorReference</code> to enable this feature.</p></section></section><section class="chapter"><h2 id="kotlin-native" data-toc="whatsnew1620#kotlin-native">Kotlin/Native</h2>
+<p id="31df46f5">Kotlin/Native 1.6.20 marks continued development of its new components. We've taken another step toward consistent experience with Kotlin on other platforms:</p>
+<ul class="list _ul" id="c4c325ec">
+<li class="list__item" id="172394e4"><p><a href="#an-update-on-the-new-memory-manager" id="434375b0">An update on the new memory manager</a></p></li>
+<li class="list__item" id="b9294ad1"><p><a href="#concurrent-implementation-for-the-sweep-phase-in-new-memory-manager" id="964aa931">Concurrent implementation for the sweep phase in new memory manager</a></p></li>
+<li class="list__item" id="c468032d"><p><a href="#instantiation-of-annotation-classes" id="187ce72e">Instantiation of annotation classes</a></p></li>
+<li class="list__item" id="ab87dbc8"><p><a href="#interop-with-swift-async-await-returning-void-instead-of-kotlinunit" id="30658b73">Interop with Swift async/await: returning Swift's Void instead of KotlinUnit</a></p></li>
+<li class="list__item" id="9c239c9c"><p><a href="#better-stack-traces-with-libbacktrace" id="115efee3">Better stack traces with libbacktrace</a></p></li>
+<li class="list__item" id="82f0f91e"><p><a href="#support-for-standalone-android-executables" id="aa524360">Support for standalone Android executables</a></p></li>
+<li class="list__item" id="ea4c9565"><p><a href="#performance-improvements" id="f58aa5b8">Performance improvements</a></p></li>
+<li class="list__item" id="b3b78601"><p><a href="#improved-error-handling-during-cinterop-modules-import" id="628e657">Improved error handling during cinterop modules import</a></p></li>
+<li class="list__item" id="268b5fbf"><p><a href="#support-for-xcode-13-libraries" id="2481cabf">Support for Xcode 13 libraries</a></p></li>
+</ul>
+<section class="chapter"><h3 id="an-update-on-the-new-memory-manager" data-toc="whatsnew1620#an-update-on-the-new-memory-manager">An update on the new memory manager</h3>
+<aside data-type="note" class="prompt" data-title="" id="3c0e14ad"><p id="ac02ad20">The new Kotlin/Native memory manager is in <a href="components-stability" id="2535de0f">Alpha</a>. It may change incompatibly and require manual migration in the future. We would appreciate your feedback on it in <a href="https://youtrack.jetbrains.com/issue/KT-48525" id="90d81484" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="a883df34">With Kotlin 1.6.20, you can try the Alpha version of the new Kotlin/Native memory manager. It eliminates the differences between the JVM and Native platforms to provide a consistent developer experience in multiplatform projects. For example, you'll have a much easier time creating new cross-platform mobile applications that work on both Android and iOS.</p>
+<p id="e75ff765">The new Kotlin/Native memory manager lifts restrictions on object-sharing between threads. It also provides leak-free concurrent programming primitives that are safe and don't require any special management or annotations.</p>
+<p id="e9c91345">The new memory manager will become the default in future versions, so we encourage you to try it now. Check out our <a href="https://blog.jetbrains.com/kotlin/2021/08/try-the-new-kotlin-native-memory-manager-development-preview/" id="6acd3a9" data-external="true" rel="noopener noreferrer">blog post</a> to learn more about the new memory manager and explore demo projects, or jump right to the <a href="https://github.com/JetBrains/kotlin/blob/master/kotlin-native/NEW_MM.md" id="9e520881" data-external="true" rel="noopener noreferrer">migration instructions</a> to try it yourself.</p>
+<p id="9a269260">Try using the new memory manager on your projects to see how it works and share feedback in our issue tracker, <a href="https://youtrack.jetbrains.com/issue/KT-48525" id="96a2f586" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></section><section class="chapter"><h3 id="concurrent-implementation-for-the-sweep-phase-in-new-memory-manager" data-toc="whatsnew1620#concurrent-implementation-for-the-sweep-phase-in-new-memory-manager">Concurrent implementation for the sweep phase in new memory manager</h3>
+<p id="98390ab1">If you have already switched to our new memory manager, which was <a href="whatsnew16#preview-of-the-new-memory-manager" id="be4d6999">announced in Kotlin 1.6</a>, you might notice a huge execution time improvement: our benchmarks show 35% improvement on average. Starting with 1.6.20, there is also a concurrent implementation for the sweep phase available for the new memory manager. This should also improve the performance and decrease the duration of garbage collector pauses.</p>
+<p id="4eb136d5">To enable the feature for the new Kotlin/Native memory manager, pass the following compiler option:</p>
+<pre class="code" data-language="bash">-Xgc=cms 
+</pre>
+<p id="6c959f1b">Feel free to share your feedback on the new memory manager performance in this <a href="https://youtrack.jetbrains.com/issue/KT-48526" id="55d16f24" data-external="true" rel="noopener noreferrer">YouTrack issue</a>.</p></section><section class="chapter"><h3 id="instantiation-of-annotation-classes" data-toc="whatsnew1620#instantiation-of-annotation-classes">Instantiation of annotation classes</h3>
+<p id="3c847243">In Kotlin 1.6.0, instantiation of annotation classes became <a href="components-stability" id="fefc9948">Stable</a> for Kotlin/JVM and Kotlin/JS. The 1.6.20 version delivers support for Kotlin/Native.</p>
+<p id="c28b07b2">Learn more about <a href="annotations#instantiation" id="b53ccb2c">instantiation of annotation classes</a>.</p></section><section class="chapter"><h3 id="interop-with-swift-async-await-returning-void-instead-of-kotlinunit" data-toc="whatsnew1620#interop-with-swift-async-await-returning-void-instead-of-kotlinunit">Interop with Swift async/await: returning Void instead of KotlinUnit</h3>
+<aside data-type="warning" class="prompt" data-title="" id="fbcc6f55"><p id="da20de50">Concurrency interoperability with Swift async/await is <a href="components-stability" id="347d0c23">Experimental</a>. It may be dropped or changed at any time. You should use it only for evaluation purposes. We would appreciate your feedback on it in <a href="https://youtrack.jetbrains.com/issue/KT-47610" id="dde0ff23" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="7e0a519e">We've continued working on the <a href="whatsnew1530#experimental-interoperability-with-swift-5-5-async-await" id="f28f2c77">experimental interop with Swift's async/await</a> (available since Swift 5.5). Kotlin 1.6.20 differs from previous versions in the way it works with <code class="code ">suspend</code> functions with the <code class="code ">Unit</code> return type.</p>
+<p id="558f1886">Previously, such functions were presented in Swift as <code class="code ">async</code> functions returning <code class="code ">KotlinUnit</code>. However, the proper return type for them is <code class="code ">Void</code>, similar to non-suspending functions.</p>
+<p id="7ccd3d7e">To avoid breaking the existing code, we're introducing a Gradle property that makes the compiler translate <code class="code ">Unit</code>-returning suspend functions to <code class="code ">async</code> Swift with the <code class="code ">Void</code> return type:</p>
+<pre class="code" data-language="none"># gradle.properties
+kotlin.native.binary.unitSuspendFunctionObjCExport=proper
+</pre>
+<p id="6fed284d">We plan to make this behavior the default in future Kotlin releases.</p></section><section class="chapter"><h3 id="better-stack-traces-with-libbacktrace" data-toc="whatsnew1620#better-stack-traces-with-libbacktrace">Better stack traces with libbacktrace</h3>
+<aside data-type="warning" class="prompt" data-title="" id="35660e0f"><p id="e34afc7f">Using libbacktrace for resolving source locations is <a href="components-stability" id="a8869da0">Experimental</a>. It may be dropped or changed at any time. You should use it only for evaluation purposes. We would appreciate your feedback on it in <a href="https://youtrack.jetbrains.com/issue/KT-48424" id="f2addcd8" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="e9e8a7a1">Kotlin/Native is now able to produce detailed stack traces with file locations and line numbers for better debugging of <code class="code ">linux*</code> (except <code class="code ">linuxMips32</code> and <code class="code ">linuxMipsel32</code>) and <code class="code ">androidNative*</code> targets.</p>
+<p id="952e9389">This feature uses the <a href="https://github.com/ianlancetaylor/libbacktrace" id="f37956f8" data-external="true" rel="noopener noreferrer">libbacktrace</a> library under the hood. Take a look at the following code to see an example of the difference:</p>
+<pre class="code" data-language="kotlin">fun main() = bar()
+fun bar() = baz()
+inline fun baz() {
+    error("")
+}
+</pre>
+<ul class="list _ul" id="2419e488"><li class="list__item" id="595bd0a2"><p><b id="28b9b349" class="">Before 1.6.20:</b></p></li></ul>
+<div class="code-collapse" data-lang="plaintext" data-is-expanded="false" data-synopsis="Uncaught Kotlin exception: kotlin.IllegalStateException:">Uncaught Kotlin exception: kotlin.IllegalStateException: at 0 example.kexe 0x227190 kfun:kotlin.Throwable#&lt;init&gt;(kotlin.String?){} + 96 at 1 example.kexe 0x221e4c kfun:kotlin.Exception#&lt;init&gt;(kotlin.String?){} + 92 at 2 example.kexe 0x221f4c kfun:kotlin.RuntimeException#&lt;init&gt;(kotlin.String?){} + 92 at 3 example.kexe 0x22234c kfun:kotlin.IllegalStateException#&lt;init&gt;(kotlin.String?){} + 92 at 4 example.kexe 0x25d708 kfun:#bar(){} + 104 at 5 example.kexe 0x25d68c kfun:#main(){} + 12 </div>
+<ul class="list _ul" id="70072869"><li class="list__item" id="b897f04c"><p><b id="ece8be2b" class="">1.6.20 with libbacktrace:</b></p></li></ul>
+<div class="code-collapse" data-lang="plaintext" data-is-expanded="false" data-synopsis="Uncaught Kotlin exception: kotlin.IllegalStateException:">Uncaught Kotlin exception: kotlin.IllegalStateException: at 0 example.kexe 0x229550 kfun:kotlin.Throwable#&lt;init&gt;(kotlin.String?){} + 96 (/opt/buildAgent/work/c3a91df21e46e2c8/kotlin/kotlin-native/runtime/src/main/kotlin/kotlin/Throwable.kt:24:37) at 1 example.kexe 0x22420c kfun:kotlin.Exception#&lt;init&gt;(kotlin.String?){} + 92 (/opt/buildAgent/work/c3a91df21e46e2c8/kotlin/kotlin-native/runtime/src/main/kotlin/kotlin/Exceptions.kt:23:44) at 2 example.kexe 0x22430c kfun:kotlin.RuntimeException#&lt;init&gt;(kotlin.String?){} + 92 (/opt/buildAgent/work/c3a91df21e46e2c8/kotlin/kotlin-native/runtime/src/main/kotlin/kotlin/Exceptions.kt:34:44) at 3 example.kexe 0x22470c kfun:kotlin.IllegalStateException#&lt;init&gt;(kotlin.String?){} + 92 (/opt/buildAgent/work/c3a91df21e46e2c8/kotlin/kotlin-native/runtime/src/main/kotlin/kotlin/Exceptions.kt:70:44) at 4 example.kexe 0x25fac8 kfun:#bar(){} + 104 [inlined] (/opt/buildAgent/work/c3a91df21e46e2c8/kotlin/libraries/stdlib/src/kotlin/util/Preconditions.kt:143:56) at 5 example.kexe 0x25fac8 kfun:#bar(){} + 104 [inlined] (/private/tmp/backtrace/src/commonMain/kotlin/app.kt:4:5) at 6 example.kexe 0x25fac8 kfun:#bar(){} + 104 (/private/tmp/backtrace/src/commonMain/kotlin/app.kt:2:13) at 7 example.kexe 0x25fa4c kfun:#main(){} + 12 (/private/tmp/backtrace/src/commonMain/kotlin/app.kt:1:14) </div>
+<p id="2183e5f1">On Apple targets, which already had file locations and line numbers in stack traces, libbacktrace provides more details for inline function calls:</p>
+<ul class="list _ul" id="fdade98"><li class="list__item" id="80902e0f"><p><b id="5a13f53c" class="">Before 1.6.20:</b></p></li></ul>
+<div class="code-collapse" data-lang="plaintext" data-is-expanded="false" data-synopsis="Uncaught Kotlin exception: kotlin.IllegalStateException:">Uncaught Kotlin exception: kotlin.IllegalStateException: at 0 example.kexe 0x10a85a8f8 kfun:kotlin.Throwable#&lt;init&gt;(kotlin.String?){} + 88 (/opt/buildAgent/work/c3a91df21e46e2c8/kotlin/kotlin-native/runtime/src/main/kotlin/kotlin/Throwable.kt:24:37) at 1 example.kexe 0x10a855846 kfun:kotlin.Exception#&lt;init&gt;(kotlin.String?){} + 86 (/opt/buildAgent/work/c3a91df21e46e2c8/kotlin/kotlin-native/runtime/src/main/kotlin/kotlin/Exceptions.kt:23:44) at 2 example.kexe 0x10a855936 kfun:kotlin.RuntimeException#&lt;init&gt;(kotlin.String?){} + 86 (/opt/buildAgent/work/c3a91df21e46e2c8/kotlin/kotlin-native/runtime/src/main/kotlin/kotlin/Exceptions.kt:34:44) at 3 example.kexe 0x10a855c86 kfun:kotlin.IllegalStateException#&lt;init&gt;(kotlin.String?){} + 86 (/opt/buildAgent/work/c3a91df21e46e2c8/kotlin/kotlin-native/runtime/src/main/kotlin/kotlin/Exceptions.kt:70:44) at 4 example.kexe 0x10a8489a5 kfun:#bar(){} + 117 (/private/tmp/backtrace/src/commonMain/kotlin/app.kt:2:1) at 5 example.kexe 0x10a84891c kfun:#main(){} + 12 (/private/tmp/backtrace/src/commonMain/kotlin/app.kt:1:14) ... </div>
+<ul class="list _ul" id="91c960e8"><li class="list__item" id="978b5a14"><p><b id="ee734b47" class="">1.6.20 with libbacktrace:</b></p></li></ul>
+<div class="code-collapse" data-lang="plaintext" data-is-expanded="false" data-synopsis="Uncaught Kotlin exception: kotlin.IllegalStateException:">Uncaught Kotlin exception: kotlin.IllegalStateException: at 0 example.kexe 0x10669bc88 kfun:kotlin.Throwable#&lt;init&gt;(kotlin.String?){} + 88 (/opt/buildAgent/work/c3a91df21e46e2c8/kotlin/kotlin-native/runtime/src/main/kotlin/kotlin/Throwable.kt:24:37) at 1 example.kexe 0x106696bd6 kfun:kotlin.Exception#&lt;init&gt;(kotlin.String?){} + 86 (/opt/buildAgent/work/c3a91df21e46e2c8/kotlin/kotlin-native/runtime/src/main/kotlin/kotlin/Exceptions.kt:23:44) at 2 example.kexe 0x106696cc6 kfun:kotlin.RuntimeException#&lt;init&gt;(kotlin.String?){} + 86 (/opt/buildAgent/work/c3a91df21e46e2c8/kotlin/kotlin-native/runtime/src/main/kotlin/kotlin/Exceptions.kt:34:44) at 3 example.kexe 0x106697016 kfun:kotlin.IllegalStateException#&lt;init&gt;(kotlin.String?){} + 86 (/opt/buildAgent/work/c3a91df21e46e2c8/kotlin/kotlin-native/runtime/src/main/kotlin/kotlin/Exceptions.kt:70:44) at 4 example.kexe 0x106689d35 kfun:#bar(){} + 117 [inlined] (/opt/buildAgent/work/c3a91df21e46e2c8/kotlin/libraries/stdlib/src/kotlin/util/Preconditions.kt:143:56) &gt;&gt; at 5 example.kexe 0x106689d35 kfun:#bar(){} + 117 [inlined] (/private/tmp/backtrace/src/commonMain/kotlin/app.kt:4:5) at 6 example.kexe 0x106689d35 kfun:#bar(){} + 117 (/private/tmp/backtrace/src/commonMain/kotlin/app.kt:2:13) at 7 example.kexe 0x106689cac kfun:#main(){} + 12 (/private/tmp/backtrace/src/commonMain/kotlin/app.kt:1:14) ... </div>
+<p id="2db272b2">To produce better stack traces with libbacktrace, add the following line to <code class="code ">gradle.properties</code>:</p>
+<pre class="code" data-language="none"># gradle.properties
+kotlin.native.binary.sourceInfoType=libbacktrace
+</pre>
+<p id="dc15636e">Please tell us how debugging Kotlin/Native with libbacktrace works for you in <a href="https://youtrack.jetbrains.com/issue/KT-48424" id="f97f2a83" data-external="true" rel="noopener noreferrer">this YouTrack issue</a>.</p></section><section class="chapter"><h3 id="support-for-standalone-android-executables" data-toc="whatsnew1620#support-for-standalone-android-executables">Support for standalone Android executables</h3>
+<p id="f1a37643">Previously, Android Native executables in Kotlin/Native were not actually executables but shared libraries that you could use as a NativeActivity. Now there's an option to generate standard executables for Android Native targets.</p>
+<p id="2a2dd7b0">For that, in the <code class="code ">build.gradle(.kts)</code> part of your project, configure the executable block of your <code class="code ">androidNative</code> target. Add the following binary option:</p>
+<pre class="code" data-language="kotlin">kotlin {
+    androidNativeX64("android") {
+        binaries {
+            executable {
+                binaryOptions["androidProgramType"] = "standalone"
+            }
+        }
+    }
+}
+</pre>
+<p id="63df1335">Note that this feature will become the default in Kotlin 1.7.0. If you want to preserve the current behavior, use the following setting:</p>
+<pre class="code" data-language="kotlin">binaryOptions["androidProgramType"] = "nativeActivity"
+</pre>
+<p id="dc2de5c7">Thanks to Mattia Iavarone for the <a href="https://github.com/jetbrains/kotlin/pull/4624" id="6fa78579" data-external="true" rel="noopener noreferrer">implementation</a>!</p></section><section class="chapter"><h3 id="performance-improvements" data-toc="whatsnew1620#performance-improvements">Performance improvements</h3>
+<p id="63e27166">We are working hard on Kotlin/Native to <a href="https://youtrack.jetbrains.com/issue/KT-42294" id="a1b7fc15" data-external="true" rel="noopener noreferrer">speed up the compilation process</a> and improve your developing experience.</p>
+<p id="26022e72">Kotlin 1.6.20 brings some performance updates and bug fixes that affect the LLVM IR that Kotlin generates. According to the benchmarks on our internal projects, we achieved the following performance boosts on average:</p>
+<ul class="list _ul" id="d8f3ff5">
+<li class="list__item" id="9ce3a759"><p>15% reduction in execution time</p></li>
+<li class="list__item" id="643c509c"><p>20% reduction in the code size of both release and debug binaries</p></li>
+<li class="list__item" id="3affeb5f"><p>26% reduction in the compilation time of release binaries</p></li>
+</ul>
+<p id="1da4542d">These changes also provide a 10% reduction in compilation time for a debug binary on a large internal project.</p>
+<p id="b8d23aa9">To achieve this, we've implemented static initialization for some of the compiler-generated synthetic objects, improved the way we structure LLVM IR for every function, and optimized the compiler caches.</p></section><section class="chapter"><h3 id="improved-error-handling-during-cinterop-modules-import" data-toc="whatsnew1620#improved-error-handling-during-cinterop-modules-import">Improved error handling during cinterop modules import</h3>
+<p id="5c2ffd85">This release introduces improved error handling for cases where you import an Objective-C module using the <code class="code ">cinterop</code> tool (as is typical for CocoaPods pods). Previously, if you got an error while trying to work with an Objective-C module (for instance, when dealing with a compilation error in a header), you received an uninformative error message, such as <code class="code ">fatal error: could not build module $name</code>. We expanded upon this part of the <code class="code ">cinterop</code> tool, so you'll get an error message with an extended description.</p></section><section class="chapter"><h3 id="support-for-xcode-13-libraries" data-toc="whatsnew1620#support-for-xcode-13-libraries">Support for Xcode 13 libraries</h3>
+<p id="debfd730">Libraries delivered with Xcode 13 have full support as of this release. Feel free to access them from anywhere in your Kotlin code.</p></section></section><section class="chapter"><h2 id="kotlin-multiplatform" data-toc="whatsnew1620#kotlin-multiplatform">Kotlin Multiplatform</h2>
+<p id="ff089703">1.6.20 brings the following notable updates to Kotlin Multiplatform:</p>
+<ul class="list _ul" id="38295002">
+<li class="list__item" id="e163d07d"><p><a href="#hierarchical-structure-support-for-multiplatform-projects" id="b6c30b0a">Hierarchical structure support is now default for all new multiplatform projects</a></p></li>
+<li class="list__item" id="68184fe0"><p><a href="#kotlin-cocoapods-gradle-plugin" id="4558b05a">Kotlin CocoaPods Gradle plugin received several useful features for CocoaPods integration</a></p></li>
+</ul>
+<section class="chapter"><h3 id="hierarchical-structure-support-for-multiplatform-projects" data-toc="whatsnew1620#hierarchical-structure-support-for-multiplatform-projects">Hierarchical structure support for multiplatform projects</h3>
+<p id="afcc9eca">Kotlin 1.6.20 comes with hierarchical structure support enabled by default. Since <a href="whatsnew14#sharing-code-in-several-targets-with-the-hierarchical-project-structure" id="ccc049fd">introducing it in Kotlin 1.4.0</a>, we've significantly improved the frontend and made IDE import stable.</p>
+<p id="94de03c9">Previously, there were two ways to add code in a multiplatform project. The first was to insert it in a platform-specific source set, which is limited to one target and can't be reused by other platforms. The second is to use a common source set shared across all the platforms that are currently supported by Kotlin.</p>
+<p id="c1d2daaf">Now you can <a href="#better-code-sharing-in-your-project" id="ca3df357">share source code</a> among several similar native targets that reuse a lot of the common logic and third-party APIs. The technology will provide the correct default dependencies and find the exact API available in the shared code. This eliminates a complex build setup and having to use workarounds to get IDE support for sharing source sets among native targets. It also helps prevent unsafe API usages meant for a different target.</p>
+<p id="c59d016f">The technology will come in handy for <a href="#more-opportunities-for-library-authors" id="f3796816">library authors</a>, too, as a hierarchical project structure allows them to publish and consume libraries with common APIs for a subset of targets.</p>
+<p id="7f7c9ca2">By default, libraries published with the hierarchical project structure are compatible only with hierarchical structure projects. Learn more about <a href="multiplatform-hierarchy#compatibility" id="9e0a6781">project-library compatibility</a>.</p>
+<section class="chapter"><h4 id="better-code-sharing-in-your-project" data-toc="whatsnew1620#better-code-sharing-in-your-project">Better code-sharing in your project</h4>
+<p id="1b5412c0">Without hierarchical structure support, there is no straightforward way to share code across <em id="77327e47" class="">some</em> but not <em id="82f5b081" class="">all</em> <a href="multiplatform-dsl-reference#targets" id="c00f17a5">Kotlin targets</a>. One popular example is sharing code across all iOS targets and having access to iOS-specific <a href="multiplatform-share-on-platforms#use-native-libraries-in-the-hierarchical-structure" id="cb475fed">dependencies</a>, like <code class="code ">Foundation</code>.</p>
+<p id="1f5b20c3">Thanks to the hierarchical project structure support, you can now achieve this out of the box. In the new structure, source sets form a hierarchy. You can use platform-specific language features and dependencies available for each target that a given source set compiles to.</p>
+<p id="2dc3eae4">For example, consider a typical multiplatform project with two targets — <code class="code ">iosArm64</code> and <code class="code ">iosX64</code> for iOS devices and simulators. The Kotlin tooling understands that both targets have the same function and allows you to access that function from the intermediate source set, <code class="code ">iosMain</code>.</p>
+<figure class=" " id="d20ba6a6"><img alt="iOS hierarchy example" title="iOS hierarchy example" src="https://kotlinlang.org/docs/images/ios-hierarchy-example.jpg" class=" " width="700" height="312"></figure><p id="1ba21325">The Kotlin toolchain provides the correct default dependencies, like Kotlin/Native stdlib or native libraries. Moreover, Kotlin tooling will try its best to find exactly the API surface area available in the shared code. This prevents such cases as, for example, the use of a macOS-specific function in code shared for Windows.</p></section><section class="chapter"><h4 id="more-opportunities-for-library-authors" data-toc="whatsnew1620#more-opportunities-for-library-authors">More opportunities for library authors</h4>
+<p id="7e4092cd">When a multiplatform library is published, the API of its intermediate source sets is now properly published alongside it, making it available for consumers. Again, the Kotlin toolchain will automatically figure out the API available in the consumer source set while carefully watching out for unsafe usages, like using an API meant for the JVM in JS code. Learn more about <a href="multiplatform-share-on-platforms#share-code-in-libraries" id="aa835d8">sharing code in libraries</a>.</p></section><section class="chapter"><h4 id="configuration-and-setup" data-toc="whatsnew1620#configuration-and-setup">Configuration and setup</h4>
+<p id="320567f3">Starting with Kotlin 1.6.20, all your new multiplatform projects will have a hierarchical project structure. No additional setup is required.</p>
+<ul class="list _ul" id="9024095f">
+<li class="list__item" id="35e44dd3">
+<p id="9a6da304">If you've already <a href="multiplatform-share-on-platforms#share-code-on-similar-platforms" id="6d3b0d2a">turned it on manually</a>, you can remove the deprecated options from <code class="code ">gradle.properties</code>:</p>
+<pre class="code" data-language="none"># gradle.properties
+kotlin.mpp.enableGranularSourceSetsMetadata=true
+kotlin.native.enableDependencyPropagation=false // or 'true', depending on your previous setup
+</pre>
+</li>
+<li class="list__item" id="9a19e32d"><p id="dbf3b0bf">For Kotlin 1.6.20, we recommend using <a href="https://developer.android.com/studio" id="32065628" data-external="true" rel="noopener noreferrer">Android Studio 2021.1.1</a> (Bumblebee) or later to get the best experience.</p></li>
+<li class="list__item" id="a396c1b9">
+<p id="5e56114e">You can also opt-out. To disable hierarchical structure support, set the following options in<code class="code ">gradle.properties</code>:</p>
+<pre class="code" data-language="none"># gradle.properties
+kotlin.mpp.hierarchicalStructureSupport=false
+</pre>
+</li>
+</ul></section><section class="chapter"><h4 id="leave-your-feedback" data-toc="whatsnew1620#leave-your-feedback">Leave your feedback</h4>
+<p id="b874d84c">This is a significant change to the whole ecosystem. We would appreciate your feedback to help make it even better.</p>
+<p id="a3b8b411">Try it now and report any difficulties you encounter to <a href="https://kotl.in/issue" id="420ce385" data-external="true" rel="noopener noreferrer">our issue tracker</a>.</p></section></section><section class="chapter"><h3 id="kotlin-cocoapods-gradle-plugin" data-toc="whatsnew1620#kotlin-cocoapods-gradle-plugin">Kotlin CocoaPods Gradle plugin</h3>
+<p id="83692bb4">To simplify CocoaPods integration, Kotlin 1.6.20 delivers the following features:</p>
+<ul class="list _ul" id="9c94d92c">
+<li class="list__item" id="46f69eb9">
+<p id="bc378509">The CocoaPods plugin now has tasks that build XCFrameworks with all registered targets and generate the Podspec file. This can be useful when you don't want to integrate with Xcode directly, but you want to build artifacts and deploy them to your local CocoaPods repository.</p>
+<p id="d5f65eed">Learn more about <a href="multiplatform-build-native-binaries#build-xcframeworks" id="13757c7e">building XCFrameworks</a>.</p>
+</li>
+<li class="list__item" id="46c67c41">
+<p id="8a9a78f9">If you use <a href="native-cocoapods" id="fe5dd040">CocoaPods integration</a> in your projects, you're used to specifying the required Pod version for the entire Gradle project. Now you have more options:</p>
+<ul class="list _ul" id="43941a18">
+<li class="list__item" id="facf68c5"><p>Specify the Pod version directly in the <code class="code ">cocoapods</code> block</p></li>
+<li class="list__item" id="f788e66"><p>Continue using a Gradle project version</p></li>
+</ul>
+<p id="c77ad32">If none of these properties is configured, you'll get an error.</p>
+</li>
+<li class="list__item" id="1d9d3d21"><p id="4962b0a4">You can now configure the CocoaPod name in the <code class="code ">cocoapods</code> block instead of changing the name of the whole Gradle project.</p></li>
+<li class="list__item" id="22bbdf5e"><p id="5a1b70d7">The CocoaPods plugin introduces a new <code class="code ">extraSpecAttributes</code> property, which you can use to configure properties in a Podspec file that were previously hard-coded, like <code class="code ">libraries</code> or <code class="code ">vendored_frameworks</code>.</p></li>
+</ul>
+<pre class="code" data-language="kotlin">kotlin {
+    cocoapods {
+        version = "1.0"
+        name = "MyCocoaPod"
+        extraSpecAttributes["social_media_url"] = 'https://twitter.com/kotlin'
+        extraSpecAttributes["vendored_frameworks"] = 'CustomFramework.xcframework'
+        extraSpecAttributes["libraries"] = 'xml'
+    }
+}
+</pre>
+<p id="17631760">See the full Kotlin CocoaPods Gradle plugin <a href="native-cocoapods-dsl-reference" id="d3838514">DSL reference</a>.</p></section></section><section class="chapter"><h2 id="kotlin-js" data-toc="whatsnew1620#kotlin-js">Kotlin/JS</h2>
+<p id="36a17041">Kotlin/JS improvements in 1.6.20 mainly affect the IR compiler:</p>
+<ul class="list _ul" id="7d0d0d86">
+<li class="list__item" id="20678352"><p><a href="#incremental-compilation-for-development-binaries-with-ir-compiler" id="55abb4b7">Incremental compilation for development binaries (IR)</a></p></li>
+<li class="list__item" id="2bde2e74"><p><a href="#lazy-initialization-of-top-level-properties-by-default-with-ir-compiler" id="9ef2ec8c">Lazy initialization of top-level properties by default (IR)</a></p></li>
+<li class="list__item" id="d8f84804"><p><a href="#separate-js-files-for-project-modules-by-default-with-ir-compiler" id="cc8785a9">Separate JS files for project modules by default (IR)</a></p></li>
+<li class="list__item" id="ebe55ddd"><p><a href="#char-class-optimization" id="5b33e527">Char class optimization (IR)</a></p></li>
+<li class="list__item" id="49135a3e"><p><a href="#improvements-to-export-and-typescript-declaration-generation" id="bfdcd711">Export improvements (both IR and legacy backends)</a></p></li>
+<li class="list__item" id="63e36c1d"><p><a href="#aftertest-guarantees-for-asynchronous-tests" id="b37e7566">@AfterTest guarantees for asynchronous tests</a></p></li>
+</ul>
+<section class="chapter"><h3 id="incremental-compilation-for-development-binaries-with-ir-compiler" data-toc="whatsnew1620#incremental-compilation-for-development-binaries-with-ir-compiler">Incremental compilation for development binaries with IR compiler</h3>
+<p id="b25ca552">To make Kotlin/JS development with the IR compiler more efficient, we're introducing a new <em id="e6e8d8cb" class="">incremental compilation</em> mode.</p>
+<p id="9e87f20">When building <b id="d8676cce" class="">development binaries</b> with the <code class="code ">compileDevelopmentExecutableKotlinJs</code> Gradle task in this mode, the compiler caches the results of previous compilations on the module level. It uses the cached compilation results for unchanged source files during subsequent compilations, making them complete more quickly, especially with small changes. Note that this improvement exclusively targets the development process (shortening the edit-build-debug cycle) and doesn't affect the building of production artifacts.</p>
+<p id="aa6957f4">To enable incremental compilation for development binaries, add the following line to the project's <code class="code ">gradle.properties</code>:</p>
+<pre class="code" data-language="none"># gradle.properties
+kotlin.incremental.js.ir=true // false by default
+</pre>
+<p id="1b248a86">In our test projects, the new mode made incremental compilation up to 30% faster. However, the clean build in this mode became slower because of the need to create and populate the caches.</p>
+<p id="ad73ac8b">Please tell us what you think of using incremental compilation with your Kotlin/JS projects in <a href="https://youtrack.jetbrains.com/issue/KT-50203" id="fa1836ff" data-external="true" rel="noopener noreferrer">this YouTrack issue</a>.</p></section><section class="chapter"><h3 id="lazy-initialization-of-top-level-properties-by-default-with-ir-compiler" data-toc="whatsnew1620#lazy-initialization-of-top-level-properties-by-default-with-ir-compiler">Lazy initialization of top-level properties by default with IR compiler</h3>
+<p id="e885097">In Kotlin 1.4.30, we presented a prototype of <a href="whatsnew1430#lazy-initialization-of-top-level-properties" id="474b62e3">lazy initialization of top-level properties</a> in the JS IR compiler. By eliminating the need to initialize all properties when the application launches, lazy initialization reduces the startup time. Our measurements showed about a 10% speed-up on a real-life Kotlin/JS application.</p>
+<p id="ba1a5d55">Now, having polished and properly tested this mechanism, we're making lazy initialization the default for top-level properties in the IR compiler.</p>
+<pre class="code" data-language="kotlin">// lazy initialization
+val a = run {
+    val result = // intensive computations
+        println(result)
+    result
+} // run is executed upon the first usage of the variable
+</pre>
+<p id="78c13e7b">If for some reason you need to initialize a property eagerly (upon the application start), mark it with the <a href="../api/latest/jvm/stdlib/kotlin.native/-eager-initialization/index" id="4dbff5ba" data-external="true" rel="noopener noreferrer"><code class="code ">@EagerInitialization</code></a> annotation.</p></section><section class="chapter"><h3 id="separate-js-files-for-project-modules-by-default-with-ir-compiler" data-toc="whatsnew1620#separate-js-files-for-project-modules-by-default-with-ir-compiler">Separate JS files for project modules by default with IR compiler</h3>
+<p id="16ccc8a6">Previously, the JS IR compiler offered an <a href="https://youtrack.jetbrains.com/issue/KT-44319" id="a27bdbd6" data-external="true" rel="noopener noreferrer">ability to generate separate <code class="code ">.js</code> files</a> for project modules. This was an alternative to the default option – a single <code class="code ">.js</code> file for the whole project. This file might be too large and inconvenient to use, because whenever you want to use a function from your project, you have to include the entire JS file as a dependency. Having multiple files adds flexibility and decreases the size of such dependencies. This feature was available with the <code class="code ">-Xir-per-module</code> compiler option.</p>
+<p id="7dd7f27d">Starting from 1.6.20, the JS IR compiler generates separate <code class="code ">.js</code> files for project modules by default.</p>
+<p id="52974ae8">Compiling the project into a single <code class="code ">.js</code> file is now available with the following Gradle property:</p>
+<pre class="code" data-language="none"># gradle.properties
+kotlin.js.ir.output.granularity=whole-program // `per-module` is the default
+</pre>
+<p id="ded081a0">In previous releases, the experimental per-module mode (available via the <code class="code ">-Xir-per-module=true</code> flag) invoked <code class="code ">main()</code> functions in each module. This is inconsistent with the regular 'single .js' mode. Starting with 1.6.20, the <code class="code ">main()</code> function will be invoked in the main module only in both cases. If you do need to run some code when a module is loaded, you can use top-local properties annotated with the <code class="code ">@EagerInitialization</code> annotation. See <a href="#lazy-initialization-of-top-level-properties-by-default-with-ir-compiler" id="6f1c421b">Lazy initialization of top-level properties by default (IR)</a>.</p></section><section class="chapter"><h3 id="char-class-optimization" data-toc="whatsnew1620#char-class-optimization">Char class optimization</h3>
+<p id="50cd019f">The <code class="code ">Char</code> class is now handled by the Kotlin/JS compiler without introducing boxing (similar to <a href="inline-classes" id="a95b52fe">inline classes</a>). This speeds up operations on chars in Kotlin/JS code.</p>
+<p id="3d1feed3">Aside from the performance improvement, this changes the way <code class="code ">Char</code> is exported to JavaScript: it's now translated to <code class="code ">Number</code>.</p></section><section class="chapter"><h3 id="improvements-to-export-and-typescript-declaration-generation" data-toc="whatsnew1620#improvements-to-export-and-typescript-declaration-generation">Improvements to export and TypeScript declaration generation</h3>
+<p id="14acc5ef">Kotlin 1.6.20 is bringing multiple fixes and improvements to the export mechanism (the <a href="../api/latest/jvm/stdlib/kotlin.js/-js-export/index" id="9b4841f" data-external="true" rel="noopener noreferrer"><code class="code ">@JsExport</code></a> annotation), including the <a href="js-ir-compiler#preview-generation-of-typescript-declaration-files-d-ts" id="6c744f91">generation of TypeScript declarations (<code class="code ">.d.ts</code>)</a>. We've added the ability to export interfaces and enums, and we've fixed the export behavior in some corner cases that were reported to us previously. For more details, see the <a href="https://youtrack.jetbrains.com/issues?q=Project:%20Kotlin%20issue%20id:%20KT-45434,%20KT-44494,%20KT-37916,%20KT-43191,%20KT-46961,%20KT-40236" id="92e66106" data-external="true" rel="noopener noreferrer">list of export improvements in YouTrack</a>.</p>
+<p id="cefe2f43">Learn more about <a href="js-to-kotlin-interop" id="5eac34d5">using Kotlin code from JavaScript</a>.</p></section><section class="chapter"><h3 id="aftertest-guarantees-for-asynchronous-tests" data-toc="whatsnew1620#aftertest-guarantees-for-asynchronous-tests">@AfterTest guarantees for asynchronous tests</h3>
+<p id="72c059bf">Kotlin 1.6.20 makes <a href="https://kotlinlang.org/api/latest/kotlin.test/kotlin.test/-after-test/" id="e3f69399" data-external="true" rel="noopener noreferrer"><code class="code ">@AfterTest</code></a> functions work properly with asynchronous tests on Kotlin/JS. If a test function's return type is statically resolved to <a href="../api/latest/jvm/stdlib/kotlin.js/-promise/index" id="256cceb6" data-external="true" rel="noopener noreferrer"><code class="code ">Promise</code></a>, the compiler now schedules the execution of the <code class="code ">@AfterTest</code> function to the corresponding <a href="../api/latest/jvm/stdlib/kotlin.js/-promise/then" id="dc4bd09e" data-external="true" rel="noopener noreferrer"><code class="code ">then()</code></a> callback.</p></section></section><section class="chapter"><h2 id="security" data-toc="whatsnew1620#security">Security</h2>
+<p id="d0d7a014">Kotlin 1.6.20 introduces a couple of features to improve the security of your code:</p>
+<ul class="list _ul" id="9df621b8">
+<li class="list__item" id="38adaaa1"><p><a href="#using-relative-paths-in-klibs" id="7d5115d3">Using relative paths in klibs</a></p></li>
+<li class="list__item" id="ca13e692"><p><a href="#persisting-yarn-lock-for-kotlin-js-gradle-projects" id="841140ed">Persisting yarn.lock for Kotlin/JS Gradle projects</a></p></li>
+<li class="list__item" id="e9342ef8"><p><a href="#installation-of-npm-dependencies-with-ignore-scripts-by-default" id="35128d94">Installation of npm dependencies with <code class="code ">--ignore-scripts</code> by default</a></p></li>
+</ul>
+<section class="chapter"><h3 id="using-relative-paths-in-klibs" data-toc="whatsnew1620#using-relative-paths-in-klibs">Using relative paths in klibs</h3>
+<p id="78988b0b">A library in <code class="code ">klib</code> format <a href="native-libraries#library-format" id="e947033c">contains</a> a serialized IR representation of source files, which also includes their paths for generating proper debug information. Before Kotlin 1.6.20, stored file paths were absolute. Since the library author may not want to share absolute paths, the 1.6.20 version comes with an alternative option.</p>
+<p id="991f22de">If you are publishing a <code class="code ">klib</code> and want to use only relative paths of source files in the artifact, you can now pass the <code class="code ">-Xklib-relative-path-base</code> compiler option with one or multiple base paths of source files:</p>
+<div class="tabs" id="6e7620eb" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="fdf0d83a" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class).configureEach {
+    // $base is a base path of source files
+    kotlinOptions.freeCompilerArgs += "-Xklib-relative-path-base=$base"
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="ba6aae96" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    kotlinOptions {
+        // $base is a base path of source files
+        freeCompilerArgs += "-Xklib-relative-path-base=$base"
+    }
+}
+</pre></div>
+</div></section><section class="chapter"><h3 id="persisting-yarn-lock-for-kotlin-js-gradle-projects" data-toc="whatsnew1620#persisting-yarn-lock-for-kotlin-js-gradle-projects">Persisting yarn.lock for Kotlin/JS Gradle projects</h3>
+<aside data-type="note" class="prompt" data-title="" id="8be29e53"><p id="8bf13e7f">The feature was backported to Kotlin 1.6.10.</p></aside><p id="dd6aca7d">The Kotlin/JS Gradle plugin now provides an ability to persist the <code class="code ">yarn.lock</code> file, making it possible to lock the versions of the npm dependencies for your project without additional Gradle configuration. The feature brings changes to the default project structure by adding the auto-generated <code class="code ">kotlin-js-store</code> directory to the project root. It holds the <code class="code ">yarn.lock</code> file inside.</p>
+<p id="f6486ec">We strongly recommend committing the <code class="code ">kotlin-js-store</code> directory and its contents to your version control system. Committing lockfiles to your version control system is a <a href="https://classic.yarnpkg.com/blog/2016/11/24/lockfiles-for-all/" id="db3c40be" data-external="true" rel="noopener noreferrer">recommended practice</a> because it ensures your application is being built with the exact same dependency tree on all machines, regardless of whether those are development environments on other machines or CI/CD services. Lockfiles also prevent your npm dependencies from being silently updated when a project is checked out on a new machine, which is a security concern.</p>
+<p id="654b95fc">Tools like <a href="https://github.com/dependabot" id="f5a339db" data-external="true" rel="noopener noreferrer">Dependabot</a> can also parse the <code class="code ">yarn.lock</code> files of your Kotlin/JS projects, and provide you with warnings if any npm package you depend on is compromised.</p>
+<p id="35b994dd">If needed, you can change both directory and lockfile names in the build script:</p>
+<div class="tabs" id="145244f4" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="3faebbd6" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">rootProject.plugins.withType&lt;org.jetbrains.kotlin.gradle.targets.js.yarn.YarnPlugin&gt; {
+    rootProject.the&lt;org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootExtension&gt;().lockFileDirectory =
+        project.rootDir.resolve("my-kotlin-js-store")
+    rootProject.the&lt;org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootExtension&gt;().lockFileName = "my-yarn.lock"
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="a78c83bd" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">rootProject.plugins.withType(org.jetbrains.kotlin.gradle.targets.js.yarn.YarnPlugin) {
+    rootProject.extensions.getByType(org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootExtension).lockFileDirectory =
+        file("my-kotlin-js-store")
+    rootProject.extensions.getByType(org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootExtension).lockFileName = 'my-yarn.lock'
+}
+</pre></div>
+</div>
+<aside data-type="warning" class="prompt" data-title="" id="639735ef"><p id="604844cf">Changing the name of the lockfile may cause dependency inspection tools to no longer pick up the file.</p></aside></section><section class="chapter"><h3 id="installation-of-npm-dependencies-with-ignore-scripts-by-default" data-toc="whatsnew1620#installation-of-npm-dependencies-with-ignore-scripts-by-default">Installation of npm dependencies with --ignore-scripts by default</h3>
+<aside data-type="note" class="prompt" data-title="" id="799c23ac"><p id="40d291c7">The feature was backported to Kotlin 1.6.10.</p></aside><p id="125b5af6">The Kotlin/JS Gradle plugin now prevents the execution of <a href="https://docs.npmjs.com/cli/v8/using-npm/scripts#life-cycle-scripts" id="16b98b34" data-external="true" rel="noopener noreferrer">lifecycle scripts</a> during the installation of npm dependencies by default. The change is aimed at reducing the likelihood of executing malicious code from compromised npm packages.</p>
+<p id="c13f5945">To roll back to the old configuration, you can explicitly enable lifecycle scripts execution by adding the following lines to <code class="code ">build.gradle(.kts)</code>:</p>
+<div class="tabs" id="e2dc7fe7" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="bb5745c4" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">rootProject.plugins.withType&lt;org.jetbrains.kotlin.gradle.targets.js.yarn.YarnPlugin&gt; {
+    rootProject.the&lt;org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootExtension&gt;().ignoreScripts = false
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="95cc51da" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">rootProject.plugins.withType(org.jetbrains.kotlin.gradle.targets.js.yarn.YarnPlugin) {
+    rootProject.extensions.getByType(org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootExtension).ignoreScripts = false
+}
+</pre></div>
+</div>
+<p id="6a469fe4">Learn more about <a href="js-project-setup#npm-dependencies" id="5a1b621d">npm dependencies of a Kotlin/JS Gradle project</a>.</p></section></section><section class="chapter"><h2 id="gradle" data-toc="whatsnew1620#gradle">Gradle</h2>
+<p id="8529076c">Kotlin 1.6.20 brings the following changes for the Kotlin Gradle Plugin:</p>
+<ul class="list _ul" id="30b51f9e">
+<li class="list__item" id="a1c8f8a9"><p>New <a href="#properties-for-defining-kotlin-compiler-execution-strategy" id="478ed5e3">properties <code class="code ">kotlin.compiler.execution.strategy</code> and <code class="code ">compilerExecutionStrategy</code></a> for defining a Kotlin compiler execution strategy</p></li>
+<li class="list__item" id="cbd42cbf"><p><a href="#deprecation-of-build-options-for-kapt-and-coroutines" id="4543bd69">Deprecation of the options <code class="code ">kapt.use.worker.api</code>, <code class="code ">kotlin.experimental.coroutines</code>, and <code class="code ">kotlin.coroutines</code></a></p></li>
+<li class="list__item" id="e26f1d77"><p><a href="#removal-of-the-kotlin-parallel-tasks-in-project-build-option" id="4a5147ea">Removal of the <code class="code ">kotlin.parallel.tasks.in.project</code> build option</a></p></li>
+</ul>
+<section class="chapter"><h3 id="properties-for-defining-kotlin-compiler-execution-strategy" data-toc="whatsnew1620#properties-for-defining-kotlin-compiler-execution-strategy">Properties for defining Kotlin compiler execution strategy</h3>
+<p id="5d007f0a">Before Kotlin 1.6.20, you used the system property <code class="code ">-Dkotlin.compiler.execution.strategy</code> to define a Kotlin compiler execution strategy. This property might have been inconvenient in some cases. Kotlin 1.6.20 introduces a Gradle property with the same name, <code class="code ">kotlin.compiler.execution.strategy</code>, and the compile task property <code class="code ">compilerExecutionStrategy</code>.</p>
+<p id="559d3513">The system property still works, but it will be removed in future releases.</p>
+<p id="68cd5e2d">The current priority of properties is the following:</p>
+<ul class="list _ul" id="7cf08612">
+<li class="list__item" id="ca5b4bfd"><p>The task property <code class="code ">compilerExecutionStrategy</code> takes priority over the system property and the Gradle property <code class="code ">kotlin.compiler.execution.strategy</code>.</p></li>
+<li class="list__item" id="c4106d0b"><p>The Gradle property takes priority over the system property.</p></li>
+</ul>
+<p id="f516f3d">There are three compiler execution strategies that you can assign to these properties:</p>
+<div class="table-wrapper"><table class=" wide" id="a19af09b">
+<thead><tr class="ijRowHead" id="e0c78c01">
+<th id="d21918e5"><p>Strategy</p></th>
+<th id="c0b21c15"><p>Where Kotlin compiler is executed</p></th>
+<th id="bf30403b"><p>Incremental compilation</p></th>
+<th id="aa34483e"><p>Other characteristics</p></th>
+</tr></thead>
+<tbody>
+<tr class="" id="2abd1824">
+<td id="b7e82931"><p>Daemon</p></td>
+<td id="de7c9d57"><p>Inside its own daemon process</p></td>
+<td id="d9a721e3"><p>Yes</p></td>
+<td id="711c0898"><p><em id="6bca0ba6" class="">The default strategy</em>. Can be shared between different Gradle daemons</p></td>
+</tr>
+<tr class="" id="e0c741e0">
+<td id="c7a0715d"><p>In process</p></td>
+<td id="df119d75"><p>Inside the Gradle daemon process</p></td>
+<td id="9df3cc47"><p>No</p></td>
+<td id="902a56db"><p>May share the heap with the Gradle daemon</p></td>
+</tr>
+<tr class="" id="a7678c39">
+<td id="4eec63c3"><p>Out of process</p></td>
+<td id="763a7e37"><p>In a separate process for each call</p></td>
+<td id="b4b56967"><p>No</p></td>
+<td id="d3882fd5"><p>—</p></td>
+</tr>
+</tbody>
+</table></div>
+<p id="f0a1e8f8">Accordingly, the available values for <code class="code ">kotlin.compiler.execution.strategy</code> properties (both system and Gradle's) are:</p>
+<ol class="list _decimal" id="3dd3abfe">
+<li class="list__item" id="6faf635a"><p><code class="code ">daemon</code> (default)</p></li>
+<li class="list__item" id="45076662"><p><code class="code ">in-process</code></p></li>
+<li class="list__item" id="622004e9"><p><code class="code ">out-of-process</code></p></li>
+</ol>
+<p id="1976832d">Use the Gradle property <code class="code ">kotlin.compiler.execution.strategy</code> in <code class="code ">gradle.properties</code>:</p>
+<pre class="code" data-language="none"># gradle.properties
+kotlin.compiler.execution.strategy=out-of-process
+</pre>
+<p id="cbf49452">The available values for the <code class="code ">compilerExecutionStrategy</code> task property are:</p>
+<ol class="list _decimal" id="3a761b8f">
+<li class="list__item" id="452c60af"><p><code class="code ">org.jetbrains.kotlin.gradle.tasks.KotlinCompilerExecutionStrategy.DAEMON</code> (default)</p></li>
+<li class="list__item" id="8f368fd1"><p><code class="code ">org.jetbrains.kotlin.gradle.tasks.KotlinCompilerExecutionStrategy.IN_PROCESS</code></p></li>
+<li class="list__item" id="c8fbee62"><p><code class="code ">org.jetbrains.kotlin.gradle.tasks.KotlinCompilerExecutionStrategy.OUT_OF_PROCESS</code></p></li>
+</ol>
+<p id="eb86fb7d">Use the task property <code class="code ">compilerExecutionStrategy</code> in the <code class="code ">build.gradle.kts</code> buildscript:</p>
+<pre class="code" data-language="kotlin">import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilerExecutionStrategy
+
+// …
+
+tasks.withType&lt;KotlinCompile&gt;().configureEach {
+    compilerExecutionStrategy.set(KotlinCompilerExecutionStrategy.IN_PROCESS)
+}
+</pre>
+<p id="832d9503">Please leave your feedback in <a href="https://youtrack.jetbrains.com/issue/KT-49299" id="92e588c7" data-external="true" rel="noopener noreferrer">this YouTrack task</a>.</p></section><section class="chapter"><h3 id="deprecation-of-build-options-for-kapt-and-coroutines" data-toc="whatsnew1620#deprecation-of-build-options-for-kapt-and-coroutines">Deprecation of build options for kapt and coroutines</h3>
+<p id="1cfaa2b0">In Kotlin 1.6.20, we changed deprecation levels of the properties:</p>
+<ul class="list _ul" id="85bb5d23">
+<li class="list__item" id="c8f884d3">
+<p id="2ca3e8f0">We deprecated the ability to run <a href="kapt" id="c99d4eea">kapt</a> via the Kotlin daemon with <code class="code ">kapt.use.worker.api</code> – now it produces a warning to Gradle's output. By default, <a href="kapt#running-kapt-tasks-in-parallel" id="8eb6bbd9">kapt has been using Gradle workers</a> since the 1.3.70 release, and we recommend sticking to this method.</p>
+<p id="94a4f51d">We are going to remove the option <code class="code ">kapt.use.worker.api</code> in future releases.</p>
+</li>
+<li class="list__item" id="9c040ec1">
+<p id="36c59702">We deprecated the <code class="code ">kotlin.experimental.coroutines</code> Gradle DSL option and the <code class="code ">kotlin.coroutines</code> property used in <code class="code ">gradle.properties</code>. Just use <em id="4d6b6fd" class="">suspending functions</em> or <a href="gradle#set-a-dependency-on-a-kotlinx-library" id="cc983ac7">add the <code class="code ">kotlinx.coroutines</code> dependency</a> to your <code class="code ">build.gradle(.kts)</code> file.</p>
+<p id="17d51046">Learn more about coroutines in the <a href="coroutines-guide" id="ed2de0bd">Coroutines guide</a>.</p>
+</li>
+</ul></section><section class="chapter"><h3 id="removal-of-the-kotlin-parallel-tasks-in-project-build-option" data-toc="whatsnew1620#removal-of-the-kotlin-parallel-tasks-in-project-build-option">Removal of the kotlin.parallel.tasks.in.project build option</h3>
+<p id="65fcad8a">In Kotlin 1.5.20, we announced <a href="whatsnew1520#deprecation-of-the-kotlin-parallel-tasks-in-project-build-property" id="cc49a2d8">the deprecation of the build option <code class="code ">kotlin.parallel.tasks.in.project</code></a>. This option has been removed in Kotlin 1.6.20.</p>
+<p id="c7644654">Depending on the project, parallel compilation in the Kotlin daemon may require more memory. To reduce memory consumption, <a href="gradle#setting-kotlin-daemon-s-jvm-arguments" id="65dc2208">increase the heap size for the Kotlin daemon</a>.</p>
+<p id="5eaee060">Learn more about the <a href="gradle#compiler-options" id="25a72d60">currently supported compiler options</a> in the Kotlin Gradle plugin.</p></section></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="whatsnew17">What's new in Kotlin 1.7.0</a> <a class="navigation-links__next" href="whatsnew16">What's new in Kotlin 1.6.0</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/whatsnew1620.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/whatsnew1620.html</a>
+  </p>
+</div>

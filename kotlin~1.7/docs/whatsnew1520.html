@@ -1,0 +1,143 @@
+<h1 data-toc="whatsnew1520" id="whatsnew1520.md">What's new in Kotlin 1.5.20</h1>
+<p id="311a541e"><em id="494e3d7" class=""><a href="releases#release-details" id="b0a4e00b">Release date: 24 June 2021</a></em></p>
+<p id="cf7be4a9">Kotlin 1.5.20 has fixes for issues discovered in the new features of 1.5.0, and it also includes various tooling improvements.</p>
+<p id="c4586410">You can find an overview of the changes in the <a href="https://blog.jetbrains.com/kotlin/2021/06/kotlin-1-5-20-released/" id="993116f7" data-external="true" rel="noopener noreferrer">release blog post</a> and this video:</p>
+
+
+<section class="chapter"><h2 id="kotlin-jvm" data-toc="whatsnew1520#kotlin-jvm">Kotlin/JVM</h2>
+<p id="fa11c286">Kotlin 1.5.20 is receiving the following updates on the JVM platform:</p>
+<ul class="list _ul" id="870628eb">
+<li class="list__item" id="d950db1b"><p><a href="#string-concatenation-via-invokedynamic" id="72fda4df">String concatenation via invokedynamic</a></p></li>
+<li class="list__item" id="dc5bad65"><p><a href="#support-for-jspecify-nullness-annotations" id="d6b6372e">Support for JSpecify nullness annotations</a></p></li>
+<li class="list__item" id="a9fff08d"><p><a href="#support-for-calling-java-s-lombok-generated-methods-within-modules-that-have-kotlin-and-java-code" id="753b33e3">Support for calling Java’s Lombok-generated methods within modules that have Kotlin and Java code</a></p></li>
+</ul>
+<section class="chapter"><h3 id="string-concatenation-via-invokedynamic" data-toc="whatsnew1520#string-concatenation-via-invokedynamic">String concatenation via invokedynamic</h3>
+<p id="e923670d">Kotlin 1.5.20 compiles string concatenations into <a href="https://docs.oracle.com/javase/7/docs/technotes/guides/vm/multiple-language-support.html#invokedynamic" id="92f5c5f1" data-external="true" rel="noopener noreferrer">dynamic invocations</a> (<code class="code ">invokedynamic</code>) on JVM 9+ targets, thereby keeping up with modern Java versions. More precisely, it uses <a href="https://docs.oracle.com/javase/9/docs/api/java/lang/invoke/StringConcatFactory.html#makeConcatWithConstants-java.lang.invoke.MethodHandles.Lookup-java.lang.String-java.lang.invoke.MethodType-java.lang.String-java.lang.Object...-" id="d4914706" data-external="true" rel="noopener noreferrer"><code class="code ">StringConcatFactory.makeConcatWithConstants()</code></a> for string concatenation.</p>
+<p id="9cf434">To switch back to concatenation via <a href="https://docs.oracle.com/javase/9/docs/api/java/lang/StringBuilder.html#append-java.lang.String-" id="55353588" data-external="true" rel="noopener noreferrer"><code class="code ">StringBuilder.append()</code></a> used in previous versions, add the compiler option <code class="code ">-Xstring-concat=inline</code>.</p>
+<p id="be0c277e">Learn how to add compiler options in <a href="gradle#compiler-options" id="42a9fb2b">Gradle</a>, <a href="maven#specifying-compiler-options" id="124d04ed">Maven</a>, and the <a href="compiler-reference#compiler-options" id="c102e51a">command-line compiler</a>.</p></section><section class="chapter"><h3 id="support-for-jspecify-nullness-annotations" data-toc="whatsnew1520#support-for-jspecify-nullness-annotations">Support for JSpecify nullness annotations</h3>
+<p id="9d336c58">The Kotlin compiler can read various types of <a href="java-interop#nullability-annotations" id="f3273e03">nullability annotations</a> to pass nullability information from Java to Kotlin. Version 1.5.20 introduces support for the <a href="https://jspecify.dev/" id="c10d1213" data-external="true" rel="noopener noreferrer">JSpecify project</a>, which includes the standard unified set of Java nullness annotations.</p>
+<p id="8072994e">With JSpecify, you can provide more detailed nullability information to help Kotlin keep null-safety interoperating with Java. You can set default nullability for the declaration, package, or module scope, specify parametric nullability, and more. You can find more details about this in the <a href="https://jspecify.dev/user-guide.html" id="57cbe0d8" data-external="true" rel="noopener noreferrer">JSpecify user guide</a>.</p>
+<p id="df9c6d12">Here is the example of how Kotlin can handle JSpecify annotations:</p>
+<pre class="code" data-language="java">// JavaClass.java
+import org.jspecify.nullness.*;
+
+@NullMarked
+public class JavaClass {
+  public String notNullableString() { return ""; }
+  public @Nullable String nullableString() { return ""; }
+}
+</pre>
+<pre class="code" data-language="kotlin">// Test.kt
+fun kotlinFun() = with(JavaClass()) {
+  notNullableString().length // OK
+  nullableString().length    // Warning: receiver nullability mismatch
+}
+</pre>
+<p id="f324b47b">In 1.5.20, all nullability mismatches according to the JSpecify-provided nullability information are reported as warnings. Use the <code class="code ">-Xjspecify-annotations=strict</code> and <code class="code ">-Xtype-enhancement-improvements-strict-mode</code> compiler options to enable strict mode (with error reporting) when working with JSpecify. Please note that the JSpecify project is under active development. Its API and implementation can change significantly at any time.</p>
+<p id="378ce11"><a href="java-interop#null-safety-and-platform-types" id="f81fd138">Learn more about null-safety and platform types</a>.</p></section><section class="chapter"><h3 id="support-for-calling-java-s-lombok-generated-methods-within-modules-that-have-kotlin-and-java-code" data-toc="whatsnew1520#support-for-calling-java-s-lombok-generated-methods-within-modules-that-have-kotlin-and-java-code">Support for calling Java’s Lombok-generated methods within modules that have Kotlin and Java code</h3>
+<aside data-type="warning" class="prompt" data-title="" id="dbeb1f6e"><p id="3366ede8">The Lombok compiler plugin is <a href="components-stability" id="7b07567d">Experimental</a>. It may be dropped or changed at any time. Use it only for evaluation purposes. We would appreciate your feedback on it in <a href="https://youtrack.jetbrains.com/issue/KT-7112" id="492781d1" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="7db1891c">Kotlin 1.5.20 introduces an experimental <a href="lombok" id="71b8779">Lombok compiler plugin</a>. This plugin makes it possible to generate and use Java’s <a href="https://projectlombok.org/" id="5d65b6c9" data-external="true" rel="noopener noreferrer">Lombok</a> declarations within modules that have Kotlin and Java code. Lombok annotations work only in Java sources and are ignored if you use them in Kotlin code.</p>
+<p id="22a7a96b">The plugin supports the following annotations:</p>
+<ul class="list _ul" id="29bc978c">
+<li class="list__item" id="e7f27475"><p><code class="code ">@Getter</code>, <code class="code ">@Setter</code></p></li>
+<li class="list__item" id="2060cd74"><p><code class="code ">@NoArgsConstructor</code>, <code class="code ">@RequiredArgsConstructor</code>, and <code class="code ">@AllArgsConstructor</code></p></li>
+<li class="list__item" id="17d88b3d"><p><code class="code ">@Data</code></p></li>
+<li class="list__item" id="9cea1b11"><p><code class="code ">@With</code></p></li>
+<li class="list__item" id="aff151c1"><p><code class="code ">@Value</code></p></li>
+</ul>
+<p id="7c32500e">We're continuing to work on this plugin. To find out the detailed current state, visit the <a href="https://github.com/JetBrains/kotlin/blob/master/plugins/lombok/lombok-compiler-plugin/README.md" id="79e5f368" data-external="true" rel="noopener noreferrer">Lombok compiler plugin's README</a>.</p>
+<p id="203ed56">Currently, we don't have plans to support the <code class="code ">@Builder</code> annotation. However, we can consider this if you vote for <a href="https://youtrack.jetbrains.com/issue/KT-46959" id="5915a0f2" data-external="true" rel="noopener noreferrer"><code class="code ">@Builder</code> in YouTrack</a>.</p>
+<p id="8915cd0b"><a href="lombok#gradle" id="ace8613a">Learn how to configure the Lombok compiler plugin</a>.</p></section></section><section class="chapter"><h2 id="kotlin-native" data-toc="whatsnew1520#kotlin-native">Kotlin/Native</h2>
+<p id="3f27ffcb">Kotlin/Native 1.5.20 offers a preview of the new feature and the tooling improvements:</p>
+<ul class="list _ul" id="224f15df">
+<li class="list__item" id="750ebe10"><p><a href="#opt-in-export-of-kdoc-comments-to-generated-objective-c-headers" id="921a8130">Opt-in export of KDoc comments to generated Objective-C headers</a></p></li>
+<li class="list__item" id="87220a31"><p><a href="#compiler-bug-fixes" id="48276975">Compiler bug fixes</a></p></li>
+<li class="list__item" id="4a19ae95"><p><a href="#improved-performance-of-array-copyinto-inside-one-array" id="5b03aaa4">Improved performance of Array.copyInto() inside one array</a></p></li>
+</ul>
+<section class="chapter"><h3 id="opt-in-export-of-kdoc-comments-to-generated-objective-c-headers" data-toc="whatsnew1520#opt-in-export-of-kdoc-comments-to-generated-objective-c-headers">Opt-in export of KDoc comments to generated Objective-C headers</h3>
+<aside data-type="warning" class="prompt" data-title="" id="7f6ce41c"><p id="72dce000">The ability to export KDoc comments to generated Objective-C headers is <a href="components-stability" id="33473bef">Experimental</a>. It may be dropped or changed at any time. Opt-in is required (see the details below), and you should use it only for evaluation purposes. We would appreciate your feedback on it in <a href="https://youtrack.jetbrains.com/issue/KT-38600" id="663fbcb" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="b2acb42b">You can now set the Kotlin/Native compiler to export the <a href="kotlin-doc" id="ae2e1311">documentation comments (KDoc)</a> from Kotlin code to the Objective-C frameworks generated from it, making them visible to the frameworks’ consumers.</p>
+<p id="44912f6b">For example, the following Kotlin code with KDoc:</p>
+<pre class="code" data-language="kotlin">/**
+ * Prints the sum of the arguments.
+ * Properly handles the case when the sum doesn't fit in 32-bit integer.
+ */
+fun printSum(a: Int, b: Int) = println(a.toLong() + b)
+</pre>
+<p id="5cff9e04">produces the following Objective-C headers:</p>
+<pre class="code" data-language="objectivec">/**
+ * Prints the sum of the arguments.
+ * Properly handles the case when the sum doesn't fit in 32-bit integer.
+ */
++ (void)printSumA:(int32_t)a b:(int32_t)b __attribute__((swift_name("printSum(a:b:)")));
+</pre>
+<p id="37024620">This also works well with Swift.</p>
+<p id="9c33569">To try out this ability to export KDoc comments to Objective-C headers, use the <code class="code ">-Xexport-kdoc</code> compiler option. Add the following lines to <code class="code ">build.gradle(.kts)</code> of the Gradle projects you want to export comments from:</p>
+<div class="tabs" id="d20eff0b" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="51501198" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">kotlin {
+    targets.withType&lt;org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget&gt; {
+        compilations.get("main").kotlinOptions.freeCompilerArgs += "-Xexport-kdoc"
+    }
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="5eba114b" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">kotlin {
+    targets.withType(org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget) {
+        compilations.get("main").kotlinOptions.freeCompilerArgs += "-Xexport-kdoc"
+    }
+}
+</pre></div>
+</div>
+<p id="e56c38d1">We’d be very grateful if you would share your feedback with us using this <a href="https://youtrack.jetbrains.com/issue/KT-38600" id="80e21202" data-external="true" rel="noopener noreferrer">YouTrack ticket</a>.</p></section><section class="chapter"><h3 id="compiler-bug-fixes" data-toc="whatsnew1520#compiler-bug-fixes">Compiler bug fixes</h3>
+<p id="fd5ba644">The Kotlin/Native compiler has received multiple bug fixes in 1.5.20. You can find the complete list in the <a href="https://github.com/JetBrains/kotlin/releases/tag/v1.5.20" id="df7649af" data-external="true" rel="noopener noreferrer">changelog</a>.</p>
+<p id="a1416584">There is an important bug fix that affects compatibility: in previous versions, string constants that contained incorrect UTF <a href="https://en.wikipedia.org/wiki/Universal_Character_Set_characters#Surrogates" id="7cdf2ce9" data-external="true" rel="noopener noreferrer">surrogate pairs</a> were losing their values during compilation. Now such values are preserved. Application developers can safely update to 1.5.20 – nothing will break. However, libraries compiled with 1.5.20 are incompatible with earlier compiler versions. See <a href="https://youtrack.jetbrains.com/issue/KT-33175" id="b1743b0c" data-external="true" rel="noopener noreferrer">this YouTrack issue</a> for details.</p></section><section class="chapter"><h3 id="improved-performance-of-array-copyinto-inside-one-array" data-toc="whatsnew1520#improved-performance-of-array-copyinto-inside-one-array">Improved performance of Array.copyInto() inside one array</h3>
+<p id="b11d61bc">We’ve improved the way <code class="code ">Array.copyInto()</code> works when its source and destination are the same array. Now such operations finish up to 20 times faster (depending on the number of objects being copied) due to memory management optimizations for this use case.</p></section></section><section class="chapter"><h2 id="kotlin-js" data-toc="whatsnew1520#kotlin-js">Kotlin/JS</h2>
+<p id="8c7473a6">With 1.5.20, we’re publishing a guide that will help you migrate your projects to the new <a href="js-ir-compiler" id="1395792e">IR-based backend</a> for Kotlin/JS.</p>
+<section class="chapter"><h3 id="migration-guide-for-the-js-ir-backend" data-toc="whatsnew1520#migration-guide-for-the-js-ir-backend">Migration guide for the JS IR backend</h3>
+<p id="52f235ad">The new <a href="js-ir-migration" id="8cce7cb4">migration guide for the JS IR backend</a> identifies issues you may encounter during migration and provides solutions for them. If you find any issues that aren’t covered in the guide, please report them to our <a href="http://kotl.in/issue" id="ccefa00f" data-external="true" rel="noopener noreferrer">issue tracker</a>.</p></section></section><section class="chapter"><h2 id="gradle" data-toc="whatsnew1520#gradle">Gradle</h2>
+<p id="2b52c297">Kotlin 1.5.20 introduces the following features that can improve the Gradle experience:</p>
+<ul class="list _ul" id="85e7fbd1">
+<li class="list__item" id="db7cf3d7"><p><a href="#caching-for-annotation-processors-classloaders-in-kapt" id="b4751620">Caching for annotation processors classloaders in kapt</a></p></li>
+<li class="list__item" id="fdfc2604"><p><a href="#deprecation-of-the-kotlin-parallel-tasks-in-project-build-property" id="8f7729f7">Deprecation of the <code class="code ">kotlin.parallel.tasks.in.project</code> build property</a></p></li>
+</ul>
+<section class="chapter"><h3 id="caching-for-annotation-processors-classloaders-in-kapt" data-toc="whatsnew1520#caching-for-annotation-processors-classloaders-in-kapt">Caching for annotation processors' classloaders in kapt</h3>
+<aside data-type="warning" class="prompt" data-title="" id="72ddde02"><p id="dc74c71e">Caching for annotation processors' classloaders in kapt is <a href="components-stability" id="5bf92de2">Experimental</a>. It may be dropped or changed at any time. Use it only for evaluation purposes. We would appreciate your feedback on it in <a href="https://youtrack.jetbrains.com/issue/KT-28901" id="99d9a81" data-external="true" rel="noopener noreferrer">YouTrack</a>.</p></aside><p id="d351bf87">There is now a new experimental feature that makes it possible to cache the classloaders of annotation processors in <a href="kapt" id="1da65d57">kapt</a>. This feature can increase the speed of kapt for consecutive Gradle runs.</p>
+<p id="ddb8caa5">To enable this feature, use the following properties in your <code class="code ">gradle.properties</code> file:</p>
+<pre class="code" data-language="none"># positive value will enable caching
+# use the same value as the number of modules that use kapt
+kapt.classloaders.cache.size=5
+
+# disable for caching to work
+kapt.include.compile.classpath=false
+</pre>
+<p id="19cd2a11">Learn more about <a href="kapt" id="ffe04cf7">kapt</a>.</p></section><section class="chapter"><h3 id="deprecation-of-the-kotlin-parallel-tasks-in-project-build-property" data-toc="whatsnew1520#deprecation-of-the-kotlin-parallel-tasks-in-project-build-property">Deprecation of the kotlin.parallel.tasks.in.project build property</h3>
+<p id="181d16c9">With this release, Kotlin parallel compilation is controlled by the <a href="https://docs.gradle.org/current/userguide/performance.html#parallel_execution" id="1dbd77b6" data-external="true" rel="noopener noreferrer">Gradle parallel execution flag <code class="code ">--parallel</code></a>. Using this flag, Gradle executes tasks concurrently, increasing the speed of compiling tasks and utilizing the resources more efficiently.</p>
+<p id="30c027fb">You no longer need to use the <code class="code ">kotlin.parallel.tasks.in.project</code> property. This property has been deprecated and will be removed in the next major release.</p></section></section><section class="chapter"><h2 id="standard-library" data-toc="whatsnew1520#standard-library">Standard library</h2>
+<p id="2b0073ab">Kotlin 1.5.20 changes the platform-specific implementations of several functions for working with characters and as a result brings unification across platforms:</p>
+<ul class="list _ul" id="539667a3">
+<li class="list__item" id="af6381d0"><p><a href="#support-for-all-unicode-digits-in-char-digittoint-in-kotlin-native-and-kotlin-js" id="f1d51959">Support for all Unicode digits in Char.digitToInt() for Kotlin/Native and Kotlin/JS</a>.</p></li>
+<li class="list__item" id="bcac631e"><p><a href="#unification-of-char-islowercase-isuppercase-implementations-across-platforms" id="6bc1cbd6">Unification of Char.isLowerCase()/isUpperCase() implementations across platforms</a>.</p></li>
+</ul>
+<section class="chapter"><h3 id="support-for-all-unicode-digits-in-char-digittoint-in-kotlin-native-and-kotlin-js" data-toc="whatsnew1520#support-for-all-unicode-digits-in-char-digittoint-in-kotlin-native-and-kotlin-js">Support for all Unicode digits in Char.digitToInt() in Kotlin/Native and Kotlin/JS</h3>
+<p id="af171d15"><a href="../api/latest/jvm/stdlib/kotlin.text/digit-to-int" id="d84383a0" data-external="true" rel="noopener noreferrer"><code class="code ">Char.digitToInt()</code></a> returns the numeric value of the decimal digit that the character represents. Before 1.5.20, the function supported all Unicode digit characters only for Kotlin/JVM: implementations on the Native and JS platforms supported only ASCII digits.</p>
+<p id="a94fce2b">From now, both with Kotlin/Native and Kotlin/JS, you can call <code class="code ">Char.digitToInt()</code> on any Unicode digit character and get its numeric representation.</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val ten = '\u0661'.digitToInt() + '\u0039'.digitToInt() // ARABIC-INDIC DIGIT ONE + DIGIT NINE
+    println(ten)
+//sampleEnd
+}
+</pre></section><section class="chapter"><h3 id="unification-of-char-islowercase-isuppercase-implementations-across-platforms" data-toc="whatsnew1520#unification-of-char-islowercase-isuppercase-implementations-across-platforms">Unification of Char.isLowerCase()/isUpperCase() implementations across platforms</h3>
+<p id="5aefa47b">The functions <a href="../api/latest/jvm/stdlib/kotlin.text/is-upper-case" id="db3b6e94" data-external="true" rel="noopener noreferrer"><code class="code ">Char.isUpperCase()</code></a> and <a href="../api/latest/jvm/stdlib/kotlin.text/is-lower-case" id="4f6f0893" data-external="true" rel="noopener noreferrer"><code class="code ">Char.isLowerCase()</code></a> return a boolean value depending on the case of the character. For Kotlin/JVM, the implementation checks both the <code class="code ">General_Category</code> and the <code class="code ">Other_Uppercase</code>/<code class="code ">Other_Lowercase</code> <a href="https://en.wikipedia.org/wiki/Unicode_character_property" id="2d6b0a06" data-external="true" rel="noopener noreferrer">Unicode properties</a>.</p>
+<p id="6369fa31">Prior to 1.5.20, implementations for other platforms worked differently and considered only the general category. In 1.5.20, implementations are unified across platforms and use both properties to determine the character case:</p>
+<pre class="code" data-language="kotlin">fun main() {
+//sampleStart
+    val latinCapitalA = 'A' // has "Lu" general category
+    val circledLatinCapitalA = 'Ⓐ' // has "Other_Uppercase" property
+    println(latinCapitalA.isUpperCase() &amp;&amp; circledLatinCapitalA.isUpperCase())
+//sampleEnd
+}
+</pre></section></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="whatsnew1530">What's new in Kotlin 1.5.30</a> <a class="navigation-links__next" href="whatsnew15">What's new in Kotlin 1.5.0</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/whatsnew1520.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/whatsnew1520.html</a>
+  </p>
+</div>

@@ -1,0 +1,124 @@
+<h1>WP_Comments_List_Table::get_views()</h1>   <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-comments-list-table.php/">wp-admin/includes/class-wp-comments-list-table.php</a> </p> <pre data-language="php">protected function get_views() {
+		global $post_id, $comment_status, $comment_type;
+
+		$status_links = array();
+		$num_comments = ( $post_id ) ? wp_count_comments( $post_id ) : wp_count_comments();
+
+		$stati = array(
+			/* translators: %s: Number of comments. */
+			'all'       =&gt; _nx_noop(
+				'All &lt;span class="count"&gt;(%s)&lt;/span&gt;',
+				'All &lt;span class="count"&gt;(%s)&lt;/span&gt;',
+				'comments'
+			), // Singular not used.
+
+			/* translators: %s: Number of comments. */
+			'mine'      =&gt; _nx_noop(
+				'Mine &lt;span class="count"&gt;(%s)&lt;/span&gt;',
+				'Mine &lt;span class="count"&gt;(%s)&lt;/span&gt;',
+				'comments'
+			),
+
+			/* translators: %s: Number of comments. */
+			'moderated' =&gt; _nx_noop(
+				'Pending &lt;span class="count"&gt;(%s)&lt;/span&gt;',
+				'Pending &lt;span class="count"&gt;(%s)&lt;/span&gt;',
+				'comments'
+			),
+
+			/* translators: %s: Number of comments. */
+			'approved'  =&gt; _nx_noop(
+				'Approved &lt;span class="count"&gt;(%s)&lt;/span&gt;',
+				'Approved &lt;span class="count"&gt;(%s)&lt;/span&gt;',
+				'comments'
+			),
+
+			/* translators: %s: Number of comments. */
+			'spam'      =&gt; _nx_noop(
+				'Spam &lt;span class="count"&gt;(%s)&lt;/span&gt;',
+				'Spam &lt;span class="count"&gt;(%s)&lt;/span&gt;',
+				'comments'
+			),
+
+			/* translators: %s: Number of comments. */
+			'trash'     =&gt; _nx_noop(
+				'Trash &lt;span class="count"&gt;(%s)&lt;/span&gt;',
+				'Trash &lt;span class="count"&gt;(%s)&lt;/span&gt;',
+				'comments'
+			),
+		);
+
+		if ( ! EMPTY_TRASH_DAYS ) {
+			unset( $stati['trash'] );
+		}
+
+		$link = admin_url( 'edit-comments.php' );
+
+		if ( ! empty( $comment_type ) &amp;&amp; 'all' !== $comment_type ) {
+			$link = add_query_arg( 'comment_type', $comment_type, $link );
+		}
+
+		foreach ( $stati as $status =&gt; $label ) {
+			$current_link_attributes = '';
+
+			if ( $status === $comment_status ) {
+				$current_link_attributes = ' class="current" aria-current="page"';
+			}
+
+			if ( 'mine' === $status ) {
+				$current_user_id    = get_current_user_id();
+				$num_comments-&gt;mine = get_comments(
+					array(
+						'post_id' =&gt; $post_id ? $post_id : 0,
+						'user_id' =&gt; $current_user_id,
+						'count'   =&gt; true,
+					)
+				);
+				$link               = add_query_arg( 'user_id', $current_user_id, $link );
+			} else {
+				$link = remove_query_arg( 'user_id', $link );
+			}
+
+			if ( ! isset( $num_comments-&gt;$status ) ) {
+				$num_comments-&gt;$status = 10;
+			}
+
+			$link = add_query_arg( 'comment_status', $status, $link );
+
+			if ( $post_id ) {
+				$link = add_query_arg( 'p', absint( $post_id ), $link );
+			}
+
+			/*
+			// I toyed with this, but decided against it. Leaving it in here in case anyone thinks it is a good idea. ~ Mark
+			if ( !empty( $_REQUEST['s'] ) )
+				$link = add_query_arg( 's', esc_attr( wp_unslash( $_REQUEST['s'] ) ), $link );
+			*/
+
+			$status_links[ $status ] = "&lt;a href='$link'$current_link_attributes&gt;" . sprintf(
+				translate_nooped_plural( $label, $num_comments-&gt;$status ),
+				sprintf(
+					'&lt;span class="%s-count"&gt;%s&lt;/span&gt;',
+					( 'moderated' === $status ) ? 'pending' : $status,
+					number_format_i18n( $num_comments-&gt;$status )
+				)
+			) . '&lt;/a&gt;';
+		}
+
+		/**
+		 * Filters the comment status links.
+		 *
+		 * @since 2.5.0
+		 * @since 5.1.0 The 'Mine' link was added.
+		 *
+		 * @param string[] $status_links An associative array of fully-formed comment status links. Includes 'All', 'Mine',
+		 *                              'Pending', 'Approved', 'Spam', and 'Trash'.
+		 */
+		return apply_filters( 'comment_status_links', $status_links );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-comments-list-table.php:</span> <a href="../../hooks/comment_status_links">comment_status_links</a> </td> <td class="related-desc"> <p>Filters the comment status links.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/_nx_noop">_nx_noop()</a> </td> <td class="related-desc"> <p>Registers plural strings with gettext context in POT file, but does not translate them.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/translate_nooped_plural">translate_nooped_plural()</a> </td> <td class="related-desc"> <p>Translates and retrieves the singular or plural form of a string that’s been registered with <a href="../../functions/_n_noop">_n_noop()</a> or <a href="../../functions/_nx_noop">_nx_noop()</a>.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/absint">absint()</a> </td> <td class="related-desc"> <p>Convert a value to non-negative integer.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/add_query_arg">add_query_arg()</a> </td> <td class="related-desc"> <p>Retrieves a modified URL query string.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/remove_query_arg">remove_query_arg()</a> </td> <td class="related-desc"> <p>Removes an item or items from a query string.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/number_format_i18n">number_format_i18n()</a> </td> <td class="related-desc"> <p>Convert float number to format based on the locale.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="../../functions/admin_url">admin_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the admin area for the current site.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="../../functions/get_current_user_id">get_current_user_id()</a> </td> <td class="related-desc"> <p>Gets the current user’s ID.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../../functions/wp_count_comments">wp_count_comments()</a> </td> <td class="related-desc"> <p>Retrieves the total comment counts for the whole site or a single post.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../../functions/get_comments">get_comments()</a> </td> <td class="related-desc"> <p>Retrieves a list of comments.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_comments_list_table/get_views" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_comments_list_table/get_views</a>
+  </p>
+</div>

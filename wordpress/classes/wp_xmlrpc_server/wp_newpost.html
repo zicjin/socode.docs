@@ -1,0 +1,74 @@
+<h1>wp_xmlrpc_server::wp_newPost( array $args )</h1>  <section> <p>Create a new post for any registered post type.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Method arguments. Note: top-level arguments must be ordered as documented. <ul class="param-hash">
+<li>
+<b>'blog_id'</b><br><i><span class="type">(int)</span></i> Blog ID (unused).</li> <li>
+<b>'username'</b><br><i><span class="type">(string)</span></i> Username.</li> <li>
+<b>'password'</b><br><i><span class="type">(string)</span></i> Password.</li> <li>
+<b>'content_struct'</b><br><i><span class="type">(array)</span></i> Content struct for adding a new post. See <a href="../../functions/wp_insert_post">wp_insert_post()</a> for information on additional post fields<ul class="param-hash"> <li>
+<b>'post_type'</b><br><i><span class="type">(string)</span></i> Post type. Default 'post'.</li> <li>
+<b>'post_status'</b><br><i><span class="type">(string)</span></i> Post status. Default 'draft'</li> <li>
+<b>'post_title'</b><br><i><span class="type">(string)</span></i> Post title.</li> <li>
+<b>'post_author'</b><br><i><span class="type">(int)</span></i> Post author ID.</li> <li>
+<b>'post_excerpt'</b><br><i><span class="type">(string)</span></i> Post excerpt.</li> <li>
+<b>'post_content'</b><br><i><span class="type">(string)</span></i> Post content.</li> <li>
+<b>'post_date_gmt'</b><br><i><span class="type">(string)</span></i> Post date in GMT.</li> <li>
+<b>'post_date'</b><br><i><span class="type">(string)</span></i> Post date.</li> <li>
+<b>'post_password'</b><br><i><span class="type">(string)</span></i> Post password (20-character limit).</li> <li>
+<b>'comment_status'</b><br><i><span class="type">(string)</span></i> Post comment enabled status. Accepts 'open' or 'closed'.</li> <li>
+<b>'ping_status'</b><br><i><span class="type">(string)</span></i> Post ping status. Accepts 'open' or 'closed'.</li> <li>
+<b>'sticky'</b><br><i><span class="type">(bool)</span></i> Whether the post should be sticky. Automatically false if <code>$post_status</code> is 'private'.</li> <li>
+<b>'post_thumbnail'</b><br><i><span class="type">(int)</span></i> ID of an image to use as the post thumbnail/featured image.</li> <li>
+<b>'custom_fields'</b><br><i><span class="type">(array)</span></i> Array of meta key/value pairs to add to the post.</li> <li>
+<b>'terms'</b><br><i><span class="type">(array)</span></i> Associative array with taxonomy names as keys and arrays of term IDs as values.</li> <li>
+<b>'terms_names'</b><br><i><span class="type">(array)</span></i> Associative array with taxonomy names as keys and arrays of term names as values.</li> <li>
+<b>'enclosure'</b><br><i><span class="type">(array)</span></i> Array of feed enclosure data to add to post meta.<ul class="param-hash"> <li>
+<b>'url'</b><br><i><span class="type">(string)</span></i> URL for the feed enclosure.</li> <li>
+<b>'length'</b><br><i><span class="type">(int)</span></i> Size in bytes of the enclosure.</li> <li>
+<b>'type'</b><br><i><span class="type">(string)</span></i> Mime-type for the enclosure. } </li>
+</ul> </li> </ul>
+</li>
+</ul> </span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(int|<a href="../ixr_error">IXR_Error</a>)</span> Post ID on success, <a href="../ixr_error">IXR_Error</a> instance otherwise.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-xmlrpc-server.php/">wp-includes/class-wp-xmlrpc-server.php</a> </p> <pre data-language="php">public function wp_newPost( $args ) {
+		if ( ! $this-&gt;minimum_args( $args, 4 ) ) {
+			return $this-&gt;error;
+		}
+
+		$this-&gt;escape( $args );
+
+		$username       = $args[1];
+		$password       = $args[2];
+		$content_struct = $args[3];
+
+		$user = $this-&gt;login( $username, $password );
+		if ( ! $user ) {
+			return $this-&gt;error;
+		}
+
+		// Convert the date field back to IXR form.
+		if ( isset( $content_struct['post_date'] ) &amp;&amp; ! ( $content_struct['post_date'] instanceof IXR_Date ) ) {
+			$content_struct['post_date'] = $this-&gt;_convert_date( $content_struct['post_date'] );
+		}
+
+		/*
+		 * Ignore the existing GMT date if it is empty or a non-GMT date was supplied in $content_struct,
+		 * since _insert_post() will ignore the non-GMT date if the GMT date is set.
+		 */
+		if ( isset( $content_struct['post_date_gmt'] ) &amp;&amp; ! ( $content_struct['post_date_gmt'] instanceof IXR_Date ) ) {
+			if ( '0000-00-00 00:00:00' === $content_struct['post_date_gmt'] || isset( $content_struct['post_date'] ) ) {
+				unset( $content_struct['post_date_gmt'] );
+			} else {
+				$content_struct['post_date_gmt'] = $this-&gt;_convert_date( $content_struct['post_date_gmt'] );
+			}
+		}
+
+		/** This action is documented in wp-includes/class-wp-xmlrpc-server.php */
+		do_action( 'xmlrpc_call', 'wp.newPost', $args, $this );
+
+		unset( $content_struct['ID'] );
+
+		return $this-&gt;_insert_post( $user, $content_struct );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="_insert_post">wp_xmlrpc_server::_insert_post()</a> </td> <td class="related-desc"> <p>Helper method for wp_newPost() and wp_editPost(), containing shared logic.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="minimum_args">wp_xmlrpc_server::minimum_args()</a> </td> <td class="related-desc"> <p>Checks if the method received at least the minimum number of arguments.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="_convert_date">wp_xmlrpc_server::_convert_date()</a> </td> <td class="related-desc"> <p>Convert a WordPress date string to an <a href="../ixr_date">IXR_Date</a> object.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="../../hooks/xmlrpc_call">xmlrpc_call</a> </td> <td class="related-desc"> <p>Fires after the XML-RPC user has been authenticated but before the rest of the method logic begins.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="escape">wp_xmlrpc_server::escape()</a> </td> <td class="related-desc"> <p>Escape string or array of strings for database.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="login">wp_xmlrpc_server::login()</a> </td> <td class="related-desc"> <p>Log user in.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.4.0/" alt="WordPress 3.4.0">3.4.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_xmlrpc_server/wp_newpost" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_xmlrpc_server/wp_newpost</a>
+  </p>
+</div>

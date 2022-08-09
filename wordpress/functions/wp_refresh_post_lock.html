@@ -1,0 +1,49 @@
+<h1>wp_refresh_post_lock( array $response, array $data, string $screen_id )</h1>  <section> <p>Checks lock status on the New/Edit Post screen and refresh the lock.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$response</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">The Heartbeat response.</span> </p> </dd> <dt>$data</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">The $_POST data sent.</span> </p> </dd> <dt>$screen_id</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The screen ID.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> The Heartbeat response.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/misc.php/">wp-admin/includes/misc.php</a> </p> <pre data-language="php">function wp_refresh_post_lock( $response, $data, $screen_id ) {
+	if ( array_key_exists( 'wp-refresh-post-lock', $data ) ) {
+		$received = $data['wp-refresh-post-lock'];
+		$send     = array();
+
+		$post_id = absint( $received['post_id'] );
+
+		if ( ! $post_id ) {
+			return $response;
+		}
+
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return $response;
+		}
+
+		$user_id = wp_check_post_lock( $post_id );
+		$user    = get_userdata( $user_id );
+
+		if ( $user ) {
+			$error = array(
+				/* translators: %s: User's display name. */
+				'text' =&gt; sprintf( __( '%s has taken over and is currently editing.' ), $user-&gt;display_name ),
+			);
+
+			if ( get_option( 'show_avatars' ) ) {
+				$error['avatar_src']    = get_avatar_url( $user-&gt;ID, array( 'size' =&gt; 64 ) );
+				$error['avatar_src_2x'] = get_avatar_url( $user-&gt;ID, array( 'size' =&gt; 128 ) );
+			}
+
+			$send['lock_error'] = $error;
+		} else {
+			$new_lock = wp_set_post_lock( $post_id );
+
+			if ( $new_lock ) {
+				$send['new_lock'] = implode( ':', $new_lock );
+			}
+		}
+
+		$response['wp-refresh-post-lock'] = $send;
+	}
+
+	return $response;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="get_avatar_url">get_avatar_url()</a> </td> <td class="related-desc"> <p>Retrieves the avatar URL.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/post.php:</span> <a href="wp_check_post_lock">wp_check_post_lock()</a> </td> <td class="related-desc"> <p>Determines whether the post is currently being edited by another user.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/post.php:</span> <a href="wp_set_post_lock">wp_set_post_lock()</a> </td> <td class="related-desc"> <p>Marks the post as currently being edited by the current user.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="get_userdata">get_userdata()</a> </td> <td class="related-desc"> <p>Retrieve user info by user ID.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="absint">absint()</a> </td> <td class="related-desc"> <p>Convert a value to non-negative integer.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.6.0/" alt="WordPress 3.6.0">3.6.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_refresh_post_lock" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_refresh_post_lock</a>
+  </p>
+</div>

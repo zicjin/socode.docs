@@ -1,0 +1,82 @@
+<h1>wpmu_welcome_user_notification( int $user_id, string $password, array $meta = array() )</h1>  <section> <p>Notifies a user that their account activation has been successful.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Filter <a href="../hooks/wpmu_welcome_user_notification">‘wpmu_welcome_user_notification’</a> to disable or bypass.</p> <p>Filter <a href="../hooks/update_welcome_user_email">‘update_welcome_user_email’</a> and <a href="../hooks/update_welcome_user_subject">‘update_welcome_user_subject’</a> to modify the content and subject line of the notification email.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$user_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">User ID.</span> </p> </dd> <dt>$password</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">User password.</span> </p> </dd> <dt>$meta</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description"> Signup meta data. </span> </p> <p class="default">Default value: array()</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> </p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/ms-functions.php/">wp-includes/ms-functions.php</a> </p> <pre data-language="php">function wpmu_welcome_user_notification( $user_id, $password, $meta = array() ) {
+	$current_network = get_network();
+
+	/**
+	 * Filters whether to bypass the welcome email after user activation.
+	 *
+	 * Returning false disables the welcome email.
+	 *
+	 * @since MU (3.0.0)
+	 *
+	 * @param int    $user_id  User ID.
+	 * @param string $password User password.
+	 * @param array  $meta     Signup meta data. Default empty array.
+	 */
+	if ( ! apply_filters( 'wpmu_welcome_user_notification', $user_id, $password, $meta ) ) {
+		return false;
+	}
+
+	$welcome_email = get_site_option( 'welcome_user_email' );
+
+	$user = get_userdata( $user_id );
+
+	$switched_locale = switch_to_locale( get_user_locale( $user ) );
+
+	/**
+	 * Filters the content of the welcome email after user activation.
+	 *
+	 * Content should be formatted for transmission via wp_mail().
+	 *
+	 * @since MU (3.0.0)
+	 *
+	 * @param string $welcome_email The message body of the account activation success email.
+	 * @param int    $user_id       User ID.
+	 * @param string $password      User password.
+	 * @param array  $meta          Signup meta data. Default empty array.
+	 */
+	$welcome_email = apply_filters( 'update_welcome_user_email', $welcome_email, $user_id, $password, $meta );
+	$welcome_email = str_replace( 'SITE_NAME', $current_network-&gt;site_name, $welcome_email );
+	$welcome_email = str_replace( 'USERNAME', $user-&gt;user_login, $welcome_email );
+	$welcome_email = str_replace( 'PASSWORD', $password, $welcome_email );
+	$welcome_email = str_replace( 'LOGINLINK', wp_login_url(), $welcome_email );
+
+	$admin_email = get_site_option( 'admin_email' );
+
+	if ( '' === $admin_email ) {
+		$admin_email = 'support@' . wp_parse_url( network_home_url(), PHP_URL_HOST );
+	}
+
+	$from_name       = ( '' !== get_site_option( 'site_name' ) ) ? esc_html( get_site_option( 'site_name' ) ) : 'WordPress';
+	$message_headers = "From: \"{$from_name}\" &lt;{$admin_email}&gt;\n" . 'Content-Type: text/plain; charset="' . get_option( 'blog_charset' ) . "\"\n";
+	$message         = $welcome_email;
+
+	if ( empty( $current_network-&gt;site_name ) ) {
+		$current_network-&gt;site_name = 'WordPress';
+	}
+
+	/* translators: New user notification email subject. 1: Network title, 2: New user login. */
+	$subject = __( 'New %1$s User: %2$s' );
+
+	/**
+	 * Filters the subject of the welcome email after user activation.
+	 *
+	 * @since MU (3.0.0)
+	 *
+	 * @param string $subject Subject of the email.
+	 */
+	$subject = apply_filters( 'update_welcome_user_subject', sprintf( $subject, $current_network-&gt;site_name, $user-&gt;user_login ) );
+
+	wp_mail( $user-&gt;user_email, wp_specialchars_decode( $subject ), $message, $message_headers );
+
+	if ( $switched_locale ) {
+		restore_previous_locale();
+	}
+
+	return true;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="restore_previous_locale">restore_previous_locale()</a> </td> <td class="related-desc"> <p>Restores the translations according to the previous locale.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="switch_to_locale">switch_to_locale()</a> </td> <td class="related-desc"> <p>Switches the translations according to the given locale.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="get_user_locale">get_user_locale()</a> </td> <td class="related-desc"> <p>Retrieves the locale of a user.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-network.php:</span> <a href="get_network">get_network()</a> </td> <td class="related-desc"> <p>Retrieves network data given a network ID or network object.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="wp_parse_url">wp_parse_url()</a> </td> <td class="related-desc"> <p>A wrapper for PHP’s parse_url() function that handles consistency in the return values across PHP versions.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_html">esc_html()</a> </td> <td class="related-desc"> <p>Escaping for HTML blocks.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_specialchars_decode">wp_specialchars_decode()</a> </td> <td class="related-desc"> <p>Converts a number of HTML entities into their special characters.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="get_userdata">get_userdata()</a> </td> <td class="related-desc"> <p>Retrieve user info by user ID.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_mail">wp_mail()</a> </td> <td class="related-desc"> <p>Sends an email, similar to PHP’s mail function.</p> </td> </tr> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="wp_login_url">wp_login_url()</a> </td> <td class="related-desc"> <p>Retrieves the login URL.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="network_home_url">network_home_url()</a> </td> <td class="related-desc"> <p>Retrieves the home URL for the current network.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_site_option">get_site_option()</a> </td> <td class="related-desc"> <p>Retrieve an option value for the current network based on name of option.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="../hooks/wpmu_welcome_user_notification">wpmu_welcome_user_notification</a> </td> <td class="related-desc"> <p>Filters whether to bypass the welcome email after user activation.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="../hooks/update_welcome_user_email">update_welcome_user_email</a> </td> <td class="related-desc"> <p>Filters the content of the welcome email after user activation.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="../hooks/update_welcome_user_subject">update_welcome_user_subject</a> </td> <td class="related-desc"> <p>Filters the subject of the welcome email after user activation.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/mu.3.0.0/" alt="WordPress MU (3.0.0)">MU (3.0.0)</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wpmu_welcome_user_notification" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wpmu_welcome_user_notification</a>
+  </p>
+</div>

@@ -1,0 +1,93 @@
+<h1>MO::import_from_reader( POMO_FileReader $reader )</h1>   <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$reader</dt> <dd> <p class="desc"> <span class="type">(<span class="POMO_FileReader"><a href="../pomo_filereader">POMO_FileReader</a></span>)</span> <span class="required">(Required)</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> True if the import was successful, otherwise false.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/pomo/mo.php/">wp-includes/pomo/mo.php</a> </p> <pre data-language="php">public function import_from_reader( $reader ) {
+			$endian_string = MO::get_byteorder( $reader-&gt;readint32() );
+			if ( false === $endian_string ) {
+				return false;
+			}
+			$reader-&gt;setEndian( $endian_string );
+
+			$endian = ( 'big' === $endian_string ) ? 'N' : 'V';
+
+			$header = $reader-&gt;read( 24 );
+			if ( $reader-&gt;strlen( $header ) != 24 ) {
+				return false;
+			}
+
+			// Parse header.
+			$header = unpack( "{$endian}revision/{$endian}total/{$endian}originals_lengths_addr/{$endian}translations_lengths_addr/{$endian}hash_length/{$endian}hash_addr", $header );
+			if ( ! is_array( $header ) ) {
+				return false;
+			}
+
+			// Support revision 0 of MO format specs, only.
+			if ( 0 != $header['revision'] ) {
+				return false;
+			}
+
+			// Seek to data blocks.
+			$reader-&gt;seekto( $header['originals_lengths_addr'] );
+
+			// Read originals' indices.
+			$originals_lengths_length = $header['translations_lengths_addr'] - $header['originals_lengths_addr'];
+			if ( $originals_lengths_length != $header['total'] * 8 ) {
+				return false;
+			}
+
+			$originals = $reader-&gt;read( $originals_lengths_length );
+			if ( $reader-&gt;strlen( $originals ) != $originals_lengths_length ) {
+				return false;
+			}
+
+			// Read translations' indices.
+			$translations_lengths_length = $header['hash_addr'] - $header['translations_lengths_addr'];
+			if ( $translations_lengths_length != $header['total'] * 8 ) {
+				return false;
+			}
+
+			$translations = $reader-&gt;read( $translations_lengths_length );
+			if ( $reader-&gt;strlen( $translations ) != $translations_lengths_length ) {
+				return false;
+			}
+
+			// Transform raw data into set of indices.
+			$originals    = $reader-&gt;str_split( $originals, 8 );
+			$translations = $reader-&gt;str_split( $translations, 8 );
+
+			// Skip hash table.
+			$strings_addr = $header['hash_addr'] + $header['hash_length'] * 4;
+
+			$reader-&gt;seekto( $strings_addr );
+
+			$strings = $reader-&gt;read_all();
+			$reader-&gt;close();
+
+			for ( $i = 0; $i &lt; $header['total']; $i++ ) {
+				$o = unpack( "{$endian}length/{$endian}pos", $originals[ $i ] );
+				$t = unpack( "{$endian}length/{$endian}pos", $translations[ $i ] );
+				if ( ! $o || ! $t ) {
+					return false;
+				}
+
+				// Adjust offset due to reading strings to separate space before.
+				$o['pos'] -= $strings_addr;
+				$t['pos'] -= $strings_addr;
+
+				$original    = $reader-&gt;substr( $strings, $o['pos'], $o['length'] );
+				$translation = $reader-&gt;substr( $strings, $t['pos'], $t['length'] );
+
+				if ( '' === $original ) {
+					$this-&gt;set_headers( $this-&gt;make_headers( $translation ) );
+				} else {
+					$entry                          = &amp;$this-&gt;make_entry( $original, $translation );
+					$this-&gt;entries[ $entry-&gt;key() ] = &amp;$entry;
+				}
+			}
+			return true;
+		}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/pomo/mo.php:</span> <a href="get_byteorder">MO::get_byteorder()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-includes/pomo/mo.php:</span> <a href="make_entry">MO::make_entry()</a> </td> <td class="related-desc"> <p>Build a <a href="../translation_entry">Translation_Entry</a> from original string and translation strings, found in a MO file</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/pomo/mo.php:</span> <a href="import_from_file">MO::import_from_file()</a> </td> <td class="related-desc"> <p>Fills up with the entries from MO file $filename</p> </td> </tr> </tbody>
+
+</table> </article> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/mo/import_from_reader" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/mo/import_from_reader</a>
+  </p>
+</div>

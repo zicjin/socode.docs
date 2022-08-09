@@ -1,0 +1,107 @@
+<h1>send_confirmation_on_profile_email()</h1>  <section> <p>Sends a confirmation request email when a change of user email address is attempted.</p> </section> <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/user.php/">wp-includes/user.php</a> </p> <pre data-language="php">function send_confirmation_on_profile_email() {
+	global $errors;
+
+	$current_user = wp_get_current_user();
+	if ( ! is_object( $errors ) ) {
+		$errors = new WP_Error();
+	}
+
+	if ( $current_user-&gt;ID != $_POST['user_id'] ) {
+		return false;
+	}
+
+	if ( $current_user-&gt;user_email != $_POST['email'] ) {
+		if ( ! is_email( $_POST['email'] ) ) {
+			$errors-&gt;add(
+				'user_email',
+				__( '&lt;strong&gt;Error&lt;/strong&gt;: The email address is not correct.' ),
+				array(
+					'form-field' =&gt; 'email',
+				)
+			);
+
+			return;
+		}
+
+		if ( email_exists( $_POST['email'] ) ) {
+			$errors-&gt;add(
+				'user_email',
+				__( '&lt;strong&gt;Error&lt;/strong&gt;: The email address is already used.' ),
+				array(
+					'form-field' =&gt; 'email',
+				)
+			);
+			delete_user_meta( $current_user-&gt;ID, '_new_email' );
+
+			return;
+		}
+
+		$hash           = md5( $_POST['email'] . time() . wp_rand() );
+		$new_user_email = array(
+			'hash'     =&gt; $hash,
+			'newemail' =&gt; $_POST['email'],
+		);
+		update_user_meta( $current_user-&gt;ID, '_new_email', $new_user_email );
+
+		$sitename = wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES );
+
+		/* translators: Do not translate USERNAME, ADMIN_URL, EMAIL, SITENAME, SITEURL: those are placeholders. */
+		$email_text = __(
+			'Howdy ###USERNAME###,
+
+You recently requested to have the email address on your account changed.
+
+If this is correct, please click on the following link to change it:
+###ADMIN_URL###
+
+You can safely ignore and delete this email if you do not want to
+take this action.
+
+This email has been sent to ###EMAIL###
+
+Regards,
+All at ###SITENAME###
+###SITEURL###'
+		);
+
+		/**
+		 * Filters the text of the email sent when a change of user email address is attempted.
+		 *
+		 * The following strings have a special meaning and will get replaced dynamically:
+		 * - ###USERNAME###  The current user's username.
+		 * - ###ADMIN_URL### The link to click on to confirm the email change.
+		 * - ###EMAIL###     The new email.
+		 * - ###SITENAME###  The name of the site.
+		 * - ###SITEURL###   The URL to the site.
+		 *
+		 * @since MU (3.0.0)
+		 * @since 4.9.0 This filter is no longer Multisite specific.
+		 *
+		 * @param string $email_text     Text in the email.
+		 * @param array  $new_user_email {
+		 *     Data relating to the new user email address.
+		 *
+		 *     @type string $hash     The secure hash used in the confirmation link URL.
+		 *     @type string $newemail The proposed new email address.
+		 * }
+		 */
+		$content = apply_filters( 'new_user_email_content', $email_text, $new_user_email );
+
+		$content = str_replace( '###USERNAME###', $current_user-&gt;user_login, $content );
+		$content = str_replace( '###ADMIN_URL###', esc_url( admin_url( 'profile.php?newuseremail=' . $hash ) ), $content );
+		$content = str_replace( '###EMAIL###', $_POST['email'], $content );
+		$content = str_replace( '###SITENAME###', $sitename, $content );
+		$content = str_replace( '###SITEURL###', home_url(), $content );
+
+		/* translators: New email address notification email subject. %s: Site title. */
+		wp_mail( $_POST['email'], sprintf( __( '[%s] Email Change Request' ), $sitename ), $content );
+
+		$_POST['email'] = $current_user-&gt;user_email;
+	}
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/user.php:</span> <a href="../hooks/new_user_email_content">new_user_email_content</a> </td> <td class="related-desc"> <p>Filters the text of the email sent when a change of user email address is attempted.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="is_email">is_email()</a> </td> <td class="related-desc"> <p>Verifies that an email is valid.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_specialchars_decode">wp_specialchars_decode()</a> </td> <td class="related-desc"> <p>Converts a number of HTML entities into their special characters.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_rand">wp_rand()</a> </td> <td class="related-desc"> <p>Generates a random number.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_get_current_user">wp_get_current_user()</a> </td> <td class="related-desc"> <p>Retrieve the current user object.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_mail">wp_mail()</a> </td> <td class="related-desc"> <p>Sends an email, similar to PHP’s mail function.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="admin_url">admin_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the admin area for the current site.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="home_url">home_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL for the current site where the front end is accessible.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="email_exists">email_exists()</a> </td> <td class="related-desc"> <p>Determines whether the given email exists.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="delete_user_meta">delete_user_meta()</a> </td> <td class="related-desc"> <p>Removes metadata matching criteria from a user.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="update_user_meta">update_user_meta()</a> </td> <td class="related-desc"> <p>Updates user meta field based on user ID.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../classes/wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.9.0/" alt="WordPress 4.9.0">4.9.0</a></td> <td><span class="since-description">This function was moved from wp-admin/includes/ms.php so it's no longer Multisite specific.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.0.0/" alt="WordPress 3.0.0">3.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/send_confirmation_on_profile_email" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/send_confirmation_on_profile_email</a>
+  </p>
+</div>

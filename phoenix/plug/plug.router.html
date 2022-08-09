@@ -1,4 +1,4 @@
-<h1> Plug.Router   </h1> <section id="moduledoc"> <p>A DSL to define a routing algorithm that works with Plug.</p>
+<h1>   <span translate="no">Plug.Router</span>  </h1> <section id="moduledoc"> <p>A DSL to define a routing algorithm that works with Plug.</p>
 <p>It provides a set of macros to generate routes. For example:</p>
 <pre data-language="elixir">defmodule AppRouter do
   use Plug.Router
@@ -17,7 +17,7 @@ end</pre>
 <p>Each route receives a <code class="inline">conn</code> variable containing a <a href="plug.conn"><code class="inline">Plug.Conn</code></a> struct and it needs to return a connection, as per the Plug spec. A catch-all <code class="inline">match</code> is recommended to be defined as in the example above, otherwise routing fails with a function clause error.</p>
 <p>The router is itself a plug, which means it can be invoked as:</p>
 <pre data-language="elixir">AppRouter.call(conn, AppRouter.init([]))</pre>
-<p>Each <a href="plug.router#content"><code class="inline">Plug.Router</code></a> has a plug pipeline, defined by <a href="plug.builder"><code class="inline">Plug.Builder</code></a>, and by default it requires two plugs: <code class="inline">:match</code> and <code class="inline">:dispatch</code>. <code class="inline">:match</code> is responsible for finding a matching route which is then forwarded to <code class="inline">:dispatch</code>. This means users can easily hook into the router mechanism and add behaviour before match, before dispatch, or after both. All of the options given to <code class="inline">use Plug.Router</code> are forwarded to <a href="plug.builder"><code class="inline">Plug.Builder</code></a>. See the <a href="plug.builder"><code class="inline">Plug.Builder</code></a> module for more information on the <code class="inline">plug</code> macro and on the available options.</p>
+<p>Each <a href="plug.router#content"><code class="inline">Plug.Router</code></a> has a plug pipeline, defined by <a href="plug.builder"><code class="inline">Plug.Builder</code></a>, and by default it requires two plugs: <code class="inline">:match</code> and <code class="inline">:dispatch</code>. <code class="inline">:match</code> is responsible for finding a matching route which is then forwarded to <code class="inline">:dispatch</code>. This means users can easily hook into the router mechanism and add behaviour before match, before dispatch, or after both. See the <a href="plug.builder"><code class="inline">Plug.Builder</code></a> module for more information.</p>
 <h2 id="module-routes" class="section-heading">  Routes </h2> <pre data-language="elixir">get "/hello" do
   send_resp(conn, 200, "world")
 end</pre>
@@ -26,15 +26,25 @@ end</pre>
 <pre data-language="elixir">get "/hello/:name" do
   send_resp(conn, 200, "hello #{name}")
 end</pre>
+<p>This means the name can also be used in guards:</p>
+<pre data-language="elixir">get "/hello/:name" when name in ~w(foo bar) do
+  send_resp(conn, 200, "hello #{name}")
+end</pre>
 <p>The <code class="inline">:name</code> parameter will also be available in the function body as <code class="inline">conn.params["name"]</code> and <code class="inline">conn.path_params["name"]</code>.</p>
-<p>Routes allow for globbing which will match the remaining parts of a route and can be available as a parameter in the function body. Also note that a glob can't be followed by other segments:</p>
+<p>The identifier always starts with <code class="inline">:</code> and must be followed by letters, numbers, and underscores, like any Elixir variable. It is possible for identifiers to be either prefixed or suffixed by other words. For example, you can include a suffix such as a dot delimited file extension:</p>
+<pre data-language="elixir">get "/hello/:name.json" do
+  send_resp(conn, 200, "hello #{name}")
+end</pre>
+<p>The above will match <code class="inline">/hello/foo.json</code> but not <code class="inline">/hello/foo</code>. Other delimiters such as <code class="inline">-</code>, <code class="inline">@</code> may be used to denote suffixes.</p>
+<p>Routes allow for globbing which will match the remaining parts of a route. A glob match is done with the <code class="inline">*</code> character followed by the variable name. Typically you prefix the variable name with underscore to discard it:</p>
 <pre data-language="elixir">get "/hello/*_rest" do
   send_resp(conn, 200, "matches all routes starting with /hello")
-end
-
-get "/hello/*glob" do
+end</pre>
+<p>But you can also assign the glob to any variable. The contents will always be a list:</p>
+<pre data-language="elixir">get "/hello/*glob" do
   send_resp(conn, 200, "route after /hello: #{inspect glob}")
 end</pre>
+<p>Opposite to <code class="inline">:identifiers</code>, globs do not allow prefix nor suffix matches.</p>
 <p>Finally, a general <code class="inline">match</code> function is also supported:</p>
 <pre data-language="elixir">match "/hello" do
   send_resp(conn, 200, "world")
@@ -46,9 +56,12 @@ end</pre>
   use Plug.Router
 
   plug :match
-  plug Plug.Parsers, parsers: [:json],
-                     pass:  ["application/json"],
-                     json_decoder: Jason
+
+  plug Plug.Parsers,
+       parsers: [:json],
+       pass:  ["application/json"],
+       json_decoder: Jason
+
   plug :dispatch
 
   post "/hello" do
@@ -90,43 +103,7 @@ end</pre>
   send_resp(conn, 200, "world")
 end</pre>
 <p>In the example above, <code class="inline">conn.assigns[:an_option]</code> will be available to all plugs invoked after <code class="inline">:match</code>. Such plugs can read from <code class="inline">conn.assigns</code> (or <code class="inline">conn.private</code>) to configure their behaviour based on the matched route.</p>
-<h2 id="module-routes-compilation" class="section-heading">  Routes compilation </h2> <p>All routes are compiled to a match function that receives three arguments: the method, the request path split on <code class="inline">/</code> and the connection. Consider this example:</p>
-<pre data-language="elixir">match "/foo/bar", via: :get do
-  send_resp(conn, 200, "hello world")
-end</pre>
-<p>It is compiled to:</p>
-<pre data-language="elixir">defp match("GET", ["foo", "bar"], conn) do
-  send_resp(conn, 200, "hello world")
-end</pre>
-<p>This means guards can be given to <code class="inline">match</code>:</p>
-<pre data-language="elixir">match "/foo/bar/:baz" when size(baz) &lt;= 3, via: :get do
-  send_resp(conn, 200, "hello world")
-end</pre>
-<p>After a match is found, the block given as <code class="inline">do/end</code> is stored as a function in the connection. This function is then retrieved and invoked in the <code class="inline">dispatch</code> plug.</p>
-<h2 id="module-routes-options" class="section-heading">  Routes options </h2> <p>Sometimes you may want to customize how a route behaves during dispatch. This can be done by accessing the <code class="inline">opts</code> variable inside the route:</p>
-<pre data-language="elixir">defmodule AppRouter do
-  use Plug.Router
-
-  plug :match
-  plug :dispatch, content: "hello world"
-
-  get "/hello" do
-    send_resp(conn, 200, opts[:content])
-  end
-
-  match _ do
-    send_resp(conn, 404, "oops")
-  end
-end</pre>
-<p>This is particularly useful when used with <a href="plug.builder#builder_opts/0"><code class="inline">Plug.Builder.builder_opts/0</code></a>. <code class="inline">builder_opts/0</code> allows us to pass options received when initializing <code class="inline">AppRouter</code> to a specific plug, such as dispatch itself. So if instead of:</p>
-<pre data-language="elixir">plug :dispatch, content: "hello world"</pre>
-<p>we do:</p>
-<pre data-language="elixir">plug :dispatch, builder_opts()</pre>
-<p>now the content can be given when starting the router, like this:</p>
-<pre data-language="elixir">Plug.Cowboy.http AppRouter, [content: "hello world"]</pre>
-<p>Or as part of a pipeline like this:</p>
-<pre data-language="elixir">plug AppRouter, content: "hello world"</pre>
-<p>In a nutshell, <code class="inline">builder_opts()</code> allows us to pass the options given when initializing the router to a <code class="inline">dispatch</code>.</p>
+<h2 id="module-use-options" class="section-heading">  <code class="inline">use</code> options </h2> <p>All of the options given to <code class="inline">use Plug.Router</code> are forwarded to <a href="plug.builder"><code class="inline">Plug.Builder</code></a>. See the <a href="plug.builder"><code class="inline">Plug.Builder</code></a> module for more information.</p>
 <h2 id="module-telemetry" class="section-heading">  Telemetry </h2> <p>The router emits the following telemetry events:</p>
 <ul>
 <li>
@@ -143,8 +120,7 @@ end</pre>
 <ul>
 <li>Measurement: <code class="inline">%{duration: native_time}</code>
 </li>
-<li>Metadata: <code class="inline">%{telemetry_span_context: term(), conn: Plug.Conn.t, route: binary, router: module, kind: :throw | :error | :exit, reason: term(), stacktrace: list()}</code>
-</li>
+<li><p>Metadata: <code class="inline">%{telemetry_span_context: term(), conn: Plug.Conn.t, route: binary, router: module, kind: :throw | :error | :exit, reason: term(), stacktrace: list()}</code></p></li>
 </ul>
 </li>
 <li>
@@ -157,15 +133,15 @@ end</pre>
 </ul>
 </li>
 </ul> </section> <section id="summary" class="details-list"> <h1 class="section-heading">  Summary </h1> <h2> Functions </h2>
-<dl class="summary-functions summary">  <div class="summary-row"> <dt class="summary-signature"> <a href="#delete/3">delete(path, options, contents \\ [])</a> </dt> <dd class="summary-synopsis"><p>Dispatches to the path only if the request is a DELETE request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#forward/2">forward(path, options)</a> </dt> <dd class="summary-synopsis"><p>Forwards requests to another Plug. The <code class="inline">path_info</code> of the forwarded connection will exclude the portion of the path specified in the call to <code class="inline">forward</code>. If the path contains any parameters, those will be available in the target Plug in <code class="inline">conn.params</code> and <code class="inline">conn.path_params</code>.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#get/3">get(path, options, contents \\ [])</a> </dt> <dd class="summary-synopsis"><p>Dispatches to the path only if the request is a GET request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#head/3">head(path, options, contents \\ [])</a> </dt> <dd class="summary-synopsis"><p>Dispatches to the path only if the request is a HEAD request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#match/3">match(path, options, contents \\ [])</a> </dt> <dd class="summary-synopsis"><p>Main API to define routes.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#match_path/1">match_path(conn)</a> </dt> <dd class="summary-synopsis"><p>Returns the path of the route that the request was matched to.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#options/3">options(path, options, contents \\ [])</a> </dt> <dd class="summary-synopsis"><p>Dispatches to the path only if the request is an OPTIONS request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#patch/3">patch(path, options, contents \\ [])</a> </dt> <dd class="summary-synopsis"><p>Dispatches to the path only if the request is a PATCH request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#post/3">post(path, options, contents \\ [])</a> </dt> <dd class="summary-synopsis"><p>Dispatches to the path only if the request is a POST request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#put/3">put(path, options, contents \\ [])</a> </dt> <dd class="summary-synopsis"><p>Dispatches to the path only if the request is a PUT request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p></dd> </div> </dl> </section> <section id="functions" class="details-list"> <h1 class="section-heading">  Functions </h1> <div class="functions-list"> <section class="detail">  <h3 class="detail-header" id="delete/3">delete(path, options, contents \\ [])<a href="https://github.com/elixir-plug/plug/blob/v1.12.1/lib/plug/router.ex#L404" class="source">Source</a>
-</h3> <section class="docstring"> <p>Dispatches to the path only if the request is a DELETE request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p> </section> </section> <section class="detail"> <h3 class="detail-header" id="forward/2">forward(path, options)<a href="https://github.com/elixir-plug/plug/blob/v1.12.1/lib/plug/router.ex#L456" class="source">Source</a>
+<dl class="summary-functions summary">  <div class="summary-row"> <dt class="summary-signature"> <a href="#delete/3" translate="no">delete(path, options, contents \\ [])</a> </dt> <dd class="summary-synopsis"><p>Dispatches to the path only if the request is a DELETE request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#forward/2" translate="no">forward(path, options)</a> </dt> <dd class="summary-synopsis"><p>Forwards requests to another Plug. The <code class="inline">path_info</code> of the forwarded connection will exclude the portion of the path specified in the call to <code class="inline">forward</code>. If the path contains any parameters, those will be available in the target Plug in <code class="inline">conn.params</code> and <code class="inline">conn.path_params</code>.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#get/3" translate="no">get(path, options, contents \\ [])</a> </dt> <dd class="summary-synopsis"><p>Dispatches to the path only if the request is a GET request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#head/3" translate="no">head(path, options, contents \\ [])</a> </dt> <dd class="summary-synopsis"><p>Dispatches to the path only if the request is a HEAD request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#match/3" translate="no">match(path, options, contents \\ [])</a> </dt> <dd class="summary-synopsis"><p>Main API to define routes.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#match_path/1" translate="no">match_path(conn)</a> </dt> <dd class="summary-synopsis"><p>Returns the path of the route that the request was matched to.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#options/3" translate="no">options(path, options, contents \\ [])</a> </dt> <dd class="summary-synopsis"><p>Dispatches to the path only if the request is an OPTIONS request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#patch/3" translate="no">patch(path, options, contents \\ [])</a> </dt> <dd class="summary-synopsis"><p>Dispatches to the path only if the request is a PATCH request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#post/3" translate="no">post(path, options, contents \\ [])</a> </dt> <dd class="summary-synopsis"><p>Dispatches to the path only if the request is a POST request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p></dd> </div> <div class="summary-row"> <dt class="summary-signature"> <a href="#put/3" translate="no">put(path, options, contents \\ [])</a> </dt> <dd class="summary-synopsis"><p>Dispatches to the path only if the request is a PUT request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p></dd> </div> </dl> </section> <section id="functions" class="details-list"> <h1 class="section-heading">  Functions </h1> <div class="functions-list"> <section class="detail">  <h3 class="detail-header" id="delete/3">delete(path, options, contents \\ [])<a href="https://github.com/elixir-plug/plug/blob/v1.13.6/lib/plug/router.ex#L394" class="source">Source</a>
+</h3> <section class="docstring"> <p>Dispatches to the path only if the request is a DELETE request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p> </section> </section> <section class="detail"> <h3 class="detail-header" id="forward/2">forward(path, options)<a href="https://github.com/elixir-plug/plug/blob/v1.13.6/lib/plug/router.ex#L447" class="source">Source</a>
 </h3> <section class="docstring"> <p>Forwards requests to another Plug. The <code class="inline">path_info</code> of the forwarded connection will exclude the portion of the path specified in the call to <code class="inline">forward</code>. If the path contains any parameters, those will be available in the target Plug in <code class="inline">conn.params</code> and <code class="inline">conn.path_params</code>.</p>
 <h4 id="forward/2-options" class="section-heading">  Options </h4> <p><code class="inline">forward</code> accepts the following options:</p>
 <ul>
 <li>
 <code class="inline">:to</code> - a Plug the requests will be forwarded to.</li>
 <li>
-<code class="inline">:init_opts</code> - the options for the target Plug.</li>
+<code class="inline">:init_opts</code> - the options for the target Plug. It is the preferred mechanism for passing options to the target Plug.</li>
 <li>
 <code class="inline">:host</code> - a string representing the host or subdomain, exactly like in <a href="#match/3"><code class="inline">match/3</code></a>.</li>
 <li>
@@ -180,9 +156,9 @@ end</pre>
 <p>Here, a request to <code class="inline">/foo/BAZ/qux</code> will be forwarded to the <code class="inline">FooPlug</code> plug, which will receive what it will see as a request to <code class="inline">/</code>, and <code class="inline">conn.params["bar"]</code> will be set to <code class="inline">"BAZ"</code>.</p>
 <p>Some other examples:</p>
 <pre data-language="elixir">forward "/foo/bar", to: :foo_bar_plug, host: "foobar."
-forward "/baz", to: BazPlug, init_opts: [plug_specific_option: true]</pre> </section> </section> <section class="detail">  <h3 class="detail-header" id="get/3">get(path, options, contents \\ [])<a href="https://github.com/elixir-plug/plug/blob/v1.12.1/lib/plug/router.ex#L364" class="source">Source</a>
-</h3> <section class="docstring"> <p>Dispatches to the path only if the request is a GET request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p> </section> </section> <section class="detail">  <h3 class="detail-header" id="head/3">head(path, options, contents \\ [])<a href="https://github.com/elixir-plug/plug/blob/v1.12.1/lib/plug/router.ex#L372" class="source">Source</a>
-</h3> <section class="docstring"> <p>Dispatches to the path only if the request is a HEAD request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p> </section> </section> <section class="detail">  <h3 class="detail-header" id="match/3">match(path, options, contents \\ [])<a href="https://github.com/elixir-plug/plug/blob/v1.12.1/lib/plug/router.ex#L356" class="source">Source</a>
+forward "/baz", to: BazPlug, init_opts: [plug_specific_option: true]</pre> </section> </section> <section class="detail">  <h3 class="detail-header" id="get/3">get(path, options, contents \\ [])<a href="https://github.com/elixir-plug/plug/blob/v1.13.6/lib/plug/router.ex#L354" class="source">Source</a>
+</h3> <section class="docstring"> <p>Dispatches to the path only if the request is a GET request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p> </section> </section> <section class="detail">  <h3 class="detail-header" id="head/3">head(path, options, contents \\ [])<a href="https://github.com/elixir-plug/plug/blob/v1.13.6/lib/plug/router.ex#L362" class="source">Source</a>
+</h3> <section class="docstring"> <p>Dispatches to the path only if the request is a HEAD request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p> </section> </section> <section class="detail">  <h3 class="detail-header" id="match/3">match(path, options, contents \\ [])<a href="https://github.com/elixir-plug/plug/blob/v1.13.6/lib/plug/router.ex#L346" class="source">Source</a>
 </h3> <section class="docstring"> <p>Main API to define routes.</p>
 <p>It accepts an expression representing the path and many options allowing the match to be configured.</p>
 <p>The route can dispatch either to a function body or a Plug module.</p>
@@ -201,11 +177,11 @@ match "/baz", to: MyPlug, init_opts: [an_option: :a_value]</pre>
 <li><p><code class="inline">:to</code> - a Plug that will be called in case the route matches.</p></li>
 <li><p><code class="inline">:init_opts</code> - the options for the target Plug given by <code class="inline">:to</code>.</p></li>
 </ul>
-<p>A route should specify only one of <code class="inline">:do</code> or <code class="inline">:to</code> options.</p> </section> </section> <section class="detail"> <h3 class="detail-header" id="match_path/1">match_path(conn)<a href="https://github.com/elixir-plug/plug/blob/v1.12.1/lib/plug/router.ex#L309" class="source">Source</a>
-</h3> <section class="docstring"> <h4>Specs</h4> <div class="specs"> <pre data-language="elixir">match_path(Plug.Conn.t()) :: String.t()</pre> </div> <p>Returns the path of the route that the request was matched to.</p> </section> </section> <section class="detail">  <h3 class="detail-header" id="options/3">options(path, options, contents \\ [])<a href="https://github.com/elixir-plug/plug/blob/v1.12.1/lib/plug/router.ex#L412" class="source">Source</a>
-</h3> <section class="docstring"> <p>Dispatches to the path only if the request is an OPTIONS request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p> </section> </section> <section class="detail">  <h3 class="detail-header" id="patch/3">patch(path, options, contents \\ [])<a href="https://github.com/elixir-plug/plug/blob/v1.12.1/lib/plug/router.ex#L396" class="source">Source</a>
-</h3> <section class="docstring"> <p>Dispatches to the path only if the request is a PATCH request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p> </section> </section> <section class="detail">  <h3 class="detail-header" id="post/3">post(path, options, contents \\ [])<a href="https://github.com/elixir-plug/plug/blob/v1.12.1/lib/plug/router.ex#L380" class="source">Source</a>
-</h3> <section class="docstring"> <p>Dispatches to the path only if the request is a POST request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p> </section> </section> <section class="detail">  <h3 class="detail-header" id="put/3">put(path, options, contents \\ [])<a href="https://github.com/elixir-plug/plug/blob/v1.12.1/lib/plug/router.ex#L388" class="source">Source</a>
+<p>A route should specify only one of <code class="inline">:do</code> or <code class="inline">:to</code> options.</p> </section> </section> <section class="detail"> <h3 class="detail-header" id="match_path/1">match_path(conn)<a href="https://github.com/elixir-plug/plug/blob/v1.13.6/lib/plug/router.ex#L299" class="source">Source</a>
+</h3> <section class="docstring"> <div class="specs"> <pre translate="no" data-language="elixir">@spec match_path(Plug.Conn.t()) :: String.t()</pre> </div> <p>Returns the path of the route that the request was matched to.</p> </section> </section> <section class="detail">  <h3 class="detail-header" id="options/3">options(path, options, contents \\ [])<a href="https://github.com/elixir-plug/plug/blob/v1.13.6/lib/plug/router.ex#L402" class="source">Source</a>
+</h3> <section class="docstring"> <p>Dispatches to the path only if the request is an OPTIONS request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p> </section> </section> <section class="detail">  <h3 class="detail-header" id="patch/3">patch(path, options, contents \\ [])<a href="https://github.com/elixir-plug/plug/blob/v1.13.6/lib/plug/router.ex#L386" class="source">Source</a>
+</h3> <section class="docstring"> <p>Dispatches to the path only if the request is a PATCH request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p> </section> </section> <section class="detail">  <h3 class="detail-header" id="post/3">post(path, options, contents \\ [])<a href="https://github.com/elixir-plug/plug/blob/v1.13.6/lib/plug/router.ex#L370" class="source">Source</a>
+</h3> <section class="docstring"> <p>Dispatches to the path only if the request is a POST request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p> </section> </section> <section class="detail">  <h3 class="detail-header" id="put/3">put(path, options, contents \\ [])<a href="https://github.com/elixir-plug/plug/blob/v1.13.6/lib/plug/router.ex#L378" class="source">Source</a>
 </h3> <section class="docstring"> <p>Dispatches to the path only if the request is a PUT request. See <a href="#match/3"><code class="inline">match/3</code></a> for more examples.</p> </section> </section> </div> </section><div class="_attribution">
   <p class="_attribution-p">
     <a href="https://hexdocs.pm/plug/Plug.Router.html" class="_attribution-link" target="_blank">https://hexdocs.pm/plug/Plug.Router.html</a>

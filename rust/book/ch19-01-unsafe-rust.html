@@ -48,12 +48,12 @@ error: could not compile `unsafe-example` due to previous error
     assert_eq!(a, &amp;mut [1, 2, 3]);
     assert_eq!(b, &amp;mut [4, 5, 6]);
 }
-</pre> <p><span class="caption">Listing 19-4: Using the safe <code>split_at_mut</code> function</span></p> <p>We can’t implement this function using only safe Rust. An attempt might look something like Listing 19-5, which won’t compile. For simplicity, we’ll implement <code>split_at_mut</code> as a function rather than a method and only for slices of <code>i32</code> values rather than for a generic type <code>T</code>.</p> <pre data-language="rust">fn split_at_mut(slice: &amp;mut [i32], mid: usize) -&gt; (&amp;mut [i32], &amp;mut [i32]) {
-    let len = slice.len();
+</pre> <p><span class="caption">Listing 19-4: Using the safe <code>split_at_mut</code> function</span></p> <p>We can’t implement this function using only safe Rust. An attempt might look something like Listing 19-5, which won’t compile. For simplicity, we’ll implement <code>split_at_mut</code> as a function rather than a method and only for slices of <code>i32</code> values rather than for a generic type <code>T</code>.</p> <pre data-language="rust">fn split_at_mut(values: &amp;mut [i32], mid: usize) -&gt; (&amp;mut [i32], &amp;mut [i32]) {
+    let len = values.len();
 
     assert!(mid &lt;= len);
 
-    (&amp;mut slice[..mid], &amp;mut slice[mid..])
+    (&amp;mut values[..mid], &amp;mut values[mid..])
 }
 
 fn main() {
@@ -62,26 +62,26 @@ fn main() {
 }
 </pre> <p><span class="caption">Listing 19-5: An attempted implementation of <code>split_at_mut</code> using only safe Rust</span></p> <p>This function first gets the total length of the slice. Then it asserts that the index given as a parameter is within the slice by checking whether it’s less than or equal to the length. The assertion means that if we pass an index that is greater than the length to split the slice at, the function will panic before it attempts to use that index.</p> <p>Then we return two mutable slices in a tuple: one from the start of the original slice to the <code>mid</code> index and another from <code>mid</code> to the end of the slice.</p> <p>When we try to compile the code in Listing 19-5, we’ll get an error.</p> <pre>$ cargo run
    Compiling unsafe-example v0.1.0 (file:///projects/unsafe-example)
-error[E0499]: cannot borrow `*slice` as mutable more than once at a time
- --&gt; src/main.rs:6:30
+error[E0499]: cannot borrow `*values` as mutable more than once at a time
+ --&gt; src/main.rs:6:31
   |
-1 | fn split_at_mut(slice: &amp;mut [i32], mid: usize) -&gt; (&amp;mut [i32], &amp;mut [i32]) {
-  |                        - let's call the lifetime of this reference `'1`
+1 | fn split_at_mut(values: &amp;mut [i32], mid: usize) -&gt; (&amp;mut [i32], &amp;mut [i32]) {
+  |                         - let's call the lifetime of this reference `'1`
 ...
-6 |     (&amp;mut slice[..mid], &amp;mut slice[mid..])
-  |     -------------------------^^^^^--------
-  |     |     |                  |
-  |     |     |                  second mutable borrow occurs here
+6 |     (&amp;mut values[..mid], &amp;mut values[mid..])
+  |     --------------------------^^^^^^--------
+  |     |     |                   |
+  |     |     |                   second mutable borrow occurs here
   |     |     first mutable borrow occurs here
-  |     returning this value requires that `*slice` is borrowed for `'1`
+  |     returning this value requires that `*values` is borrowed for `'1`
 
 For more information about this error, try `rustc --explain E0499`.
 error: could not compile `unsafe-example` due to previous error
 </pre> <p>Rust’s borrow checker can’t understand that we’re borrowing different parts of the slice; it only knows that we’re borrowing from the same slice twice. Borrowing different parts of a slice is fundamentally okay because the two slices aren’t overlapping, but Rust isn’t smart enough to know this. When we know code is okay, but Rust doesn’t, it’s time to reach for unsafe code.</p> <p>Listing 19-6 shows how to use an <code>unsafe</code> block, a raw pointer, and some calls to unsafe functions to make the implementation of <code>split_at_mut</code> work.</p> <pre data-language="rust">use std::slice;
 
-fn split_at_mut(slice: &amp;mut [i32], mid: usize) -&gt; (&amp;mut [i32], &amp;mut [i32]) {
-    let len = slice.len();
-    let ptr = slice.as_mut_ptr();
+fn split_at_mut(values: &amp;mut [i32], mid: usize) -&gt; (&amp;mut [i32], &amp;mut [i32]) {
+    let len = values.len();
+    let ptr = values.as_mut_ptr();
 
     assert!(mid &lt;= len);
 
@@ -103,9 +103,9 @@ fn main() {
     let address = 0x01234usize;
     let r = address as *mut i32;
 
-    let slice: &amp;[i32] = unsafe { slice::from_raw_parts_mut(r, 10000) };
+    let values: &amp;[i32] = unsafe { slice::from_raw_parts_mut(r, 10000) };
 }
-</pre> <p><span class="caption">Listing 19-7: Creating a slice from an arbitrary memory location</span></p> <p>We don’t own the memory at this arbitrary location, and there is no guarantee that the slice this code creates contains valid <code>i32</code> values. Attempting to use <code>slice</code> as though it’s a valid slice results in undefined behavior.</p> <h4 id="using-extern-functions-to-call-external-code">Using <code id="">extern</code> Functions to Call External Code</h4> <p>Sometimes, your Rust code might need to interact with code written in another language. For this, Rust has a keyword, <code>extern</code>, that facilitates the creation and use of a <em>Foreign Function Interface (FFI)</em>. An FFI is a way for a programming language to define functions and enable a different (foreign) programming language to call those functions.</p> <p>Listing 19-8 demonstrates how to set up an integration with the <code>abs</code> function from the C standard library. Functions declared within <code>extern</code> blocks are always unsafe to call from Rust code. The reason is that other languages don’t enforce Rust’s rules and guarantees, and Rust can’t check them, so responsibility falls on the programmer to ensure safety.</p> <p><span class="filename">Filename: src/main.rs</span></p> <pre data-language="rust">extern "C" {
+</pre> <p><span class="caption">Listing 19-7: Creating a slice from an arbitrary memory location</span></p> <p>We don’t own the memory at this arbitrary location, and there is no guarantee that the slice this code creates contains valid <code>i32</code> values. Attempting to use <code>values</code> as though it’s a valid slice results in undefined behavior.</p> <h4 id="using-extern-functions-to-call-external-code">Using <code id="">extern</code> Functions to Call External Code</h4> <p>Sometimes, your Rust code might need to interact with code written in another language. For this, Rust has a keyword, <code>extern</code>, that facilitates the creation and use of a <em>Foreign Function Interface (FFI)</em>. An FFI is a way for a programming language to define functions and enable a different (foreign) programming language to call those functions.</p> <p>Listing 19-8 demonstrates how to set up an integration with the <code>abs</code> function from the C standard library. Functions declared within <code>extern</code> blocks are always unsafe to call from Rust code. The reason is that other languages don’t enforce Rust’s rules and guarantees, and Rust can’t check them, so responsibility falls on the programmer to ensure safety.</p> <p><span class="filename">Filename: src/main.rs</span></p> <pre data-language="rust">extern "C" {
     fn abs(input: i32) -&gt; i32;
 }
 
@@ -151,7 +151,7 @@ unsafe impl Foo for i32 {
 }
 
 fn main() {}
-</pre> <p><span class="caption">Listing 19-11: Defining and implementing an unsafe trait</span></p> <p>By using <code>unsafe impl</code>, we’re promising that we’ll uphold the invariants that the compiler can’t verify.</p> <p>As an example, recall the <code>Sync</code> and <code>Send</code> marker traits we discussed in the <a href="ch16-04-extensible-concurrency-sync-and-send#extensible-concurrency-with-the-sync-and-send-traits">“Extensible Concurrency with the <code>Sync</code> and <code>Send</code> Traits”</a> section in Chapter 16: the compiler implements these traits automatically if our types are composed entirely of <code>Send</code> and <code>Sync</code> types. If we implement a type that contains a type that is not <code>Send</code> or <code>Sync</code>, such as raw pointers, and we want to mark that type as <code>Send</code> or <code>Sync</code>, we must use <code>unsafe</code>. Rust can’t verify that our type upholds the guarantees that it can be safely sent across threads or accessed from multiple threads; therefore, we need to do those checks manually and indicate as such with <code>unsafe</code>.</p> <h3 id="accessing-fields-of-a-union">Accessing Fields of a Union</h3> <p>The final action that works only with <code>unsafe</code> is accessing fields of a <em>union</em>. A <code>union</code> is similar to a <code>struct</code>, but only one declared field is used in a particular instance at one time. Unions are primarily used to interface with unions in C code. Accessing union fields is unsafe because Rust can’t guarantee the type of the data currently being stored in the union instance. You can learn more about unions in <a href="../reference/items/unions">the reference</a>.</p> <h3 id="when-to-use-unsafe-code">When to Use Unsafe Code</h3> <p>Using <code>unsafe</code> to take one of the five actions (superpowers) just discussed isn’t wrong or even frowned upon. But it is trickier to get <code>unsafe</code> code correct because the compiler can’t help uphold memory safety. When you have a reason to use <code>unsafe</code> code, you can do so, and having the explicit <code>unsafe</code> annotation makes it easier to track down the source of problems when they occur.</p><div class="_attribution">
+</pre> <p><span class="caption">Listing 19-11: Defining and implementing an unsafe trait</span></p> <p>By using <code>unsafe impl</code>, we’re promising that we’ll uphold the invariants that the compiler can’t verify.</p> <p>As an example, recall the <code>Sync</code> and <code>Send</code> marker traits we discussed in the <a href="ch16-04-extensible-concurrency-sync-and-send#extensible-concurrency-with-the-sync-and-send-traits">“Extensible Concurrency with the <code>Sync</code> and <code>Send</code> Traits”</a> section in Chapter 16: the compiler implements these traits automatically if our types are composed entirely of <code>Send</code> and <code>Sync</code> types. If we implement a type that contains a type that is not <code>Send</code> or <code>Sync</code>, such as raw pointers, and we want to mark that type as <code>Send</code> or <code>Sync</code>, we must use <code>unsafe</code>. Rust can’t verify that our type upholds the guarantees that it can be safely sent across threads or accessed from multiple threads; therefore, we need to do those checks manually and indicate as such with <code>unsafe</code>.</p> <h3 id="accessing-fields-of-a-union">Accessing Fields of a Union</h3> <p>The final action that works only with <code>unsafe</code> is accessing fields of a <em>union</em>. A <code>union</code> is similar to a <code>struct</code>, but only one declared field is used in a particular instance at one time. Unions are primarily used to interface with unions in C code. Accessing union fields is unsafe because Rust can’t guarantee the type of the data currently being stored in the union instance. You can learn more about unions in <a href="../reference/items/unions">the Rust Reference</a>.</p> <h3 id="when-to-use-unsafe-code">When to Use Unsafe Code</h3> <p>Using <code>unsafe</code> to take one of the five actions (superpowers) just discussed isn’t wrong or even frowned upon. But it is trickier to get <code>unsafe</code> code correct because the compiler can’t help uphold memory safety. When you have a reason to use <code>unsafe</code> code, you can do so, and having the explicit <code>unsafe</code> annotation makes it easier to track down the source of problems when they occur.</p><div class="_attribution">
   <p class="_attribution-p">
     <a href="https://doc.rust-lang.org/book/ch19-01-unsafe-rust.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/book/ch19-01-unsafe-rust.html</a>
   </p>

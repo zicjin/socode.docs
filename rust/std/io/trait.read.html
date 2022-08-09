@@ -1,13 +1,14 @@
-<h1 class="fqn">Trait std::io::Read</h1>
+<h1 class="main-heading">Trait std::io::Read</h1>
 <pre class="rust trait" data-language="rust">pub trait Read {
     fn read(&amp;mut self, buf: &amp;mut [u8]) -&gt; Result&lt;usize&gt;;
 
     fn read_vectored(&amp;mut self, bufs: &amp;mut [IoSliceMut&lt;'_&gt;]) -&gt; Result&lt;usize&gt; { ... }
     fn is_read_vectored(&amp;self) -&gt; bool { ... }
-    unsafe fn initializer(&amp;self) -&gt; Initializer { ... }
     fn read_to_end(&amp;mut self, buf: &amp;mut Vec&lt;u8&gt;) -&gt; Result&lt;usize&gt; { ... }
     fn read_to_string(&amp;mut self, buf: &amp;mut String) -&gt; Result&lt;usize&gt; { ... }
     fn read_exact(&amp;mut self, buf: &amp;mut [u8]) -&gt; Result&lt;()&gt; { ... }
+    fn read_buf(&amp;mut self, buf: &amp;mut ReadBuf&lt;'_&gt;) -&gt; Result&lt;()&gt; { ... }
+    fn read_buf_exact(&amp;mut self, buf: &amp;mut ReadBuf&lt;'_&gt;) -&gt; Result&lt;()&gt; { ... }
     fn by_ref(&amp;mut self) -&gt; &amp;mut Self    where        Self: Sized,
     { ... }
     fn bytes(self) -&gt; Bytes&lt;Self&gt;    where        Self: Sized,
@@ -17,10 +18,9 @@
     fn take(self, limit: u64) -&gt; Take&lt;Self&gt;ⓘNotable traits for Take&lt;T&gt;impl&lt;T: Read&gt; Read for Take&lt;T&gt;    where        Self: Sized,
     { ... }
 }</pre>
-<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="struct.bytes" title="struct std::io::Bytes">Bytes</a>&lt;R&gt;</div>
-<pre class="content">impl&lt;R: Read&gt; Iterator for Bytes&lt;R&gt;
+<span class="notable-traits"><span class="notable-traits-tooltiptext"><span class="docblock"><span class="notable">Notable traits for <a class="struct" href="struct.bytes" title="struct std::io::Bytes">Bytes</a>&lt;R&gt;</span><pre class="content">impl&lt;R: Read&gt; Iterator for Bytes&lt;R&gt;
     type Item = Result&lt;u8&gt;;
-</pre></span></div></span><p>The <code>Read</code> trait allows for reading bytes from a source.</p> <p>Implementors of the <code>Read</code> trait are called ‘readers’.</p> <p>Readers are defined by one required method, <a href="trait.read#tymethod.read"><code>read()</code></a>. Each call to <a href="trait.read#tymethod.read"><code>read()</code></a> will attempt to pull bytes from this source into a provided buffer. A number of other methods are implemented in terms of <a href="trait.read#tymethod.read"><code>read()</code></a>, giving implementors a number of ways to read bytes while only needing to implement a single method.</p> <p>Readers are intended to be composable with one another. Many implementors throughout <a href="index"><code>std::io</code></a> take and provide types which implement the <code>Read</code> trait.</p> <p>Please note that each call to <a href="trait.read#tymethod.read"><code>read()</code></a> may involve a system call, and therefore, using something that implements <a href="trait.bufread" title="BufRead"><code>BufRead</code></a>, such as <a href="struct.bufreader" title="BufReader"><code>BufReader</code></a>, will be more efficient.</p> <h3 id="examples" class="section-header">Examples</h3> <p><a href="../fs/struct.file"><code>File</code></a>s implement <code>Read</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::io;
+</pre></span></span></span><p>The <code>Read</code> trait allows for reading bytes from a source.</p> <p>Implementors of the <code>Read</code> trait are called ‘readers’.</p> <p>Readers are defined by one required method, <a href="trait.read#tymethod.read"><code>read()</code></a>. Each call to <a href="trait.read#tymethod.read"><code>read()</code></a> will attempt to pull bytes from this source into a provided buffer. A number of other methods are implemented in terms of <a href="trait.read#tymethod.read"><code>read()</code></a>, giving implementors a number of ways to read bytes while only needing to implement a single method.</p> <p>Readers are intended to be composable with one another. Many implementors throughout <a href="index"><code>std::io</code></a> take and provide types which implement the <code>Read</code> trait.</p> <p>Please note that each call to <a href="trait.read#tymethod.read"><code>read()</code></a> may involve a system call, and therefore, using something that implements <a href="trait.bufread" title="BufRead"><code>BufRead</code></a>, such as <a href="struct.bufreader" title="BufReader"><code>BufReader</code></a>, will be more efficient.</p> <h2 id="examples">Examples</h2> <p><a href="../fs/struct.file"><code>File</code></a>s implement <code>Read</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::io;
 use std::io::prelude::*;
 use std::fs::File;
 
@@ -52,13 +52,13 @@ fn main() -&gt; io::Result&lt;()&gt; {
 
     // etc... it works exactly as a File does!
     Ok(())
-}</pre></div> <h2 id="required-methods" class="small-section-header">Required methods</h2>
+}</pre></div> <h2 id="required-methods" class="small-section-header">Required Methods</h2>
 <div class="methods">
 <summary><div id="tymethod.read" class="method has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#630" title="goto source code">[src]</a></div>
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#626">source</a></div>
 <h4 class="code-header">fn read(&amp;mut self, buf: &amp;mut [u8]) -&gt; Result&lt;usize&gt;</h4>
 </div></summary><div class="docblock">
-<p>Pull some bytes from this source into the specified buffer, returning how many bytes were read.</p> <p>This function does not provide any guarantees about whether it blocks waiting for data, but if an object needs to block for a read and cannot, it will typically signal this via an <a href="../result/enum.result#variant.Err" title="Err"><code>Err</code></a> return value.</p> <p>If the return value of this method is <a href="../result/enum.result#variant.Ok"><code>Ok(n)</code></a>, then implementations must guarantee that <code>0 &lt;= n &lt;= buf.len()</code>. A nonzero <code>n</code> value indicates that the buffer <code>buf</code> has been filled in with <code>n</code> bytes of data from this source. If <code>n</code> is <code>0</code>, then it can indicate one of two scenarios:</p> <ol> <li>This reader has reached its “end of file” and will likely no longer be able to produce bytes. Note that this does not mean that the reader will <em>always</em> no longer be able to produce bytes. As an example, on Linux, this method will call the <code>recv</code> syscall for a <a href="../net/struct.tcpstream"><code>TcpStream</code></a>, where returning zero indicates the connection was shut down correctly. While for <a href="../fs/struct.file"><code>File</code></a>, it is possible to reach the end of file and get zero as result, but if more data is appended to the file, future calls to <code>read</code> will return more data.</li> <li>The buffer specified was 0 bytes in length.</li> </ol> <p>It is not an error if the returned value <code>n</code> is smaller than the buffer size, even when the reader is not at the end of the stream yet. This may happen for example because fewer bytes are actually available right now (e. g. being close to end-of-file) or because read() was interrupted by a signal.</p> <p>As this trait is safe to implement, callers cannot rely on <code>n &lt;= buf.len()</code> for safety. Extra care needs to be taken when <code>unsafe</code> functions are used to access the read bytes. Callers have to ensure that no unchecked out-of-bounds accesses are possible even if <code>n &gt; buf.len()</code>.</p> <p>No guarantees are provided about the contents of <code>buf</code> when this function is called, implementations cannot rely on any property of the contents of <code>buf</code> being true. It is recommended that <em>implementations</em> only write data to <code>buf</code> instead of reading its contents.</p> <p>Correspondingly, however, <em>callers</em> of this method must not assume any guarantees about how the implementation uses <code>buf</code>. The trait is safe to implement, so it is possible that the code that’s supposed to write to the buffer might also read from it. It is your responsibility to make sure that <code>buf</code> is initialized before calling <code>read</code>. Calling <code>read</code> with an uninitialized <code>buf</code> (of the kind one obtains via <a href="../mem/union.maybeuninit"><code>MaybeUninit&lt;T&gt;</code></a>) is not safe, and can lead to undefined behavior.</p> <h5 id="errors" class="section-header">Errors</h5> <p>If this function encounters any form of I/O or other error, an error variant will be returned. If an error is returned then it must be guaranteed that no bytes were read.</p> <p>An error of the <a href="enum.errorkind#variant.Interrupted" title="ErrorKind::Interrupted"><code>ErrorKind::Interrupted</code></a> kind is non-fatal and the read operation should be retried if there is nothing else to do.</p> <h5 id="examples-1" class="section-header">Examples</h5> <p><a href="../fs/struct.file"><code>File</code></a>s implement <code>Read</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::io;
+<p>Pull some bytes from this source into the specified buffer, returning how many bytes were read.</p> <p>This function does not provide any guarantees about whether it blocks waiting for data, but if an object needs to block for a read and cannot, it will typically signal this via an <a href="../result/enum.result#variant.Err" title="Err"><code>Err</code></a> return value.</p> <p>If the return value of this method is <a href="../result/enum.result#variant.Ok"><code>Ok(n)</code></a>, then implementations must guarantee that <code>0 &lt;= n &lt;= buf.len()</code>. A nonzero <code>n</code> value indicates that the buffer <code>buf</code> has been filled in with <code>n</code> bytes of data from this source. If <code>n</code> is <code>0</code>, then it can indicate one of two scenarios:</p> <ol> <li>This reader has reached its “end of file” and will likely no longer be able to produce bytes. Note that this does not mean that the reader will <em>always</em> no longer be able to produce bytes. As an example, on Linux, this method will call the <code>recv</code> syscall for a <a href="../net/struct.tcpstream"><code>TcpStream</code></a>, where returning zero indicates the connection was shut down correctly. While for <a href="../fs/struct.file"><code>File</code></a>, it is possible to reach the end of file and get zero as result, but if more data is appended to the file, future calls to <code>read</code> will return more data.</li> <li>The buffer specified was 0 bytes in length.</li> </ol> <p>It is not an error if the returned value <code>n</code> is smaller than the buffer size, even when the reader is not at the end of the stream yet. This may happen for example because fewer bytes are actually available right now (e. g. being close to end-of-file) or because read() was interrupted by a signal.</p> <p>As this trait is safe to implement, callers cannot rely on <code>n &lt;= buf.len()</code> for safety. Extra care needs to be taken when <code>unsafe</code> functions are used to access the read bytes. Callers have to ensure that no unchecked out-of-bounds accesses are possible even if <code>n &gt; buf.len()</code>.</p> <p>No guarantees are provided about the contents of <code>buf</code> when this function is called, implementations cannot rely on any property of the contents of <code>buf</code> being true. It is recommended that <em>implementations</em> only write data to <code>buf</code> instead of reading its contents.</p> <p>Correspondingly, however, <em>callers</em> of this method must not assume any guarantees about how the implementation uses <code>buf</code>. The trait is safe to implement, so it is possible that the code that’s supposed to write to the buffer might also read from it. It is your responsibility to make sure that <code>buf</code> is initialized before calling <code>read</code>. Calling <code>read</code> with an uninitialized <code>buf</code> (of the kind one obtains via <a href="../mem/union.maybeuninit"><code>MaybeUninit&lt;T&gt;</code></a>) is not safe, and can lead to undefined behavior.</p> <h5 id="errors">Errors</h5> <p>If this function encounters any form of I/O or other error, an error variant will be returned. If an error is returned then it must be guaranteed that no bytes were read.</p> <p>An error of the <a href="enum.errorkind#variant.Interrupted" title="ErrorKind::Interrupted"><code>ErrorKind::Interrupted</code></a> kind is non-fatal and the read operation should be retried if there is nothing else to do.</p> <h5 id="examples-1">Examples</h5> <p><a href="../fs/struct.file"><code>File</code></a>s implement <code>Read</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::io;
 use std::io::prelude::*;
 use std::fs::File;
 
@@ -73,34 +73,25 @@ fn main() -&gt; io::Result&lt;()&gt; {
     Ok(())
 }</pre></div> </div>
 </div>
-<h2 id="provided-methods" class="small-section-header">Provided methods</h2>
+<h2 id="provided-methods" class="small-section-header">Provided Methods</h2>
 <div class="methods">
 <summary><div id="method.read_vectored" class="method has-srclink">
 <div class="rightside">
-<a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#642-644" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.36.0">1.36.0</span>
-</div>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#638-640">source</a><span class="since" title="Stable since Rust version 1.36.0">1.36.0</span> · </div>
 <h4 class="code-header">fn read_vectored(&amp;mut self, bufs: &amp;mut [IoSliceMut&lt;'_&gt;]) -&gt; Result&lt;usize&gt;</h4>
 </div></summary><div class="docblock">
 <p>Like <code>read</code>, except that it reads into a slice of buffers.</p> <p>Data is copied to fill each buffer in order, with the final buffer written to possibly being only partially filled. This method must behave equivalently to a single call to <code>read</code> with concatenated buffers.</p> <p>The default implementation calls <code>read</code> with either the first nonempty buffer provided, or an empty one if none exists.</p> </div>
 <summary><div id="method.is_read_vectored" class="method has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#655-657" title="goto source code">[src]</a></div>
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#651-653">source</a></div>
 <h4 class="code-header">fn is_read_vectored(&amp;self) -&gt; bool</h4>
-</div></summary><div class="item-info"><div class="stab unstable">
-<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>can_vector</code> <a href="https://github.com/rust-lang/rust/issues/69941">#69941</a>)</div></div>
-<div class="docblock">
+</div></summary><span class="item-info"><div class="stab unstable">
+<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>can_vector</code> <a href="https://github.com/rust-lang/rust/issues/69941">#69941</a>)</div></span><div class="docblock">
 <p>Determines if this <code>Read</code>er has an efficient <code>read_vectored</code> implementation.</p> <p>If a <code>Read</code>er does not override the default <code>read_vectored</code> implementation, code using it may want to avoid the method all together and coalesce writes into a single buffer for higher performance.</p> <p>The default implementation returns <code>false</code>.</p> </div>
-<summary><div id="method.initializer" class="method has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#680-682" title="goto source code">[src]</a></div>
-<h4 class="code-header">unsafe fn initializer(&amp;self) -&gt; Initializer</h4>
-</div></summary><div class="item-info"><div class="stab unstable">
-<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>read_initializer</code> <a href="https://github.com/rust-lang/rust/issues/42788">#42788</a>)</div></div>
-<div class="docblock">
-<p>Determines if this <code>Read</code>er can work with buffers of uninitialized memory.</p> <p>The default implementation returns an initializer which will zero buffers.</p> <p>If a <code>Read</code>er guarantees that it can work properly with uninitialized memory, it should call <a href="struct.initializer#method.nop" title="Initializer::nop()"><code>Initializer::nop()</code></a>. See the documentation for <a href="struct.initializer" title="Initializer"><code>Initializer</code></a> for details.</p> <p>The behavior of this method must be independent of the state of the <code>Read</code>er - the method only takes <code>&amp;self</code> so that it can be used through trait objects.</p> <h5 id="safety" class="section-header">Safety</h5> <p>This method is unsafe because a <code>Read</code>er could otherwise return a non-zeroing <code>Initializer</code> from another <code>Read</code> type without an <code>unsafe</code> block.</p> </div>
 <summary><div id="method.read_to_end" class="method has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#731-733" title="goto source code">[src]</a></div>
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#702-704">source</a></div>
 <h4 class="code-header">fn read_to_end(&amp;mut self, buf: &amp;mut Vec&lt;u8&gt;) -&gt; Result&lt;usize&gt;</h4>
 </div></summary><div class="docblock">
-<p>Read all bytes until EOF in this source, placing them into <code>buf</code>.</p> <p>All bytes read from this source will be appended to the specified buffer <code>buf</code>. This function will continuously call <a href="trait.read#tymethod.read"><code>read()</code></a> to append more data to <code>buf</code> until <a href="trait.read#tymethod.read"><code>read()</code></a> returns either <a href="../result/enum.result#variant.Ok"><code>Ok(0)</code></a> or an error of non-<a href="enum.errorkind#variant.Interrupted" title="ErrorKind::Interrupted"><code>ErrorKind::Interrupted</code></a> kind.</p> <p>If successful, this function will return the total number of bytes read.</p> <h5 id="errors-1" class="section-header">Errors</h5> <p>If this function encounters an error of the kind <a href="enum.errorkind#variant.Interrupted" title="ErrorKind::Interrupted"><code>ErrorKind::Interrupted</code></a> then the error is ignored and the operation will continue.</p> <p>If any other read error is encountered then this function immediately returns. Any bytes which have already been read will be appended to <code>buf</code>.</p> <h5 id="examples-2" class="section-header">Examples</h5> <p><a href="../fs/struct.file"><code>File</code></a>s implement <code>Read</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::io;
+<p>Read all bytes until EOF in this source, placing them into <code>buf</code>.</p> <p>All bytes read from this source will be appended to the specified buffer <code>buf</code>. This function will continuously call <a href="trait.read#tymethod.read"><code>read()</code></a> to append more data to <code>buf</code> until <a href="trait.read#tymethod.read"><code>read()</code></a> returns either <a href="../result/enum.result#variant.Ok"><code>Ok(0)</code></a> or an error of non-<a href="enum.errorkind#variant.Interrupted" title="ErrorKind::Interrupted"><code>ErrorKind::Interrupted</code></a> kind.</p> <p>If successful, this function will return the total number of bytes read.</p> <h5 id="errors-1">Errors</h5> <p>If this function encounters an error of the kind <a href="enum.errorkind#variant.Interrupted" title="ErrorKind::Interrupted"><code>ErrorKind::Interrupted</code></a> then the error is ignored and the operation will continue.</p> <p>If any other read error is encountered then this function immediately returns. Any bytes which have already been read will be appended to <code>buf</code>.</p> <h5 id="examples-2">Examples</h5> <p><a href="../fs/struct.file"><code>File</code></a>s implement <code>Read</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::io;
 use std::io::prelude::*;
 use std::fs::File;
 
@@ -113,10 +104,10 @@ fn main() -&gt; io::Result&lt;()&gt; {
     Ok(())
 }</pre></div> <p>(See also the <a href="../fs/fn.read"><code>std::fs::read</code></a> convenience function for reading from a file.)</p> </div>
 <summary><div id="method.read_to_string" class="method has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#774-776" title="goto source code">[src]</a></div>
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#745-747">source</a></div>
 <h4 class="code-header">fn read_to_string(&amp;mut self, buf: &amp;mut String) -&gt; Result&lt;usize&gt;</h4>
 </div></summary><div class="docblock">
-<p>Read all bytes until EOF in this source, appending them to <code>buf</code>.</p> <p>If successful, this function returns the number of bytes which were read and appended to <code>buf</code>.</p> <h5 id="errors-2" class="section-header">Errors</h5> <p>If the data in this stream is <em>not</em> valid UTF-8 then an error is returned and <code>buf</code> is unchanged.</p> <p>See <a href="trait.read#method.read_to_end"><code>read_to_end</code></a> for other error semantics.</p> <h5 id="examples-3" class="section-header">Examples</h5> <p><a href="../fs/struct.file"><code>File</code></a>s implement <code>Read</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::io;
+<p>Read all bytes until EOF in this source, appending them to <code>buf</code>.</p> <p>If successful, this function returns the number of bytes which were read and appended to <code>buf</code>.</p> <h5 id="errors-2">Errors</h5> <p>If the data in this stream is <em>not</em> valid UTF-8 then an error is returned and <code>buf</code> is unchanged.</p> <p>See <a href="trait.read#method.read_to_end"><code>read_to_end</code></a> for other error semantics.</p> <h5 id="examples-3">Examples</h5> <p><a href="../fs/struct.file"><code>File</code></a>s implement <code>Read</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::io;
 use std::io::prelude::*;
 use std::fs::File;
 
@@ -129,11 +120,10 @@ fn main() -&gt; io::Result&lt;()&gt; {
 }</pre></div> <p>(See also the <a href="../fs/fn.read_to_string"><code>std::fs::read_to_string</code></a> convenience function for reading from a file.)</p> </div>
 <summary><div id="method.read_exact" class="method has-srclink">
 <div class="rightside">
-<a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#829-831" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.6.0">1.6.0</span>
-</div>
+<a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#800-802">source</a><span class="since" title="Stable since Rust version 1.6.0">1.6.0</span> · </div>
 <h4 class="code-header">fn read_exact(&amp;mut self, buf: &amp;mut [u8]) -&gt; Result&lt;()&gt;</h4>
 </div></summary><div class="docblock">
-<p>Read the exact number of bytes required to fill <code>buf</code>.</p> <p>This function reads as many bytes as necessary to completely fill the specified buffer <code>buf</code>.</p> <p>No guarantees are provided about the contents of <code>buf</code> when this function is called, implementations cannot rely on any property of the contents of <code>buf</code> being true. It is recommended that implementations only write data to <code>buf</code> instead of reading its contents. The documentation on <a href="trait.read#tymethod.read"><code>read</code></a> has a more detailed explanation on this subject.</p> <h5 id="errors-3" class="section-header">Errors</h5> <p>If this function encounters an error of the kind <a href="enum.errorkind#variant.Interrupted" title="ErrorKind::Interrupted"><code>ErrorKind::Interrupted</code></a> then the error is ignored and the operation will continue.</p> <p>If this function encounters an “end of file” before completely filling the buffer, it returns an error of the kind <a href="enum.errorkind#variant.UnexpectedEof" title="ErrorKind::UnexpectedEof"><code>ErrorKind::UnexpectedEof</code></a>. The contents of <code>buf</code> are unspecified in this case.</p> <p>If any other read error is encountered then this function immediately returns. The contents of <code>buf</code> are unspecified in this case.</p> <p>If this function returns an error, it is unspecified how many bytes it has read, but it will never read more than would be necessary to completely fill the buffer.</p> <h5 id="examples-4" class="section-header">Examples</h5> <p><a href="../fs/struct.file"><code>File</code></a>s implement <code>Read</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::io;
+<p>Read the exact number of bytes required to fill <code>buf</code>.</p> <p>This function reads as many bytes as necessary to completely fill the specified buffer <code>buf</code>.</p> <p>No guarantees are provided about the contents of <code>buf</code> when this function is called, implementations cannot rely on any property of the contents of <code>buf</code> being true. It is recommended that implementations only write data to <code>buf</code> instead of reading its contents. The documentation on <a href="trait.read#tymethod.read"><code>read</code></a> has a more detailed explanation on this subject.</p> <h5 id="errors-3">Errors</h5> <p>If this function encounters an error of the kind <a href="enum.errorkind#variant.Interrupted" title="ErrorKind::Interrupted"><code>ErrorKind::Interrupted</code></a> then the error is ignored and the operation will continue.</p> <p>If this function encounters an “end of file” before completely filling the buffer, it returns an error of the kind <a href="enum.errorkind#variant.UnexpectedEof" title="ErrorKind::UnexpectedEof"><code>ErrorKind::UnexpectedEof</code></a>. The contents of <code>buf</code> are unspecified in this case.</p> <p>If any other read error is encountered then this function immediately returns. The contents of <code>buf</code> are unspecified in this case.</p> <p>If this function returns an error, it is unspecified how many bytes it has read, but it will never read more than would be necessary to completely fill the buffer.</p> <h5 id="examples-4">Examples</h5> <p><a href="../fs/struct.file"><code>File</code></a>s implement <code>Read</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::io;
 use std::io::prelude::*;
 use std::fs::File;
 
@@ -145,12 +135,24 @@ fn main() -&gt; io::Result&lt;()&gt; {
     f.read_exact(&amp;mut buffer)?;
     Ok(())
 }</pre></div> </div>
+<summary><div id="method.read_buf" class="method has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#811-813">source</a></div>
+<h4 class="code-header">fn read_buf(&amp;mut self, buf: &amp;mut ReadBuf&lt;'_&gt;) -&gt; Result&lt;()&gt;</h4>
+</div></summary><span class="item-info"><div class="stab unstable">
+<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>read_buf</code> <a href="https://github.com/rust-lang/rust/issues/78485">#78485</a>)</div></span><div class="docblock">
+<p>Pull some bytes from this source into the specified buffer.</p> <p>This is equivalent to the <a href="trait.read#tymethod.read"><code>read</code></a> method, except that it is passed a <a href="struct.readbuf" title="ReadBuf"><code>ReadBuf</code></a> rather than <code>[u8]</code> to allow use with uninitialized buffers. The new data will be appended to any existing contents of <code>buf</code>.</p> <p>The default implementation delegates to <code>read</code>.</p> </div>
+<summary><div id="method.read_buf_exact" class="method has-srclink">
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#820-835">source</a></div>
+<h4 class="code-header">fn read_buf_exact(&amp;mut self, buf: &amp;mut ReadBuf&lt;'_&gt;) -&gt; Result&lt;()&gt;</h4>
+</div></summary><span class="item-info"><div class="stab unstable">
+<span class="emoji">🔬</span> This is a nightly-only experimental API. (<code>read_buf</code> <a href="https://github.com/rust-lang/rust/issues/78485">#78485</a>)</div></span><div class="docblock">
+<p>Read the exact number of bytes required to fill <code>buf</code>.</p> <p>This is equivalent to the <a href="trait.read#method.read_exact"><code>read_exact</code></a> method, except that it is passed a <a href="struct.readbuf" title="ReadBuf"><code>ReadBuf</code></a> rather than <code>[u8]</code> to allow use with uninitialized buffers.</p> </div>
 <summary><div id="method.by_ref" class="method has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#868-873" title="goto source code">[src]</a></div>
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#872-877">source</a></div>
 <h4 class="code-header">fn by_ref(&amp;mut self) -&gt; &amp;mut Self <span class="where fmt-newline">where<br> Self: <a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
 </h4>
 </div></summary><div class="docblock">
-<p>Creates a “by reference” adapter for this instance of <code>Read</code>.</p> <p>The returned adapter also implements <code>Read</code> and will simply borrow this current reader.</p> <h5 id="examples-5" class="section-header">Examples</h5> <p><a href="../fs/struct.file"><code>File</code></a>s implement <code>Read</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::io;
+<p>Creates a “by reference” adaptor for this instance of <code>Read</code>.</p> <p>The returned adapter also implements <code>Read</code> and will simply borrow this current reader.</p> <h5 id="examples-5">Examples</h5> <p><a href="../fs/struct.file"><code>File</code></a>s implement <code>Read</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::io;
 use std::io::Read;
 use std::fs::File;
 
@@ -172,15 +174,14 @@ fn main() -&gt; io::Result&lt;()&gt; {
     Ok(())
 }</pre></div> </div>
 <summary><div id="method.bytes" class="method has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#906-911" title="goto source code">[src]</a></div>
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#910-915">source</a></div>
 <h4 class="code-header">fn bytes(self) -&gt; Bytes&lt;Self&gt; <span class="where fmt-newline">where<br> Self: <a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
 </h4>
 </div>
-<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="struct.bytes" title="struct std::io::Bytes">Bytes</a>&lt;R&gt;</div>
-<pre class="content">impl&lt;R: Read&gt; Iterator for Bytes&lt;R&gt;
+<span class="notable-traits"><span class="notable-traits-tooltiptext"><span class="docblock"><span class="notable">Notable traits for <a class="struct" href="struct.bytes" title="struct std::io::Bytes">Bytes</a>&lt;R&gt;</span><pre class="content">impl&lt;R: Read&gt; Iterator for Bytes&lt;R&gt;
     type Item = Result&lt;u8&gt;;
-</pre></span></div></span></summary><div class="docblock">
-<p>Transforms this <code>Read</code> instance to an <a href="../iter/trait.iterator" title="Iterator"><code>Iterator</code></a> over its bytes.</p> <p>The returned type implements <a href="../iter/trait.iterator" title="Iterator"><code>Iterator</code></a> where the <a href="../iter/trait.iterator#associatedtype.Item"><code>Item</code></a> is <code><a href="../result/enum.result" title="Result">Result</a>&lt;<a href="../primitive.u8" title="u8">u8</a>, <a href="struct.error" title="io::Error">io::Error</a>&gt;</code>. The yielded item is <a href="../result/enum.result#variant.Ok" title="Ok"><code>Ok</code></a> if a byte was successfully read and <a href="../result/enum.result#variant.Err" title="Err"><code>Err</code></a> otherwise. EOF is mapped to returning <a href="../option/enum.option#variant.None" title="None"><code>None</code></a> from this iterator.</p> <h5 id="examples-6" class="section-header">Examples</h5> <p><a href="../fs/struct.file" title="fs::File"><code>File</code></a>s implement <code>Read</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::io;
+</pre></span></span></span></summary><div class="docblock">
+<p>Transforms this <code>Read</code> instance to an <a href="../iter/trait.iterator" title="Iterator"><code>Iterator</code></a> over its bytes.</p> <p>The returned type implements <a href="../iter/trait.iterator" title="Iterator"><code>Iterator</code></a> where the <a href="../iter/trait.iterator#associatedtype.Item"><code>Item</code></a> is <code><a href="../result/enum.result" title="Result">Result</a>&lt;<a href="../primitive.u8" title="u8">u8</a>, <a href="struct.error" title="io::Error">io::Error</a>&gt;</code>. The yielded item is <a href="../result/enum.result#variant.Ok" title="Ok"><code>Ok</code></a> if a byte was successfully read and <a href="../result/enum.result#variant.Err" title="Err"><code>Err</code></a> otherwise. EOF is mapped to returning <a href="../option/enum.option#variant.None" title="None"><code>None</code></a> from this iterator.</p> <h5 id="examples-6">Examples</h5> <p><a href="../fs/struct.file" title="fs::File"><code>File</code></a>s implement <code>Read</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::io;
 use std::io::prelude::*;
 use std::fs::File;
 
@@ -193,14 +194,13 @@ fn main() -&gt; io::Result&lt;()&gt; {
     Ok(())
 }</pre></div> </div>
 <summary><div id="method.chain" class="method has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#944-949" title="goto source code">[src]</a></div>
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#948-953">source</a></div>
 <h4 class="code-header">fn chain&lt;R: Read&gt;(self, next: R) -&gt; Chain&lt;Self, R&gt; <span class="where fmt-newline">where<br> Self: <a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
 </h4>
 </div>
-<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="struct.chain" title="struct std::io::Chain">Chain</a>&lt;T, U&gt;</div>
-<pre class="content">impl&lt;T: Read, U: Read&gt; Read for Chain&lt;T, U&gt;
-</pre></span></div></span></summary><div class="docblock">
-<p>Creates an adapter which will chain this stream with another.</p> <p>The returned <code>Read</code> instance will first read all bytes from this object until EOF is encountered. Afterwards the output is equivalent to the output of <code>next</code>.</p> <h5 id="examples-7" class="section-header">Examples</h5> <p><a href="../fs/struct.file"><code>File</code></a>s implement <code>Read</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::io;
+<span class="notable-traits"><span class="notable-traits-tooltiptext"><span class="docblock"><span class="notable">Notable traits for <a class="struct" href="struct.chain" title="struct std::io::Chain">Chain</a>&lt;T, U&gt;</span><pre class="content">impl&lt;T: Read, U: Read&gt; Read for Chain&lt;T, U&gt;
+</pre></span></span></span></summary><div class="docblock">
+<p>Creates an adapter which will chain this stream with another.</p> <p>The returned <code>Read</code> instance will first read all bytes from this object until EOF is encountered. Afterwards the output is equivalent to the output of <code>next</code>.</p> <h5 id="examples-7">Examples</h5> <p><a href="../fs/struct.file"><code>File</code></a>s implement <code>Read</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::io;
 use std::io::prelude::*;
 use std::fs::File;
 
@@ -217,14 +217,13 @@ fn main() -&gt; io::Result&lt;()&gt; {
     Ok(())
 }</pre></div> </div>
 <summary><div id="method.take" class="method has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#983-988" title="goto source code">[src]</a></div>
+<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#987-992">source</a></div>
 <h4 class="code-header">fn take(self, limit: u64) -&gt; Take&lt;Self&gt; <span class="where fmt-newline">where<br> Self: <a class="trait" href="../marker/trait.sized" title="trait std::marker::Sized">Sized</a>, </span>
 </h4>
 </div>
-<span class="notable-traits"><div class="notable-traits-tooltiptext"><span class="docblock"><div class="notable">Notable traits for <a class="struct" href="struct.take" title="struct std::io::Take">Take</a>&lt;T&gt;</div>
-<pre class="content">impl&lt;T: Read&gt; Read for Take&lt;T&gt;
-</pre></span></div></span></summary><div class="docblock">
-<p>Creates an adapter which will read at most <code>limit</code> bytes from it.</p> <p>This function returns a new instance of <code>Read</code> which will read at most <code>limit</code> bytes, after which it will always return EOF (<a href="../result/enum.result#variant.Ok"><code>Ok(0)</code></a>). Any read errors will not count towards the number of bytes read and future calls to <a href="trait.read#tymethod.read"><code>read()</code></a> may succeed.</p> <h5 id="examples-8" class="section-header">Examples</h5> <p><a href="../fs/struct.file"><code>File</code></a>s implement <code>Read</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::io;
+<span class="notable-traits"><span class="notable-traits-tooltiptext"><span class="docblock"><span class="notable">Notable traits for <a class="struct" href="struct.take" title="struct std::io::Take">Take</a>&lt;T&gt;</span><pre class="content">impl&lt;T: Read&gt; Read for Take&lt;T&gt;
+</pre></span></span></span></summary><div class="docblock">
+<p>Creates an adapter which will read at most <code>limit</code> bytes from it.</p> <p>This function returns a new instance of <code>Read</code> which will read at most <code>limit</code> bytes, after which it will always return EOF (<a href="../result/enum.result#variant.Ok"><code>Ok(0)</code></a>). Any read errors will not count towards the number of bytes read and future calls to <a href="trait.read#tymethod.read"><code>read()</code></a> may succeed.</p> <h5 id="examples-8">Examples</h5> <p><a href="../fs/struct.file"><code>File</code></a>s implement <code>Read</code>:</p> <div class="example-wrap"><pre class="rust rust-example-rendered" data-language="rust">use std::io;
 use std::io::prelude::*;
 use std::fs::File;
 
@@ -241,91 +240,12 @@ fn main() -&gt; io::Result&lt;()&gt; {
 </div>
 <h2 id="implementors" class="small-section-header">Implementors</h2>
 <div class="item-list" id="implementors-list">
-<div id="impl-Read" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/fs.rs.html#675-706" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl Read for &amp;File</h3>
-</div>
-<div id="impl-Read-1" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/net/tcp.rs.html#656-675" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl Read for &amp;TcpStream</h3>
-</div>
-<div id="impl-Read-2" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#231-300" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl Read for &amp;[u8]</h3>
-</div>
-<div class="docblock">
+<section id="impl-Read" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/fs.rs.html#690-719">source</a></span><h3 class="code-header in-band">impl Read for &amp;File</h3></section><section id="impl-Read-1" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/net/tcp.rs.html#650-663">source</a></span><h3 class="code-header in-band">impl Read for &amp;TcpStream</h3></section><section id="impl-Read-2" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#231-309">source</a></span><h3 class="code-header in-band">impl Read for &amp;[u8]</h3></section><div class="docblock">
 <p>Read is implemented for <code>&amp;[u8]</code> by copying from the slice.</p> <p>Note that reading updates the slice to point to the yet unread part. The slice will be empty when EOF is reached.</p> </div>
-<div id="impl-Read-3" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/fs.rs.html#617-648" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl Read for File</h3>
-</div>
-<div id="impl-Read-4" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/net/tcp.rs.html#616-635" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl Read for TcpStream</h3>
-</div>
-<div id="impl-Read-5" class="impl has-srclink">
-<div class="rightside">
-<a class="srclink" href="https://doc.rust-lang.org/src/std/os/unix/net/stream.rs.html#614-632" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.10.0">1.10.0</span>
-</div>
-<h3 class="code-header in-band">impl Read for UnixStream</h3>
-<div class="item-info"><div class="stab portability">This is supported on <strong>Unix</strong> only.</div></div>
-</div>
-<div id="impl-Read-6" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#419-438" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl Read for ChildStderr</h3>
-</div>
-<div id="impl-Read-7" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#352-371" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl Read for ChildStdout</h3>
-</div>
-<div id="impl-Read-8" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/util.rs.html#43-53" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl Read for Empty</h3>
-</div>
-<div id="impl-Read-9" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/util.rs.html#124-151" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl Read for Repeat</h3>
-</div>
-<div id="impl-Read-10" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/stdio.rs.html#506-530" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl Read for Stdin</h3>
-</div>
-<div id="impl-Read-11" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/stdio.rs.html#541-571" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl Read for StdinLock&lt;'_&gt;</h3>
-</div>
-<div id="impl-Read-12" class="impl has-srclink">
-<div class="rightside">
-<a class="srclink" href="https://doc.rust-lang.org/src/std/os/unix/net/stream.rs.html#635-653" title="goto source code">[src]</a><span class="since" title="Stable since Rust version 1.10.0">1.10.0</span>
-</div>
-<h3 class="code-header in-band">impl&lt;'a&gt; Read for &amp;'a UnixStream</h3>
-<div class="item-info"><div class="stab portability">This is supported on <strong>Unix</strong> only.</div></div>
-</div>
-<div id="impl-Read-13" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#16-51" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl&lt;R: Read + ?Sized&gt; Read for &amp;mut R</h3>
-</div>
-<div id="impl-Read-14" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#120-155" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl&lt;R: Read + ?Sized&gt; Read for Box&lt;R&gt;</h3>
-</div>
-<div id="impl-Read-15" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/buffered/bufreader.rs.html#257-355" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl&lt;R: Read&gt; Read for BufReader&lt;R&gt;</h3>
-</div>
-<div id="impl-Read-16" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/cursor.rs.html#317-354" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl&lt;T&gt; Read for Cursor&lt;T&gt; <span class="where fmt-newline">where<br> T: <a class="trait" href="../convert/trait.asref" title="trait std::convert::AsRef">AsRef</a>&lt;<a class="primitive" href="../primitive.slice">[</a><a class="primitive" href="../primitive.u8">u8</a><a class="primitive" href="../primitive.slice">]</a>&gt;, </span>
-</h3>
-</div>
-<div id="impl-Read-17" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#2600-2616" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl&lt;T: Read&gt; Read for Take&lt;T&gt;</h3>
-</div>
-<div id="impl-Read-18" class="impl has-srclink">
-<div class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#2386-2411" title="goto source code">[src]</a></div>
-<h3 class="code-header in-band">impl&lt;T: Read, U: Read&gt; Read for Chain&lt;T, U&gt;</h3>
-</div>
+<section id="impl-Read-3" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/fs.rs.html#634-663">source</a></span><h3 class="code-header in-band">impl Read for File</h3></section><section id="impl-Read-4" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/net/tcp.rs.html#616-629">source</a></span><h3 class="code-header in-band">impl Read for TcpStream</h3></section><section id="impl-Read-5" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/os/unix/net/stream.rs.html#614-627">source</a><span class="since" title="Stable since Rust version 1.10.0">1.10.0</span> · </span><h3 class="code-header in-band">impl Read for UnixStream</h3>
+<span class="item-info"><div class="stab portability">Available on <strong>Unix</strong> only.</div></span></section><section id="impl-Read-6" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#413-426">source</a></span><h3 class="code-header in-band">impl Read for ChildStderr</h3></section><section id="impl-Read-7" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/process.rs.html#352-365">source</a></span><h3 class="code-header in-band">impl Read for ChildStdout</h3></section><section id="impl-Read-8" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/util.rs.html#43-53">source</a></span><h3 class="code-header in-band">impl Read for Empty</h3></section><section id="impl-Read-9" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/util.rs.html#124-164">source</a></span><h3 class="code-header in-band">impl Read for Repeat</h3></section><section id="impl-Read-10" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/stdio.rs.html#419-439">source</a></span><h3 class="code-header in-band">impl Read for Stdin</h3></section><section id="impl-Read-11" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/stdio.rs.html#450-475">source</a></span><h3 class="code-header in-band">impl Read for StdinLock&lt;'_&gt;</h3></section><section id="impl-Read-12" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/os/unix/net/stream.rs.html#630-643">source</a><span class="since" title="Stable since Rust version 1.10.0">1.10.0</span> · </span><h3 class="code-header in-band">impl&lt;'a&gt; Read for &amp;'a UnixStream</h3>
+<span class="item-info"><div class="stab portability">Available on <strong>Unix</strong> only.</div></span></section><section id="impl-Read-13" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#16-51">source</a></span><h3 class="code-header in-band">impl&lt;R: Read + ?Sized&gt; Read for &amp;mut R</h3></section><section id="impl-Read-14" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/impls.rs.html#120-155">source</a></span><h3 class="code-header in-band">impl&lt;R: Read + ?Sized&gt; Read for Box&lt;R&gt;</h3></section><section id="impl-Read-15" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/buffered/bufreader.rs.html#257-369">source</a></span><h3 class="code-header in-band">impl&lt;R: Read&gt; Read for BufReader&lt;R&gt;</h3></section><section id="impl-Read-16" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/cursor.rs.html#316-358">source</a></span><h3 class="code-header in-band">impl&lt;T&gt; Read for Cursor&lt;T&gt; <span class="where fmt-newline">where<br> T: <a class="trait" href="../convert/trait.asref" title="trait std::convert::AsRef">AsRef</a>&lt;<a class="primitive" href="../primitive.slice">[</a><a class="primitive" href="../primitive.u8">u8</a><a class="primitive" href="../primitive.slice">]</a>&gt;, </span>
+</h3></section><section id="impl-Read-17" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#2553-2614">source</a></span><h3 class="code-header in-band">impl&lt;T: Read&gt; Read for Take&lt;T&gt;</h3></section><section id="impl-Read-18" class="impl has-srclink"><span class="rightside"><a class="srclink" href="https://doc.rust-lang.org/src/std/io/mod.rs.html#2344-2364">source</a></span><h3 class="code-header in-band">impl&lt;T: Read, U: Read&gt; Read for Chain&lt;T, U&gt;</h3></section>
 </div><div class="_attribution">
   <p class="_attribution-p">
     <a href="https://doc.rust-lang.org/std/io/trait.Read.html" class="_attribution-link" target="_blank">https://doc.rust-lang.org/std/io/trait.Read.html</a>

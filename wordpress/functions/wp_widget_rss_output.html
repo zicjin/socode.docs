@@ -1,0 +1,106 @@
+<h1>wp_widget_rss_output( string|array|object $rss, array $args = array() )</h1>  <section> <p>Display the RSS entries in a list.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$rss</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>|<span class="array">array</span>|<span class="object">object</span>)</span> <span class="required">(Required)</span> <span class="description">RSS url.</span> </p> </dd> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description">Widget arguments.</span> </p> <p class="default">Default value: array()</p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/widgets.php/">wp-includes/widgets.php</a> </p> <pre data-language="php">function wp_widget_rss_output( $rss, $args = array() ) {
+	if ( is_string( $rss ) ) {
+		$rss = fetch_feed( $rss );
+	} elseif ( is_array( $rss ) &amp;&amp; isset( $rss['url'] ) ) {
+		$args = $rss;
+		$rss  = fetch_feed( $rss['url'] );
+	} elseif ( ! is_object( $rss ) ) {
+		return;
+	}
+
+	if ( is_wp_error( $rss ) ) {
+		if ( is_admin() || current_user_can( 'manage_options' ) ) {
+			echo '&lt;p&gt;&lt;strong&gt;' . __( 'RSS Error:' ) . '&lt;/strong&gt; ' . $rss-&gt;get_error_message() . '&lt;/p&gt;';
+		}
+		return;
+	}
+
+	$default_args = array(
+		'show_author'  =&gt; 0,
+		'show_date'    =&gt; 0,
+		'show_summary' =&gt; 0,
+		'items'        =&gt; 0,
+	);
+	$args         = wp_parse_args( $args, $default_args );
+
+	$items = (int) $args['items'];
+	if ( $items &lt; 1 || 20 &lt; $items ) {
+		$items = 10;
+	}
+	$show_summary = (int) $args['show_summary'];
+	$show_author  = (int) $args['show_author'];
+	$show_date    = (int) $args['show_date'];
+
+	if ( ! $rss-&gt;get_item_quantity() ) {
+		echo '&lt;ul&gt;&lt;li&gt;' . __( 'An error has occurred, which probably means the feed is down. Try again later.' ) . '&lt;/li&gt;&lt;/ul&gt;';
+		$rss-&gt;__destruct();
+		unset( $rss );
+		return;
+	}
+
+	echo '&lt;ul&gt;';
+	foreach ( $rss-&gt;get_items( 0, $items ) as $item ) {
+		$link = $item-&gt;get_link();
+		while ( ! empty( $link ) &amp;&amp; stristr( $link, 'http' ) !== $link ) {
+			$link = substr( $link, 1 );
+		}
+		$link = esc_url( strip_tags( $link ) );
+
+		$title = esc_html( trim( strip_tags( $item-&gt;get_title() ) ) );
+		if ( empty( $title ) ) {
+			$title = __( 'Untitled' );
+		}
+
+		$desc = html_entity_decode( $item-&gt;get_description(), ENT_QUOTES, get_option( 'blog_charset' ) );
+		$desc = esc_attr( wp_trim_words( $desc, 55, ' [&amp;hellip;]' ) );
+
+		$summary = '';
+		if ( $show_summary ) {
+			$summary = $desc;
+
+			// Change existing [...] to [&amp;hellip;].
+			if ( '[...]' === substr( $summary, -5 ) ) {
+				$summary = substr( $summary, 0, -5 ) . '[&amp;hellip;]';
+			}
+
+			$summary = '&lt;div class="rssSummary"&gt;' . esc_html( $summary ) . '&lt;/div&gt;';
+		}
+
+		$date = '';
+		if ( $show_date ) {
+			$date = $item-&gt;get_date( 'U' );
+
+			if ( $date ) {
+				$date = ' &lt;span class="rss-date"&gt;' . date_i18n( get_option( 'date_format' ), $date ) . '&lt;/span&gt;';
+			}
+		}
+
+		$author = '';
+		if ( $show_author ) {
+			$author = $item-&gt;get_author();
+			if ( is_object( $author ) ) {
+				$author = $author-&gt;get_name();
+				$author = ' &lt;cite&gt;' . esc_html( strip_tags( $author ) ) . '&lt;/cite&gt;';
+			}
+		}
+
+		if ( '' === $link ) {
+			echo "&lt;li&gt;$title{$date}{$summary}{$author}&lt;/li&gt;";
+		} elseif ( $show_summary ) {
+			echo "&lt;li&gt;&lt;a class='rsswidget' href='$link'&gt;$title&lt;/a&gt;{$date}{$summary}{$author}&lt;/li&gt;";
+		} else {
+			echo "&lt;li&gt;&lt;a class='rsswidget' href='$link'&gt;$title&lt;/a&gt;{$date}{$author}&lt;/li&gt;";
+		}
+	}
+	echo '&lt;/ul&gt;';
+	$rss-&gt;__destruct();
+	unset( $rss );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_html">esc_html()</a> </td> <td class="related-desc"> <p>Escaping for HTML blocks.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_trim_words">wp_trim_words()</a> </td> <td class="related-desc"> <p>Trims text to a certain number of words.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_admin">is_admin()</a> </td> <td class="related-desc"> <p>Determines whether the current request is for an administrative interface page.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_parse_args">wp_parse_args()</a> </td> <td class="related-desc"> <p>Merges user defined arguments into defaults array.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="date_i18n">date_i18n()</a> </td> <td class="related-desc"> <p>Retrieves the date in localized format, based on a sum of Unix timestamp and timezone offset in seconds.</p> </td> </tr> <tr> <td> <span>wp-includes/feed.php:</span> <a href="fetch_feed">fetch_feed()</a> </td> <td class="related-desc"> <p>Build SimplePie object based on RSS or Atom feed from URL.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/dashboard.php:</span> <a href="wp_dashboard_rss_output">wp_dashboard_rss_output()</a> </td> <td class="related-desc"> <p>Display generic dashboard RSS widget feed.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/dashboard.php:</span> <a href="wp_dashboard_primary_output">wp_dashboard_primary_output()</a> </td> <td class="related-desc"> <p>Displays the WordPress events and news feeds.</p> </td> </tr> <tr> <td> <span>wp-includes/widgets/class-wp-widget-rss.php:</span> <a href="../classes/wp_widget_rss/widget">WP_Widget_RSS::widget()</a> </td> <td class="related-desc"> <p>Outputs the content for the current RSS widget instance.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.5.0/" alt="WordPress 2.5.0">2.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_widget_rss_output" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_widget_rss_output</a>
+  </p>
+</div>

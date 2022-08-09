@@ -1,0 +1,103 @@
+<h1>build_query_vars_from_query_block( WP_Block $block, int $page )</h1>  <section> <p>Helper function that constructs a <a href="../classes/wp_query">WP_Query</a> args array from a <code>Query</code> block properties.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>It’s used in Query Loop, Query Pagination Numbers and Query Pagination Next blocks.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$block</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Block"><a href="../classes/wp_block">WP_Block</a></span>)</span> <span class="required">(Required)</span> <span class="description">Block instance.</span> </p> </dd> <dt>$page</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">Current query's page.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> Returns the constructed <a href="../classes/wp_query">WP_Query</a> arguments.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/blocks.php/">wp-includes/blocks.php</a> </p> <pre data-language="php">function build_query_vars_from_query_block( $block, $page ) {
+	$query = array(
+		'post_type'    =&gt; 'post',
+		'order'        =&gt; 'DESC',
+		'orderby'      =&gt; 'date',
+		'post__not_in' =&gt; array(),
+	);
+
+	if ( isset( $block-&gt;context['query'] ) ) {
+		if ( ! empty( $block-&gt;context['query']['postType'] ) ) {
+			$post_type_param = $block-&gt;context['query']['postType'];
+			if ( is_post_type_viewable( $post_type_param ) ) {
+				$query['post_type'] = $post_type_param;
+			}
+		}
+		if ( isset( $block-&gt;context['query']['sticky'] ) &amp;&amp; ! empty( $block-&gt;context['query']['sticky'] ) ) {
+			$sticky = get_option( 'sticky_posts' );
+			if ( 'only' === $block-&gt;context['query']['sticky'] ) {
+				$query['post__in'] = $sticky;
+			} else {
+				$query['post__not_in'] = array_merge( $query['post__not_in'], $sticky );
+			}
+		}
+		if ( ! empty( $block-&gt;context['query']['exclude'] ) ) {
+			$excluded_post_ids     = array_map( 'intval', $block-&gt;context['query']['exclude'] );
+			$excluded_post_ids     = array_filter( $excluded_post_ids );
+			$query['post__not_in'] = array_merge( $query['post__not_in'], $excluded_post_ids );
+		}
+		if (
+			isset( $block-&gt;context['query']['perPage'] ) &amp;&amp;
+			is_numeric( $block-&gt;context['query']['perPage'] )
+		) {
+			$per_page = absint( $block-&gt;context['query']['perPage'] );
+			$offset   = 0;
+
+			if (
+				isset( $block-&gt;context['query']['offset'] ) &amp;&amp;
+				is_numeric( $block-&gt;context['query']['offset'] )
+			) {
+				$offset = absint( $block-&gt;context['query']['offset'] );
+			}
+
+			$query['offset']         = ( $per_page * ( $page - 1 ) ) + $offset;
+			$query['posts_per_page'] = $per_page;
+		}
+		// Migrate `categoryIds` and `tagIds` to `tax_query` for backwards compatibility.
+		if ( ! empty( $block-&gt;context['query']['categoryIds'] ) || ! empty( $block-&gt;context['query']['tagIds'] ) ) {
+			$tax_query = array();
+			if ( ! empty( $block-&gt;context['query']['categoryIds'] ) ) {
+				$tax_query[] = array(
+					'taxonomy'         =&gt; 'category',
+					'terms'            =&gt; array_filter( array_map( 'intval', $block-&gt;context['query']['categoryIds'] ) ),
+					'include_children' =&gt; false,
+				);
+			}
+			if ( ! empty( $block-&gt;context['query']['tagIds'] ) ) {
+				$tax_query[] = array(
+					'taxonomy'         =&gt; 'post_tag',
+					'terms'            =&gt; array_filter( array_map( 'intval', $block-&gt;context['query']['tagIds'] ) ),
+					'include_children' =&gt; false,
+				);
+			}
+			$query['tax_query'] = $tax_query;
+		}
+		if ( ! empty( $block-&gt;context['query']['taxQuery'] ) ) {
+			$query['tax_query'] = array();
+			foreach ( $block-&gt;context['query']['taxQuery'] as $taxonomy =&gt; $terms ) {
+				if ( is_taxonomy_viewable( $taxonomy ) &amp;&amp; ! empty( $terms ) ) {
+					$query['tax_query'][] = array(
+						'taxonomy'         =&gt; $taxonomy,
+						'terms'            =&gt; array_filter( array_map( 'intval', $terms ) ),
+						'include_children' =&gt; false,
+					);
+				}
+			}
+		}
+		if (
+			isset( $block-&gt;context['query']['order'] ) &amp;&amp;
+				in_array( strtoupper( $block-&gt;context['query']['order'] ), array( 'ASC', 'DESC' ), true )
+		) {
+			$query['order'] = strtoupper( $block-&gt;context['query']['order'] );
+		}
+		if ( isset( $block-&gt;context['query']['orderBy'] ) ) {
+			$query['orderby'] = $block-&gt;context['query']['orderBy'];
+		}
+		if (
+			isset( $block-&gt;context['query']['author'] ) &amp;&amp;
+			(int) $block-&gt;context['query']['author'] &gt; 0
+		) {
+			$query['author'] = (int) $block-&gt;context['query']['author'];
+		}
+		if ( ! empty( $block-&gt;context['query']['search'] ) ) {
+			$query['s'] = $block-&gt;context['query']['search'];
+		}
+	}
+	return $query;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="is_taxonomy_viewable">is_taxonomy_viewable()</a> </td> <td class="related-desc"> <p>Determines whether a taxonomy is considered “viewable”.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="is_post_type_viewable">is_post_type_viewable()</a> </td> <td class="related-desc"> <p>Determines whether a post type is considered “viewable”.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="absint">absint()</a> </td> <td class="related-desc"> <p>Convert a value to non-negative integer.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.8.0/" alt="WordPress 5.8.0">5.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/build_query_vars_from_query_block" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/build_query_vars_from_query_block</a>
+  </p>
+</div>

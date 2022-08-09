@@ -1,0 +1,70 @@
+<h1>wp_ajax_delete_theme()</h1>  <section> <p>Ajax handler for deleting a theme.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <h3 id="see-also">See also</h3> <ul> <li><a href="delete_theme">delete_theme()</a></li> </ul> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/ajax-actions.php/">wp-admin/includes/ajax-actions.php</a> </p> <pre data-language="php">function wp_ajax_delete_theme() {
+	check_ajax_referer( 'updates' );
+
+	if ( empty( $_POST['slug'] ) ) {
+		wp_send_json_error(
+			array(
+				'slug'         =&gt; '',
+				'errorCode'    =&gt; 'no_theme_specified',
+				'errorMessage' =&gt; __( 'No theme specified.' ),
+			)
+		);
+	}
+
+	$stylesheet = preg_replace( '/[^A-z0-9_\-]/', '', wp_unslash( $_POST['slug'] ) );
+	$status     = array(
+		'delete' =&gt; 'theme',
+		'slug'   =&gt; $stylesheet,
+	);
+
+	if ( ! current_user_can( 'delete_themes' ) ) {
+		$status['errorMessage'] = __( 'Sorry, you are not allowed to delete themes on this site.' );
+		wp_send_json_error( $status );
+	}
+
+	if ( ! wp_get_theme( $stylesheet )-&gt;exists() ) {
+		$status['errorMessage'] = __( 'The requested theme does not exist.' );
+		wp_send_json_error( $status );
+	}
+
+	// Check filesystem credentials. `delete_theme()` will bail otherwise.
+	$url = wp_nonce_url( 'themes.php?action=delete&amp;stylesheet=' . urlencode( $stylesheet ), 'delete-theme_' . $stylesheet );
+
+	ob_start();
+	$credentials = request_filesystem_credentials( $url );
+	ob_end_clean();
+
+	if ( false === $credentials || ! WP_Filesystem( $credentials ) ) {
+		global $wp_filesystem;
+
+		$status['errorCode']    = 'unable_to_connect_to_filesystem';
+		$status['errorMessage'] = __( 'Unable to connect to the filesystem. Please confirm your credentials.' );
+
+		// Pass through the error from WP_Filesystem if one was raised.
+		if ( $wp_filesystem instanceof WP_Filesystem_Base &amp;&amp; is_wp_error( $wp_filesystem-&gt;errors ) &amp;&amp; $wp_filesystem-&gt;errors-&gt;has_errors() ) {
+			$status['errorMessage'] = esc_html( $wp_filesystem-&gt;errors-&gt;get_error_message() );
+		}
+
+		wp_send_json_error( $status );
+	}
+
+	include_once ABSPATH . 'wp-admin/includes/theme.php';
+
+	$result = delete_theme( $stylesheet );
+
+	if ( is_wp_error( $result ) ) {
+		$status['errorMessage'] = $result-&gt;get_error_message();
+		wp_send_json_error( $status );
+	} elseif ( false === $result ) {
+		$status['errorMessage'] = __( 'Theme could not be deleted.' );
+		wp_send_json_error( $status );
+	}
+
+	wp_send_json_success( $status );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/theme.php:</span> <a href="delete_theme">delete_theme()</a> </td> <td class="related-desc"> <p>Removes a theme.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/file.php:</span> <a href="request_filesystem_credentials">request_filesystem_credentials()</a> </td> <td class="related-desc"> <p>Displays a form to the user to request for their FTP/SSH details in order to connect to the filesystem.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/file.php:</span> <a href="wp_filesystem">WP_Filesystem()</a> </td> <td class="related-desc"> <p>Initializes and connects the WordPress Filesystem Abstraction classes.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="wp_get_theme">wp_get_theme()</a> </td> <td class="related-desc"> <p>Gets a <a href="../classes/wp_theme">WP_Theme</a> object for a theme.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_unslash">wp_unslash()</a> </td> <td class="related-desc"> <p>Removes slashes from a string or recursively removes slashes from strings within an array.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_html">esc_html()</a> </td> <td class="related-desc"> <p>Escaping for HTML blocks.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="check_ajax_referer">check_ajax_referer()</a> </td> <td class="related-desc"> <p>Verifies the Ajax request to prevent processing requests external of the blog.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_send_json_error">wp_send_json_error()</a> </td> <td class="related-desc"> <p>Send a JSON response back to an Ajax request, indicating failure.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_send_json_success">wp_send_json_success()</a> </td> <td class="related-desc"> <p>Send a JSON response back to an Ajax request, indicating success.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_nonce_url">wp_nonce_url()</a> </td> <td class="related-desc"> <p>Retrieve URL with nonce added to URL query.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.6.0/" alt="WordPress 4.6.0">4.6.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_ajax_delete_theme" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_ajax_delete_theme</a>
+  </p>
+</div>

@@ -1,0 +1,134 @@
+<h1 data-toc="multiplatform-mobile-concurrency-and-coroutines" id="multiplatform-mobile-concurrency-and-coroutines.md">Concurrency and coroutines</h1>
+<p id="996b891a">When working with mobile platforms, you may need to write multithreaded code that runs in parallel. For this, you can use the <a href="#coroutines" id="d652a278">standard</a> <code class="code ">kotlinx.coroutines</code> library or its <a href="#multithreaded-coroutines" id="cfea079f">multithreaded version</a> and <a href="#alternatives-to-kotlinx-coroutines" id="f5e6c2b4">alternative solutions</a>.</p>
+<p id="3e8ccf9a">Review the pros and cons of each solution and choose the one that works best for your situation.</p>
+<p id="462c1cf3">Learn more about <a href="multiplatform-mobile-concurrency-overview" id="51920431">concurrency, the current approach, and future improvements</a>.</p>
+<section class="chapter"><h2 id="coroutines" data-toc="multiplatform-mobile-concurrency-and-coroutines#coroutines">Coroutines</h2>
+<p id="445749e3">Coroutines are light-weight threads that allow you to write asynchronous non-blocking code. Kotlin provides the <a href="https://github.com/Kotlin/kotlinx.coroutines" id="fd5c0e2" data-external="true" rel="noopener noreferrer"><code class="code ">kotlinx.coroutines</code></a> library with a number of high-level coroutine-enabled primitives.</p>
+<p id="7d0aa52f">The current version of <code class="code ">kotlinx.coroutines</code>, which can be used for iOS, supports usage only in a single thread. You cannot send work to other threads by changing a <a href="#dispatcher-for-changing-threads" id="7f058b67">dispatcher</a>.</p>
+<p id="a78a7bd5">For Kotlin 1.7.10, the recommended coroutines version is <code class="code ">1.6.0</code>.</p>
+<p id="b93d4958">You can suspend execution and do work on other threads while using a different mechanism for scheduling and managing that work. However, this version of <code class="code ">kotlinx.coroutines</code> cannot change threads on its own.</p>
+<p id="13d1783e">There is also <a href="#multithreaded-coroutines" id="f5da75e4">another version of <code class="code ">kotlinx.coroutines</code></a> that provides support for multiple threads.</p>
+<p id="45908c88">Get acquainted with the main concepts for using coroutines:</p>
+<ul class="list _ul" id="f1ce3eb2">
+<li class="list__item" id="9fd8c8e6"><p><a href="#asynchronous-vs-parallel-processing" id="852f777d">Asynchronous vs. parallel processing</a></p></li>
+<li class="list__item" id="52636f94"><p><a href="#dispatcher-for-changing-threads" id="8327c015">Dispatcher for changing threads</a></p></li>
+<li class="list__item" id="d5f913c2"><p><a href="#frozen-captured-data" id="2bf41f85">Frozen captured data</a></p></li>
+<li class="list__item" id="fee10081"><p><a href="#frozen-returned-data" id="23fdf1e">Frozen returned data</a></p></li>
+</ul>
+<section class="chapter"><h3 id="asynchronous-vs-parallel-processing" data-toc="multiplatform-mobile-concurrency-and-coroutines#asynchronous-vs-parallel-processing">Asynchronous vs. parallel processing</h3>
+<p id="8b6ea836">Asynchronous and parallel processing are different.</p>
+<p id="af5d7f4a">Within a coroutine, the processing sequence may be suspended and resumed later. This allows for asynchronous, non-blocking code, without using callbacks or promises. That is asynchronous processing, but everything related to that coroutine can happen in a single thread.</p>
+<p id="e7ac47a6">The following code makes a network call using <a href="https://ktor.io/" id="5e6f7bcc" data-external="true" rel="noopener noreferrer">Ktor</a>. In the main thread, the call is initiated and suspended, while another underlying process performs the actual networking. When completed, the code resumes in the main thread.</p>
+<pre class="code" data-language="kotlin">val client = HttpClient()
+//Running in the main thread, start a `get` call
+client.get&lt;String&gt;("https://example.com/some/rest/call")
+//The get call will suspend and let other work happen in the main thread, and resume when the get call completes
+</pre>
+<p id="1ab755b2">That is different from parallel code that needs to be run in another thread. Depending on your purpose and the libraries you use, you may never need to use multiple threads.</p></section><section class="chapter"><h3 id="dispatcher-for-changing-threads" data-toc="multiplatform-mobile-concurrency-and-coroutines#dispatcher-for-changing-threads">Dispatcher for changing threads</h3>
+<p id="dd880fad">Coroutines are executed by a dispatcher that defines which thread the coroutine will be executed on. There are a number of ways in which you can specify the dispatcher, or change the one for the coroutine. For example:</p>
+<pre class="code" data-language="kotlin">suspend fun differentThread() = withContext(Dispatchers.Default){
+    println("Different thread")
+}
+</pre>
+<p id="8aa1d94a"><code class="code ">withContext</code> takes both a dispatcher as an argument and a code block that will be executed by the thread defined by the dispatcher. Learn more about <a href="coroutine-context-and-dispatchers" id="3155afd9">coroutine context and dispatchers</a>.</p>
+<p id="f14fc944">To perform work on a different thread, specify a different dispatcher and a code block to execute. In general, switching dispatchers and threads works similar to the JVM, but there are differences related to freezing captured and returned data.</p></section><section class="chapter"><h3 id="frozen-captured-data" data-toc="multiplatform-mobile-concurrency-and-coroutines#frozen-captured-data">Frozen captured data</h3>
+<p id="c6b7a7a7">To run code on a different thread, you pass a <code class="code ">functionBlock</code>, which gets frozen and then runs in another thread.</p>
+<pre class="code" data-language="kotlin">fun &lt;R&gt; runOnDifferentThread(functionBlock: () -&gt; R)
+</pre>
+<p id="1777fda9">You will call that function as follows:</p>
+<pre class="code" data-language="kotlin">runOnDifferentThread {
+    //Code run in another thread
+}
+</pre>
+<p id="ac565e79">As described in the <a href="multiplatform-mobile-concurrency-overview" id="be1ce5ad">concurrency overview</a>, a state shared between threads in Kotlin/Native must be frozen. A function argument is a state itself, which will be frozen along with anything it captures.</p>
+<p id="757a74cd">Coroutine functions that cross threads use the same pattern. To allow function blocks to be executed on another thread, they are frozen.</p>
+<p id="5539dc29">In the following example, the data class instance <code class="code ">dc</code> will be captured by the function block and will be frozen when crossing threads. The <code class="code ">println</code> statement will print <code class="code ">true</code>.</p>
+<pre class="code" data-language="kotlin">val dc = DataClass("Hello")
+withContext(Dispatchers.Default) {
+    println("${dc.isFrozen}")
+}
+</pre>
+<p id="950d56a7">When running parallel code, be careful with the captured state. Sometimes it's obvious when the state will be captured, but not always. For example:</p>
+<pre class="code" data-language="kotlin">class SomeModel(val id:IdRec){
+    suspend fun saveData() = withContext(Dispatchers.Default){
+        saveToDb(id)
+    }
+}
+</pre>
+<p id="86572ac6">The code inside <code class="code ">saveData</code> runs on another thread. That will freeze <code class="code ">id</code>, but because <code class="code ">id</code> is a property of the parent class, it will also freeze the parent class.</p></section><section class="chapter"><h3 id="frozen-returned-data" data-toc="multiplatform-mobile-concurrency-and-coroutines#frozen-returned-data">Frozen returned data</h3>
+<p id="ee14265f">Data returned from a different thread is also frozen. Even though it's recommended that you return immutable data, you can return a mutable state in a way that doesn't allow a returned value to be changed.</p>
+<pre class="code" data-language="kotlin">val dc = withContext(Dispatchers.Default) {
+    DataClass("Hello Again")
+}
+
+println("${dc.isFrozen}")
+</pre>
+<p id="3254a284">It may be a problem if a mutable state is isolated in a single thread and coroutine threading operations are used for communication. If you attempt to return data that retains a reference to the mutable state, it will also freeze the data by association.</p>
+<p id="b88f3c2f">Learn more about the <a href="multiplatform-mobile-concurrent-mutability#thread-isolated-state" id="1ccfe627">thread-isolated state</a>.</p></section></section><section class="chapter"><h2 id="multithreaded-coroutines" data-toc="multiplatform-mobile-concurrency-and-coroutines#multithreaded-coroutines">Multithreaded coroutines</h2>
+<p id="dfcbba9e">A <a href="https://github.com/Kotlin/kotlinx.coroutines/tree/native-mt" id="6ba82f5e" data-external="true" rel="noopener noreferrer">special branch</a> of the <code class="code ">kotlinx.coroutines</code> library provides support for using multiple threads. It is a separate branch for the reasons listed in the <a href="https://blog.jetbrains.com/kotlin/2020/07/kotlin-native-memory-management-roadmap/" id="bb542466" data-external="true" rel="noopener noreferrer">future concurrency model blog post</a>.</p>
+<p id="2deb5a59">However, you can still use the multithreaded version of <code class="code ">kotlinx.coroutines</code> in production, taking its specifics into account.</p>
+<p id="bbf5c5de">The current version for Kotlin 1.7.10 is <code class="code ">1.6.0-native-mt</code>.</p>
+<p id="2769d904">To use the multithreaded version, add a dependency for the <code class="code ">commonMain</code> source set in <code class="code ">build.gradle(.kts)</code>:</p>
+<div class="tabs" id="81f468e9" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="75ccaef8" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">val commonMain by getting {
+    dependencies {
+        implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0-native-mt")
+    }
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="62dda1bf" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">commonMain {
+    dependencies {
+        implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0-native-mt'
+    }
+}
+</pre></div>
+</div>
+<p id="255e7b4a">When using other libraries that also depend on <code class="code ">kotlinx.coroutines</code>, such as Ktor, make sure to specify the multithreaded version of <code class="code ">kotlinx-coroutines</code>. You can do this with <code class="code ">strictly</code>:</p>
+<div class="tabs" id="a190a786" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="87baadfc" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0-native-mt") {
+    version {
+        strictly("1.6.0-native-mt")
+    }
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="8e9123cd" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0-native-mt' {
+    version {
+        strictly '1.6.0-native-mt'
+    }
+}
+</pre></div>
+</div>
+<p id="ca67a35c">Because the main version of <code class="code ">kotlinx.coroutines</code> is a single-threaded one, libraries will almost certainly rely on this version. If you see <code class="code ">InvalidMutabilityException</code> related to a coroutine operation, it's very likely that you are using the wrong version.</p>
+<aside data-type="note" class="prompt" data-title="" id="5fa386ca"><p id="6fdea05d">Using multithreaded coroutines may result in <em id="fafa77cc" class="">memory leaks</em>. This can be a problem for complex coroutine scenarios under load. We are working on a solution for this.</p></aside><p id="2ffc6468">See a <a href="https://github.com/touchlab/KaMPKit" id="54f6d426" data-external="true" rel="noopener noreferrer">complete example of using multithreaded coroutines in a Kotlin Multiplatform application</a>.</p></section><section class="chapter"><h2 id="alternatives-to-kotlinx-coroutines" data-toc="multiplatform-mobile-concurrency-and-coroutines#alternatives-to-kotlinx-coroutines">Alternatives to kotlinx-coroutines</h2>
+<p id="8dcb1c63">There are a few alternative ways to run parallel code.</p>
+<section class="chapter"><h3 id="coroutineworker" data-toc="multiplatform-mobile-concurrency-and-coroutines#coroutineworker">CoroutineWorker</h3>
+<p id="86aa7177"><a href="https://github.com/Autodesk/coroutineworker" id="94ea1c66" data-external="true" rel="noopener noreferrer"><code class="code ">CoroutinesWorker</code></a> is a library published by AutoDesk that implements some features of coroutines across threads using the single-threaded version of <code class="code ">kotlinx.coroutines</code>.</p>
+<p id="e5ff8845">For simple suspend functions this is a pretty good option, but it does not support Flow and other structures.</p></section><section class="chapter"><h3 id="reaktive" data-toc="multiplatform-mobile-concurrency-and-coroutines#reaktive">Reaktive</h3>
+<p id="738f8624"><a href="https://github.com/badoo/Reaktive" id="17ae1e42" data-external="true" rel="noopener noreferrer">Reaktive</a> is an Rx-like library that implements Reactive extensions for Kotlin Multiplatform. It has some coroutine extensions but is primarily designed around RX and threads.</p></section><section class="chapter"><h3 id="custom-processor" data-toc="multiplatform-mobile-concurrency-and-coroutines#custom-processor">Custom processor</h3>
+<p id="9fa8f425">For simpler background tasks, you can create your own processor with wrappers around platform specifics. See a <a href="https://github.com/touchlab/KMMWorker" id="a109cf1c" data-external="true" rel="noopener noreferrer">simple example</a>.</p></section><section class="chapter"><h3 id="platform-concurrency" data-toc="multiplatform-mobile-concurrency-and-coroutines#platform-concurrency">Platform concurrency</h3>
+<p id="118c4b6f">In production, you can also rely on the platform to handle concurrency. This could be helpful if the shared Kotlin code will be used for business logic or data operations rather than architecture.</p>
+<p id="e330d663">To share a state in iOS across threads, that state needs to be <a href="multiplatform-mobile-concurrency-overview#immutable-and-frozen-state" id="a2e13cc4">frozen</a>. The concurrency libraries mentioned here will freeze your data automatically. You will rarely need to do so explicitly, if ever.</p>
+<p id="7a1ff15c">If you return data to the iOS platform that should be shared across threads, ensure that data is frozen before leaving the iOS boundary.</p>
+<p id="24dbd2f8">Kotlin has the concept of frozen only for Kotlin/Native platforms including iOS. To make <code class="code ">freeze</code> available in common code, you can create expect and actual implementations for <code class="code ">freeze</code>, or use <a href="https://github.com/touchlab/Stately#stately-common" id="95ccaf1f" data-external="true" rel="noopener noreferrer"><code class="code ">stately-common</code></a>, which provides this functionality. In Kotlin/Native, <code class="code ">freeze</code> will freeze your state, while on the JVM it'll do nothing.</p>
+<p id="76717b40">To use <code class="code ">stately-common</code>, add a dependency for the <code class="code ">commonMain</code> source set in <code class="code ">build.gradle(.kts)</code>:</p>
+<div class="tabs" id="c5f82dfc" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="4d257470" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">val commonMain by getting {
+    dependencies {
+        implementation ("co.touchlab:stately-common:1.0.x")
+    }
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="94bebe64" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">commonMain {
+    dependencies {
+        implementation 'co.touchlab:stately-common:1.0.x'
+    }
+}
+</pre></div>
+</div>
+<p id="6edab03"><em id="373f77" class="">This material was prepared by <a href="https://touchlab.co/" id="cd120094" data-external="true" rel="noopener noreferrer">Touchlab</a> for publication by JetBrains.</em></p></section></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="multiplatform-mobile-concurrent-mutability">Concurrent mutability</a> <a class="navigation-links__next" href="native-debugging">Debugging Kotlin/Native</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/multiplatform-mobile-concurrency-and-coroutines.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/multiplatform-mobile-concurrency-and-coroutines.html</a>
+  </p>
+</div>

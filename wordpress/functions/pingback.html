@@ -1,0 +1,105 @@
+<h1>pingback( string $content, int|WP_Post $post_id )</h1>  <section> <p>Pings back the links found in a post.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$content</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Post content to check for links. If empty will retrieve from post.</span> </p> </dd> <dt>$post_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>|<span class="WP_Post"><a href="../classes/wp_post">WP_Post</a></span>)</span> <span class="required">(Required)</span> <span class="description">Post Object or ID.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/comment.php/">wp-includes/comment.php</a> </p> <pre data-language="php">function pingback( $content, $post_id ) {
+	include_once ABSPATH . WPINC . '/class-IXR.php';
+	include_once ABSPATH . WPINC . '/class-wp-http-ixr-client.php';
+
+	// Original code by Mort (http://mort.mine.nu:8080).
+	$post_links = array();
+
+	$post = get_post( $post_id );
+	if ( ! $post ) {
+		return;
+	}
+
+	$pung = get_pung( $post );
+
+	if ( empty( $content ) ) {
+		$content = $post-&gt;post_content;
+	}
+
+	/*
+	 * Step 1.
+	 * Parsing the post, external links (if any) are stored in the $post_links array.
+	 */
+	$post_links_temp = wp_extract_urls( $content );
+
+	/*
+	 * Step 2.
+	 * Walking through the links array.
+	 * First we get rid of links pointing to sites, not to specific files.
+	 * Example:
+	 * http://dummy-weblog.org
+	 * http://dummy-weblog.org/
+	 * http://dummy-weblog.org/post.php
+	 * We don't wanna ping first and second types, even if they have a valid &lt;link/&gt;.
+	 */
+	foreach ( (array) $post_links_temp as $link_test ) {
+		// If we haven't pung it already and it isn't a link to itself.
+		if ( ! in_array( $link_test, $pung, true ) &amp;&amp; ( url_to_postid( $link_test ) != $post-&gt;ID )
+			// Also, let's never ping local attachments.
+			&amp;&amp; ! is_local_attachment( $link_test )
+		) {
+			$test = parse_url( $link_test );
+			if ( $test ) {
+				if ( isset( $test['query'] ) ) {
+					$post_links[] = $link_test;
+				} elseif ( isset( $test['path'] ) &amp;&amp; ( '/' !== $test['path'] ) &amp;&amp; ( '' !== $test['path'] ) ) {
+					$post_links[] = $link_test;
+				}
+			}
+		}
+	}
+
+	$post_links = array_unique( $post_links );
+
+	/**
+	 * Fires just before pinging back links found in a post.
+	 *
+	 * @since 2.0.0
+	 *
+	 * @param string[] $post_links Array of link URLs to be checked (passed by reference).
+	 * @param string[] $pung       Array of link URLs already pinged (passed by reference).
+	 * @param int      $post_ID    The post ID.
+	 */
+	do_action_ref_array( 'pre_ping', array( &amp;$post_links, &amp;$pung, $post-&gt;ID ) );
+
+	foreach ( (array) $post_links as $pagelinkedto ) {
+		$pingback_server_url = discover_pingback_server_uri( $pagelinkedto );
+
+		if ( $pingback_server_url ) {
+			set_time_limit( 60 );
+			// Now, the RPC call.
+			$pagelinkedfrom = get_permalink( $post );
+
+			// Using a timeout of 3 seconds should be enough to cover slow servers.
+			$client          = new WP_HTTP_IXR_Client( $pingback_server_url );
+			$client-&gt;timeout = 3;
+			/**
+			 * Filters the user agent sent when pinging-back a URL.
+			 *
+			 * @since 2.9.0
+			 *
+			 * @param string $concat_useragent    The user agent concatenated with ' -- WordPress/'
+			 *                                    and the WordPress version.
+			 * @param string $useragent           The useragent.
+			 * @param string $pingback_server_url The server URL being linked to.
+			 * @param string $pagelinkedto        URL of page linked to.
+			 * @param string $pagelinkedfrom      URL of page linked from.
+			 */
+			$client-&gt;useragent = apply_filters( 'pingback_useragent', $client-&gt;useragent . ' -- WordPress/' . get_bloginfo( 'version' ), $client-&gt;useragent, $pingback_server_url, $pagelinkedto, $pagelinkedfrom );
+			// When set to true, this outputs debug messages by itself.
+			$client-&gt;debug = false;
+
+			if ( $client-&gt;query( 'pingback.ping', $pagelinkedfrom, $pagelinkedto ) || ( isset( $client-&gt;error-&gt;code ) &amp;&amp; 48 == $client-&gt;error-&gt;code ) ) { // Already registered.
+				add_ping( $post, $pagelinkedto );
+			}
+		}
+	}
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/general-template.php:</span> <a href="get_bloginfo">get_bloginfo()</a> </td> <td class="related-desc"> <p>Retrieves information about the current site.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_extract_urls">wp_extract_urls()</a> </td> <td class="related-desc"> <p>Use RegEx to extract URLs from arbitrary content.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="get_permalink">get_permalink()</a> </td> <td class="related-desc"> <p>Retrieves the full permalink for the current post or post ID.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action_ref_array">do_action_ref_array()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook, specifying arguments in an array.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_pung">get_pung()</a> </td> <td class="related-desc"> <p>Retrieve URLs already pinged for a post.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="is_local_attachment">is_local_attachment()</a> </td> <td class="related-desc"> <p>Determines whether an attachment URI is local and really an attachment.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="add_ping">add_ping()</a> </td> <td class="related-desc"> <p>Add a URL to those already pinged.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> <tr> <td> <span>wp-includes/rewrite.php:</span> <a href="url_to_postid">url_to_postid()</a> </td> <td class="related-desc"> <p>Examines a URL and try to determine the post ID it represents.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-http-ixr-client.php:</span> <a href="../classes/wp_http_ixr_client/__construct">WP_HTTP_IXR_Client::__construct()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/pingback_useragent">pingback_useragent</a> </td> <td class="related-desc"> <p>Filters the user agent sent when pinging-back a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="discover_pingback_server_uri">discover_pingback_server_uri()</a> </td> <td class="related-desc"> <p>Finds a pingback server URI based on the given URL.</p> </td> </tr> <tr> <td> <span>wp-includes/comment.php:</span> <a href="../hooks/pre_ping">pre_ping</a> </td> <td class="related-desc"> <p>Fires just before pinging back links found in a post.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/comment.php:</span> <a href="do_all_pingbacks">do_all_pingbacks()</a> </td> <td class="related-desc"> <p>Performs all pingbacks.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.7.0/" alt="WordPress 4.7.0">4.7.0</a></td> <td><span class="since-description"><code>$post_id</code> can be a <a href="../classes/wp_post">WP_Post</a> object.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/0.71/" alt="WordPress 0.71">0.71</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/pingback" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/pingback</a>
+  </p>
+</div>

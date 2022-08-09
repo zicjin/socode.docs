@@ -1,0 +1,56 @@
+<h1>WP_Automatic_Updater::is_vcs_checkout( string $context )</h1>  <section> <p>Checks for version control checkouts.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Checks for Subversion, Git, Mercurial, and Bazaar. It recursively looks up the filesystem to the top of the drive, erring on the side of detecting a VCS checkout somewhere.</p> <p>ABSPATH is always checked in addition to whatever <code>$context</code> is (which may be the wp-content directory, for example). The underlying assumption is that if you are using version control <em>anywhere</em>, then you should be making decisions for how things get updated.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$context</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The filesystem path to check, in addition to ABSPATH.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> True if a VCS checkout was discovered at <code>$context</code> or ABSPATH, or anywhere higher. False otherwise.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-automatic-updater.php/">wp-admin/includes/class-wp-automatic-updater.php</a> </p> <pre data-language="php">public function is_vcs_checkout( $context ) {
+		$context_dirs = array( untrailingslashit( $context ) );
+		if ( ABSPATH !== $context ) {
+			$context_dirs[] = untrailingslashit( ABSPATH );
+		}
+
+		$vcs_dirs   = array( '.svn', '.git', '.hg', '.bzr' );
+		$check_dirs = array();
+
+		foreach ( $context_dirs as $context_dir ) {
+			// Walk up from $context_dir to the root.
+			do {
+				$check_dirs[] = $context_dir;
+
+				// Once we've hit '/' or 'C:\', we need to stop. dirname will keep returning the input here.
+				if ( dirname( $context_dir ) === $context_dir ) {
+					break;
+				}
+
+				// Continue one level at a time.
+			} while ( $context_dir = dirname( $context_dir ) );
+		}
+
+		$check_dirs = array_unique( $check_dirs );
+
+		// Search all directories we've found for evidence of version control.
+		foreach ( $vcs_dirs as $vcs_dir ) {
+			foreach ( $check_dirs as $check_dir ) {
+				$checkout = @is_dir( rtrim( $check_dir, '\\/' ) . "/$vcs_dir" );
+				if ( $checkout ) {
+					break 2;
+				}
+			}
+		}
+
+		/**
+		 * Filters whether the automatic updater should consider a filesystem
+		 * location to be potentially managed by a version control system.
+		 *
+		 * @since 3.7.0
+		 *
+		 * @param bool $checkout  Whether a VCS checkout was discovered at `$context`
+		 *                        or ABSPATH, or anywhere higher.
+		 * @param string $context The filesystem context (a path) against which
+		 *                        filesystem status should be checked.
+		 */
+		return apply_filters( 'automatic_updates_is_vcs_checkout', $checkout, $context );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-automatic-updater.php:</span> <a href="../../hooks/automatic_updates_is_vcs_checkout">automatic_updates_is_vcs_checkout</a> </td> <td class="related-desc"> <p>Filters whether the automatic updater should consider a filesystem location to be potentially managed by a version control system.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/untrailingslashit">untrailingslashit()</a> </td> <td class="related-desc"> <p>Removes trailing forward slashes and backslashes if they exist.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-automatic-updater.php:</span> <a href="should_update">WP_Automatic_Updater::should_update()</a> </td> <td class="related-desc"> <p>Tests to see if we can and should update a specific item.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.7.0/" alt="WordPress 3.7.0">3.7.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_automatic_updater/is_vcs_checkout" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_automatic_updater/is_vcs_checkout</a>
+  </p>
+</div>

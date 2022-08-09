@@ -1,0 +1,68 @@
+<h1>_wp_specialchars( string $string, int|string $quote_style = ENT_NOQUOTES, false|string $charset = false, bool $double_encode = false )</h1> <div class="callout callout-alert">
+<p> This function’s access is marked private. This means it is not intended for use by plugin or theme developers, only in other core functions. It is listed here for completeness.</p> </div>  <section> <p>Converts a number of special characters into their HTML entities.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Specifically deals with: <code>&amp;</code>, <code>&lt;</code>, <code>&gt;</code>, <code>"</code>, and <code>'</code>.</p> <p><code>$quote_style</code> can be set to ENT_COMPAT to encode <code>"</code> to <code>&amp;quot;</code>, or ENT_QUOTES to do both. Default is ENT_NOQUOTES where no quotes are encoded.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$string</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The text which is to be encoded.</span> </p> </dd> <dt>$quote_style</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>|<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> Converts double quotes if set to ENT_COMPAT, both single and double if set to ENT_QUOTES or none if set to ENT_NOQUOTES. Converts single and double quotes, as well as converting HTML named entities (that are not also XML named entities) to their code points if set to ENT_XML1. Also compatible with old values; converting single quotes if set to 'single', double if set to 'double' or both if otherwise set. Default is ENT_NOQUOTES.</span> </p> <p class="default">Default value: ENT_NOQUOTES</p> </dd> <dt>$charset</dt> <dd> <p class="desc"> <span class="type">(<span class="false">false</span>|<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> The character encoding of the string. </span> </p> <p class="default">Default value: false</p> </dd> <dt>$double_encode</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> Whether to encode existing HTML entities. </span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> The encoded text with HTML entities.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/formatting.php/">wp-includes/formatting.php</a> </p> <pre data-language="php">function _wp_specialchars( $string, $quote_style = ENT_NOQUOTES, $charset = false, $double_encode = false ) {
+	$string = (string) $string;
+
+	if ( 0 === strlen( $string ) ) {
+		return '';
+	}
+
+	// Don't bother if there are no specialchars - saves some processing.
+	if ( ! preg_match( '/[&amp;&lt;&gt;"\']/', $string ) ) {
+		return $string;
+	}
+
+	// Account for the previous behaviour of the function when the $quote_style is not an accepted value.
+	if ( empty( $quote_style ) ) {
+		$quote_style = ENT_NOQUOTES;
+	} elseif ( ENT_XML1 === $quote_style ) {
+		$quote_style = ENT_QUOTES | ENT_XML1;
+	} elseif ( ! in_array( $quote_style, array( ENT_NOQUOTES, ENT_COMPAT, ENT_QUOTES, 'single', 'double' ), true ) ) {
+		$quote_style = ENT_QUOTES;
+	}
+
+	// Store the site charset as a static to avoid multiple calls to wp_load_alloptions().
+	if ( ! $charset ) {
+		static $_charset = null;
+		if ( ! isset( $_charset ) ) {
+			$alloptions = wp_load_alloptions();
+			$_charset   = isset( $alloptions['blog_charset'] ) ? $alloptions['blog_charset'] : '';
+		}
+		$charset = $_charset;
+	}
+
+	if ( in_array( $charset, array( 'utf8', 'utf-8', 'UTF8' ), true ) ) {
+		$charset = 'UTF-8';
+	}
+
+	$_quote_style = $quote_style;
+
+	if ( 'double' === $quote_style ) {
+		$quote_style  = ENT_COMPAT;
+		$_quote_style = ENT_COMPAT;
+	} elseif ( 'single' === $quote_style ) {
+		$quote_style = ENT_NOQUOTES;
+	}
+
+	if ( ! $double_encode ) {
+		// Guarantee every &amp;entity; is valid, convert &amp;garbage; into &amp;amp;garbage;
+		// This is required for PHP &lt; 5.4.0 because ENT_HTML401 flag is unavailable.
+		$string = wp_kses_normalize_entities( $string, ( $quote_style &amp; ENT_XML1 ) ? 'xml' : 'html' );
+	}
+
+	$string = htmlspecialchars( $string, $quote_style, $charset, $double_encode );
+
+	// Back-compat.
+	if ( 'single' === $_quote_style ) {
+		$string = str_replace( "'", '&amp;#039;', $string );
+	}
+
+	return $string;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/kses.php:</span> <a href="wp_kses_normalize_entities">wp_kses_normalize_entities()</a> </td> <td class="related-desc"> <p>Converts and fixes HTML entities.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="wp_load_alloptions">wp_load_alloptions()</a> </td> <td class="related-desc"> <p>Loads and caches all autoloaded options, if available or all options.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_xml">esc_xml()</a> </td> <td class="related-desc"> <p>Escaping for XML blocks.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_js">esc_js()</a> </td> <td class="related-desc"> <p>Escapes single quotes, <code>"</code>, , <code>&amp;amp;</code>, and fixes line endings.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_html">esc_html()</a> </td> <td class="related-desc"> <p>Escaping for HTML blocks.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/deprecated.php:</span> <a href="wp_specialchars">wp_specialchars()</a> </td> <td class="related-desc"> <p>Legacy escaping for HTML blocks.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.0/" alt="WordPress 5.5.0">5.5.0</a></td> <td><span class="since-description"><code>$quote_style</code> also accepts <code>ENT_XML1</code>.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/1.2.2/" alt="WordPress 1.2.2">1.2.2</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/_wp_specialchars" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/_wp_specialchars</a>
+  </p>
+</div>

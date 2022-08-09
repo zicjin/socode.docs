@@ -1,0 +1,88 @@
+<h1>is_blog_installed()</h1>  <section> <p>Determines whether WordPress is already installed.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>The cache will be checked first. If you have a cache plugin, which saves the cache values, then this will work. If you use the default WordPress cache, and the database goes away, then you might have problems.</p> <p>Checks for the ‘siteurl’ option for whether WordPress is installed.</p> <p>For more information on this and similar theme functions, check out the <a href="https://developer.wordpress.org/themes/basics/conditional-tags/"> Conditional Tags</a> article in the Theme Developer Handbook.</p> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> Whether the site is already installed.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/functions.php/">wp-includes/functions.php</a> </p> <pre data-language="php">function is_blog_installed() {
+	global $wpdb;
+
+	/*
+	 * Check cache first. If options table goes away and we have true
+	 * cached, oh well.
+	 */
+	if ( wp_cache_get( 'is_blog_installed' ) ) {
+		return true;
+	}
+
+	$suppress = $wpdb-&gt;suppress_errors();
+	if ( ! wp_installing() ) {
+		$alloptions = wp_load_alloptions();
+	}
+	// If siteurl is not set to autoload, check it specifically.
+	if ( ! isset( $alloptions['siteurl'] ) ) {
+		$installed = $wpdb-&gt;get_var( "SELECT option_value FROM $wpdb-&gt;options WHERE option_name = 'siteurl'" );
+	} else {
+		$installed = $alloptions['siteurl'];
+	}
+	$wpdb-&gt;suppress_errors( $suppress );
+
+	$installed = ! empty( $installed );
+	wp_cache_set( 'is_blog_installed', $installed );
+
+	if ( $installed ) {
+		return true;
+	}
+
+	// If visiting repair.php, return true and let it take over.
+	if ( defined( 'WP_REPAIRING' ) ) {
+		return true;
+	}
+
+	$suppress = $wpdb-&gt;suppress_errors();
+
+	/*
+	 * Loop over the WP tables. If none exist, then scratch installation is allowed.
+	 * If one or more exist, suggest table repair since we got here because the
+	 * options table could not be accessed.
+	 */
+	$wp_tables = $wpdb-&gt;tables();
+	foreach ( $wp_tables as $table ) {
+		// The existence of custom user tables shouldn't suggest an unwise state or prevent a clean installation.
+		if ( defined( 'CUSTOM_USER_TABLE' ) &amp;&amp; CUSTOM_USER_TABLE == $table ) {
+			continue;
+		}
+		if ( defined( 'CUSTOM_USER_META_TABLE' ) &amp;&amp; CUSTOM_USER_META_TABLE == $table ) {
+			continue;
+		}
+
+		$described_table = $wpdb-&gt;get_results( "DESCRIBE $table;" );
+		if (
+			( ! $described_table &amp;&amp; empty( $wpdb-&gt;last_error ) ) ||
+			( is_array( $described_table ) &amp;&amp; 0 === count( $described_table ) )
+		) {
+			continue;
+		}
+
+		// One or more tables exist. This is not good.
+
+		wp_load_translations_early();
+
+		// Die with a DB error.
+		$wpdb-&gt;error = sprintf(
+			/* translators: %s: Database repair URL. */
+			__( 'One or more database tables are unavailable. The database may need to be &lt;a href="%s"&gt;repaired&lt;/a&gt;.' ),
+			'maint/repair.php?referrer=is_blog_installed'
+		);
+
+		dead_db();
+	}
+
+	$wpdb-&gt;suppress_errors( $suppress );
+
+	wp_cache_set( 'is_blog_installed', false );
+
+	return false;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_installing">wp_installing()</a> </td> <td class="related-desc"> <p>Check or set whether WordPress is in “installation” mode.</p> </td> </tr> <tr> <td> <span>wp-includes/cache.php:</span> <a href="wp_cache_get">wp_cache_get()</a> </td> <td class="related-desc"> <p>Retrieves the cache contents from the cache by key and group.</p> </td> </tr> <tr> <td> <span>wp-includes/cache.php:</span> <a href="wp_cache_set">wp_cache_set()</a> </td> <td class="related-desc"> <p>Saves the data to the cache.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_load_translations_early">wp_load_translations_early()</a> </td> <td class="related-desc"> <p>Attempt an early load of translations.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="dead_db">dead_db()</a> </td> <td class="related-desc"> <p>Load custom DB error or display WordPress DB error.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="wp_load_alloptions">wp_load_alloptions()</a> </td> <td class="related-desc"> <p>Loads and caches all autoloaded options, if available or all options.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/get_var">wpdb::get_var()</a> </td> <td class="related-desc"> <p>Retrieves one variable from the database.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/get_results">wpdb::get_results()</a> </td> <td class="related-desc"> <p>Retrieves an entire SQL result set from the database (i.e., many rows).</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/suppress_errors">wpdb::suppress_errors()</a> </td> <td class="related-desc"> <p>Enables or disables suppressing of database errors.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/tables">wpdb::tables()</a> </td> <td class="related-desc"> <p>Returns an array of WordPress tables.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/upgrade.php:</span> <a href="wp_upgrade">wp_upgrade()</a> </td> <td class="related-desc"> <p>Runs WordPress Upgrade functions.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_not_installed">wp_not_installed()</a> </td> <td class="related-desc"> <p>Redirect to the installer if WordPress is not installed.</p> </td> </tr> <tr> <td> <span>wp-includes/widgets.php:</span> <a href="wp_widgets_init">wp_widgets_init()</a> </td> <td class="related-desc"> <p>Registers all of the default WordPress widgets on startup.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.1.0/" alt="WordPress 2.1.0">2.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/is_blog_installed" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/is_blog_installed</a>
+  </p>
+</div>

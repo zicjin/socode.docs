@@ -1,0 +1,84 @@
+<h1>WP_REST_Server::get_data_for_route( string $route, array $callbacks, string $context = 'view' )</h1>  <section> <p>Retrieves publicly-visible data for the route.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$route</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Route to get data for.</span> </p> </dd> <dt>$callbacks</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">Callbacks to convert to data.</span> </p> </dd> <dt>$context</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> Context for the data. Accepts 'view' or 'help'. </span> </p> <p class="default">Default value: 'view'</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array|null)</span> Data for the route, or null if no publicly-visible data.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/rest-api/class-wp-rest-server.php/">wp-includes/rest-api/class-wp-rest-server.php</a> </p> <pre data-language="php">public function get_data_for_route( $route, $callbacks, $context = 'view' ) {
+		$data = array(
+			'namespace' =&gt; '',
+			'methods'   =&gt; array(),
+			'endpoints' =&gt; array(),
+		);
+
+		$allow_batch = false;
+
+		if ( isset( $this-&gt;route_options[ $route ] ) ) {
+			$options = $this-&gt;route_options[ $route ];
+
+			if ( isset( $options['namespace'] ) ) {
+				$data['namespace'] = $options['namespace'];
+			}
+
+			$allow_batch = isset( $options['allow_batch'] ) ? $options['allow_batch'] : false;
+
+			if ( isset( $options['schema'] ) &amp;&amp; 'help' === $context ) {
+				$data['schema'] = call_user_func( $options['schema'] );
+			}
+		}
+
+		$allowed_schema_keywords = array_flip( rest_get_allowed_schema_keywords() );
+
+		$route = preg_replace( '#\(\?P&lt;(\w+?)&gt;.*?\)#', '{$1}', $route );
+
+		foreach ( $callbacks as $callback ) {
+			// Skip to the next route if any callback is hidden.
+			if ( empty( $callback['show_in_index'] ) ) {
+				continue;
+			}
+
+			$data['methods'] = array_merge( $data['methods'], array_keys( $callback['methods'] ) );
+			$endpoint_data   = array(
+				'methods' =&gt; array_keys( $callback['methods'] ),
+			);
+
+			$callback_batch = isset( $callback['allow_batch'] ) ? $callback['allow_batch'] : $allow_batch;
+
+			if ( $callback_batch ) {
+				$endpoint_data['allow_batch'] = $callback_batch;
+			}
+
+			if ( isset( $callback['args'] ) ) {
+				$endpoint_data['args'] = array();
+
+				foreach ( $callback['args'] as $key =&gt; $opts ) {
+					$arg_data             = array_intersect_key( $opts, $allowed_schema_keywords );
+					$arg_data['required'] = ! empty( $opts['required'] );
+
+					$endpoint_data['args'][ $key ] = $arg_data;
+				}
+			}
+
+			$data['endpoints'][] = $endpoint_data;
+
+			// For non-variable routes, generate links.
+			if ( strpos( $route, '{' ) === false ) {
+				$data['_links'] = array(
+					'self' =&gt; array(
+						array(
+							'href' =&gt; rest_url( $route ),
+						),
+					),
+				);
+			}
+		}
+
+		if ( empty( $data['methods'] ) ) {
+			// No methods supported, hide the route.
+			return null;
+		}
+
+		return $data;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="../../functions/rest_get_allowed_schema_keywords">rest_get_allowed_schema_keywords()</a> </td> <td class="related-desc"> <p>Get all valid JSON schema properties.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="../../functions/rest_url">rest_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to a REST endpoint.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-server.php:</span> <a href="get_data_for_routes">WP_REST_Server::get_data_for_routes()</a> </td> <td class="related-desc"> <p>Retrieves the publicly-visible data for routes.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.4.0/" alt="WordPress 4.4.0">4.4.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_rest_server/get_data_for_route" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_rest_server/get_data_for_route</a>
+  </p>
+</div>

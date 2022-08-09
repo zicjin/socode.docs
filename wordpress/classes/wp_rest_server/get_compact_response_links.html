@@ -1,0 +1,47 @@
+<h1>WP_REST_Server::get_compact_response_links( WP_REST_Response $response )</h1>  <section> <p>Retrieves the CURIEs (compact URIs) used for relations.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Extracts the links from a response into a structured hash, suitable for direct output.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$response</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_REST_Response"><a href="../wp_rest_response">WP_REST_Response</a></span>)</span> <span class="required">(Required)</span> <span class="description">Response to extract links from.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> Map of link relation to list of link hashes.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/rest-api/class-wp-rest-server.php/">wp-includes/rest-api/class-wp-rest-server.php</a> </p> <pre data-language="php">public static function get_compact_response_links( $response ) {
+		$links = self::get_response_links( $response );
+
+		if ( empty( $links ) ) {
+			return array();
+		}
+
+		$curies      = $response-&gt;get_curies();
+		$used_curies = array();
+
+		foreach ( $links as $rel =&gt; $items ) {
+
+			// Convert $rel URIs to their compact versions if they exist.
+			foreach ( $curies as $curie ) {
+				$href_prefix = substr( $curie['href'], 0, strpos( $curie['href'], '{rel}' ) );
+				if ( strpos( $rel, $href_prefix ) !== 0 ) {
+					continue;
+				}
+
+				// Relation now changes from '$uri' to '$curie:$relation'.
+				$rel_regex = str_replace( '\{rel\}', '(.+)', preg_quote( $curie['href'], '!' ) );
+				preg_match( '!' . $rel_regex . '!', $rel, $matches );
+				if ( $matches ) {
+					$new_rel                       = $curie['name'] . ':' . $matches[1];
+					$used_curies[ $curie['name'] ] = $curie;
+					$links[ $new_rel ]             = $items;
+					unset( $links[ $rel ] );
+					break;
+				}
+			}
+		}
+
+		// Push the curies onto the start of the links array.
+		if ( $used_curies ) {
+			$links['curies'] = array_values( $used_curies );
+		}
+
+		return $links;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-server.php:</span> <a href="get_response_links">WP_REST_Server::get_response_links()</a> </td> <td class="related-desc"> <p>Retrieves links from a response.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/class-wp-rest-server.php:</span> <a href="response_to_data">WP_REST_Server::response_to_data()</a> </td> <td class="related-desc"> <p>Converts a response to data to send.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.5.0/" alt="WordPress 4.5.0">4.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_rest_server/get_compact_response_links" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_rest_server/get_compact_response_links</a>
+  </p>
+</div>

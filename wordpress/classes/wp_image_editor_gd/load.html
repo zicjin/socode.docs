@@ -1,0 +1,54 @@
+<h1>WP_Image_Editor_GD::load()</h1>  <section> <p>Loads image from $this-&gt;file into new GD Resource.</p> </section> <div class="content-toc">  <section> <h2 id="return">Return</h2> <p><span class="return-type">(true|<a href="../wp_error">WP_Error</a>)</span> True if loaded successfully; <a href="../wp_error">WP_Error</a> on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-image-editor-gd.php/">wp-includes/class-wp-image-editor-gd.php</a> </p> <pre data-language="php">public function load() {
+		if ( $this-&gt;image ) {
+			return true;
+		}
+
+		if ( ! is_file( $this-&gt;file ) &amp;&amp; ! preg_match( '|^https?://|', $this-&gt;file ) ) {
+			return new WP_Error( 'error_loading_image', __( 'File does not exist?' ), $this-&gt;file );
+		}
+
+		// Set artificially high because GD uses uncompressed images in memory.
+		wp_raise_memory_limit( 'image' );
+
+		$file_contents = @file_get_contents( $this-&gt;file );
+
+		if ( ! $file_contents ) {
+			return new WP_Error( 'error_loading_image', __( 'File does not exist?' ), $this-&gt;file );
+		}
+
+		// WebP may not work with imagecreatefromstring().
+		if (
+			function_exists( 'imagecreatefromwebp' ) &amp;&amp;
+			( 'image/webp' === wp_get_image_mime( $this-&gt;file ) )
+		) {
+			$this-&gt;image = @imagecreatefromwebp( $this-&gt;file );
+		} else {
+			$this-&gt;image = @imagecreatefromstring( $file_contents );
+		}
+
+		if ( ! is_gd_image( $this-&gt;image ) ) {
+			return new WP_Error( 'invalid_image', __( 'File is not an image.' ), $this-&gt;file );
+		}
+
+		$size = wp_getimagesize( $this-&gt;file );
+
+		if ( ! $size ) {
+			return new WP_Error( 'invalid_image', __( 'Could not read image size.' ), $this-&gt;file );
+		}
+
+		if ( function_exists( 'imagealphablending' ) &amp;&amp; function_exists( 'imagesavealpha' ) ) {
+			imagealphablending( $this-&gt;image, false );
+			imagesavealpha( $this-&gt;image, true );
+		}
+
+		$this-&gt;update_size( $size[0], $size[1] );
+		$this-&gt;mime_type = $size['mime'];
+
+		return $this-&gt;set_quality();
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/media.php:</span> <a href="../../functions/wp_getimagesize">wp_getimagesize()</a> </td> <td class="related-desc"> <p>Allows PHP’s getimagesize() to be debuggable when necessary.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="../../functions/is_gd_image">is_gd_image()</a> </td> <td class="related-desc"> <p>Determines whether the value is an acceptable type for GD image functions.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_get_image_mime">wp_get_image_mime()</a> </td> <td class="related-desc"> <p>Returns the real mime type of an image file.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_raise_memory_limit">wp_raise_memory_limit()</a> </td> <td class="related-desc"> <p>Attempts to raise the PHP memory limit for memory intensive processes.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-image-editor-gd.php:</span> <a href="update_size">WP_Image_Editor_GD::update_size()</a> </td> <td class="related-desc"> <p>Sets or updates current image size.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.5.0/" alt="WordPress 3.5.0">3.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_image_editor_gd/load" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_image_editor_gd/load</a>
+  </p>
+</div>

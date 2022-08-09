@@ -1,0 +1,122 @@
+<h1>wp_ajax_add_meta()</h1>  <section> <p>Ajax handler for adding meta.</p> </section> <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/ajax-actions.php/">wp-admin/includes/ajax-actions.php</a> </p> <pre data-language="php">function wp_ajax_add_meta() {
+	check_ajax_referer( 'add-meta', '_ajax_nonce-add-meta' );
+	$c    = 0;
+	$pid  = (int) $_POST['post_id'];
+	$post = get_post( $pid );
+
+	if ( isset( $_POST['metakeyselect'] ) || isset( $_POST['metakeyinput'] ) ) {
+		if ( ! current_user_can( 'edit_post', $pid ) ) {
+			wp_die( -1 );
+		}
+
+		if ( isset( $_POST['metakeyselect'] ) &amp;&amp; '#NONE#' === $_POST['metakeyselect'] &amp;&amp; empty( $_POST['metakeyinput'] ) ) {
+			wp_die( 1 );
+		}
+
+		// If the post is an autodraft, save the post as a draft and then attempt to save the meta.
+		if ( 'auto-draft' === $post-&gt;post_status ) {
+			$post_data                = array();
+			$post_data['action']      = 'draft'; // Warning fix.
+			$post_data['post_ID']     = $pid;
+			$post_data['post_type']   = $post-&gt;post_type;
+			$post_data['post_status'] = 'draft';
+			$now                      = time();
+			/* translators: 1: Post creation date, 2: Post creation time. */
+			$post_data['post_title'] = sprintf( __( 'Draft created on %1$s at %2$s' ), gmdate( __( 'F j, Y' ), $now ), gmdate( __( 'g:i a' ), $now ) );
+
+			$pid = edit_post( $post_data );
+
+			if ( $pid ) {
+				if ( is_wp_error( $pid ) ) {
+					$x = new WP_Ajax_Response(
+						array(
+							'what' =&gt; 'meta',
+							'data' =&gt; $pid,
+						)
+					);
+					$x-&gt;send();
+				}
+
+				$mid = add_meta( $pid );
+				if ( ! $mid ) {
+					wp_die( __( 'Please provide a custom field value.' ) );
+				}
+			} else {
+				wp_die( 0 );
+			}
+		} else {
+			$mid = add_meta( $pid );
+			if ( ! $mid ) {
+				wp_die( __( 'Please provide a custom field value.' ) );
+			}
+		}
+
+		$meta = get_metadata_by_mid( 'post', $mid );
+		$pid  = (int) $meta-&gt;post_id;
+		$meta = get_object_vars( $meta );
+
+		$x = new WP_Ajax_Response(
+			array(
+				'what'         =&gt; 'meta',
+				'id'           =&gt; $mid,
+				'data'         =&gt; _list_meta_row( $meta, $c ),
+				'position'     =&gt; 1,
+				'supplemental' =&gt; array( 'postid' =&gt; $pid ),
+			)
+		);
+	} else { // Update?
+		$mid   = (int) key( $_POST['meta'] );
+		$key   = wp_unslash( $_POST['meta'][ $mid ]['key'] );
+		$value = wp_unslash( $_POST['meta'][ $mid ]['value'] );
+
+		if ( '' === trim( $key ) ) {
+			wp_die( __( 'Please provide a custom field name.' ) );
+		}
+
+		$meta = get_metadata_by_mid( 'post', $mid );
+
+		if ( ! $meta ) {
+			wp_die( 0 ); // If meta doesn't exist.
+		}
+
+		if (
+			is_protected_meta( $meta-&gt;meta_key, 'post' ) || is_protected_meta( $key, 'post' ) ||
+			! current_user_can( 'edit_post_meta', $meta-&gt;post_id, $meta-&gt;meta_key ) ||
+			! current_user_can( 'edit_post_meta', $meta-&gt;post_id, $key )
+		) {
+			wp_die( -1 );
+		}
+
+		if ( $meta-&gt;meta_value != $value || $meta-&gt;meta_key != $key ) {
+			$u = update_metadata_by_mid( 'post', $mid, $value, $key );
+			if ( ! $u ) {
+				wp_die( 0 ); // We know meta exists; we also know it's unchanged (or DB error, in which case there are bigger problems).
+			}
+		}
+
+		$x = new WP_Ajax_Response(
+			array(
+				'what'         =&gt; 'meta',
+				'id'           =&gt; $mid,
+				'old_id'       =&gt; $mid,
+				'data'         =&gt; _list_meta_row(
+					array(
+						'meta_key'   =&gt; $key,
+						'meta_value' =&gt; $value,
+						'meta_id'    =&gt; $mid,
+					),
+					$c
+				),
+				'position'     =&gt; 0,
+				'supplemental' =&gt; array( 'postid' =&gt; $meta-&gt;post_id ),
+			)
+		);
+	}
+	$x-&gt;send();
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/template.php:</span> <a href="_list_meta_row">_list_meta_row()</a> </td> <td class="related-desc"> <p>Outputs a single row of public meta data in the Custom Fields meta box.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/post.php:</span> <a href="add_meta">add_meta()</a> </td> <td class="related-desc"> <p>Adds post meta data defined in the <code>$_POST</code> superglobal for a post with given ID.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/post.php:</span> <a href="edit_post">edit_post()</a> </td> <td class="related-desc"> <p>Updates an existing post with values provided in <code>$_POST</code>.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_unslash">wp_unslash()</a> </td> <td class="related-desc"> <p>Removes slashes from a string or recursively removes slashes from strings within an array.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="check_ajax_referer">check_ajax_referer()</a> </td> <td class="related-desc"> <p>Verifies the Ajax request to prevent processing requests external of the blog.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_die">wp_die()</a> </td> <td class="related-desc"> <p>Kills WordPress execution and displays HTML page with an error message.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-ajax-response.php:</span> <a href="../classes/wp_ajax_response/__construct">WP_Ajax_Response::__construct()</a> </td> <td class="related-desc"> <p>Constructor – Passes args to <a href="../classes/wp_ajax_response/add">WP_Ajax_Response::add()</a>.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> <tr> <td> <span>wp-includes/meta.php:</span> <a href="is_protected_meta">is_protected_meta()</a> </td> <td class="related-desc"> <p>Determines whether a meta key is considered protected.</p> </td> </tr> <tr> <td> <span>wp-includes/meta.php:</span> <a href="get_metadata_by_mid">get_metadata_by_mid()</a> </td> <td class="related-desc"> <p>Retrieves metadata by meta ID.</p> </td> </tr> <tr> <td> <span>wp-includes/meta.php:</span> <a href="update_metadata_by_mid">update_metadata_by_mid()</a> </td> <td class="related-desc"> <p>Updates metadata by meta ID.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.1.0/" alt="WordPress 3.1.0">3.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_ajax_add_meta" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_ajax_add_meta</a>
+  </p>
+</div>

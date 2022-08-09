@@ -1,0 +1,95 @@
+<h1>wp_plupload_default_settings()</h1>  <section> <p>Prints default Plupload arguments.</p> </section> <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/media.php/">wp-includes/media.php</a> </p> <pre data-language="php">function wp_plupload_default_settings() {
+	$wp_scripts = wp_scripts();
+
+	$data = $wp_scripts-&gt;get_data( 'wp-plupload', 'data' );
+	if ( $data &amp;&amp; false !== strpos( $data, '_wpPluploadSettings' ) ) {
+		return;
+	}
+
+	$max_upload_size    = wp_max_upload_size();
+	$allowed_extensions = array_keys( get_allowed_mime_types() );
+	$extensions         = array();
+	foreach ( $allowed_extensions as $extension ) {
+		$extensions = array_merge( $extensions, explode( '|', $extension ) );
+	}
+
+	/*
+	 * Since 4.9 the `runtimes` setting is hardcoded in our version of Plupload to `html5,html4`,
+	 * and the `flash_swf_url` and `silverlight_xap_url` are not used.
+	 */
+	$defaults = array(
+		'file_data_name' =&gt; 'async-upload', // Key passed to $_FILE.
+		'url'            =&gt; admin_url( 'async-upload.php', 'relative' ),
+		'filters'        =&gt; array(
+			'max_file_size' =&gt; $max_upload_size . 'b',
+			'mime_types'    =&gt; array( array( 'extensions' =&gt; implode( ',', $extensions ) ) ),
+		),
+	);
+
+	/*
+	 * Currently only iOS Safari supports multiple files uploading,
+	 * but iOS 7.x has a bug that prevents uploading of videos when enabled.
+	 * See #29602.
+	 */
+	if ( wp_is_mobile() &amp;&amp; strpos( $_SERVER['HTTP_USER_AGENT'], 'OS 7_' ) !== false &amp;&amp;
+		strpos( $_SERVER['HTTP_USER_AGENT'], 'like Mac OS X' ) !== false ) {
+
+		$defaults['multi_selection'] = false;
+	}
+
+	// Check if WebP images can be edited.
+	if ( ! wp_image_editor_supports( array( 'mime_type' =&gt; 'image/webp' ) ) ) {
+		$defaults['webp_upload_error'] = true;
+	}
+
+	/**
+	 * Filters the Plupload default settings.
+	 *
+	 * @since 3.4.0
+	 *
+	 * @param array $defaults Default Plupload settings array.
+	 */
+	$defaults = apply_filters( 'plupload_default_settings', $defaults );
+
+	$params = array(
+		'action' =&gt; 'upload-attachment',
+	);
+
+	/**
+	 * Filters the Plupload default parameters.
+	 *
+	 * @since 3.4.0
+	 *
+	 * @param array $params Default Plupload parameters array.
+	 */
+	$params = apply_filters( 'plupload_default_params', $params );
+
+	$params['_wpnonce'] = wp_create_nonce( 'media-form' );
+
+	$defaults['multipart_params'] = $params;
+
+	$settings = array(
+		'defaults'      =&gt; $defaults,
+		'browser'       =&gt; array(
+			'mobile'    =&gt; wp_is_mobile(),
+			'supported' =&gt; _device_can_upload(),
+		),
+		'limitExceeded' =&gt; is_multisite() &amp;&amp; ! is_upload_space_available(),
+	);
+
+	$script = 'var _wpPluploadSettings = ' . wp_json_encode( $settings ) . ';';
+
+	if ( $data ) {
+		$script = "$data\n$script";
+	}
+
+	$wp_scripts-&gt;add_data( 'wp-plupload', 'data', $script );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/functions.wp-scripts.php:</span> <a href="wp_scripts">wp_scripts()</a> </td> <td class="related-desc"> <p>Initialize $wp_scripts if it has not been set.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_json_encode">wp_json_encode()</a> </td> <td class="related-desc"> <p>Encode a variable into JSON, with some sanity checks.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_create_nonce">wp_create_nonce()</a> </td> <td class="related-desc"> <p>Creates a cryptographic token tied to a specific action, user, user session, and window of time.</p> </td> </tr> <tr> <td> <span>wp-includes/vars.php:</span> <a href="wp_is_mobile">wp_is_mobile()</a> </td> <td class="related-desc"> <p>Test if the current browser runs on a mobile device (smart phone, tablet, etc.)</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_multisite">is_multisite()</a> </td> <td class="related-desc"> <p>If Multisite is enabled.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="_device_can_upload">_device_can_upload()</a> </td> <td class="related-desc"> <p>Test if the current device has the capability to upload files.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="get_allowed_mime_types">get_allowed_mime_types()</a> </td> <td class="related-desc"> <p>Retrieve list of allowed mime types and file extensions.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="admin_url">admin_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the admin area for the current site.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="wp_max_upload_size">wp_max_upload_size()</a> </td> <td class="related-desc"> <p>Determines the maximum upload size allowed in php.ini.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="wp_image_editor_supports">wp_image_editor_supports()</a> </td> <td class="related-desc"> <p>Tests whether there is an editor that supports a given mime type or methods.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="../hooks/plupload_default_settings">plupload_default_settings</a> </td> <td class="related-desc"> <p>Filters the Plupload default settings.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="../hooks/plupload_default_params">plupload_default_params</a> </td> <td class="related-desc"> <p>Filters the Plupload default parameters.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="is_upload_space_available">is_upload_space_available()</a> </td> <td class="related-desc"> <p>Determines if there is any upload space left in the current blog’s quota.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/media.php:</span> <a href="wp_enqueue_media">wp_enqueue_media()</a> </td> <td class="related-desc"> <p>Enqueues all scripts, styles, settings, and templates necessary to use all media JS APIs.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.4.0/" alt="WordPress 3.4.0">3.4.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_plupload_default_settings" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_plupload_default_settings</a>
+  </p>
+</div>

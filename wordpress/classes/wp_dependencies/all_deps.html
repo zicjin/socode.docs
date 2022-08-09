@@ -1,0 +1,60 @@
+<h1>WP_Dependencies::all_deps( string|string[] $handles, bool $recursion = false, int|false $group = false )</h1>  <section> <p>Determines dependencies.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Recursively builds an array of items to process taking dependencies into account. Does NOT catch infinite loops.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$handles</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>|<span class="string[]">string[]</span>)</span> <span class="required">(Required)</span> <span class="description">Item handle (string) or item handles (array of strings).</span> </p> </dd> <dt>$recursion</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> Internal flag that function is calling itself. </span> </p> <p class="default">Default value: false</p> </dd> <dt>$group</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>|<span class="false">false</span>)</span> <span class="required">(Optional)</span> <span class="description"> Group level: level (int), no group (false). </span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(bool)</span> True on success, false on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-dependencies.php/">wp-includes/class.wp-dependencies.php</a> </p> <pre data-language="php">public function all_deps( $handles, $recursion = false, $group = false ) {
+		$handles = (array) $handles;
+		if ( ! $handles ) {
+			return false;
+		}
+
+		foreach ( $handles as $handle ) {
+			$handle_parts = explode( '?', $handle );
+			$handle       = $handle_parts[0];
+			$queued       = in_array( $handle, $this-&gt;to_do, true );
+
+			if ( in_array( $handle, $this-&gt;done, true ) ) { // Already done.
+				continue;
+			}
+
+			$moved     = $this-&gt;set_group( $handle, $recursion, $group );
+			$new_group = $this-&gt;groups[ $handle ];
+
+			if ( $queued &amp;&amp; ! $moved ) { // Already queued and in the right group.
+				continue;
+			}
+
+			$keep_going = true;
+			if ( ! isset( $this-&gt;registered[ $handle ] ) ) {
+				$keep_going = false; // Item doesn't exist.
+			} elseif ( $this-&gt;registered[ $handle ]-&gt;deps &amp;&amp; array_diff( $this-&gt;registered[ $handle ]-&gt;deps, array_keys( $this-&gt;registered ) ) ) {
+				$keep_going = false; // Item requires dependencies that don't exist.
+			} elseif ( $this-&gt;registered[ $handle ]-&gt;deps &amp;&amp; ! $this-&gt;all_deps( $this-&gt;registered[ $handle ]-&gt;deps, true, $new_group ) ) {
+				$keep_going = false; // Item requires dependencies that don't exist.
+			}
+
+			if ( ! $keep_going ) { // Either item or its dependencies don't exist.
+				if ( $recursion ) {
+					return false; // Abort this branch.
+				} else {
+					continue; // We're at the top level. Move on to the next one.
+				}
+			}
+
+			if ( $queued ) { // Already grabbed it and its dependencies.
+				continue;
+			}
+
+			if ( isset( $handle_parts[1] ) ) {
+				$this-&gt;args[ $handle ] = $handle_parts[1];
+			}
+
+			$this-&gt;to_do[] = $handle;
+		}
+
+		return true;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class.wp-dependencies.php:</span> <a href="../wp_dependencies/set_group">WP_Dependencies::set_group()</a> </td> <td class="related-desc"> <p>Set item group, unless already in a lower group.</p> </td> </tr> <tr> <td> <span>wp-includes/class.wp-dependencies.php:</span> <a href="../wp_dependencies/all_deps">WP_Dependencies::all_deps()</a> </td> <td class="related-desc"> <p>Determines dependencies.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class.wp-styles.php:</span> <a href="../wp_styles/all_deps">WP_Styles::all_deps()</a> </td> <td class="related-desc"> <p>Determines style dependencies.</p> </td> </tr> <tr> <td> <span>wp-includes/class.wp-dependencies.php:</span> <a href="../wp_dependencies/do_items">WP_Dependencies::do_items()</a> </td> <td class="related-desc"> <p>Processes the items and dependencies.</p> </td> </tr> <tr> <td> <span>wp-includes/class.wp-dependencies.php:</span> <a href="../wp_dependencies/all_deps">WP_Dependencies::all_deps()</a> </td> <td class="related-desc"> <p>Determines dependencies.</p> </td> </tr> <tr> <td> <span>wp-includes/class.wp-scripts.php:</span> <a href="../wp_scripts/all_deps">WP_Scripts::all_deps()</a> </td> <td class="related-desc"> <p>Determines script dependencies.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.8.0/" alt="WordPress 2.8.0">2.8.0</a></td> <td><span class="since-description">Added the <code>$group</code> parameter.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.6.0/" alt="WordPress 2.6.0">2.6.0</a></td> <td><span class="since-description">Moved from <code>WP_Scripts</code>.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.1.0/" alt="WordPress 2.1.0">2.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/WP_Dependencies/all_deps" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/WP_Dependencies/all_deps</a>
+  </p>
+</div>

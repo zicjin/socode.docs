@@ -1,0 +1,103 @@
+<h1>rest_filter_response_by_context( array|object $data, array $schema, string $context )</h1>  <section> <p>Filters the response to remove any fields not available in the given context.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$data</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>|<span class="object">object</span>)</span> <span class="required">(Required)</span> <span class="description">The response data to modify.</span> </p> </dd> <dt>$schema</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">The schema for the endpoint used to filter the response.</span> </p> </dd> <dt>$context</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The requested context.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array|object)</span> The filtered response data.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/rest-api.php/">wp-includes/rest-api.php</a> </p> <pre data-language="php">function rest_filter_response_by_context( $data, $schema, $context ) {
+	if ( isset( $schema['anyOf'] ) ) {
+		$matching_schema = rest_find_any_matching_schema( $data, $schema, '' );
+		if ( ! is_wp_error( $matching_schema ) ) {
+			if ( ! isset( $schema['type'] ) ) {
+				$schema['type'] = $matching_schema['type'];
+			}
+
+			$data = rest_filter_response_by_context( $data, $matching_schema, $context );
+		}
+	}
+
+	if ( isset( $schema['oneOf'] ) ) {
+		$matching_schema = rest_find_one_matching_schema( $data, $schema, '', true );
+		if ( ! is_wp_error( $matching_schema ) ) {
+			if ( ! isset( $schema['type'] ) ) {
+				$schema['type'] = $matching_schema['type'];
+			}
+
+			$data = rest_filter_response_by_context( $data, $matching_schema, $context );
+		}
+	}
+
+	if ( ! is_array( $data ) &amp;&amp; ! is_object( $data ) ) {
+		return $data;
+	}
+
+	if ( isset( $schema['type'] ) ) {
+		$type = $schema['type'];
+	} elseif ( isset( $schema['properties'] ) ) {
+		$type = 'object'; // Back compat if a developer accidentally omitted the type.
+	} else {
+		return $data;
+	}
+
+	$is_array_type  = 'array' === $type || ( is_array( $type ) &amp;&amp; in_array( 'array', $type, true ) );
+	$is_object_type = 'object' === $type || ( is_array( $type ) &amp;&amp; in_array( 'object', $type, true ) );
+
+	if ( $is_array_type &amp;&amp; $is_object_type ) {
+		if ( rest_is_array( $data ) ) {
+			$is_object_type = false;
+		} else {
+			$is_array_type = false;
+		}
+	}
+
+	$has_additional_properties = $is_object_type &amp;&amp; isset( $schema['additionalProperties'] ) &amp;&amp; is_array( $schema['additionalProperties'] );
+
+	foreach ( $data as $key =&gt; $value ) {
+		$check = array();
+
+		if ( $is_array_type ) {
+			$check = isset( $schema['items'] ) ? $schema['items'] : array();
+		} elseif ( $is_object_type ) {
+			if ( isset( $schema['properties'][ $key ] ) ) {
+				$check = $schema['properties'][ $key ];
+			} else {
+				$pattern_property_schema = rest_find_matching_pattern_property_schema( $key, $schema );
+				if ( null !== $pattern_property_schema ) {
+					$check = $pattern_property_schema;
+				} elseif ( $has_additional_properties ) {
+					$check = $schema['additionalProperties'];
+				}
+			}
+		}
+
+		if ( ! isset( $check['context'] ) ) {
+			continue;
+		}
+
+		if ( ! in_array( $context, $check['context'], true ) ) {
+			if ( $is_array_type ) {
+				// All array items share schema, so there's no need to check each one.
+				$data = array();
+				break;
+			}
+
+			if ( is_object( $data ) ) {
+				unset( $data-&gt;$key );
+			} else {
+				unset( $data[ $key ] );
+			}
+		} elseif ( is_array( $value ) || is_object( $value ) ) {
+			$new_value = rest_filter_response_by_context( $value, $check, $context );
+
+			if ( is_object( $data ) ) {
+				$data-&gt;$key = $new_value;
+			} else {
+				$data[ $key ] = $new_value;
+			}
+		}
+	}
+
+	return $data;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="rest_find_any_matching_schema">rest_find_any_matching_schema()</a> </td> <td class="related-desc"> <p>Finds the matching schema among the “anyOf” schemas.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="rest_find_one_matching_schema">rest_find_one_matching_schema()</a> </td> <td class="related-desc"> <p>Finds the matching schema among the “oneOf” schemas.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="rest_find_matching_pattern_property_schema">rest_find_matching_pattern_property_schema()</a> </td> <td class="related-desc"> <p>Finds the schema for a property using the patternProperties keyword.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="rest_filter_response_by_context">rest_filter_response_by_context()</a> </td> <td class="related-desc"> <p>Filters the response to remove any fields not available in the given context.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="rest_is_array">rest_is_array()</a> </td> <td class="related-desc"> <p>Determines if a given value is array-like.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="rest_filter_response_by_context">rest_filter_response_by_context()</a> </td> <td class="related-desc"> <p>Filters the response to remove any fields not available in the given context.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-controller.php:</span> <a href="../classes/wp_rest_controller/filter_response_by_context">WP_REST_Controller::filter_response_by_context()</a> </td> <td class="related-desc"> <p>Filters a response based on the context defined in the schema.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.6.0/" alt="WordPress 5.6.0">5.6.0</a></td> <td><span class="since-description">Support the "patternProperties" keyword for objects. Support the "anyOf" and "oneOf" keywords.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.0/" alt="WordPress 5.5.0">5.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/rest_filter_response_by_context" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/rest_filter_response_by_context</a>
+  </p>
+</div>

@@ -1,0 +1,89 @@
+<h1>WP_oEmbed::discover( string $url )</h1>  <section> <p>Attempts to discover link tags at the given URL for an oEmbed provider.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$url</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The URL that should be inspected for discovery <code>&lt;link&gt;</code> tags.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string|false)</span> The oEmbed provider URL on success, false on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-oembed.php/">wp-includes/class-wp-oembed.php</a> </p> <pre data-language="php">public function discover( $url ) {
+		$providers = array();
+		$args      = array(
+			'limit_response_size' =&gt; 153600, // 150 KB
+		);
+
+		/**
+		 * Filters oEmbed remote get arguments.
+		 *
+		 * @since 4.0.0
+		 *
+		 * @see WP_Http::request()
+		 *
+		 * @param array  $args oEmbed remote get arguments.
+		 * @param string $url  URL to be inspected.
+		 */
+		$args = apply_filters( 'oembed_remote_get_args', $args, $url );
+
+		// Fetch URL content.
+		$request = wp_safe_remote_get( $url, $args );
+		$html    = wp_remote_retrieve_body( $request );
+		if ( $html ) {
+
+			/**
+			 * Filters the link types that contain oEmbed provider URLs.
+			 *
+			 * @since 2.9.0
+			 *
+			 * @param string[] $format Array of oEmbed link types. Accepts 'application/json+oembed',
+			 *                         'text/xml+oembed', and 'application/xml+oembed' (incorrect,
+			 *                         used by at least Vimeo).
+			 */
+			$linktypes = apply_filters(
+				'oembed_linktypes',
+				array(
+					'application/json+oembed' =&gt; 'json',
+					'text/xml+oembed'         =&gt; 'xml',
+					'application/xml+oembed'  =&gt; 'xml',
+				)
+			);
+
+			// Strip &lt;body&gt;.
+			$html_head_end = stripos( $html, '&lt;/head&gt;' );
+			if ( $html_head_end ) {
+				$html = substr( $html, 0, $html_head_end );
+			}
+
+			// Do a quick check.
+			$tagfound = false;
+			foreach ( $linktypes as $linktype =&gt; $format ) {
+				if ( stripos( $html, $linktype ) ) {
+					$tagfound = true;
+					break;
+				}
+			}
+
+			if ( $tagfound &amp;&amp; preg_match_all( '#&lt;link([^&lt;&gt;]+)/?&gt;#iU', $html, $links ) ) {
+				foreach ( $links[1] as $link ) {
+					$atts = shortcode_parse_atts( $link );
+
+					if ( ! empty( $atts['type'] ) &amp;&amp; ! empty( $linktypes[ $atts['type'] ] ) &amp;&amp; ! empty( $atts['href'] ) ) {
+						$providers[ $linktypes[ $atts['type'] ] ] = htmlspecialchars_decode( $atts['href'] );
+
+						// Stop here if it's JSON (that's all we need).
+						if ( 'json' === $linktypes[ $atts['type'] ] ) {
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		// JSON is preferred to XML.
+		if ( ! empty( $providers['json'] ) ) {
+			return $providers['json'];
+		} elseif ( ! empty( $providers['xml'] ) ) {
+			return $providers['xml'];
+		} else {
+			return false;
+		}
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-pop3.php:</span> <a href="../../functions/stripos">stripos()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-includes/class-wp-oembed.php:</span> <a href="../../hooks/oembed_remote_get_args">oembed_remote_get_args</a> </td> <td class="related-desc"> <p>Filters oEmbed remote get arguments.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="../../functions/wp_safe_remote_get">wp_safe_remote_get()</a> </td> <td class="related-desc"> <p>Retrieve the raw response from a safe HTTP request using the GET method.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="../../functions/wp_remote_retrieve_body">wp_remote_retrieve_body()</a> </td> <td class="related-desc"> <p>Retrieve only the body from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/shortcodes.php:</span> <a href="../../functions/shortcode_parse_atts">shortcode_parse_atts()</a> </td> <td class="related-desc"> <p>Retrieve all attributes from the shortcodes tag.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-oembed.php:</span> <a href="../../hooks/oembed_linktypes">oembed_linktypes</a> </td> <td class="related-desc"> <p>Filters the link types that contain oEmbed provider URLs.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-oembed.php:</span> <a href="get_provider">WP_oEmbed::get_provider()</a> </td> <td class="related-desc"> <p>Takes a URL and returns the corresponding oEmbed provider’s URL, if there is one.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.9.0/" alt="WordPress 2.9.0">2.9.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_oembed/discover" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_oembed/discover</a>
+  </p>
+</div>

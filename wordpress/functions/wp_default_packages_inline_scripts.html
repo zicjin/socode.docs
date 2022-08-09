@@ -1,0 +1,126 @@
+<h1>wp_default_packages_inline_scripts( WP_Scripts $scripts )</h1>  <section> <p>Adds inline scripts required for the WordPress JavaScript packages.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$scripts</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_Scripts"><a href="../classes/wp_scripts">WP_Scripts</a></span>)</span> <span class="required">(Required)</span> <span class="description"><a href="../classes/wp_scripts">WP_Scripts</a> object.</span> </p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/script-loader.php/">wp-includes/script-loader.php</a> </p> <pre data-language="php">function wp_default_packages_inline_scripts( $scripts ) {
+	global $wp_locale;
+
+	if ( isset( $scripts-&gt;registered['wp-api-fetch'] ) ) {
+		$scripts-&gt;registered['wp-api-fetch']-&gt;deps[] = 'wp-hooks';
+	}
+	$scripts-&gt;add_inline_script(
+		'wp-api-fetch',
+		sprintf(
+			'wp.apiFetch.use( wp.apiFetch.createRootURLMiddleware( "%s" ) );',
+			esc_url_raw( get_rest_url() )
+		),
+		'after'
+	);
+	$scripts-&gt;add_inline_script(
+		'wp-api-fetch',
+		implode(
+			"\n",
+			array(
+				sprintf(
+					'wp.apiFetch.nonceMiddleware = wp.apiFetch.createNonceMiddleware( "%s" );',
+					wp_installing() ? '' : wp_create_nonce( 'wp_rest' )
+				),
+				'wp.apiFetch.use( wp.apiFetch.nonceMiddleware );',
+				'wp.apiFetch.use( wp.apiFetch.mediaUploadMiddleware );',
+				sprintf(
+					'wp.apiFetch.nonceEndpoint = "%s";',
+					admin_url( 'admin-ajax.php?action=rest-nonce' )
+				),
+			)
+		),
+		'after'
+	);
+	$scripts-&gt;add_inline_script(
+		'wp-data',
+		implode(
+			"\n",
+			array(
+				'( function() {',
+				'	var userId = ' . get_current_user_ID() . ';',
+				'	var storageKey = "WP_DATA_USER_" + userId;',
+				'	wp.data',
+				'		.use( wp.data.plugins.persistence, { storageKey: storageKey } );',
+				'	wp.data.plugins.persistence.__unstableMigrate( { storageKey: storageKey } );',
+				'} )();',
+			)
+		)
+	);
+
+	// Calculate the timezone abbr (EDT, PST) if possible.
+	$timezone_string = get_option( 'timezone_string', 'UTC' );
+	$timezone_abbr   = '';
+
+	if ( ! empty( $timezone_string ) ) {
+		$timezone_date = new DateTime( 'now', new DateTimeZone( $timezone_string ) );
+		$timezone_abbr = $timezone_date-&gt;format( 'T' );
+	}
+
+	$scripts-&gt;add_inline_script(
+		'wp-date',
+		sprintf(
+			'wp.date.setSettings( %s );',
+			wp_json_encode(
+				array(
+					'l10n'     =&gt; array(
+						'locale'        =&gt; get_user_locale(),
+						'months'        =&gt; array_values( $wp_locale-&gt;month ),
+						'monthsShort'   =&gt; array_values( $wp_locale-&gt;month_abbrev ),
+						'weekdays'      =&gt; array_values( $wp_locale-&gt;weekday ),
+						'weekdaysShort' =&gt; array_values( $wp_locale-&gt;weekday_abbrev ),
+						'meridiem'      =&gt; (object) $wp_locale-&gt;meridiem,
+						'relative'      =&gt; array(
+							/* translators: %s: Duration. */
+							'future' =&gt; __( '%s from now' ),
+							/* translators: %s: Duration. */
+							'past'   =&gt; __( '%s ago' ),
+						),
+					),
+					'formats'  =&gt; array(
+						/* translators: Time format, see https://www.php.net/manual/datetime.format.php */
+						'time'                =&gt; get_option( 'time_format', __( 'g:i a' ) ),
+						/* translators: Date format, see https://www.php.net/manual/datetime.format.php */
+						'date'                =&gt; get_option( 'date_format', __( 'F j, Y' ) ),
+						/* translators: Date/Time format, see https://www.php.net/manual/datetime.format.php */
+						'datetime'            =&gt; __( 'F j, Y g:i a' ),
+						/* translators: Abbreviated date/time format, see https://www.php.net/manual/datetime.format.php */
+						'datetimeAbbreviated' =&gt; __( 'M j, Y g:i a' ),
+					),
+					'timezone' =&gt; array(
+						'offset' =&gt; get_option( 'gmt_offset', 0 ),
+						'string' =&gt; $timezone_string,
+						'abbr'   =&gt; $timezone_abbr,
+					),
+				)
+			)
+		),
+		'after'
+	);
+
+	// Loading the old editor and its config to ensure the classic block works as expected.
+	$scripts-&gt;add_inline_script(
+		'editor',
+		'window.wp.oldEditor = window.wp.editor;',
+		'after'
+	);
+
+	/*
+	 * wp-editor module is exposed as window.wp.editor.
+	 * Problem: there is quite some code expecting window.wp.oldEditor object available under window.wp.editor.
+	 * Solution: fuse the two objects together to maintain backward compatibility.
+	 * For more context, see https://github.com/WordPress/gutenberg/issues/33203.
+	 */
+	$scripts-&gt;add_inline_script(
+		'wp-editor',
+		'Object.assign( window.wp.editor, window.wp.oldEditor );',
+		'after'
+	);
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="get_user_locale">get_user_locale()</a> </td> <td class="related-desc"> <p>Retrieves the locale of a user.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api.php:</span> <a href="get_rest_url">get_rest_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to a REST endpoint on a site.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="wp_installing">wp_installing()</a> </td> <td class="related-desc"> <p>Check or set whether WordPress is in “installation” mode.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_json_encode">wp_json_encode()</a> </td> <td class="related-desc"> <p>Encode a variable into JSON, with some sanity checks.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_url_raw">esc_url_raw()</a> </td> <td class="related-desc"> <p>Performs <a href="esc_url">esc_url()</a> for database or redirect usage.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="wp_create_nonce">wp_create_nonce()</a> </td> <td class="related-desc"> <p>Creates a cryptographic token tied to a specific action, user, user session, and window of time.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="admin_url">admin_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the admin area for the current site.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="get_current_user_id">get_current_user_id()</a> </td> <td class="related-desc"> <p>Gets the current user’s ID.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/script-loader.php:</span> <a href="wp_default_packages">wp_default_packages()</a> </td> <td class="related-desc"> <p>Registers all the WordPress packages scripts.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.0.0/" alt="WordPress 5.0.0">5.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_default_packages_inline_scripts" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_default_packages_inline_scripts</a>
+  </p>
+</div>

@@ -1,6 +1,6 @@
-<h1> <button class="settings display-settings">  <span class="sr-only">Settings</span> </button>  <span>Form bindings</span> </h1> <h2 id="a-note-about-form-helpers" class="section-heading">  A note about form helpers </h2> <p>LiveView works with the existing <a href="../phoenix_html/3.1.0/phoenix.html"><code class="inline">Phoenix.HTML</code></a> form helpers. If you want to use helpers such as <a href="../phoenix_html/3.1.0/phoenix.html.form#text_input/2"><code class="inline">text_input/2</code></a>, etc. be sure to <code class="inline">use Phoenix.HTML</code> at the top of your LiveView. If your application was generated with Phoenix v1.6, then <a href="mix.tasks.phx.new"><code class="inline">mix phx.new</code></a> automatically uses <a href="../phoenix_html/3.1.0/phoenix.html"><code class="inline">Phoenix.HTML</code></a> when you <code class="inline">use MyAppWeb, :live_view</code> or <code class="inline">use MyAppWeb, :live_component</code> in your modules.</p>
+<h1>   <span>Form bindings</span> </h1> <h2 id="a-note-about-form-helpers" class="section-heading">  A note about form helpers </h2> <p>LiveView works with the existing <a href="https://hexdocs.pm/phoenix_html/3.2.0/Phoenix.HTML.html"><code class="inline">Phoenix.HTML</code></a> form helpers. If you want to use helpers such as <a href="https://hexdocs.pm/phoenix_html/3.2.0/Phoenix.HTML.Form.html#text_input/2"><code class="inline">text_input/2</code></a>, etc. be sure to <code class="inline">use Phoenix.HTML</code> at the top of your LiveView. If your application was generated with Phoenix v1.6, then <a href="mix.tasks.phx.new"><code class="inline">mix phx.new</code></a> automatically uses <a href="https://hexdocs.pm/phoenix_html/3.2.0/Phoenix.HTML.html"><code class="inline">Phoenix.HTML</code></a> when you <code class="inline">use MyAppWeb, :live_view</code> or <code class="inline">use MyAppWeb, :live_component</code> in your modules.</p>
 <p>Using the generated <code class="inline">:live_view</code> and <code class="inline">:live_component</code> helpers will also <code class="inline">import MyAppWeb.ErrorHelpers</code>, a module generated as part of your application where <code class="inline">error_tag/2</code> resides (usually located at <code class="inline">lib/my_app_web/views/error_helpers.ex</code>). You are welcome to change the <code class="inline">ErrorHelpers</code> module as you prefer.</p>
-<h2 id="form-events" class="section-heading">  Form Events </h2> <p>To handle form changes and submissions, use the <code class="inline">phx-change</code> and <code class="inline">phx-submit</code> events. In general, it is preferred to handle input changes at the form level, where all form fields are passed to the LiveView's callback given any single input change. For example, to handle real-time form validation and saving, your template would use both <code class="inline">phx_change</code> and <code class="inline">phx_submit</code> bindings:</p>
+<h2 id="form-events" class="section-heading">  Form Events </h2> <p>To handle form changes and submissions, use the <code class="inline">phx-change</code> and <code class="inline">phx-submit</code> events. In general, it is preferred to handle input changes at the form level, where all form fields are passed to the LiveView's callback given any single input change, but individual inputs may also track their own changes. For example, to handle real-time form validation and saving, your form would use both <code class="inline">phx-change</code> and <code class="inline">phx-submit</code> bindings:</p>
 <pre data-language="elixir">&lt;.form let={f} for={@changeset} phx-change="validate" phx-submit="save"&gt;
   &lt;%= label f, :username %&gt;
   &lt;%= text_input f, :username %&gt;
@@ -42,6 +42,17 @@ def handle_event("save", %{"user" =&gt; user_params}, socket) do
 end</pre>
 <p>The validate callback simply updates the changeset based on all form input values, then assigns the new changeset to the socket. If the changeset changes, such as generating new errors, <a href="phoenix.liveview#c:render/1"><code class="inline">render/1</code></a> is invoked and the form is re-rendered.</p>
 <p>Likewise for <code class="inline">phx-submit</code> bindings, the same callback is invoked and persistence is attempted. On success, a <code class="inline">:noreply</code> tuple is returned and the socket is annotated for redirect with <a href="phoenix.liveview#redirect/2"><code class="inline">Phoenix.LiveView.redirect/2</code></a> to the new user page, otherwise the socket assigns are updated with the errored changeset to be re-rendered for the client.</p>
+<p>You may wish for an individual input to use its own change event or to target a different component. This can be accomplished by annotating the input itself with <code class="inline">phx-change</code>, for example:</p>
+<pre data-language="elixir">&lt;.form let={f} for={@changeset} phx-change="validate" phx-submit="save"&gt;
+  ...
+  &lt;%= label f, :county %&gt;
+  &lt;%= text_input f, :email, phx_change: "email_changed", phx_target: @myself %&gt;
+&lt;/.form&gt;</pre>
+<p>Then your LiveView or LiveComponent would handle the event:</p>
+<pre data-language="elixir">def handle_event("email_changed", %{"user" =&gt; %{"email" =&gt; email}}, socket) do
+  ...
+end</pre>
+<p><em>Note</em>: only the individual input is sent as params for an input marked with <code class="inline">phx-change</code>.</p>
 <h2 id="phx-feedback-for" class="section-heading">  <code class="inline">phx-feedback-for</code> </h2> <p>For proper form error tag updates, the error tag must specify which input it belongs to. This is accomplished with the <code class="inline">phx-feedback-for</code> attribute, which specifies the name (or id, for backwards compatibility) of the input it belongs to. Failing to add the <code class="inline">phx-feedback-for</code> attribute will result in displaying error messages for form fields that the user has not changed yet (e.g. required fields further down on the page).</p>
 <p>For example, your <code class="inline">MyAppWeb.ErrorHelpers</code> may use this function:</p>
 <pre data-language="elixir">def error_tag(form, field) do
@@ -63,7 +74,7 @@ end</pre>
 <p>This is known to have a plethora of problems including accessibility, large numbers are converted to exponential notation, and scrolling can accidentally increase or decrease the number.</p>
 <p>One alternative is the <code class="inline">inputmode</code> attribute, which may serve your application's needs and users much better. According to <a href="https://caniuse.com/#search=inputmode">Can I Use?</a>, the following is supported by 86% of the global market (as of Sep 2021):</p>
 <pre data-language="elixir">&lt;input type="text" inputmode="numeric" pattern="[0-9]*"&gt;</pre>
-<h2 id="password-inputs" class="section-heading">  Password inputs </h2> <p>Password inputs are also special cased in <a href="../phoenix_html/3.1.0/phoenix.html"><code class="inline">Phoenix.HTML</code></a>. For security reasons, password field values are not reused when rendering a password input tag. This requires explicitly setting the <code class="inline">:value</code> in your markup, for example:</p>
+<h2 id="password-inputs" class="section-heading">  Password inputs </h2> <p>Password inputs are also special cased in <a href="https://hexdocs.pm/phoenix_html/3.2.0/Phoenix.HTML.html"><code class="inline">Phoenix.HTML</code></a>. For security reasons, password field values are not reused when rendering a password input tag. This requires explicitly setting the <code class="inline">:value</code> in your markup, for example:</p>
 <pre data-language="elixir">&lt;%= password_input f, :password, value: input_value(f, :password) %&gt;
 &lt;%= password_input f, :password_confirmation, value: input_value(f, :password_confirmation) %&gt;
 &lt;%= error_tag f, :password %&gt;
@@ -87,7 +98,7 @@ end</pre>
 
     {:error, changeset} -&gt;
       {:noreply, assign(socket, changeset: changeset)}
-    end
+  end
 end</pre>
 <p>Once <code class="inline">phx-trigger-action</code> is true, LiveView disconnects and then submits the form.</p>
 <h2 id="recovery-following-crashes-or-disconnects" class="section-heading">  Recovery following crashes or disconnects </h2> <p>By default, all forms marked with <code class="inline">phx-change</code> will recover input values automatically after the user has reconnected or the LiveView has remounted after a crash. This is achieved by the client triggering the same <code class="inline">phx-change</code> to the server as soon as the mount has been completed.</p>
@@ -125,21 +136,19 @@ end</pre>
 <li>The last input with focus is restored (unless another input has received focus)</li>
 <li>Updates are patched to the DOM as usual</li>
 </ol>
-<p>To handle latent events, any HTML tag can be annotated with <code class="inline">phx-disable-with</code>, which swaps the element's <code class="inline">innerText</code> with the provided value during event submission. For example, the following code would change the "Save" button to "Saving...", and restore it to "Save" on acknowledgment:</p>
+<p>To handle latent events, the <code class="inline">&lt;button&gt;</code> tag of a form can be annotated with <code class="inline">phx-disable-with</code>, which swaps the element's <code class="inline">innerText</code> with the provided value during event submission. For example, the following code would change the "Save" button to "Saving...", and restore it to "Save" on acknowledgment:</p>
 <pre data-language="elixir">&lt;button type="submit" phx-disable-with="Saving..."&gt;Save&lt;/button&gt;</pre>
 <p>You may also take advantage of LiveView's CSS loading state classes to swap out your form content while the form is submitting. For example, with the following rules in your <code class="inline">app.css</code>:</p>
 <pre data-language="elixir">.while-submitting { display: none; }
 .inputs { display: block; }
 
-.phx-submit-loading {
-  .while-submitting { display: block; }
-  .inputs { display: none; }
-}</pre>
+.phx-submit-loading .while-submitting { display: block; }
+.phx-submit-loading .inputs { display: none; }</pre>
 <p>You can show and hide content with the following markup:</p>
 <pre data-language="elixir">&lt;form phx-change="update"&gt;
   &lt;div class="while-submitting"&gt;Please wait while we save our content...&lt;/div&gt;
   &lt;div class="inputs"&gt;
-    &lt;input type="text" name="text" value="&lt;%= @text %&gt;"&gt;
+    &lt;input type="text" name="text" value={@text}&gt;
   &lt;/div&gt;
 &lt;/form&gt;</pre>
 <p>Additionally, we strongly recommend including a unique HTML "id" attribute on the form. When DOM siblings change, elements without an ID will be replaced rather than moved, which can cause issues such as form fields losing focus.</p> <div class="bottom-actions"> <div class="bottom-actions-item"> <a href="bindings" class="bottom-actions-button" rel="prev"> <span class="subheader"> ← Previous Page </span> <span class="title"> Bindings </span> </a> </div> <div class="bottom-actions-item"> <a href="dom-patching" class="bottom-actions-button" rel="next"> <span class="subheader"> Next Page → </span> <span class="title"> DOM patching &amp; temporary assigns </span> </a> </div> </div><div class="_attribution">

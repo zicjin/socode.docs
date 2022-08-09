@@ -1,0 +1,75 @@
+<h1>WP_Http::make_absolute_url( string $maybe_relative_path, string $url )</h1>  <section> <p>Converts a relative URL to an absolute URL relative to a given URL.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>If an Absolute URL is provided, no processing of that URL is done.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$maybe_relative_path</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The URL which might be relative.</span> </p> </dd> <dt>$url</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The URL which $maybe_relative_path is relative to.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> An Absolute URL, in a failure condition where the URL cannot be parsed, the relative URL will be returned.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-http.php/">wp-includes/class-wp-http.php</a> </p> <pre data-language="php">public static function make_absolute_url( $maybe_relative_path, $url ) {
+		if ( empty( $url ) ) {
+			return $maybe_relative_path;
+		}
+
+		$url_parts = wp_parse_url( $url );
+		if ( ! $url_parts ) {
+			return $maybe_relative_path;
+		}
+
+		$relative_url_parts = wp_parse_url( $maybe_relative_path );
+		if ( ! $relative_url_parts ) {
+			return $maybe_relative_path;
+		}
+
+		// Check for a scheme on the 'relative' URL.
+		if ( ! empty( $relative_url_parts['scheme'] ) ) {
+			return $maybe_relative_path;
+		}
+
+		$absolute_path = $url_parts['scheme'] . '://';
+
+		// Schemeless URLs will make it this far, so we check for a host in the relative URL
+		// and convert it to a protocol-URL.
+		if ( isset( $relative_url_parts['host'] ) ) {
+			$absolute_path .= $relative_url_parts['host'];
+			if ( isset( $relative_url_parts['port'] ) ) {
+				$absolute_path .= ':' . $relative_url_parts['port'];
+			}
+		} else {
+			$absolute_path .= $url_parts['host'];
+			if ( isset( $url_parts['port'] ) ) {
+				$absolute_path .= ':' . $url_parts['port'];
+			}
+		}
+
+		// Start off with the absolute URL path.
+		$path = ! empty( $url_parts['path'] ) ? $url_parts['path'] : '/';
+
+		// If it's a root-relative path, then great.
+		if ( ! empty( $relative_url_parts['path'] ) &amp;&amp; '/' === $relative_url_parts['path'][0] ) {
+			$path = $relative_url_parts['path'];
+
+			// Else it's a relative path.
+		} elseif ( ! empty( $relative_url_parts['path'] ) ) {
+			// Strip off any file components from the absolute path.
+			$path = substr( $path, 0, strrpos( $path, '/' ) + 1 );
+
+			// Build the new path.
+			$path .= $relative_url_parts['path'];
+
+			// Strip all /path/../ out of the path.
+			while ( strpos( $path, '../' ) &gt; 1 ) {
+				$path = preg_replace( '![^/]+/\.\./!', '', $path );
+			}
+
+			// Strip any final leading ../ from the path.
+			$path = preg_replace( '!^/(\.\./)+!', '', $path );
+		}
+
+		// Add the query string.
+		if ( ! empty( $relative_url_parts['query'] ) ) {
+			$path .= '?' . $relative_url_parts['query'];
+		}
+
+		return $absolute_path . '/' . ltrim( $path, '/' );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/http.php:</span> <a href="../../functions/wp_parse_url">wp_parse_url()</a> </td> <td class="related-desc"> <p>A wrapper for PHP’s parse_url() function that handles consistency in the return values across PHP versions.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-url-details-controller.php:</span> <a href="../wp_rest_url_details_controller/get_icon">WP_REST_URL_Details_Controller::get_icon()</a> </td> <td class="related-desc"> <p>Parses the site icon from the provided HTML.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-url-details-controller.php:</span> <a href="../wp_rest_url_details_controller/get_image">WP_REST_URL_Details_Controller::get_image()</a> </td> <td class="related-desc"> <p>Parses the Open Graph (OG) Image from the provided HTML.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/_links_add_base">_links_add_base()</a> </td> <td class="related-desc"> <p>Callback to add a base URL to relative links in passed content.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-http.php:</span> <a href="handle_redirects">WP_Http::handle_redirects()</a> </td> <td class="related-desc"> <p>Handles an HTTP redirect and follows it if appropriate.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.4.0/" alt="WordPress 3.4.0">3.4.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_http/make_absolute_url" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_http/make_absolute_url</a>
+  </p>
+</div>

@@ -1,0 +1,58 @@
+<h1>attachment_url_to_postid( string $url )</h1>  <section> <p>Tries to convert an attachment URL into a post ID.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$url</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The URL to resolve.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(int)</span> The found post ID, or 0 on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/media.php/">wp-includes/media.php</a> </p> <pre data-language="php">function attachment_url_to_postid( $url ) {
+	global $wpdb;
+
+	$dir  = wp_get_upload_dir();
+	$path = $url;
+
+	$site_url   = parse_url( $dir['url'] );
+	$image_path = parse_url( $path );
+
+	// Force the protocols to match if needed.
+	if ( isset( $image_path['scheme'] ) &amp;&amp; ( $image_path['scheme'] !== $site_url['scheme'] ) ) {
+		$path = str_replace( $image_path['scheme'], $site_url['scheme'], $path );
+	}
+
+	if ( 0 === strpos( $path, $dir['baseurl'] . '/' ) ) {
+		$path = substr( $path, strlen( $dir['baseurl'] . '/' ) );
+	}
+
+	$sql = $wpdb-&gt;prepare(
+		"SELECT post_id, meta_value FROM $wpdb-&gt;postmeta WHERE meta_key = '_wp_attached_file' AND meta_value = %s",
+		$path
+	);
+
+	$results = $wpdb-&gt;get_results( $sql );
+	$post_id = null;
+
+	if ( $results ) {
+		// Use the first available result, but prefer a case-sensitive match, if exists.
+		$post_id = reset( $results )-&gt;post_id;
+
+		if ( count( $results ) &gt; 1 ) {
+			foreach ( $results as $result ) {
+				if ( $path === $result-&gt;meta_value ) {
+					$post_id = $result-&gt;post_id;
+					break;
+				}
+			}
+		}
+	}
+
+	/**
+	 * Filters an attachment ID found by URL.
+	 *
+	 * @since 4.2.0
+	 *
+	 * @param int|null $post_id The post_id (if any) found by the function.
+	 * @param string   $url     The URL being looked up.
+	 */
+	return (int) apply_filters( 'attachment_url_to_postid', $post_id, $url );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_get_upload_dir">wp_get_upload_dir()</a> </td> <td class="related-desc"> <p>Retrieves uploads directory information.</p> </td> </tr> <tr> <td> <span>wp-includes/media.php:</span> <a href="../hooks/attachment_url_to_postid">attachment_url_to_postid</a> </td> <td class="related-desc"> <p>Filters an attachment ID found by URL.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/get_results">wpdb::get_results()</a> </td> <td class="related-desc"> <p>Retrieves an entire SQL result set from the database (i.e., many rows).</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/prepare">wpdb::prepare()</a> </td> <td class="related-desc"> <p>Prepares a SQL query for safe execution.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/ajax-actions.php:</span> <a href="wp_ajax_set_attachment_thumbnail">wp_ajax_set_attachment_thumbnail()</a> </td> <td class="related-desc"> <p>Ajax handler for setting the featured image for an attachment.</p> </td> </tr> <tr> <td> <span>wp-includes/customize/class-wp-customize-upload-control.php:</span> <a href="../classes/wp_customize_upload_control/to_json">WP_Customize_Upload_Control::to_json()</a> </td> <td class="related-desc"> <p>Refresh the parameters passed to the JavaScript via JSON.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.0.0/" alt="WordPress 4.0.0">4.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/attachment_url_to_postid" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/attachment_url_to_postid</a>
+  </p>
+</div>

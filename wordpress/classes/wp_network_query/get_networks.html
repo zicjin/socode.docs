@@ -1,0 +1,135 @@
+<h1>WP_Network_Query::get_networks()</h1>  <section> <p>Gets a list of networks matching the query vars.</p> </section> <div class="content-toc">  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array|int)</span> List of <a href="../wp_network">WP_Network</a> objects, a list of network IDs when 'fields' is set to 'ids', or the number of networks when 'count' is passed as a query var.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-network-query.php/">wp-includes/class-wp-network-query.php</a> </p> <pre data-language="php">public function get_networks() {
+		$this-&gt;parse_query();
+
+		/**
+		 * Fires before networks are retrieved.
+		 *
+		 * @since 4.6.0
+		 *
+		 * @param WP_Network_Query $query Current instance of WP_Network_Query (passed by reference).
+		 */
+		do_action_ref_array( 'pre_get_networks', array( &amp;$this ) );
+
+		$network_data = null;
+
+		/**
+		 * Filters the network data before the query takes place.
+		 *
+		 * Return a non-null value to bypass WordPress' default network queries.
+		 *
+		 * The expected return type from this filter depends on the value passed
+		 * in the request query vars:
+		 * - When `$this-&gt;query_vars['count']` is set, the filter should return
+		 *   the network count as an integer.
+		 * - When `'ids' === $this-&gt;query_vars['fields']`, the filter should return
+		 *   an array of network IDs.
+		 * - Otherwise the filter should return an array of WP_Network objects.
+		 *
+		 * Note that if the filter returns an array of network data, it will be assigned
+		 * to the `networks` property of the current WP_Network_Query instance.
+		 *
+		 * Filtering functions that require pagination information are encouraged to set
+		 * the `found_networks` and `max_num_pages` properties of the WP_Network_Query object,
+		 * passed to the filter by reference. If WP_Network_Query does not perform a database
+		 * query, it will not have enough information to generate these values itself.
+		 *
+		 * @since 5.2.0
+		 * @since 5.6.0 The returned array of network data is assigned to the `networks` property
+		 *              of the current WP_Network_Query instance.
+		 *
+		 * @param array|int|null   $network_data Return an array of network data to short-circuit WP's network query,
+		 *                                       the network count as an integer if `$this-&gt;query_vars['count']` is set,
+		 *                                       or null to allow WP to run its normal queries.
+		 * @param WP_Network_Query $query        The WP_Network_Query instance, passed by reference.
+		 */
+		$network_data = apply_filters_ref_array( 'networks_pre_query', array( $network_data, &amp;$this ) );
+
+		if ( null !== $network_data ) {
+			if ( is_array( $network_data ) &amp;&amp; ! $this-&gt;query_vars['count'] ) {
+				$this-&gt;networks = $network_data;
+			}
+
+			return $network_data;
+		}
+
+		// $args can include anything. Only use the args defined in the query_var_defaults to compute the key.
+		$_args = wp_array_slice_assoc( $this-&gt;query_vars, array_keys( $this-&gt;query_var_defaults ) );
+
+		// Ignore the $fields, $update_network_cache arguments as the queried result will be the same regardless.
+		unset( $_args['fields'], $_args['update_network_cache'] );
+
+		$key          = md5( serialize( $_args ) );
+		$last_changed = wp_cache_get_last_changed( 'networks' );
+
+		$cache_key   = "get_network_ids:$key:$last_changed";
+		$cache_value = wp_cache_get( $cache_key, 'networks' );
+
+		if ( false === $cache_value ) {
+			$network_ids = $this-&gt;get_network_ids();
+			if ( $network_ids ) {
+				$this-&gt;set_found_networks();
+			}
+
+			$cache_value = array(
+				'network_ids'    =&gt; $network_ids,
+				'found_networks' =&gt; $this-&gt;found_networks,
+			);
+			wp_cache_add( $cache_key, $cache_value, 'networks' );
+		} else {
+			$network_ids          = $cache_value['network_ids'];
+			$this-&gt;found_networks = $cache_value['found_networks'];
+		}
+
+		if ( $this-&gt;found_networks &amp;&amp; $this-&gt;query_vars['number'] ) {
+			$this-&gt;max_num_pages = ceil( $this-&gt;found_networks / $this-&gt;query_vars['number'] );
+		}
+
+		// If querying for a count only, there's nothing more to do.
+		if ( $this-&gt;query_vars['count'] ) {
+			// $network_ids is actually a count in this case.
+			return (int) $network_ids;
+		}
+
+		$network_ids = array_map( 'intval', $network_ids );
+
+		if ( 'ids' === $this-&gt;query_vars['fields'] ) {
+			$this-&gt;networks = $network_ids;
+			return $this-&gt;networks;
+		}
+
+		if ( $this-&gt;query_vars['update_network_cache'] ) {
+			_prime_network_caches( $network_ids );
+		}
+
+		// Fetch full network objects from the primed cache.
+		$_networks = array();
+		foreach ( $network_ids as $network_id ) {
+			$_network = get_network( $network_id );
+			if ( $_network ) {
+				$_networks[] = $_network;
+			}
+		}
+
+		/**
+		 * Filters the network query results.
+		 *
+		 * @since 4.6.0
+		 *
+		 * @param WP_Network[]     $_networks An array of WP_Network objects.
+		 * @param WP_Network_Query $query     Current instance of WP_Network_Query (passed by reference).
+		 */
+		$_networks = apply_filters_ref_array( 'the_networks', array( $_networks, &amp;$this ) );
+
+		// Convert to WP_Network instances.
+		$this-&gt;networks = array_map( 'get_network', $_networks );
+
+		return $this-&gt;networks;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-network-query.php:</span> <a href="../../hooks/networks_pre_query">networks_pre_query</a> </td> <td class="related-desc"> <p>Filters the network data before the query takes place.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_cache_get_last_changed">wp_cache_get_last_changed()</a> </td> <td class="related-desc"> <p>Gets last changed date for the specified cache group.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-network-query.php:</span> <a href="set_found_networks">WP_Network_Query::set_found_networks()</a> </td> <td class="related-desc"> <p>Populates found_networks and max_num_pages properties for the current query if the limit clause was used.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-network-query.php:</span> <a href="get_network_ids">WP_Network_Query::get_network_ids()</a> </td> <td class="related-desc"> <p>Used internally to get a list of network IDs matching the query vars.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-network-query.php:</span> <a href="../../hooks/pre_get_networks">pre_get_networks</a> </td> <td class="related-desc"> <p>Fires before networks are retrieved.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-network-query.php:</span> <a href="../../hooks/the_networks">the_networks</a> </td> <td class="related-desc"> <p>Filters the network query results.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-network-query.php:</span> <a href="parse_query">WP_Network_Query::parse_query()</a> </td> <td class="related-desc"> <p>Parses arguments passed to the network query with default query parameters.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-network.php:</span> <a href="../../functions/_prime_network_caches">_prime_network_caches()</a> </td> <td class="related-desc"> <p>Adds any networks from the given IDs to the cache that do not already exist in cache.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-network.php:</span> <a href="../../functions/get_network">get_network()</a> </td> <td class="related-desc"> <p>Retrieves network data given a network ID or network object.</p> </td> </tr> <tr> <td> <span>wp-includes/cache.php:</span> <a href="../../functions/wp_cache_get">wp_cache_get()</a> </td> <td class="related-desc"> <p>Retrieves the cache contents from the cache by key and group.</p> </td> </tr> <tr> <td> <span>wp-includes/cache.php:</span> <a href="../../functions/wp_cache_add">wp_cache_add()</a> </td> <td class="related-desc"> <p>Adds data to the cache, if the cache key doesn’t already exist.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_array_slice_assoc">wp_array_slice_assoc()</a> </td> <td class="related-desc"> <p>Extract a slice of an array, given a list of keys.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/do_action_ref_array">do_action_ref_array()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook, specifying arguments in an array.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/apply_filters_ref_array">apply_filters_ref_array()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook, specifying arguments in an array.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-network-query.php:</span> <a href="query">WP_Network_Query::query()</a> </td> <td class="related-desc"> <p>Sets up the WordPress query for retrieving networks.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.6.0/" alt="WordPress 4.6.0">4.6.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_network_query/get_networks" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_network_query/get_networks</a>
+  </p>
+</div>

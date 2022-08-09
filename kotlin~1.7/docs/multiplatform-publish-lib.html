@@ -1,0 +1,97 @@
+<h1 data-toc="multiplatform-publish-lib" id="multiplatform-publish-lib.md">Publishing multiplatform libraries</h1>
+<p id="228c593">You can publish a multiplatform library to a Maven repository with the <a href="https://docs.gradle.org/current/userguide/publishing_maven.html" id="9682533a" data-external="true" rel="noopener noreferrer"><code class="code ">maven-publish</code> Gradle plugin</a>. Specify the group, version, and the <a href="https://docs.gradle.org/current/userguide/publishing_maven.html#publishing_maven:repositories" id="d277880a" data-external="true" rel="noopener noreferrer">repositories</a> where the library should be published. The plugin creates publications automatically.</p>
+<pre class="code" data-language="kotlin">plugins {
+    //...
+    id("maven-publish")
+}
+
+group = "com.example"
+version = "1.0"
+
+publishing {
+    repositories {
+        maven {
+            //...
+        }
+    }
+}
+</pre>
+<p id="b90fe142">Complete the <a href="multiplatform-library" id="b0af8e20">tutorial on creating and publishing a multiplatform library</a> to get hands-on experience.</p>
+<section class="chapter"><h2 id="structure-of-publications" data-toc="multiplatform-publish-lib#structure-of-publications">Structure of publications</h2>
+<p id="5776566a">When used with <code class="code ">maven-publish</code>, the Kotlin plugin automatically creates publications for each target that can be built on the current host, except for the Android target, which needs an <a href="#publish-an-android-library" id="ab6d5f89">additional step to configure publishing</a>.</p>
+<p id="ba89a411">Publications of a multiplatform library include an additional <em id="b231c0c7" class="">root</em> publication <code class="code ">kotlinMultiplatform</code> that stands for the whole library and is automatically resolved to the appropriate platform-specific artifacts when added as a dependency to the common source set. Learn more about <a href="multiplatform-add-dependencies" id="10cdc874">adding dependencies</a>.</p>
+<p id="b3973bfd">This <code class="code ">kotlinMultiplatform</code> publication includes metadata artifacts and references the other publications as its variants.</p>
+<aside data-type="note" class="prompt" data-title="" id="674ea522"><p id="a8fd1f89">Some repositories, such as Maven Central, require that the root module contains a JAR artifact without a classifier, for example <code class="code ">kotlinMultiplatform-1.0.jar</code>.<br> The Kotlin Multiplatform plugin automatically produces the required artifact with the embedded metadata artifacts.<br> This means you don't have to customize your build by adding an empty artifact to the root module of your library to meet the repository’s requirements.</p></aside><p id="99586a3">The <code class="code ">kotlinMultiplatform</code> publication may also need the sources and documentation artifacts if that is required by the repository. In that case, add those artifacts by using <a href="https://docs.gradle.org/current/javadoc/org/gradle/api/publish/maven/MavenPublication.html#artifact-java.lang.Object-" id="942c704" data-external="true" rel="noopener noreferrer"><code class="code ">artifact(...)</code></a> in the publication's scope.</p></section><section class="chapter"><h2 id="avoid-duplicate-publications" data-toc="multiplatform-publish-lib#avoid-duplicate-publications">Avoid duplicate publications</h2>
+<p id="b5d7bb7f">To avoid duplicate publications of modules that can be built on several platforms (like JVM and JS), configure the publishing tasks for these modules to run conditionally.</p>
+<p id="aca30983">You can detect the platform in the script, introduce a flag such as <code class="code ">isMainHost</code> and set it to <code class="code ">true</code> for the main target platform. Alternatively, you can pass the flag from an external source, for example, from CI configuration.</p>
+<p id="183f0e35">This simplified example ensures that publications are only uploaded when <code class="code ">isMainHost=true</code> is passed. This means that a publication that can be published from multiple platforms will be published only once – from the main host.</p>
+<div class="tabs" id="925d5538" data-group="build-script">
+<div class="tabs__content" data-gtm="tab" id="fe719253" data-sync-tabs="kotlin" data-title="Kotlin"><pre class="code" data-language="kotlin">kotlin {
+    jvm()
+    js()
+    mingwX64()
+    linuxX64()
+    val publicationsFromMainHost = 
+        listOf(jvm(), js()).map { it.name } + "kotlinMultiplatform"
+    publishing {
+        publications {
+            matching { it.name in publicationsFromMainHost }.all {
+                val targetPublication = this@all
+                tasks.withType&lt;AbstractPublishToMaven&gt;()
+                        .matching { it.publication == targetPublication }
+                        .configureEach { onlyIf { findProperty("isMainHost") == "true" } }
+            }
+        }
+    }
+}
+</pre></div>
+<div class="tabs__content" data-gtm="tab" id="ab4749e8" data-sync-tabs="groovy" data-title="Groovy"><pre class="code" data-language="groovy">kotlin {
+    jvm()
+    js()
+    mingwX64()
+    linuxX64()
+    def publicationsFromMainHost = 
+        [jvm(), js()].collect { it.name } + "kotlinMultiplatform"
+    publishing {
+        publications {
+            matching { it.name in publicationsFromMainHost }.all { targetPublication -&gt;
+                tasks.withType(AbstractPublishToMaven)
+                        .matching { it.publication == targetPublication }
+                        .configureEach { onlyIf { findProperty("isMainHost") == "true" } }
+            }
+        }
+    }
+}
+</pre></div>
+</div>
+<p id="e5eadd8b">By default, each publication includes a sources JAR that contains the sources used by the main compilation of the target.</p></section><section class="chapter"><h2 id="publish-an-android-library" data-toc="multiplatform-publish-lib#publish-an-android-library">Publish an Android library</h2>
+<p id="6d36c2d4">To publish an Android library, you need to provide additional configuration.</p>
+<p id="ba37529">By default, no artifacts of an Android library are published. To publish artifacts produced by a set of <a href="https://developer.android.com/studio/build/build-variants" id="11019f69" data-external="true" rel="noopener noreferrer">Android variants</a>, specify the variant names in the Android target block:</p>
+<pre class="code" data-language="kotlin">kotlin {
+    android {
+        publishLibraryVariants("release", "debug")
+    }
+}
+
+</pre>
+<p id="8e5524a2">The example works for Android libraries without <a href="https://developer.android.com/studio/build/build-variants#product-flavors" id="69bb0206" data-external="true" rel="noopener noreferrer">product flavors</a>. For a library with product flavors, the variant names also contain the flavors, like <code class="code ">fooBarDebug</code> or <code class="code ">fooBazRelease</code>.</p>
+<p id="cde751f6">The default publishing setup is as follows:</p>
+<ul class="list _ul" id="f580761e">
+<li class="list__item" id="85dc5758"><p>If the published variants have the same build type (for example, all of them are <code class="code ">release</code> or<code class="code ">debug</code>), they will be compatible with any consumer build type.</p></li>
+<li class="list__item" id="5890fc25"><p>If the published variants have different build types, then only the release variants will be compatible with consumer build types that are not among the published variants. All other variants (such as <code class="code ">debug</code>) will only match the same build type on the consumer side, unless the consumer project specifies the <a href="https://developer.android.com/reference/tools/gradle-api/4.2/com/android/build/api/dsl/BuildType" id="8674b3f5" data-external="true" rel="noopener noreferrer">matching fallbacks</a>.</p></li>
+</ul>
+<p id="e030ec31">If you want to make every published Android variant compatible with only the same build type used by the library consumer, set this Gradle property: <code class="code ">kotlin.android.buildTypeAttribute.keep=true</code>.</p>
+<p id="dc6f5433">You can also publish variants grouped by the product flavor, so that the outputs of the different build types are placed in a single module, with the build type becoming a classifier for the artifacts (the release build type is still published with no classifier). This mode is disabled by default and can be enabled as follows:</p>
+<pre class="code" data-language="kotlin">kotlin {
+    android {
+        publishLibraryVariantsGroupedByFlavor = true
+    }
+}
+</pre>
+<aside data-type="note" class="prompt" data-title="" id="70680b36"><p id="339840c0">It is not recommended that you publish variants grouped by the product flavor in case they have different dependencies, as those will be merged into one dependencies list.</p></aside></section><div class="last-modified"> Last modified: 08 August 2022</div>
+
+<div class="navigation-links _bottom"> <a class="navigation-links__prev" href="multiplatform-library">Create and publish a multiplatform library – tutorial</a> <a class="navigation-links__next" href="multiplatform-share-on-platforms">Share code on platforms</a> </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://kotlinlang.org/docs/multiplatform-publish-lib.html" class="_attribution-link" target="_blank">https://kotlinlang.org/docs/multiplatform-publish-lib.html</a>
+  </p>
+</div>

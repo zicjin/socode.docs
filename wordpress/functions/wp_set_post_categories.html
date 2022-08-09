@@ -1,0 +1,44 @@
+<h1>wp_set_post_categories( int $post_ID, int[]|int $post_categories = array(), bool $append = false )</h1>  <section> <p>Set categories for a post.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>If no categories are provided, the default category is used.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$post_ID</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description"> The Post ID. Does not default to the ID of the global $post. Default 0.</span> </p> </dd> <dt>$post_categories</dt> <dd> <p class="desc"> <span class="type">(<span class="int[]">int[]</span>|<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description"> List of category IDs, or the ID of a single category. </span> </p> <p class="default">Default value: array()</p> </dd> <dt>$append</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description">If true, don't delete existing categories, just add on. If false, replace the categories with the new categories.</span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array|false|<a href="../classes/wp_error">WP_Error</a>)</span> Array of term taxonomy IDs of affected categories. <a href="../classes/wp_error">WP_Error</a> or false on failure.</p> </section>  <section> <h2 id="more-information">More Information</h2> <p>If no categories are passed with a post ID that has a post type of <b>post</b>, the default category will be used.</p> <p><b>Be careful</b>, as <tt>wp_set_post_categories</tt> will overwrite any existing categories already assigned to the post unless <tt>$append</tt> is set to true.</p> <p>If an ID is passed with the categories array that is <b>not</b> associated with a valid category, it will be stripped before the object terms are updated and from the return array.</p> <p><a title="Function Reference/wp set object terms" href="wp_set_object_terms">wp_set_object_terms()</a> performs the same function with more granular control for built in categories and can also be used to set any custom taxonomies.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/post.php/">wp-includes/post.php</a> </p> <pre data-language="php">function wp_set_post_categories( $post_ID = 0, $post_categories = array(), $append = false ) {
+	$post_ID     = (int) $post_ID;
+	$post_type   = get_post_type( $post_ID );
+	$post_status = get_post_status( $post_ID );
+
+	// If $post_categories isn't already an array, make it one.
+	$post_categories = (array) $post_categories;
+
+	if ( empty( $post_categories ) ) {
+		/**
+		 * Filters post types (in addition to 'post') that require a default category.
+		 *
+		 * @since 5.5.0
+		 *
+		 * @param string[] $post_types An array of post type names. Default empty array.
+		 */
+		$default_category_post_types = apply_filters( 'default_category_post_types', array() );
+
+		// Regular posts always require a default category.
+		$default_category_post_types = array_merge( $default_category_post_types, array( 'post' ) );
+
+		if ( in_array( $post_type, $default_category_post_types, true )
+			&amp;&amp; is_object_in_taxonomy( $post_type, 'category' )
+			&amp;&amp; 'auto-draft' !== $post_status
+		) {
+			$post_categories = array( get_option( 'default_category' ) );
+			$append          = false;
+		} else {
+			$post_categories = array();
+		}
+	} elseif ( 1 === count( $post_categories ) &amp;&amp; '' === reset( $post_categories ) ) {
+		return true;
+	}
+
+	return wp_set_post_terms( $post_ID, $post_categories, 'category', $append );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/post.php:</span> <a href="../hooks/default_category_post_types">default_category_post_types</a> </td> <td class="related-desc"> <p>Filters post types (in addition to ‘post’) that require a default category.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="is_object_in_taxonomy">is_object_in_taxonomy()</a> </td> <td class="related-desc"> <p>Determines if the given object type is associated with the given taxonomy.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_set_post_terms">wp_set_post_terms()</a> </td> <td class="related-desc"> <p>Set the terms for a post.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post_type">get_post_type()</a> </td> <td class="related-desc"> <p>Retrieves the post type of the current post or of a given post.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post_status">get_post_status()</a> </td> <td class="related-desc"> <p>Retrieve the post status based on the post ID.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/taxonomy.php:</span> <a href="wp_create_categories">wp_create_categories()</a> </td> <td class="related-desc"> <p>Create categories for the given post.</p> </td> </tr> <tr> <td> <span>wp-includes/deprecated.php:</span> <a href="wp_set_post_cats">wp_set_post_cats()</a> </td> <td class="related-desc"> <p>Sets the categories that the post ID belongs to.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_insert_post">wp_insert_post()</a> </td> <td class="related-desc"> <p>Insert or update a post.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-xmlrpc-server.php:</span> <a href="../classes/wp_xmlrpc_server/mt_setpostcategories">wp_xmlrpc_server::mt_setPostCategories()</a> </td> <td class="related-desc"> <p>Sets categories for a post.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.1.0/" alt="WordPress 2.1.0">2.1.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_set_post_categories" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_set_post_categories</a>
+  </p>
+</div>

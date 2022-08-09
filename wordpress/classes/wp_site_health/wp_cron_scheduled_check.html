@@ -1,0 +1,111 @@
+<h1>WP_Site_Health::wp_cron_scheduled_check()</h1>  <section> <p>Run our scheduled event to check and update the latest site health status for the website.</p> </section> <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-site-health.php/">wp-admin/includes/class-wp-site-health.php</a> </p> <pre data-language="php">public function wp_cron_scheduled_check() {
+		// Bootstrap wp-admin, as WP_Cron doesn't do this for us.
+		require_once trailingslashit( ABSPATH ) . 'wp-admin/includes/admin.php';
+
+		$tests = WP_Site_Health::get_tests();
+
+		$results = array();
+
+		$site_status = array(
+			'good'        =&gt; 0,
+			'recommended' =&gt; 0,
+			'critical'    =&gt; 0,
+		);
+
+		// Don't run https test on development environments.
+		if ( $this-&gt;is_development_environment() ) {
+			unset( $tests['async']['https_status'] );
+		}
+
+		foreach ( $tests['direct'] as $test ) {
+			if ( ! empty( $test['skip_cron'] ) ) {
+				continue;
+			}
+
+			if ( is_string( $test['test'] ) ) {
+				$test_function = sprintf(
+					'get_test_%s',
+					$test['test']
+				);
+
+				if ( method_exists( $this, $test_function ) &amp;&amp; is_callable( array( $this, $test_function ) ) ) {
+					$results[] = $this-&gt;perform_test( array( $this, $test_function ) );
+					continue;
+				}
+			}
+
+			if ( is_callable( $test['test'] ) ) {
+				$results[] = $this-&gt;perform_test( $test['test'] );
+			}
+		}
+
+		foreach ( $tests['async'] as $test ) {
+			if ( ! empty( $test['skip_cron'] ) ) {
+				continue;
+			}
+
+			// Local endpoints may require authentication, so asynchronous tests can pass a direct test runner as well.
+			if ( ! empty( $test['async_direct_test'] ) &amp;&amp; is_callable( $test['async_direct_test'] ) ) {
+				// This test is callable, do so and continue to the next asynchronous check.
+				$results[] = $this-&gt;perform_test( $test['async_direct_test'] );
+				continue;
+			}
+
+			if ( is_string( $test['test'] ) ) {
+				// Check if this test has a REST API endpoint.
+				if ( isset( $test['has_rest'] ) &amp;&amp; $test['has_rest'] ) {
+					$result_fetch = wp_remote_get(
+						$test['test'],
+						array(
+							'body' =&gt; array(
+								'_wpnonce' =&gt; wp_create_nonce( 'wp_rest' ),
+							),
+						)
+					);
+				} else {
+					$result_fetch = wp_remote_post(
+						admin_url( 'admin-ajax.php' ),
+						array(
+							'body' =&gt; array(
+								'action'   =&gt; $test['test'],
+								'_wpnonce' =&gt; wp_create_nonce( 'health-check-site-status' ),
+							),
+						)
+					);
+				}
+
+				if ( ! is_wp_error( $result_fetch ) &amp;&amp; 200 === wp_remote_retrieve_response_code( $result_fetch ) ) {
+					$result = json_decode( wp_remote_retrieve_body( $result_fetch ), true );
+				} else {
+					$result = false;
+				}
+
+				if ( is_array( $result ) ) {
+					$results[] = $result;
+				} else {
+					$results[] = array(
+						'status' =&gt; 'recommended',
+						'label'  =&gt; __( 'A test is unavailable' ),
+					);
+				}
+			}
+		}
+
+		foreach ( $results as $result ) {
+			if ( 'critical' === $result['status'] ) {
+				$site_status['critical']++;
+			} elseif ( 'recommended' === $result['status'] ) {
+				$site_status['recommended']++;
+			} else {
+				$site_status['good']++;
+			}
+		}
+
+		set_transient( 'health-check-site-status-result', wp_json_encode( $site_status ) );
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-site-health.php:</span> <a href="is_development_environment">WP_Site_Health::is_development_environment()</a> </td> <td class="related-desc"> <p>Checks if the current environment type is set to ‘development’ or ‘local’.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-site-health.php:</span> <a href="perform_test">WP_Site_Health::perform_test()</a> </td> <td class="related-desc"> <p>Run a Site Health test directly.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-site-health.php:</span> <a href="get_tests">WP_Site_Health::get_tests()</a> </td> <td class="related-desc"> <p>Return a set of tests that belong to the site status page.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="../../functions/wp_json_encode">wp_json_encode()</a> </td> <td class="related-desc"> <p>Encode a variable into JSON, with some sanity checks.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/trailingslashit">trailingslashit()</a> </td> <td class="related-desc"> <p>Appends a trailing slash.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../../functions/wp_create_nonce">wp_create_nonce()</a> </td> <td class="related-desc"> <p>Creates a cryptographic token tied to a specific action, user, user session, and window of time.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="../../functions/admin_url">admin_url()</a> </td> <td class="related-desc"> <p>Retrieves the URL to the admin area for the current site.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="../../functions/wp_remote_get">wp_remote_get()</a> </td> <td class="related-desc"> <p>Performs an HTTP request using the GET method and returns its response.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="../../functions/wp_remote_post">wp_remote_post()</a> </td> <td class="related-desc"> <p>Performs an HTTP request using the POST method and returns its response.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="../../functions/wp_remote_retrieve_response_code">wp_remote_retrieve_response_code()</a> </td> <td class="related-desc"> <p>Retrieve only the response code from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="../../functions/wp_remote_retrieve_body">wp_remote_retrieve_body()</a> </td> <td class="related-desc"> <p>Retrieve only the body from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../../functions/set_transient">set_transient()</a> </td> <td class="related-desc"> <p>Sets/updates the value of a transient.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.4.0/" alt="WordPress 5.4.0">5.4.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_site_health/wp_cron_scheduled_check" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_site_health/wp_cron_scheduled_check</a>
+  </p>
+</div>

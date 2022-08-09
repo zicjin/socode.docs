@@ -1,0 +1,110 @@
+<h1>wp_list_users( string|array $args = array() )</h1>  <section> <p>Lists all the users of the site, with several options available.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$args</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>|<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description">Array or string of default arguments. <ul class="param-hash">
+<li>
+<b>'orderby'</b><br><i><span class="type">(string)</span></i> How to sort the users. Accepts 'nicename', 'email', 'url', 'registered', 'user_nicename', 'user_email', 'user_url', 'user_registered', 'name', 'display_name', 'post_count', 'ID', 'meta_value', 'user_login'. Default 'name'.</li> <li>
+<b>'order'</b><br><i><span class="type">(string)</span></i> Sorting direction for $orderby. Accepts 'ASC', 'DESC'. Default 'ASC'.</li> <li>
+<b>'number'</b><br><i><span class="type">(int)</span></i> Maximum users to return or display. Default empty (all users).</li> <li>
+<b>'exclude_admin'</b><br><i><span class="type">(bool)</span></i> Whether to exclude the 'admin' account, if it exists. Default false.</li> <li>
+<b>'show_fullname'</b><br><i><span class="type">(bool)</span></i> Whether to show the user's full name. Default false.</li> <li>
+<b>'feed'</b><br><i><span class="type">(string)</span></i> If not empty, show a link to the user's feed and use this text as the alt parameter of the link. </li> <li>
+<b>'feed_image'</b><br><i><span class="type">(string)</span></i> If not empty, show a link to the user's feed and use this image URL as clickable anchor. </li> <li>
+<b>'feed_type'</b><br><i><span class="type">(string)</span></i> The feed type to link to, such as 'rss2'. Defaults to default feed type.</li> <li>
+<b>'echo'</b><br><i><span class="type">(bool)</span></i> Whether to output the result or instead return it. Default true.</li> <li>
+<b>'style'</b><br><i><span class="type">(string)</span></i> If 'list', each user is wrapped in an <code>&lt;li&gt;</code> element, otherwise the users will be separated by commas.</li> <li>
+<b>'html'</b><br><i><span class="type">(bool)</span></i> Whether to list the items in HTML form or plaintext. Default true.</li> <li>
+<b>'exclude'</b><br><i><span class="type">(string)</span></i> An array, comma-, or space-separated list of user IDs to exclude. </li> <li>
+<b>'include'</b><br><i><span class="type">(string)</span></i> An array, comma-, or space-separated list of user IDs to include. </li> </ul> </span> </p> <p class="default">Default value: array()</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string|null)</span> The output if echo is false. Otherwise null.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/user.php/">wp-includes/user.php</a> </p> <pre data-language="php">function wp_list_users( $args = array() ) {
+	$defaults = array(
+		'orderby'       =&gt; 'name',
+		'order'         =&gt; 'ASC',
+		'number'        =&gt; '',
+		'exclude_admin' =&gt; true,
+		'show_fullname' =&gt; false,
+		'feed'          =&gt; '',
+		'feed_image'    =&gt; '',
+		'feed_type'     =&gt; '',
+		'echo'          =&gt; true,
+		'style'         =&gt; 'list',
+		'html'          =&gt; true,
+		'exclude'       =&gt; '',
+		'include'       =&gt; '',
+	);
+
+	$args = wp_parse_args( $args, $defaults );
+
+	$return = '';
+
+	$query_args           = wp_array_slice_assoc( $args, array( 'orderby', 'order', 'number', 'exclude', 'include' ) );
+	$query_args['fields'] = 'ids';
+	$users                = get_users( $query_args );
+
+	foreach ( $users as $user_id ) {
+		$user = get_userdata( $user_id );
+
+		if ( $args['exclude_admin'] &amp;&amp; 'admin' === $user-&gt;display_name ) {
+			continue;
+		}
+
+		if ( $args['show_fullname'] &amp;&amp; '' !== $user-&gt;first_name &amp;&amp; '' !== $user-&gt;last_name ) {
+			$name = "$user-&gt;first_name $user-&gt;last_name";
+		} else {
+			$name = $user-&gt;display_name;
+		}
+
+		if ( ! $args['html'] ) {
+			$return .= $name . ', ';
+
+			continue; // No need to go further to process HTML.
+		}
+
+		if ( 'list' === $args['style'] ) {
+			$return .= '&lt;li&gt;';
+		}
+
+		$row = $name;
+
+		if ( ! empty( $args['feed_image'] ) || ! empty( $args['feed'] ) ) {
+			$row .= ' ';
+			if ( empty( $args['feed_image'] ) ) {
+				$row .= '(';
+			}
+
+			$row .= '&lt;a href="' . get_author_feed_link( $user-&gt;ID, $args['feed_type'] ) . '"';
+
+			$alt = '';
+			if ( ! empty( $args['feed'] ) ) {
+				$alt  = ' alt="' . esc_attr( $args['feed'] ) . '"';
+				$name = $args['feed'];
+			}
+
+			$row .= '&gt;';
+
+			if ( ! empty( $args['feed_image'] ) ) {
+				$row .= '&lt;img src="' . esc_url( $args['feed_image'] ) . '" style="border: none;"' . $alt . ' /&gt;';
+			} else {
+				$row .= $name;
+			}
+
+			$row .= '&lt;/a&gt;';
+
+			if ( empty( $args['feed_image'] ) ) {
+				$row .= ')';
+			}
+		}
+
+		$return .= $row;
+		$return .= ( 'list' === $args['style'] ) ? '&lt;/li&gt;' : ', ';
+	}
+
+	$return = rtrim( $return, ', ' );
+
+	if ( ! $args['echo'] ) {
+		return $return;
+	}
+	echo $return;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_attr">esc_attr()</a> </td> <td class="related-desc"> <p>Escaping for HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="esc_url">esc_url()</a> </td> <td class="related-desc"> <p>Checks and cleans a URL.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="get_userdata">get_userdata()</a> </td> <td class="related-desc"> <p>Retrieve user info by user ID.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_parse_args">wp_parse_args()</a> </td> <td class="related-desc"> <p>Merges user defined arguments into defaults array.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_array_slice_assoc">wp_array_slice_assoc()</a> </td> <td class="related-desc"> <p>Extract a slice of an array, given a list of keys.</p> </td> </tr> <tr> <td> <span>wp-includes/link-template.php:</span> <a href="get_author_feed_link">get_author_feed_link()</a> </td> <td class="related-desc"> <p>Retrieves the feed link for a given author.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="get_users">get_users()</a> </td> <td class="related-desc"> <p>Retrieves list of users matching criteria.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.9.0/" alt="WordPress 5.9.0">5.9.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_list_users" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_list_users</a>
+  </p>
+</div>

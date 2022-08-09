@@ -1,0 +1,61 @@
+<h1>wp_privacy_process_personal_data_erasure_page( array $response, int $eraser_index, string $email_address, int $page, int $request_id )</h1>  <section> <p>Mark erasure requests as completed after processing is finished.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>This intercepts the Ajax responses to personal data eraser page requests, and monitors the status of a request. Once all of the processing has finished, the request is marked as completed.</p> <h3 id="see-also">See also</h3> <ul> <li><a href="../hooks/wp_privacy_personal_data_erasure_page">‘wp_privacy_personal_data_erasure_page’</a></li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$response</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Required)</span> <span class="description">The response from the personal data eraser for the given page.</span> </p> </dd> <dt>$eraser_index</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">The index of the personal data eraser. Begins at 1.</span> </p> </dd> <dt>$email_address</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The email address of the user whose personal data this is.</span> </p> </dd> <dt>$page</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">The page of personal data for this eraser. Begins at 1.</span> </p> </dd> <dt>$request_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">The request ID for this personal data erasure.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(array)</span> The filtered response.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/privacy-tools.php/">wp-admin/includes/privacy-tools.php</a> </p> <pre data-language="php">function wp_privacy_process_personal_data_erasure_page( $response, $eraser_index, $email_address, $page, $request_id ) {
+	/*
+	 * If the eraser response is malformed, don't attempt to consume it; let it
+	 * pass through, so that the default Ajax processing will generate a warning
+	 * to the user.
+	 */
+	if ( ! is_array( $response ) ) {
+		return $response;
+	}
+
+	if ( ! array_key_exists( 'done', $response ) ) {
+		return $response;
+	}
+
+	if ( ! array_key_exists( 'items_removed', $response ) ) {
+		return $response;
+	}
+
+	if ( ! array_key_exists( 'items_retained', $response ) ) {
+		return $response;
+	}
+
+	if ( ! array_key_exists( 'messages', $response ) ) {
+		return $response;
+	}
+
+	// Get the request.
+	$request = wp_get_user_request( $request_id );
+
+	if ( ! $request || 'remove_personal_data' !== $request-&gt;action_name ) {
+		wp_send_json_error( __( 'Invalid request ID when processing personal data to erase.' ) );
+	}
+
+	/** This filter is documented in wp-admin/includes/ajax-actions.php */
+	$erasers        = apply_filters( 'wp_privacy_personal_data_erasers', array() );
+	$is_last_eraser = count( $erasers ) === $eraser_index;
+	$eraser_done    = $response['done'];
+
+	if ( ! $is_last_eraser || ! $eraser_done ) {
+		return $response;
+	}
+
+	_wp_privacy_completed_request( $request_id );
+
+	/**
+	 * Fires immediately after a personal data erasure request has been marked completed.
+	 *
+	 * @since 4.9.6
+	 *
+	 * @param int $request_id The privacy request post ID associated with this request.
+	 */
+	do_action( 'wp_privacy_personal_data_erased', $request_id );
+
+	return $response;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/user.php:</span> <a href="wp_get_user_request">wp_get_user_request()</a> </td> <td class="related-desc"> <p>Returns the user request object for the specified request ID.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/privacy-tools.php:</span> <a href="../hooks/wp_privacy_personal_data_erased">wp_privacy_personal_data_erased</a> </td> <td class="related-desc"> <p>Fires immediately after a personal data erasure request has been marked completed.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/privacy-tools.php:</span> <a href="_wp_privacy_completed_request">_wp_privacy_completed_request()</a> </td> <td class="related-desc"> <p>Marks a request as completed by the admin and logs the current timestamp.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/ajax-actions.php:</span> <a href="../hooks/wp_privacy_personal_data_erasers">wp_privacy_personal_data_erasers</a> </td> <td class="related-desc"> <p>Filters the array of personal data eraser callbacks.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_send_json_error">wp_send_json_error()</a> </td> <td class="related-desc"> <p>Send a JSON response back to an Ajax request, indicating failure.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="do_action">do_action()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to an action hook.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.9.6/" alt="WordPress 4.9.6">4.9.6</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_privacy_process_personal_data_erasure_page" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_privacy_process_personal_data_erasure_page</a>
+  </p>
+</div>

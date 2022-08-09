@@ -1,0 +1,86 @@
+<h1>WP_REST_Templates_Controller::prepare_item_for_database( WP_REST_Request $request )</h1>  <section> <p>Prepares a single template for create or update.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$request</dt> <dd> <p class="desc"> <span class="type">(<span class="WP_REST_Request"><a href="../wp_rest_request">WP_REST_Request</a></span>)</span> <span class="required">(Required)</span> <span class="description">Request object.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(stdClass)</span> Changes to pass to wp_update_post.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/rest-api/endpoints/class-wp-rest-templates-controller.php/">wp-includes/rest-api/endpoints/class-wp-rest-templates-controller.php</a> </p> <pre data-language="php">protected function prepare_item_for_database( $request ) {
+		$template = $request['id'] ? get_block_template( $request['id'], $this-&gt;post_type ) : null;
+		$changes  = new stdClass();
+		if ( null === $template ) {
+			$changes-&gt;post_type   = $this-&gt;post_type;
+			$changes-&gt;post_status = 'publish';
+			$changes-&gt;tax_input   = array(
+				'wp_theme' =&gt; isset( $request['theme'] ) ? $request['theme'] : wp_get_theme()-&gt;get_stylesheet(),
+			);
+		} elseif ( 'custom' !== $template-&gt;source ) {
+			$changes-&gt;post_name   = $template-&gt;slug;
+			$changes-&gt;post_type   = $this-&gt;post_type;
+			$changes-&gt;post_status = 'publish';
+			$changes-&gt;tax_input   = array(
+				'wp_theme' =&gt; $template-&gt;theme,
+			);
+			$changes-&gt;meta_input  = array(
+				'origin' =&gt; $template-&gt;source,
+			);
+		} else {
+			$changes-&gt;post_name   = $template-&gt;slug;
+			$changes-&gt;ID          = $template-&gt;wp_id;
+			$changes-&gt;post_status = 'publish';
+		}
+		if ( isset( $request['content'] ) ) {
+			if ( is_string( $request['content'] ) ) {
+				$changes-&gt;post_content = $request['content'];
+			} elseif ( isset( $request['content']['raw'] ) ) {
+				$changes-&gt;post_content = $request['content']['raw'];
+			}
+		} elseif ( null !== $template &amp;&amp; 'custom' !== $template-&gt;source ) {
+			$changes-&gt;post_content = $template-&gt;content;
+		}
+		if ( isset( $request['title'] ) ) {
+			if ( is_string( $request['title'] ) ) {
+				$changes-&gt;post_title = $request['title'];
+			} elseif ( ! empty( $request['title']['raw'] ) ) {
+				$changes-&gt;post_title = $request['title']['raw'];
+			}
+		} elseif ( null !== $template &amp;&amp; 'custom' !== $template-&gt;source ) {
+			$changes-&gt;post_title = $template-&gt;title;
+		}
+		if ( isset( $request['description'] ) ) {
+			$changes-&gt;post_excerpt = $request['description'];
+		} elseif ( null !== $template &amp;&amp; 'custom' !== $template-&gt;source ) {
+			$changes-&gt;post_excerpt = $template-&gt;description;
+		}
+
+		if ( 'wp_template_part' === $this-&gt;post_type ) {
+			if ( isset( $request['area'] ) ) {
+				$changes-&gt;tax_input['wp_template_part_area'] = _filter_block_template_part_area( $request['area'] );
+			} elseif ( null !== $template &amp;&amp; 'custom' !== $template-&gt;source &amp;&amp; $template-&gt;area ) {
+				$changes-&gt;tax_input['wp_template_part_area'] = _filter_block_template_part_area( $template-&gt;area );
+			} elseif ( ! $template-&gt;area ) {
+				$changes-&gt;tax_input['wp_template_part_area'] = WP_TEMPLATE_PART_AREA_UNCATEGORIZED;
+			}
+		}
+
+		if ( ! empty( $request['author'] ) ) {
+			$post_author = (int) $request['author'];
+
+			if ( get_current_user_id() !== $post_author ) {
+				$user_obj = get_userdata( $post_author );
+
+				if ( ! $user_obj ) {
+					return new WP_Error(
+						'rest_invalid_author',
+						__( 'Invalid author ID.' ),
+						array( 'status' =&gt; 400 )
+					);
+				}
+			}
+
+			$changes-&gt;post_author = $post_author;
+		}
+
+		return $changes;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/block-template-utils.php:</span> <a href="../../functions/_filter_block_template_part_area">_filter_block_template_part_area()</a> </td> <td class="related-desc"> <p>Checks whether the input ‘area’ is a supported value.</p> </td> </tr> <tr> <td> <span>wp-includes/block-template-utils.php:</span> <a href="../../functions/get_block_template">get_block_template()</a> </td> <td class="related-desc"> <p>Retrieves a single unified template object using its id.</p> </td> </tr> <tr> <td> <span>wp-includes/theme.php:</span> <a href="../../functions/wp_get_theme">wp_get_theme()</a> </td> <td class="related-desc"> <p>Gets a <a href="../wp_theme">WP_Theme</a> object for a theme.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../../functions/get_userdata">get_userdata()</a> </td> <td class="related-desc"> <p>Retrieve user info by user ID.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-theme.php:</span> <a href="../wp_theme/get_stylesheet">WP_Theme::get_stylesheet()</a> </td> <td class="related-desc"> <p>Returns the directory name of the theme’s “stylesheet” files, inside the theme root.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="../../functions/get_current_user_id">get_current_user_id()</a> </td> <td class="related-desc"> <p>Gets the current user’s ID.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-templates-controller.php:</span> <a href="update_item">WP_REST_Templates_Controller::update_item()</a> </td> <td class="related-desc"> <p>Updates a single template.</p> </td> </tr> <tr> <td> <span>wp-includes/rest-api/endpoints/class-wp-rest-templates-controller.php:</span> <a href="create_item">WP_REST_Templates_Controller::create_item()</a> </td> <td class="related-desc"> <p>Creates a single template.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.8.0/" alt="WordPress 5.8.0">5.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_rest_templates_controller/prepare_item_for_database" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_rest_templates_controller/prepare_item_for_database</a>
+  </p>
+</div>

@@ -1,0 +1,68 @@
+<h1>WP_SimplePie_File::__construct( string $url, int $timeout = 10, int $redirects = 5, string|array $headers = null, string $useragent = null, bool $force_fsockopen = false )</h1>  <section> <p>Constructor.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$url</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">Remote file URL.</span> </p> </dd> <dt>$timeout</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description"> How long the connection should stay open in seconds. </span> </p> <p class="default">Default value: 10</p> </dd> <dt>$redirects</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description"> The number of allowed redirects. </span> </p> <p class="default">Default value: 5</p> </dd> <dt>$headers</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>|<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description"> Array or string of headers to send with the request. </span> </p> <p class="default">Default value: null</p> </dd> <dt>$useragent</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> User-agent value sent. </span> </p> <p class="default">Default value: null</p> </dd> <dt>$force_fsockopen</dt> <dd> <p class="desc"> <span class="type">(<span class="bool">bool</span>)</span> <span class="required">(Optional)</span> <span class="description"> Whether to force opening internet or unix domain socket connection or not. </span> </p> <p class="default">Default value: false</p> </dd> </dl> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-simplepie-file.php/">wp-includes/class-wp-simplepie-file.php</a> </p> <pre data-language="php">public function __construct( $url, $timeout = 10, $redirects = 5, $headers = null, $useragent = null, $force_fsockopen = false ) {
+		$this-&gt;url       = $url;
+		$this-&gt;timeout   = $timeout;
+		$this-&gt;redirects = $redirects;
+		$this-&gt;headers   = $headers;
+		$this-&gt;useragent = $useragent;
+
+		$this-&gt;method = SIMPLEPIE_FILE_SOURCE_REMOTE;
+
+		if ( preg_match( '/^http(s)?:\/\//i', $url ) ) {
+			$args = array(
+				'timeout'     =&gt; $this-&gt;timeout,
+				'redirection' =&gt; $this-&gt;redirects,
+			);
+
+			if ( ! empty( $this-&gt;headers ) ) {
+				$args['headers'] = $this-&gt;headers;
+			}
+
+			if ( SIMPLEPIE_USERAGENT != $this-&gt;useragent ) { // Use default WP user agent unless custom has been specified.
+				$args['user-agent'] = $this-&gt;useragent;
+			}
+
+			$res = wp_safe_remote_request( $url, $args );
+
+			if ( is_wp_error( $res ) ) {
+				$this-&gt;error   = 'WP HTTP Error: ' . $res-&gt;get_error_message();
+				$this-&gt;success = false;
+
+			} else {
+				$this-&gt;headers = wp_remote_retrieve_headers( $res );
+
+				/*
+				 * SimplePie expects multiple headers to be stored as a comma-separated string,
+				 * but `wp_remote_retrieve_headers()` returns them as an array, so they need
+				 * to be converted.
+				 *
+				 * The only exception to that is the `content-type` header, which should ignore
+				 * any previous values and only use the last one.
+				 *
+				 * @see SimplePie_HTTP_Parser::new_line().
+				 */
+				foreach ( $this-&gt;headers as $name =&gt; $value ) {
+					if ( ! is_array( $value ) ) {
+						continue;
+					}
+
+					if ( 'content-type' === $name ) {
+						$this-&gt;headers[ $name ] = array_pop( $value );
+					} else {
+						$this-&gt;headers[ $name ] = implode( ', ', $value );
+					}
+				}
+
+				$this-&gt;body        = wp_remote_retrieve_body( $res );
+				$this-&gt;status_code = wp_remote_retrieve_response_code( $res );
+			}
+		} else {
+			$this-&gt;error   = '';
+			$this-&gt;success = false;
+		}
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/http.php:</span> <a href="../../functions/wp_safe_remote_request">wp_safe_remote_request()</a> </td> <td class="related-desc"> <p>Retrieve the raw response from a safe HTTP request.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="../../functions/wp_remote_retrieve_headers">wp_remote_retrieve_headers()</a> </td> <td class="related-desc"> <p>Retrieve only the headers from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="../../functions/wp_remote_retrieve_body">wp_remote_retrieve_body()</a> </td> <td class="related-desc"> <p>Retrieve only the body from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/http.php:</span> <a href="../../functions/wp_remote_retrieve_response_code">wp_remote_retrieve_response_code()</a> </td> <td class="related-desc"> <p>Retrieve only the response code from the raw response.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.6.1/" alt="WordPress 5.6.1">5.6.1</a></td> <td><span class="since-description">Multiple headers are concatenated into a comma-separated string, rather than remaining an array.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.2.0/" alt="WordPress 3.2.0">3.2.0</a></td> <td><span class="since-description">Updated to use a PHP5 constructor.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.8.0/" alt="WordPress 2.8.0">2.8.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_simplepie_file/__construct" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_simplepie_file/__construct</a>
+  </p>
+</div>

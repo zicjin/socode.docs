@@ -1,0 +1,62 @@
+<h1>wptexturize_primes( string $haystack, string $needle, string $prime, string $open_quote, string $close_quote )</h1>  <section> <p>Implements a logic tree to determine whether or not “7′.” represents seven feet, then converts the special char into either a prime char or a closing quote char.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$haystack</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The plain text to be searched.</span> </p> </dd> <dt>$needle</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The character to search for such as ' or ".</span> </p> </dd> <dt>$prime</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The prime char to use for replacement.</span> </p> </dd> <dt>$open_quote</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The opening quote char. Opening quote replacement must be accomplished already.</span> </p> </dd> <dt>$close_quote</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">The closing quote char to use for replacement.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string)</span> The $haystack value after primes and quotes replacements.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/formatting.php/">wp-includes/formatting.php</a> </p> <pre data-language="php">function wptexturize_primes( $haystack, $needle, $prime, $open_quote, $close_quote ) {
+	$spaces           = wp_spaces_regexp();
+	$flag             = '&lt;!--wp-prime-or-quote--&gt;';
+	$quote_pattern    = "/$needle(?=\\Z|[.,:;!?)}\\-\\]]|&amp;gt;|" . $spaces . ')/';
+	$prime_pattern    = "/(?&lt;=\\d)$needle/";
+	$flag_after_digit = "/(?&lt;=\\d)$flag/";
+	$flag_no_digit    = "/(?&lt;!\\d)$flag/";
+
+	$sentences = explode( $open_quote, $haystack );
+
+	foreach ( $sentences as $key =&gt; &amp;$sentence ) {
+		if ( false === strpos( $sentence, $needle ) ) {
+			continue;
+		} elseif ( 0 !== $key &amp;&amp; 0 === substr_count( $sentence, $close_quote ) ) {
+			$sentence = preg_replace( $quote_pattern, $flag, $sentence, -1, $count );
+			if ( $count &gt; 1 ) {
+				// This sentence appears to have multiple closing quotes. Attempt Vulcan logic.
+				$sentence = preg_replace( $flag_no_digit, $close_quote, $sentence, -1, $count2 );
+				if ( 0 === $count2 ) {
+					// Try looking for a quote followed by a period.
+					$count2 = substr_count( $sentence, "$flag." );
+					if ( $count2 &gt; 0 ) {
+						// Assume the rightmost quote-period match is the end of quotation.
+						$pos = strrpos( $sentence, "$flag." );
+					} else {
+						// When all else fails, make the rightmost candidate a closing quote.
+						// This is most likely to be problematic in the context of bug #18549.
+						$pos = strrpos( $sentence, $flag );
+					}
+					$sentence = substr_replace( $sentence, $close_quote, $pos, strlen( $flag ) );
+				}
+				// Use conventional replacement on any remaining primes and quotes.
+				$sentence = preg_replace( $prime_pattern, $prime, $sentence );
+				$sentence = preg_replace( $flag_after_digit, $prime, $sentence );
+				$sentence = str_replace( $flag, $close_quote, $sentence );
+			} elseif ( 1 == $count ) {
+				// Found only one closing quote candidate, so give it priority over primes.
+				$sentence = str_replace( $flag, $close_quote, $sentence );
+				$sentence = preg_replace( $prime_pattern, $prime, $sentence );
+			} else {
+				// No closing quotes found. Just run primes pattern.
+				$sentence = preg_replace( $prime_pattern, $prime, $sentence );
+			}
+		} else {
+			$sentence = preg_replace( $prime_pattern, $prime, $sentence );
+			$sentence = preg_replace( $quote_pattern, $close_quote, $sentence );
+		}
+		if ( '"' === $needle &amp;&amp; false !== strpos( $sentence, '"' ) ) {
+			$sentence = str_replace( '"', $close_quote, $sentence );
+		}
+	}
+
+	return implode( $open_quote, $sentences );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_spaces_regexp">wp_spaces_regexp()</a> </td> <td class="related-desc"> <p>Returns the regexp for common whitespace characters.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wptexturize">wptexturize()</a> </td> <td class="related-desc"> <p>Replaces common plain text characters with formatted entities.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/4.3.0/" alt="WordPress 4.3.0">4.3.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wptexturize_primes" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wptexturize_primes</a>
+  </p>
+</div>

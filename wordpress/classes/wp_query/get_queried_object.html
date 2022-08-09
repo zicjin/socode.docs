@@ -1,0 +1,95 @@
+<h1>WP_Query::get_queried_object()</h1>  <section> <p>Retrieves the currently queried object.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>If queried object is not set, then the queried object will be set from the category, tag, taxonomy, posts page, single post, page, or author query variable. After it is set up, it will be returned.</p> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(<a href="../wp_term">WP_Term</a>|<a href="../wp_post_type">WP_Post_Type</a>|<a href="../wp_post">WP_Post</a>|<a href="../wp_user">WP_User</a>|null)</span> The queried object.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/class-wp-query.php/">wp-includes/class-wp-query.php</a> </p> <pre data-language="php">public function get_queried_object() {
+		if ( isset( $this-&gt;queried_object ) ) {
+			return $this-&gt;queried_object;
+		}
+
+		$this-&gt;queried_object    = null;
+		$this-&gt;queried_object_id = null;
+
+		if ( $this-&gt;is_category || $this-&gt;is_tag || $this-&gt;is_tax ) {
+			if ( $this-&gt;is_category ) {
+				$cat           = $this-&gt;get( 'cat' );
+				$category_name = $this-&gt;get( 'category_name' );
+
+				if ( $cat ) {
+					$term = get_term( $cat, 'category' );
+				} elseif ( $category_name ) {
+					$term = get_term_by( 'slug', $category_name, 'category' );
+				}
+			} elseif ( $this-&gt;is_tag ) {
+				$tag_id = $this-&gt;get( 'tag_id' );
+				$tag    = $this-&gt;get( 'tag' );
+
+				if ( $tag_id ) {
+					$term = get_term( $tag_id, 'post_tag' );
+				} elseif ( $tag ) {
+					$term = get_term_by( 'slug', $tag, 'post_tag' );
+				}
+			} else {
+				// For other tax queries, grab the first term from the first clause.
+				if ( ! empty( $this-&gt;tax_query-&gt;queried_terms ) ) {
+					$queried_taxonomies = array_keys( $this-&gt;tax_query-&gt;queried_terms );
+					$matched_taxonomy   = reset( $queried_taxonomies );
+					$query              = $this-&gt;tax_query-&gt;queried_terms[ $matched_taxonomy ];
+
+					if ( ! empty( $query['terms'] ) ) {
+						if ( 'term_id' === $query['field'] ) {
+							$term = get_term( reset( $query['terms'] ), $matched_taxonomy );
+						} else {
+							$term = get_term_by( $query['field'], reset( $query['terms'] ), $matched_taxonomy );
+						}
+					}
+				}
+			}
+
+			if ( ! empty( $term ) &amp;&amp; ! is_wp_error( $term ) ) {
+				$this-&gt;queried_object    = $term;
+				$this-&gt;queried_object_id = (int) $term-&gt;term_id;
+
+				if ( $this-&gt;is_category &amp;&amp; 'category' === $this-&gt;queried_object-&gt;taxonomy ) {
+					_make_cat_compat( $this-&gt;queried_object );
+				}
+			}
+		} elseif ( $this-&gt;is_post_type_archive ) {
+			$post_type = $this-&gt;get( 'post_type' );
+
+			if ( is_array( $post_type ) ) {
+				$post_type = reset( $post_type );
+			}
+
+			$this-&gt;queried_object = get_post_type_object( $post_type );
+		} elseif ( $this-&gt;is_posts_page ) {
+			$page_for_posts = get_option( 'page_for_posts' );
+
+			$this-&gt;queried_object    = get_post( $page_for_posts );
+			$this-&gt;queried_object_id = (int) $this-&gt;queried_object-&gt;ID;
+		} elseif ( $this-&gt;is_singular &amp;&amp; ! empty( $this-&gt;post ) ) {
+			$this-&gt;queried_object    = $this-&gt;post;
+			$this-&gt;queried_object_id = (int) $this-&gt;post-&gt;ID;
+		} elseif ( $this-&gt;is_author ) {
+			$author      = (int) $this-&gt;get( 'author' );
+			$author_name = $this-&gt;get( 'author_name' );
+
+			if ( $author ) {
+				$this-&gt;queried_object_id = $author;
+			} elseif ( $author_name ) {
+				$user = get_user_by( 'slug', $author_name );
+
+				if ( $user ) {
+					$this-&gt;queried_object_id = $user-&gt;ID;
+				}
+			}
+
+			$this-&gt;queried_object = get_userdata( $this-&gt;queried_object_id );
+		}
+
+		return $this-&gt;queried_object;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../../functions/get_user_by">get_user_by()</a> </td> <td class="related-desc"> <p>Retrieve user info by a given field</p> </td> </tr> <tr> <td> <span>wp-includes/pluggable.php:</span> <a href="../../functions/get_userdata">get_userdata()</a> </td> <td class="related-desc"> <p>Retrieve user info by user ID.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-query.php:</span> <a href="get">WP_Query::get()</a> </td> <td class="related-desc"> <p>Retrieves the value of a query variable.</p> </td> </tr> <tr> <td> <span>wp-includes/category.php:</span> <a href="../../functions/_make_cat_compat">_make_cat_compat()</a> </td> <td class="related-desc"> <p>Updates category structure to old pre-2.3 from new taxonomy structure.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="../../functions/get_term_by">get_term_by()</a> </td> <td class="related-desc"> <p>Gets all term data from database by term field and data.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="../../functions/get_term">get_term()</a> </td> <td class="related-desc"> <p>Gets all term data from database by term ID.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="../../functions/get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/get_post_type_object">get_post_type_object()</a> </td> <td class="related-desc"> <p>Retrieves a post type object by name.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="../../functions/get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="../../functions/is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-query.php:</span> <a href="is_page">WP_Query::is_page()</a> </td> <td class="related-desc"> <p>Is the query for an existing single page?</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-query.php:</span> <a href="is_single">WP_Query::is_single()</a> </td> <td class="related-desc"> <p>Is the query for an existing single post?</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-query.php:</span> <a href="is_singular">WP_Query::is_singular()</a> </td> <td class="related-desc"> <p>Is the query for an existing single post of any post type (post, attachment, page, custom post types)?</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-query.php:</span> <a href="get_queried_object_id">WP_Query::get_queried_object_id()</a> </td> <td class="related-desc"> <p>Retrieves the ID of the currently queried object.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-query.php:</span> <a href="is_attachment">WP_Query::is_attachment()</a> </td> <td class="related-desc"> <p>Is the query for an existing attachment page?</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-query.php:</span> <a href="is_author">WP_Query::is_author()</a> </td> <td class="related-desc"> <p>Is the query for an existing author archive page?</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-query.php:</span> <a href="is_category">WP_Query::is_category()</a> </td> <td class="related-desc"> <p>Is the query for an existing category archive page?</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-query.php:</span> <a href="is_tag">WP_Query::is_tag()</a> </td> <td class="related-desc"> <p>Is the query for an existing tag archive page?</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-query.php:</span> <a href="is_tax">WP_Query::is_tax()</a> </td> <td class="related-desc"> <p>Is the query for an existing custom taxonomy archive page?</p> </td> </tr> <tr> <td> <span>wp-includes/query.php:</span> <a href="../../functions/get_queried_object">get_queried_object()</a> </td> <td class="related-desc"> <p>Retrieves the currently queried object.</p> </td> </tr> <tr> <td> <span>wp-includes/nav-menu-template.php:</span> <a href="../../functions/_wp_menu_item_classes_by_context">_wp_menu_item_classes_by_context()</a> </td> <td class="related-desc"> <p>Adds the class property classes for the current context, if applicable.</p> </td> </tr> <tr> <td> <span>wp-includes/post-template.php:</span> <a href="../../functions/get_body_class">get_body_class()</a> </td> <td class="related-desc"> <p>Retrieves an array of the class names for the body element.</p> </td> </tr> <tr> <td> <span>wp-includes/canonical.php:</span> <a href="../../functions/redirect_canonical">redirect_canonical()</a> </td> <td class="related-desc"> <p>Redirects incoming links to the proper URL based on the site url.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/1.5.0/" alt="WordPress 1.5.0">1.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_query/get_queried_object" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_query/get_queried_object</a>
+  </p>
+</div>

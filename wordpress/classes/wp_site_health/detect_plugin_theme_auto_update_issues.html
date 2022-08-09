@@ -1,0 +1,80 @@
+<h1>WP_Site_Health::detect_plugin_theme_auto_update_issues()</h1>  <section> <p>Check for potential issues with plugin and theme auto-updates.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Though there is no way to 100% determine if plugin and theme auto-updates are configured correctly, a few educated guesses could be made to flag any conditions that would potentially cause unexpected behaviors.</p> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(object)</span> The test results.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-site-health.php/">wp-admin/includes/class-wp-site-health.php</a> </p> <pre data-language="php">public function detect_plugin_theme_auto_update_issues() {
+		$mock_plugin = (object) array(
+			'id'            =&gt; 'w.org/plugins/a-fake-plugin',
+			'slug'          =&gt; 'a-fake-plugin',
+			'plugin'        =&gt; 'a-fake-plugin/a-fake-plugin.php',
+			'new_version'   =&gt; '9.9',
+			'url'           =&gt; 'https://wordpress.org/plugins/a-fake-plugin/',
+			'package'       =&gt; 'https://downloads.wordpress.org/plugin/a-fake-plugin.9.9.zip',
+			'icons'         =&gt; array(
+				'2x' =&gt; 'https://ps.w.org/a-fake-plugin/assets/icon-256x256.png',
+				'1x' =&gt; 'https://ps.w.org/a-fake-plugin/assets/icon-128x128.png',
+			),
+			'banners'       =&gt; array(
+				'2x' =&gt; 'https://ps.w.org/a-fake-plugin/assets/banner-1544x500.png',
+				'1x' =&gt; 'https://ps.w.org/a-fake-plugin/assets/banner-772x250.png',
+			),
+			'banners_rtl'   =&gt; array(),
+			'tested'        =&gt; '5.5.0',
+			'requires_php'  =&gt; '5.6.20',
+			'compatibility' =&gt; new stdClass(),
+		);
+
+		$mock_theme = (object) array(
+			'theme'        =&gt; 'a-fake-theme',
+			'new_version'  =&gt; '9.9',
+			'url'          =&gt; 'https://wordpress.org/themes/a-fake-theme/',
+			'package'      =&gt; 'https://downloads.wordpress.org/theme/a-fake-theme.9.9.zip',
+			'requires'     =&gt; '5.0.0',
+			'requires_php' =&gt; '5.6.20',
+		);
+
+		$test_plugins_enabled = wp_is_auto_update_forced_for_item( 'plugin', true, $mock_plugin );
+		$test_themes_enabled  = wp_is_auto_update_forced_for_item( 'theme', true, $mock_theme );
+
+		$ui_enabled_for_plugins = wp_is_auto_update_enabled_for_type( 'plugin' );
+		$ui_enabled_for_themes  = wp_is_auto_update_enabled_for_type( 'theme' );
+		$plugin_filter_present  = has_filter( 'auto_update_plugin' );
+		$theme_filter_present   = has_filter( 'auto_update_theme' );
+
+		if ( ( ! $test_plugins_enabled &amp;&amp; $ui_enabled_for_plugins )
+			|| ( ! $test_themes_enabled &amp;&amp; $ui_enabled_for_themes )
+		) {
+			return (object) array(
+				'status'  =&gt; 'critical',
+				'message' =&gt; __( 'Auto-updates for plugins and/or themes appear to be disabled, but settings are still set to be displayed. This could cause auto-updates to not work as expected.' ),
+			);
+		}
+
+		if ( ( ! $test_plugins_enabled &amp;&amp; $plugin_filter_present )
+			&amp;&amp; ( ! $test_themes_enabled &amp;&amp; $theme_filter_present )
+		) {
+			return (object) array(
+				'status'  =&gt; 'recommended',
+				'message' =&gt; __( 'Auto-updates for plugins and themes appear to be disabled. This will prevent your site from receiving new versions automatically when available.' ),
+			);
+		} elseif ( ! $test_plugins_enabled &amp;&amp; $plugin_filter_present ) {
+			return (object) array(
+				'status'  =&gt; 'recommended',
+				'message' =&gt; __( 'Auto-updates for plugins appear to be disabled. This will prevent your site from receiving new versions automatically when available.' ),
+			);
+		} elseif ( ! $test_themes_enabled &amp;&amp; $theme_filter_present ) {
+			return (object) array(
+				'status'  =&gt; 'recommended',
+				'message' =&gt; __( 'Auto-updates for themes appear to be disabled. This will prevent your site from receiving new versions automatically when available.' ),
+			);
+		}
+
+		return (object) array(
+			'status'  =&gt; 'good',
+			'message' =&gt; __( 'There appear to be no issues with plugin and theme auto-updates.' ),
+		);
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/update.php:</span> <a href="../../functions/wp_is_auto_update_forced_for_item">wp_is_auto_update_forced_for_item()</a> </td> <td class="related-desc"> <p>Checks whether auto-updates are forced for an item.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/update.php:</span> <a href="../../functions/wp_is_auto_update_enabled_for_type">wp_is_auto_update_enabled_for_type()</a> </td> <td class="related-desc"> <p>Checks whether auto-updates are enabled.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="../../functions/__">__()</a> </td> <td class="related-desc"> <p>Retrieve the translation of $text.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="../../functions/has_filter">has_filter()</a> </td> <td class="related-desc"> <p>Checks if any filter has been registered for a hook.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-site-health.php:</span> <a href="get_test_plugin_theme_auto_updates">WP_Site_Health::get_test_plugin_theme_auto_updates()</a> </td> <td class="related-desc"> <p>Test if plugin and theme auto-updates appear to be configured correctly.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.5.0/" alt="WordPress 5.5.0">5.5.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_site_health/detect_plugin_theme_auto_update_issues" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_site_health/detect_plugin_theme_auto_update_issues</a>
+  </p>
+</div>

@@ -1,0 +1,75 @@
+<h1>media_handle_sideload( string[] $file_array, int $post_id, string $desc = null, array $post_data = array() )</h1>  <section> <p>Handles a side-loaded file in the same way as an uploaded file is handled by <a href="media_handle_upload">media_handle_upload()</a>.</p> </section> <div class="content-toc">  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$file_array</dt> <dd> <p class="desc"> <span class="type">(<span class="string[]">string[]</span>)</span> <span class="required">(Required)</span> <span class="description">Array that represents a <code>$_FILES</code> upload array.</span> </p> </dd> <dt>$post_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Optional)</span> <span class="description"> The post ID the media is associated with.</span> </p> </dd> <dt>$desc</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description"> Description of the side-loaded file. </span> </p> <p class="default">Default value: null</p> </dd> <dt>$post_data</dt> <dd> <p class="desc"> <span class="type">(<span class="array">array</span>)</span> <span class="required">(Optional)</span> <span class="description"> Post data to override. </span> </p> <p class="default">Default value: array()</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(int|<a href="../classes/wp_error">WP_Error</a>)</span> The ID of the attachment or a <a href="../classes/wp_error">WP_Error</a> on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/media.php/">wp-admin/includes/media.php</a> </p> <pre data-language="php">function media_handle_sideload( $file_array, $post_id = 0, $desc = null, $post_data = array() ) {
+	$overrides = array( 'test_form' =&gt; false );
+
+	if ( isset( $post_data['post_date'] ) &amp;&amp; substr( $post_data['post_date'], 0, 4 ) &gt; 0 ) {
+		$time = $post_data['post_date'];
+	} else {
+		$post = get_post( $post_id );
+		if ( $post &amp;&amp; substr( $post-&gt;post_date, 0, 4 ) &gt; 0 ) {
+			$time = $post-&gt;post_date;
+		} else {
+			$time = current_time( 'mysql' );
+		}
+	}
+
+	$file = wp_handle_sideload( $file_array, $overrides, $time );
+
+	if ( isset( $file['error'] ) ) {
+		return new WP_Error( 'upload_error', $file['error'] );
+	}
+
+	$url     = $file['url'];
+	$type    = $file['type'];
+	$file    = $file['file'];
+	$title   = preg_replace( '/\.[^.]+$/', '', wp_basename( $file ) );
+	$content = '';
+
+	// Use image exif/iptc data for title and caption defaults if possible.
+	$image_meta = wp_read_image_metadata( $file );
+
+	if ( $image_meta ) {
+		if ( trim( $image_meta['title'] ) &amp;&amp; ! is_numeric( sanitize_title( $image_meta['title'] ) ) ) {
+			$title = $image_meta['title'];
+		}
+
+		if ( trim( $image_meta['caption'] ) ) {
+			$content = $image_meta['caption'];
+		}
+	}
+
+	if ( isset( $desc ) ) {
+		$title = $desc;
+	}
+
+	// Construct the attachment array.
+	$attachment = array_merge(
+		array(
+			'post_mime_type' =&gt; $type,
+			'guid'           =&gt; $url,
+			'post_parent'    =&gt; $post_id,
+			'post_title'     =&gt; $title,
+			'post_content'   =&gt; $content,
+		),
+		$post_data
+	);
+
+	// This should never be set as it would then overwrite an existing attachment.
+	unset( $attachment['ID'] );
+
+	// Save the attachment metadata.
+	$attachment_id = wp_insert_attachment( $attachment, $file, $post_id, true );
+
+	if ( ! is_wp_error( $attachment_id ) ) {
+		wp_update_attachment_metadata( $attachment_id, wp_generate_attachment_metadata( $attachment_id, $file ) );
+	}
+
+	return $attachment_id;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/image.php:</span> <a href="wp_read_image_metadata">wp_read_image_metadata()</a> </td> <td class="related-desc"> <p>Get extended image metadata, exif or iptc as available.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/image.php:</span> <a href="wp_generate_attachment_metadata">wp_generate_attachment_metadata()</a> </td> <td class="related-desc"> <p>Generate attachment meta data and create image sub-sizes for images.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/file.php:</span> <a href="wp_handle_sideload">wp_handle_sideload()</a> </td> <td class="related-desc"> <p>Wrapper for <a href="_wp_handle_upload">_wp_handle_upload()</a>.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="wp_basename">wp_basename()</a> </td> <td class="related-desc"> <p>i18n-friendly version of basename().</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="sanitize_title">sanitize_title()</a> </td> <td class="related-desc"> <p>Sanitizes a string into a slug, which can be used in URLs or HTML attributes.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="current_time">current_time()</a> </td> <td class="related-desc"> <p>Retrieves the current time based on specified type.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_insert_attachment">wp_insert_attachment()</a> </td> <td class="related-desc"> <p>Insert an attachment.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="wp_update_attachment_metadata">wp_update_attachment_metadata()</a> </td> <td class="related-desc"> <p>Updates metadata for an attachment.</p> </td> </tr> <tr> <td> <span>wp-includes/post.php:</span> <a href="get_post">get_post()</a> </td> <td class="related-desc"> <p>Retrieves post data given a post ID or post object.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_wp_error">is_wp_error()</a> </td> <td class="related-desc"> <p>Checks whether the given variable is a WordPress Error.</p> </td> </tr> <tr> <td> <span>wp-includes/class-wp-error.php:</span> <a href="../classes/wp_error/__construct">WP_Error::__construct()</a> </td> <td class="related-desc"> <p>Initializes the error.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-wp-customize-manager.php:</span> <a href="../classes/wp_customize_manager/import_theme_starter_content">WP_Customize_Manager::import_theme_starter_content()</a> </td> <td class="related-desc"> <p>Imports theme starter content into the customized state.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/media.php:</span> <a href="media_sideload_image">media_sideload_image()</a> </td> <td class="related-desc"> <p>Downloads an image from the specified URL, saves it as an attachment, and optionally attaches it to a post.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/5.3.0/" alt="WordPress 5.3.0">5.3.0</a></td> <td><span class="since-description">The <code>$post_id</code> parameter was made optional.</span></td> </tr> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.6.0/" alt="WordPress 2.6.0">2.6.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/media_handle_sideload" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/media_handle_sideload</a>
+  </p>
+</div>

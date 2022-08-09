@@ -1,0 +1,85 @@
+<h1>global_terms( int $term_id, string $deprecated = '' )</h1>  <section> <p>Maintains a canonical list of terms by syncing terms created for each blog with the global terms table.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <h3 id="see-also">See also</h3> <ul> <li><a href="term_id_filter">term_id_filter</a></li> </ul> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$term_id</dt> <dd> <p class="desc"> <span class="type">(<span class="int">int</span>)</span> <span class="required">(Required)</span> <span class="description">An ID for a term on the current blog.</span> </p> </dd> <dt>$deprecated</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Optional)</span> <span class="description">Not used.</span> </p> <p class="default">Default value: ''</p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(int)</span> An ID from the global terms table mapped from $term_id.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/ms-functions.php/">wp-includes/ms-functions.php</a> </p> <pre data-language="php">function global_terms( $term_id, $deprecated = '' ) {
+	global $wpdb;
+	static $global_terms_recurse = null;
+
+	if ( ! global_terms_enabled() ) {
+		return $term_id;
+	}
+
+	// Prevent a race condition.
+	$recurse_start = false;
+	if ( null === $global_terms_recurse ) {
+		$recurse_start        = true;
+		$global_terms_recurse = 1;
+	} elseif ( 10 &lt; $global_terms_recurse++ ) {
+		return $term_id;
+	}
+
+	$term_id = (int) $term_id;
+	$c       = $wpdb-&gt;get_row( $wpdb-&gt;prepare( "SELECT * FROM $wpdb-&gt;terms WHERE term_id = %d", $term_id ) );
+
+	$global_id = $wpdb-&gt;get_var( $wpdb-&gt;prepare( "SELECT cat_ID FROM $wpdb-&gt;sitecategories WHERE category_nicename = %s", $c-&gt;slug ) );
+	if ( null == $global_id ) {
+		$used_global_id = $wpdb-&gt;get_var( $wpdb-&gt;prepare( "SELECT cat_ID FROM $wpdb-&gt;sitecategories WHERE cat_ID = %d", $c-&gt;term_id ) );
+		if ( null == $used_global_id ) {
+			$wpdb-&gt;insert(
+				$wpdb-&gt;sitecategories,
+				array(
+					'cat_ID'            =&gt; $term_id,
+					'cat_name'          =&gt; $c-&gt;name,
+					'category_nicename' =&gt; $c-&gt;slug,
+				)
+			);
+			$global_id = $wpdb-&gt;insert_id;
+			if ( empty( $global_id ) ) {
+				return $term_id;
+			}
+		} else {
+			$max_global_id = $wpdb-&gt;get_var( "SELECT MAX(cat_ID) FROM $wpdb-&gt;sitecategories" );
+			$max_local_id  = $wpdb-&gt;get_var( "SELECT MAX(term_id) FROM $wpdb-&gt;terms" );
+			$new_global_id = max( $max_global_id, $max_local_id ) + mt_rand( 100, 400 );
+			$wpdb-&gt;insert(
+				$wpdb-&gt;sitecategories,
+				array(
+					'cat_ID'            =&gt; $new_global_id,
+					'cat_name'          =&gt; $c-&gt;name,
+					'category_nicename' =&gt; $c-&gt;slug,
+				)
+			);
+			$global_id = $wpdb-&gt;insert_id;
+		}
+	} elseif ( $global_id != $term_id ) {
+		$local_id = $wpdb-&gt;get_var( $wpdb-&gt;prepare( "SELECT term_id FROM $wpdb-&gt;terms WHERE term_id = %d", $global_id ) );
+		if ( null != $local_id ) {
+			global_terms( $local_id );
+			if ( 10 &lt; $global_terms_recurse ) {
+				$global_id = $term_id;
+			}
+		}
+	}
+
+	if ( $global_id != $term_id ) {
+		if ( get_option( 'default_category' ) == $term_id ) {
+			update_option( 'default_category', $global_id );
+		}
+
+		$wpdb-&gt;update( $wpdb-&gt;terms, array( 'term_id' =&gt; $global_id ), array( 'term_id' =&gt; $term_id ) );
+		$wpdb-&gt;update( $wpdb-&gt;term_taxonomy, array( 'term_id' =&gt; $global_id ), array( 'term_id' =&gt; $term_id ) );
+		$wpdb-&gt;update( $wpdb-&gt;term_taxonomy, array( 'parent' =&gt; $global_id ), array( 'parent' =&gt; $term_id ) );
+
+		clean_term_cache( $term_id );
+	}
+	if ( $recurse_start ) {
+		$global_terms_recurse = null;
+	}
+
+	return $global_id;
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/functions.php:</span> <a href="global_terms_enabled">global_terms_enabled()</a> </td> <td class="related-desc"> <p>Determine whether global terms are enabled.</p> </td> </tr> <tr> <td> <span>wp-includes/taxonomy.php:</span> <a href="clean_term_cache">clean_term_cache()</a> </td> <td class="related-desc"> <p>Removes all of the term IDs from the cache.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="update_option">update_option()</a> </td> <td class="related-desc"> <p>Updates the value of an option that was already added.</p> </td> </tr> <tr> <td> <span>wp-includes/option.php:</span> <a href="get_option">get_option()</a> </td> <td class="related-desc"> <p>Retrieves an option value based on an option name.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="global_terms">global_terms()</a> </td> <td class="related-desc"> <p>Maintains a canonical list of terms by syncing terms created for each blog with the global terms table.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/get_row">wpdb::get_row()</a> </td> <td class="related-desc"> <p>Retrieves one row from the database.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/get_var">wpdb::get_var()</a> </td> <td class="related-desc"> <p>Retrieves one variable from the database.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/insert">wpdb::insert()</a> </td> <td class="related-desc"> <p>Inserts a row into the table.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/update">wpdb::update()</a> </td> <td class="related-desc"> <p>Updates a row in the table.</p> </td> </tr> <tr> <td> <span>wp-includes/wp-db.php:</span> <a href="../classes/wpdb/prepare">wpdb::prepare()</a> </td> <td class="related-desc"> <p>Prepares a SQL query for safe execution.</p> </td> </tr> </tbody>
+
+</table>   </article>  <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="global_terms">global_terms()</a> </td> <td class="related-desc"> <p>Maintains a canonical list of terms by syncing terms created for each blog with the global terms table.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.0.0/" alt="WordPress 3.0.0">3.0.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/global_terms" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/global_terms</a>
+  </p>
+</div>

@@ -1,0 +1,77 @@
+<h1>WP_Filesystem_Base::find_folder( string $folder )</h1>  <section> <p>Locates a folder on the remote filesystem.</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Assumes that on Windows systems, Stripping off the Drive letter is OK Sanitizes \ to / in Windows filepaths.</p> </section>  <section> <h2 id="parameters">Parameters</h2> <dl> <dt>$folder</dt> <dd> <p class="desc"> <span class="type">(<span class="string">string</span>)</span> <span class="required">(Required)</span> <span class="description">the folder to locate.</span> </p> </dd> </dl> </section>  <section> <h2 id="return">Return</h2> <p><span class="return-type">(string|false)</span> The location of the remote path, false on failure.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/class-wp-filesystem-base.php/">wp-admin/includes/class-wp-filesystem-base.php</a> </p> <pre data-language="php">public function find_folder( $folder ) {
+		if ( isset( $this-&gt;cache[ $folder ] ) ) {
+			return $this-&gt;cache[ $folder ];
+		}
+
+		if ( stripos( $this-&gt;method, 'ftp' ) !== false ) {
+			$constant_overrides = array(
+				'FTP_BASE'        =&gt; ABSPATH,
+				'FTP_CONTENT_DIR' =&gt; WP_CONTENT_DIR,
+				'FTP_PLUGIN_DIR'  =&gt; WP_PLUGIN_DIR,
+				'FTP_LANG_DIR'    =&gt; WP_LANG_DIR,
+			);
+
+			// Direct matches ( folder = CONSTANT/ ).
+			foreach ( $constant_overrides as $constant =&gt; $dir ) {
+				if ( ! defined( $constant ) ) {
+					continue;
+				}
+
+				if ( $folder === $dir ) {
+					return trailingslashit( constant( $constant ) );
+				}
+			}
+
+			// Prefix matches ( folder = CONSTANT/subdir ),
+			foreach ( $constant_overrides as $constant =&gt; $dir ) {
+				if ( ! defined( $constant ) ) {
+					continue;
+				}
+
+				if ( 0 === stripos( $folder, $dir ) ) { // $folder starts with $dir.
+					$potential_folder = preg_replace( '#^' . preg_quote( $dir, '#' ) . '/#i', trailingslashit( constant( $constant ) ), $folder );
+					$potential_folder = trailingslashit( $potential_folder );
+
+					if ( $this-&gt;is_dir( $potential_folder ) ) {
+						$this-&gt;cache[ $folder ] = $potential_folder;
+
+						return $potential_folder;
+					}
+				}
+			}
+		} elseif ( 'direct' === $this-&gt;method ) {
+			$folder = str_replace( '\\', '/', $folder ); // Windows path sanitisation.
+
+			return trailingslashit( $folder );
+		}
+
+		$folder = preg_replace( '|^([a-z]{1}):|i', '', $folder ); // Strip out Windows drive letter if it's there.
+		$folder = str_replace( '\\', '/', $folder ); // Windows path sanitisation.
+
+		if ( isset( $this-&gt;cache[ $folder ] ) ) {
+			return $this-&gt;cache[ $folder ];
+		}
+
+		if ( $this-&gt;exists( $folder ) ) { // Folder exists at that absolute path.
+			$folder                 = trailingslashit( $folder );
+			$this-&gt;cache[ $folder ] = $folder;
+
+			return $folder;
+		}
+
+		$return = $this-&gt;search_for_folder( $folder );
+
+		if ( $return ) {
+			$this-&gt;cache[ $folder ] = $return;
+		}
+
+		return $return;
+	}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/class-pop3.php:</span> <a href="../../functions/stripos">stripos()</a> </td> <td class="related-desc"> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-filesystem-base.php:</span> <a href="is_dir">WP_Filesystem_Base::is_dir()</a> </td> <td class="related-desc"> <p>Checks if resource is a directory.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-filesystem-base.php:</span> <a href="exists">WP_Filesystem_Base::exists()</a> </td> <td class="related-desc"> <p>Checks if a file or directory exists.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-filesystem-base.php:</span> <a href="search_for_folder">WP_Filesystem_Base::search_for_folder()</a> </td> <td class="related-desc"> <p>Locates a folder on the remote filesystem.</p> </td> </tr> <tr> <td> <span>wp-includes/formatting.php:</span> <a href="../../functions/trailingslashit">trailingslashit()</a> </td> <td class="related-desc"> <p>Appends a trailing slash.</p> </td> </tr> </tbody>
+
+</table> </article> <article class="used-by"> <h3 id="used-by">Used By</h3> <table id="used-by-table">  <thead> <tr> <th>Used By</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-admin/includes/class-wp-filesystem-base.php:</span> <a href="abspath">WP_Filesystem_Base::abspath()</a> </td> <td class="related-desc"> <p>Returns the path on the remote filesystem of ABSPATH.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-filesystem-base.php:</span> <a href="wp_content_dir">WP_Filesystem_Base::wp_content_dir()</a> </td> <td class="related-desc"> <p>Returns the path on the remote filesystem of WP_CONTENT_DIR.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-filesystem-base.php:</span> <a href="wp_plugins_dir">WP_Filesystem_Base::wp_plugins_dir()</a> </td> <td class="related-desc"> <p>Returns the path on the remote filesystem of WP_PLUGIN_DIR.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-filesystem-base.php:</span> <a href="wp_themes_dir">WP_Filesystem_Base::wp_themes_dir()</a> </td> <td class="related-desc"> <p>Returns the path on the remote filesystem of the Themes Directory.</p> </td> </tr> <tr> <td> <span>wp-admin/includes/class-wp-filesystem-base.php:</span> <a href="wp_lang_dir">WP_Filesystem_Base::wp_lang_dir()</a> </td> <td class="related-desc"> <p>Returns the path on the remote filesystem of WP_LANG_DIR.</p> </td> </tr> </tbody>
+
+</table> </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/2.7.0/" alt="WordPress 2.7.0">2.7.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/wp_filesystem_base/find_folder" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/wp_filesystem_base/find_folder</a>
+  </p>
+</div>

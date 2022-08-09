@@ -1,0 +1,80 @@
+<h1>Requests_Auth_Basic</h1>  <section> <p>Basic Authentication provider</p> </section> <div class="content-toc">  <section> <h2 id="description">Description</h2> <p>Provides a handler for Basic HTTP authentication via the Authorization header.</p> </section>  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-includes/requests/auth/basic.php/">wp-includes/Requests/Auth/Basic.php</a> </p> <pre data-language="php">class Requests_Auth_Basic implements Requests_Auth {
+	/**
+	 * Username
+	 *
+	 * @var string
+	 */
+	public $user;
+
+	/**
+	 * Password
+	 *
+	 * @var string
+	 */
+	public $pass;
+
+	/**
+	 * Constructor
+	 *
+	 * @throws Requests_Exception On incorrect number of arguments (`authbasicbadargs`)
+	 * @param array|null $args Array of user and password. Must have exactly two elements
+	 */
+	public function __construct($args = null) {
+		if (is_array($args)) {
+			if (count($args) !== 2) {
+				throw new Requests_Exception('Invalid number of arguments', 'authbasicbadargs');
+			}
+
+			list($this-&gt;user, $this-&gt;pass) = $args;
+		}
+	}
+
+	/**
+	 * Register the necessary callbacks
+	 *
+	 * @see curl_before_send
+	 * @see fsockopen_header
+	 * @param Requests_Hooks $hooks Hook system
+	 */
+	public function register(Requests_Hooks $hooks) {
+		$hooks-&gt;register('curl.before_send', array($this, 'curl_before_send'));
+		$hooks-&gt;register('fsockopen.after_headers', array($this, 'fsockopen_header'));
+	}
+
+	/**
+	 * Set cURL parameters before the data is sent
+	 *
+	 * @param resource $handle cURL resource
+	 */
+	public function curl_before_send(&amp;$handle) {
+		curl_setopt($handle, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+		curl_setopt($handle, CURLOPT_USERPWD, $this-&gt;getAuthString());
+	}
+
+	/**
+	 * Add extra headers to the request before sending
+	 *
+	 * @param string $out HTTP header string
+	 */
+	public function fsockopen_header(&amp;$out) {
+		$out .= sprintf("Authorization: Basic %s\r\n", base64_encode($this-&gt;getAuthString()));
+	}
+
+	/**
+	 * Get the authentication string (user:pass)
+	 *
+	 * @return string
+	 */
+	public function getAuthString() {
+		return $this-&gt;user . ':' . $this-&gt;pass;
+	}
+}</pre>  </section>  <section> <h2 id="methods">Methods</h2> <ul> <li>
+<a href="requests_auth_basic/__construct"> __construct</a> — Constructor </li> <li>
+<a href="requests_auth_basic/curl_before_send"> curl_before_send</a> — Set cURL parameters before the data is sent </li> <li>
+<a href="requests_auth_basic/fsockopen_header"> fsockopen_header</a> — Add extra headers to the request before sending </li> <li>
+<a href="requests_auth_basic/getauthstring"> getAuthString</a> — Get the authentication string (user:pass) </li> <li>
+<a href="requests_auth_basic/register"> register</a> — Register the necessary callbacks </li> </ul> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/classes/requests_auth_basic" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/classes/requests_auth_basic</a>
+  </p>
+</div>

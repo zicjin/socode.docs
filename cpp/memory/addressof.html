@@ -1,29 +1,35 @@
-   <h1 id="firstHeading" class="firstHeading">std::addressof</h1>            <table class="t-dcl-begin"> <tr class="t-dsc-header"> <th> Defined in header <code><a href="../header/memory" title="cpp/header/memory">&lt;memory&gt;</a></code> </th> <th> </th> <th> </th> </tr>  <tr class="t-dcl-rev-aux"> <td></td> <td rowspan="3">(1)</td> <td></td> </tr> <tr class="t-dcl t-since-cxx11 t-until-cxx17"> <td> <pre data-language="cpp">template&lt; class T &gt;
-T* addressof(T&amp; arg) noexcept;</pre>
+    <h1 id="firstHeading" class="firstHeading">std::addressof</h1>            <table class="t-dcl-begin"> <tr class="t-dsc-header"> <th> Defined in header <code><a href="../header/memory" title="cpp/header/memory">&lt;memory&gt;</a></code> </th> <th> </th> <th> </th> </tr>  <tr class="t-dcl-rev-aux"> <td></td> <td rowspan="3">(1)</td> <td></td> </tr> <tr class="t-dcl t-since-cxx11 t-until-cxx17"> <td> <pre data-language="cpp">template&lt; class T &gt;
+T* addressof( T&amp; arg ) noexcept;</pre>
 </td>  <td> <span class="t-mark-rev t-since-cxx11">(since C++11)</span> <br><span class="t-mark-rev t-until-cxx17">(until C++17)</span> </td> </tr> <tr class="t-dcl t-since-cxx17"> <td> <pre data-language="cpp">template&lt; class T &gt;
-constexpr T* addressof(T&amp; arg) noexcept;</pre>
+constexpr T* addressof( T&amp; arg ) noexcept;</pre>
 </td>  <td> <span class="t-mark-rev t-since-cxx17">(since C++17)</span> </td> </tr>  <tr class="t-dcl t-since-cxx17"> <td> <pre data-language="cpp">template &lt;class T&gt;
-const T* addressof(const T&amp;&amp;) = delete;</pre>
+const T* addressof( const T&amp;&amp; ) = delete;</pre>
 </td> <td> (2) </td> <td> <span class="t-mark-rev t-since-cxx17">(since C++17)</span> </td> </tr>  </table> <div class="t-li1">
-<span class="t-li">1)</span> Obtains the actual address of the object or function <code>arg</code>, even in presence of overloaded <code>operator&amp;</code>
-</div> <div class="t-li1">
+<span class="t-li">1)</span> Obtains the actual address of the object or function <code>arg</code>, even in presence of overloaded <code>operator&amp;</code>.</div> <div class="t-li1">
 <span class="t-li">2)</span> Rvalue overload is deleted to prevent taking the address of <code>const</code> rvalues.</div> <table class="t-rev-begin"> <tr class="t-rev t-since-cxx17">
 <td> <p>The expression <code>std::addressof(E)</code> is a <a href="../language/constant_expression" title="cpp/language/constant expression">constant subexpression</a>, if <code>E</code> is an lvalue constant subexpression.</p>
 </td> <td><span class="t-mark-rev t-since-cxx17">(since C++17)</span></td>
-</tr> </table> <h3 id="Parameters">Parameters</h3> <table class="t-par-begin"> <tr class="t-par"> <td> arg </td> <td> - </td> <td> lvalue object or function </td>
+</tr> </table>  <h3 id="Parameters"> Parameters</h3> <table class="t-par-begin"> <tr class="t-par"> <td> arg </td> <td> - </td> <td> lvalue object or function </td>
 </tr>
-</table> <h3 id="Return_value">Return value</h3> <p>Pointer to <code>arg</code>.</p>
-<h3 id="Possible_implementation">Possible implementation</h3> <table class="eq-fun-cpp-table"> <tr> <td> <div class="cpp source-cpp"><pre data-language="cpp">template&lt; class T &gt;
-T* addressof(T&amp; arg) 
+</table> <h3 id="Return_value"> Return value</h3> <p>Pointer to <code>arg</code>.</p>
+<h3 id="Possible_implementation"> Possible implementation</h3> <p>The implementation below is not <code>constexpr</code> (which requires compiler support).</p>
+<table class="eq-fun-cpp-table"> <tr> <td> <div class="cpp source-cpp"><pre data-language="cpp">template&lt;class T&gt;
+typename std::enable_if&lt;std::is_object&lt;T&gt;::value, T*&gt;::type  addressof(T&amp; arg) noexcept
 {
     return reinterpret_cast&lt;T*&gt;(
                &amp;const_cast&lt;char&amp;&gt;(
-                  reinterpret_cast&lt;const volatile char&amp;&gt;(arg)));
+                   reinterpret_cast&lt;const volatile char&amp;&gt;(arg)));
+}
+ 
+template&lt;class T&gt;
+typename std::enable_if&lt;!std::is_object&lt;T&gt;::value, T*&gt;::type addressof(T&amp; arg) noexcept
+{
+    return &amp;arg;
 }</pre></div> </td>
 </tr>
-</table> <p>Note: the above implementation <a rel="nofollow" class="external text" href="http://stackoverflow.com/a/6495205/273767">is oversimplified</a> and is not <code>constexpr</code> (which requires compiler support).</p>
-<h3 id="Example">Example</h3> <div class="t-example">
-<p>operator&amp; may be overloaded for a pointer wrapper class to obtain a pointer to pointer:</p>
+</table> <h3 id="Notes"> Notes</h3> <p><a href="../feature_test#Library_features" title="cpp/feature test">Feature testing</a> macro: <a href="../utility/feature_test" title="cpp/utility/feature test"><code>__cpp_lib_addressof_constexpr</code></a>.</p>
+<h3 id="Example"> Example</h3> <div class="t-example">
+<p><code>operator&amp;</code> may be overloaded for a pointer wrapper class to obtain a pointer to pointer:</p>
 <div class="cpp source-cpp"><pre data-language="cpp">#include &lt;iostream&gt;
 #include &lt;memory&gt;
  
@@ -59,12 +65,12 @@ int main()
 }</pre></div> <p>Possible output:</p>
 <div class="text source-text"><pre data-language="c">Ctor this = 0x7fff59ae6e88
 int** overload called with p = 0x7fff59ae6e90
-Ptr   overload called with p = 0x7fff59ae6e88</pre></div> </div> <h3 id="See_also">See also</h3> <table class="t-dsc-begin"> <tr class="t-dsc"> <td> <div><a href="allocator" title="cpp/memory/allocator"> <span class="t-lines"><span>allocator</span></span></a></div> </td> <td> the default allocator <br> <span class="t-mark">(class template)</span> </td>
+Ptr   overload called with p = 0x7fff59ae6e88</pre></div> </div> <h3 id="See_also"> See also</h3> <table class="t-dsc-begin"> <tr class="t-dsc"> <td> <div><a href="allocator" title="cpp/memory/allocator"> <span class="t-lines"><span>allocator</span></span></a></div> </td> <td> the default allocator <br> <span class="t-mark">(class template)</span>  </td>
 </tr> <tr class="t-dsc"> <td> <div><a href="pointer_traits/pointer_to" title="cpp/memory/pointer traits/pointer to"> <span class="t-lines"><span>pointer_to</span></span></a></div>
-<div><span class="t-lines"><span><span class="t-cmark">[static]</span></span></span></div> </td> <td> obtains a dereferenceable pointer to its argument <br> <span class="t-mark">(public static member function of <code>std::pointer_traits&lt;Ptr&gt;</code>)</span> </td>
-</tr> </table>          <div class="_attribution">
+<div><span class="t-lines"><span><span class="t-cmark">[static]</span></span></span></div> </td> <td> obtains a dereferenceable pointer to its argument <br> <span class="t-mark">(public static member function of <code>std::pointer_traits&lt;Ptr&gt;</code>)</span>  </td>
+</tr> </table>           <div class="_attribution">
   <p class="_attribution-p">
     &copy; cppreference.com<br>Licensed under the Creative Commons Attribution-ShareAlike Unported License v3.0.<br>
-    <a href="http://en.cppreference.com/w/cpp/memory/addressof" class="_attribution-link">http://en.cppreference.com/w/cpp/memory/addressof</a>
+    <a href="https://en.cppreference.com/w/cpp/memory/addressof" class="_attribution-link">https://en.cppreference.com/w/cpp/memory/addressof</a>
   </p>
 </div>

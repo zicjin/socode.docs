@@ -1,0 +1,75 @@
+<h1>wp_ajax_autocomplete_user()</h1>  <section> <p>Ajax handler for user autocomplete.</p> </section> <div class="content-toc">  <section> <h2 id="source">Source</h2> <p> File: <a href="https://developer.wordpress.org/reference/files/wp-admin/includes/ajax-actions.php/">wp-admin/includes/ajax-actions.php</a> </p> <pre data-language="php">function wp_ajax_autocomplete_user() {
+	if ( ! is_multisite() || ! current_user_can( 'promote_users' ) || wp_is_large_network( 'users' ) ) {
+		wp_die( -1 );
+	}
+
+	/** This filter is documented in wp-admin/user-new.php */
+	if ( ! current_user_can( 'manage_network_users' ) &amp;&amp; ! apply_filters( 'autocomplete_users_for_site_admins', false ) ) {
+		wp_die( -1 );
+	}
+
+	$return = array();
+
+	// Check the type of request.
+	// Current allowed values are `add` and `search`.
+	if ( isset( $_REQUEST['autocomplete_type'] ) &amp;&amp; 'search' === $_REQUEST['autocomplete_type'] ) {
+		$type = $_REQUEST['autocomplete_type'];
+	} else {
+		$type = 'add';
+	}
+
+	// Check the desired field for value.
+	// Current allowed values are `user_email` and `user_login`.
+	if ( isset( $_REQUEST['autocomplete_field'] ) &amp;&amp; 'user_email' === $_REQUEST['autocomplete_field'] ) {
+		$field = $_REQUEST['autocomplete_field'];
+	} else {
+		$field = 'user_login';
+	}
+
+	// Exclude current users of this blog.
+	if ( isset( $_REQUEST['site_id'] ) ) {
+		$id = absint( $_REQUEST['site_id'] );
+	} else {
+		$id = get_current_blog_id();
+	}
+
+	$include_blog_users = ( 'search' === $type ? get_users(
+		array(
+			'blog_id' =&gt; $id,
+			'fields'  =&gt; 'ID',
+		)
+	) : array() );
+
+	$exclude_blog_users = ( 'add' === $type ? get_users(
+		array(
+			'blog_id' =&gt; $id,
+			'fields'  =&gt; 'ID',
+		)
+	) : array() );
+
+	$users = get_users(
+		array(
+			'blog_id'        =&gt; false,
+			'search'         =&gt; '*' . $_REQUEST['term'] . '*',
+			'include'        =&gt; $include_blog_users,
+			'exclude'        =&gt; $exclude_blog_users,
+			'search_columns' =&gt; array( 'user_login', 'user_nicename', 'user_email' ),
+		)
+	);
+
+	foreach ( $users as $user ) {
+		$return[] = array(
+			/* translators: 1: User login, 2: User email address. */
+			'label' =&gt; sprintf( _x( '%1$s (%2$s)', 'user autocomplete result' ), $user-&gt;user_login, $user-&gt;user_email ),
+			'value' =&gt; $user-&gt;$field,
+		);
+	}
+
+	wp_die( wp_json_encode( $return ) );
+}</pre>  </section>  <section> <h2 id="related">Related</h2> <article class="uses"> <h3 id="uses">Uses</h3> <table id="uses-table">  <thead> <tr> <th>Uses</th> <th class="related-desc">Description</th> </tr> </thead> <tbody> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_json_encode">wp_json_encode()</a> </td> <td class="related-desc"> <p>Encode a variable into JSON, with some sanity checks.</p> </td> </tr> <tr> <td> <span>wp-admin/user-new.php:</span> <a href="../hooks/autocomplete_users_for_site_admins">autocomplete_users_for_site_admins</a> </td> <td class="related-desc"> <p>Filters whether to enable user auto-complete for non-super admins in Multisite.</p> </td> </tr> <tr> <td> <span>wp-includes/capabilities.php:</span> <a href="current_user_can">current_user_can()</a> </td> <td class="related-desc"> <p>Returns whether the current user has the specified capability.</p> </td> </tr> <tr> <td> <span>wp-includes/l10n.php:</span> <a href="_x">_x()</a> </td> <td class="related-desc"> <p>Retrieve translated string with gettext context.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="is_multisite">is_multisite()</a> </td> <td class="related-desc"> <p>If Multisite is enabled.</p> </td> </tr> <tr> <td> <span>wp-includes/load.php:</span> <a href="get_current_blog_id">get_current_blog_id()</a> </td> <td class="related-desc"> <p>Retrieve the current site ID.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="absint">absint()</a> </td> <td class="related-desc"> <p>Convert a value to non-negative integer.</p> </td> </tr> <tr> <td> <span>wp-includes/functions.php:</span> <a href="wp_die">wp_die()</a> </td> <td class="related-desc"> <p>Kills WordPress execution and displays HTML page with an error message.</p> </td> </tr> <tr> <td> <span>wp-includes/plugin.php:</span> <a href="apply_filters">apply_filters()</a> </td> <td class="related-desc"> <p>Calls the callback functions that have been added to a filter hook.</p> </td> </tr> <tr> <td> <span>wp-includes/user.php:</span> <a href="get_users">get_users()</a> </td> <td class="related-desc"> <p>Retrieves list of users matching criteria.</p> </td> </tr> <tr> <td> <span>wp-includes/ms-functions.php:</span> <a href="wp_is_large_network">wp_is_large_network()</a> </td> <td class="related-desc"> <p>Determines whether or not we have a large network.</p> </td> </tr> </tbody>
+
+</table>   </article> </section>  <section> <h2 id="changelog">Changelog</h2> <table>  <thead> <tr> <th class="changelog-version">Version</th> <th class="changelog-desc">Description</th> </tr> </thead> <tbody> <tr> <td><a href="https://developer.wordpress.org/reference/since/3.4.0/" alt="WordPress 3.4.0">3.4.0</a></td> <td>Introduced.</td> </tr> </tbody> </table> </section>    </div><div class="_attribution">
+  <p class="_attribution-p">
+    <a href="https://developer.wordpress.org/reference/functions/wp_ajax_autocomplete_user" class="_attribution-link" target="_blank">https://developer.wordpress.org/reference/functions/wp_ajax_autocomplete_user</a>
+  </p>
+</div>
